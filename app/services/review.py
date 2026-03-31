@@ -19,6 +19,8 @@ def build_review_contexts(
 ) -> list[ReviewContext]:
     items_by_event: dict[str, list[ReviewItem]] = {}
     for item in review_items:
+        if item.status != ReviewStatus.OPEN:
+            continue
         items_by_event.setdefault(item.email_event_id, []).append(item)
 
     contexts: list[ReviewContext] = []
@@ -101,11 +103,10 @@ def refresh_event_statuses(
             open_counts[item.email_event_id] += 1
 
     for event in email_events:
-        event.parsed_status = (
-            EmailParsedStatus.NEEDS_REVIEW
-            if open_counts[event.email_event_id]
-            else EmailParsedStatus.PARSED
-        )
+        if open_counts[event.email_event_id]:
+            event.parsed_status = EmailParsedStatus.NEEDS_REVIEW
+        elif event.parsed_status == EmailParsedStatus.NEEDS_REVIEW:
+            event.parsed_status = EmailParsedStatus.PARSED
     return email_events
 
 

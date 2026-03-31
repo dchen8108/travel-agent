@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.base import ReviewStatus
@@ -46,11 +46,17 @@ async def match_review_item(
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     form = await request.form()
-    resolve_review_item(repository, review_item_id, str(form.get("tracker_id", "")))
+    try:
+        resolve_review_item(repository, review_item_id, str(form.get("tracker_id", "")))
+    except StopIteration as exc:
+        raise HTTPException(status_code=404, detail="Review item or tracker not found") from exc
     return RedirectResponse(url="/review?message=Review+item+resolved", status_code=303)
 
 
 @router.post("/{review_item_id}/ignore")
 def ignore_item(review_item_id: str, repository: Repository = Depends(get_repository)) -> RedirectResponse:
-    ignore_review_item(repository, review_item_id)
+    try:
+        ignore_review_item(repository, review_item_id)
+    except StopIteration as exc:
+        raise HTTPException(status_code=404, detail="Review item not found") from exc
     return RedirectResponse(url="/review?message=Review+item+ignored", status_code=303)

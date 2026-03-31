@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable
+from zoneinfo import ZoneInfo
 
 from app.models.program import Program
 from app.models.base import SegmentType, TrackerStatus, TripStatus
@@ -140,8 +141,8 @@ def history_totals_by_trip(
 ) -> dict[str, list[int]]:
     grouped: dict[tuple[str, str], dict[SegmentType, int]] = defaultdict(dict)
     for observation in observations:
-        date_key = observation.observed_at.date().isoformat()
-        bucket = grouped[(observation.trip_instance_id, date_key)]
+        batch_key = observation.source_id or observation.observed_at.isoformat()
+        bucket = grouped[(observation.trip_instance_id, batch_key)]
         current = bucket.get(observation.segment_type)
         if current is None or observation.price < current:
             bucket[observation.segment_type] = observation.price
@@ -176,7 +177,8 @@ def derive_trip_status(
     if rollup.latest_total is None:
         return TripStatus.WAIT, "Tracking is active, but both segment prices have not been observed yet."
 
-    days_until_trip = max((rollup.trip.outbound_date - datetime.now().date()).days, 0)
+    today = datetime.now(ZoneInfo(settings.timezone)).date()
+    days_until_trip = max((rollup.trip.outbound_date - today).days, 0)
     if days_until_trip <= 28:
         return TripStatus.BOOK_NOW, "Recent price signal looks good for this trip."
 

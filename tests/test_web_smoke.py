@@ -75,6 +75,27 @@ def test_web_happy_path_import_and_booking(tmp_path: Path) -> None:
         app.dependency_overrides.clear()
 
 
+def test_invalid_ids_return_404(tmp_path: Path) -> None:
+    repository = Repository(
+        Settings(
+            data_dir=tmp_path / "data",
+            imported_email_dir=tmp_path / "data" / "imported_emails",
+            templates_dir=Path("app/templates"),
+            static_dir=Path("app/static"),
+        )
+    )
+    repository.ensure_data_dir()
+    app.dependency_overrides[get_repository] = lambda: repository
+    client = TestClient(app)
+
+    try:
+        assert client.get("/trips/missing-trip").status_code == 404
+        assert client.post("/trackers/missing-tracker/mark-enabled").status_code == 404
+        assert client.post("/review/missing-review/ignore").status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
 def seed_jfk_trip(repository: Repository) -> None:
     program = Program(
         program_id="prog_jfk",

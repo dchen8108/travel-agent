@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.dashboard import load_snapshot
@@ -29,7 +29,9 @@ def trackers_page(request: Request, repository: Repository = Depends(get_reposit
 @router.post("/{tracker_id}/mark-enabled")
 def enable_tracker(tracker_id: str, repository: Repository = Depends(get_repository)) -> RedirectResponse:
     trackers = repository.load_trackers()
-    tracker = next(item for item in trackers if item.tracker_id == tracker_id)
+    tracker = next((item for item in trackers if item.tracker_id == tracker_id), None)
+    if tracker is None:
+        raise HTTPException(status_code=404, detail="Tracker not found")
     mark_tracker_enabled(tracker)
     repository.save_trackers(trackers)
     recompute_and_persist(repository)
@@ -44,7 +46,9 @@ async def paste_tracker_link(
 ) -> RedirectResponse:
     form = await request.form()
     trackers = repository.load_trackers()
-    tracker = next(item for item in trackers if item.tracker_id == tracker_id)
+    tracker = next((item for item in trackers if item.tracker_id == tracker_id), None)
+    if tracker is None:
+        raise HTTPException(status_code=404, detail="Tracker not found")
     update_tracker_link(tracker, str(form.get("google_flights_url", "")))
     repository.save_trackers(trackers)
     return RedirectResponse(url="/trackers?message=Tracker+link+saved", status_code=303)

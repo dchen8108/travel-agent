@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.bookings import upsert_booking
@@ -19,7 +19,9 @@ def trip_detail(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    trip = next(item for item in snapshot.trips if item.trip_instance_id == trip_instance_id)
+    trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_instance_id), None)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
     trackers = [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id]
     booking = next((item for item in snapshot.bookings if item.trip_instance_id == trip_instance_id and item.status == "active"), None)
     observations = [
@@ -77,7 +79,9 @@ async def save_booking(request: Request, repository: Repository = Depends(get_re
     form = await request.form()
     trip_id = str(form.get("trip_instance_id", ""))
     snapshot = load_snapshot(repository, recompute=False)
-    trip = next(item for item in snapshot.trips if item.trip_instance_id == trip_id)
+    trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_id), None)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
     bookings, _booking = upsert_booking(snapshot.bookings, trip, form)
     repository.save_bookings(bookings)
     repository.save_trip_instances(snapshot.trips)

@@ -16,14 +16,14 @@
 {% else %}
 <div class="stack">
   {% for row in rows %}
-  <article class="card tracker-card">
-    <div class="card-header">
-      <div>
-        <h3>{{ row.tracker.origin_airport }} → {{ row.tracker.destination_airport }}</h3>
-        <p>{{ row.tracker.segment_type.title() }} for {{ row.trip.outbound_date.strftime('%b %d') if row.trip else row.tracker.travel_date.strftime('%b %d') }}</p>
-      </div>
-      <span class="badge">{{ row.tracker.tracking_status.replace('_', ' ') }}</span>
-    </div>
+      <article class="card tracker-card">
+        <div class="card-header">
+          <div>
+            <h3>{{ row.tracker.origin_airport }} → {{ row.tracker.destination_airport }}</h3>
+            <p>{{ row.tracker.segment_type.title() }} for {{ row.tracker.travel_date.strftime('%b %d') }}</p>
+          </div>
+          <span class="badge">{{ row.tracker.tracking_status.replace('_', ' ') }}</span>
+        </div>
     <dl class="meta-grid">
       <div>
         <dt>Travel date</dt>
