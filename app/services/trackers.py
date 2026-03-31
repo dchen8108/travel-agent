@@ -7,8 +7,8 @@ from app.models.base import SegmentType, TrackerStatus
 from app.models.program import Program
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
-from app.services.trip_instances import slot_date_from_anchor
-from app.time_slots import RankedTimeSlot, parse_time_slot_rankings
+from app.route_details import RankedRouteDetail, parse_route_detail_rankings
+from app.services.trip_instances import detail_date_from_anchor
 
 
 def sync_trackers(
@@ -28,21 +28,25 @@ def sync_trackers(
         if program is None:
             updated_trips.append(trip)
             continue
-        slots = parse_time_slot_rankings(program.time_slot_rankings)
-        slot_trackers: list[Tracker] = []
-        for index, slot in enumerate(slots):
+        route_details = parse_route_detail_rankings(program.route_detail_rankings)
+        primary_weekday = route_details[0].weekday
+        detail_trackers: list[Tracker] = []
+        for index, detail in enumerate(route_details):
             tracker = build_tracker(
                 trip,
-                slot,
-                slot_rank=index + 1,
-                primary_weekday=slots[0].weekday,
+                detail,
+                detail_rank=index + 1,
+                primary_weekday=primary_weekday,
                 existing_by_id=existing_by_id,
                 today=current_day,
             )
             if tracker is not None:
-                slot_trackers.append(tracker)
-        trackers.extend(slot_trackers)
-        trip.outbound_tracker_id = slot_trackers[0].tracker_id if slot_trackers else ""
+                detail_trackers.append(tracker)
+        trackers.extend(detail_trackers)
+        trip.outbound_tracker_id = detail_trackers[0].tracker_id if detail_trackers else ""
+        if detail_trackers:
+            trip.origin_airport = detail_trackers[0].origin_airport
+            trip.destination_airport = detail_trackers[0].destination_airport
         updated_trips.append(trip)
 
     return updated_trips, trackers
@@ -50,35 +54,31 @@ def sync_trackers(
 
 def build_tracker(
     trip: TripInstance,
-    slot: RankedTimeSlot,
+    detail: RankedRouteDetail,
     *,
-    slot_rank: int,
+    detail_rank: int,
     primary_weekday,
     existing_by_id: dict[str, Tracker],
     today: date,
 ) -> Tracker | None:
-    tracker_id = stable_tracker_id(trip.trip_instance_id, slot)
+    tracker_id = stable_tracker_id(trip.trip_instance_id, detail)
     prior = existing_by_id.get(tracker_id)
-    travel_date = slot_date_from_anchor(trip.outbound_date, primary_weekday, slot.weekday)
+    travel_date = detail_date_from_anchor(trip.outbound_date, primary_weekday, detail.weekday)
     if travel_date < today:
         return None
-    generated_url = generate_google_flights_url(
-        trip.origin_airport,
-        trip.destination_airport,
-        travel_date.isoformat(),
-        slot.start_time,
-        slot.end_time,
-    )
+    generated_url = generate_google_flights_url(detail, travel_date.isoformat())
     tracker = Tracker(
         tracker_id=tracker_id,
         trip_instance_id=trip.trip_instance_id,
         segment_type=SegmentType.OUTBOUND,
-        slot_rank=slot_rank,
-        slot_weekday=str(slot.weekday),
-        slot_time_start=slot.start_time,
-        slot_time_end=slot.end_time,
-        origin_airport=trip.origin_airport,
-        destination_airport=trip.destination_airport,
+        detail_rank=detail_rank,
+        detail_weekday=str(detail.weekday),
+        detail_time_start=detail.start_time,
+        detail_time_end=detail.end_time,
+        detail_airline=detail.airline,
+        detail_nonstop_only=detail.nonstop_only,
+        origin_airport=detail.origin_airport,
+        destination_airport=detail.destination_airport,
         travel_date=travel_date,
         google_flights_url=prior.google_flights_url if prior and prior.google_flights_url else generated_url,
         link_source=prior.link_source if prior else "generated",
@@ -93,21 +93,21 @@ def build_tracker(
     return tracker
 
 
-def generate_google_flights_url(
-    origin: str,
-    destination: str,
-    travel_date: str,
-    start_time: str,
-    end_time: str,
-) -> str:
-    query = quote_plus(
-        f"Flights from {origin} to {destination} on {travel_date} between {start_time} and {end_time}"
-    )
+def generate_google_flights_url(detail: RankedRouteDetail, travel_date: str) -> str:
+    query_parts = [
+        f"Flights from {detail.origin_airport} to {detail.destination_airport} on {travel_date}",
+        f"between {detail.start_time} and {detail.end_time}",
+    ]
+    if detail.airline:
+        query_parts.append(f"on {detail.airline}")
+    if detail.nonstop_only:
+        query_parts.append("nonstop")
+    query = quote_plus(" ".join(query_parts))
     return f"https://www.google.com/travel/flights?q={query}"
 
 
-def stable_tracker_id(trip_instance_id: str, slot: RankedTimeSlot) -> str:
-    return f"trk_{trip_instance_id}_{slot.slug}"
+def stable_tracker_id(trip_instance_id: str, detail: RankedRouteDetail) -> str:
+    return f"trk_{trip_instance_id}_{detail.slug}"
 
 
 def mark_tracker_enabled(tracker: Tracker) -> Tracker:

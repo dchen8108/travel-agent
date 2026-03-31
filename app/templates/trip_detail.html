@@ -7,9 +7,9 @@
       {{ (best_tracker.travel_date if best_tracker else trip.outbound_date).strftime('%A, %b %d') }}
     </p>
     {% if best_tracker %}
-    <small>Best live slot: {{ best_tracker.slot_weekday }} {{ best_tracker.slot_time_start }}-{{ best_tracker.slot_time_end }}</small>
+    <small>Best live option: {{ tracker_label(best_tracker) }}</small>
     {% else %}
-    <small>Primary target slot: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
+    <small>Primary target option: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
     {% endif %}
   </div>
   <div class="summary-strip">
@@ -43,8 +43,8 @@
     {% for tracker in trackers %}
     <div class="list-row">
       <div>
-        <strong>{{ 'Primary' if tracker.slot_rank == 1 else ('Backup' if tracker.slot_rank == 2 else 'Fallback %s' % (tracker.slot_rank - 1)) }}</strong>
-        <div>{{ tracker.slot_weekday }} {{ tracker.slot_time_start }}-{{ tracker.slot_time_end }} · {{ tracker.travel_date.strftime('%b %d') }}</div>
+        <strong>{{ rank_label(tracker.detail_rank) }}</strong>
+        <div>{{ tracker_label(tracker) }} · {{ tracker.travel_date.strftime('%b %d') }}</div>
       </div>
       <span class="badge">{{ tracker.tracking_status.replace('_', ' ') }}</span>
     </div>
@@ -54,7 +54,7 @@
     <h3>Best current signal</h3>
     <p><strong>Airline:</strong> {{ trip.best_airline or 'Unknown' }}</p>
     {% if best_tracker %}
-    <p><strong>Slot:</strong> {{ best_tracker.slot_weekday }} {{ best_tracker.slot_time_start }}-{{ best_tracker.slot_time_end }}</p>
+    <p><strong>Option:</strong> {{ tracker_label(best_tracker) }}</p>
     {% endif %}
     <p><strong>Outbound:</strong> {{ trip.best_outbound_summary or 'No signal yet' }}</p>
   </article>

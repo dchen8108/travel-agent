@@ -75,8 +75,8 @@ class ReviewStatus(StrEnum):
 
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
-    default_lookahead_weeks: int = 8
-    default_rebook_alert_threshold: int = 20
+    default_lookahead_weeks: int = 12
+    default_rebook_alert_threshold: int = 0
     email_ingestion_mode: str = "manual_upload"
     version: int = 1
 

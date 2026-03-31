@@ -43,7 +43,7 @@ The intended flow is:
 
 This is a deliberate product decision to keep v0 free and operationally simple.
 
-Based on a real Google Flights alert email, v0 should assume that tracking signals arrive per one-way route and date rather than as a neat round-trip package. The app should therefore model tracked price signals at the ranked-slot level and roll them up into trip-level recommendations.
+Based on a real Google Flights alert email, v0 should assume that tracking signals arrive per one-way route and date rather than as a neat round-trip package. The app should therefore model tracked price signals at the ranked route-option level and roll them up into trip-level recommendations.
 
 ## v0 Scope
 
@@ -52,11 +52,8 @@ In scope:
 - one user
 - one or more recurring flight rules
 - each rule is one-way only
-- multiple acceptable origin airports
-- one or more destination airports
-- one airline allow-list per rule
-- flexible fare preference
-- booking window configuration
+- multiple ranked route options per rule
+- each route option chooses one origin airport, one destination airport, one weekday, one time window, one airline, and a nonstop toggle
 - Google Flights link generation or manual tracker-link paste
 - tracker setup and tracker-status visibility
 - manual Google Flights email upload
@@ -82,9 +79,9 @@ Out of scope:
 ## Core User Loop
 
 1. The user defines one or more recurring flight rules.
-2. The system generates the next 6 to 8 weeks of trip instances.
+2. The system generates the next 12 weeks of trip instances.
 3. The system generates Google Flights search links for those trip instances or lets the user paste exact tracker links.
-4. The user turns on tracking in Google Flights for the ranked slots they care about.
+4. The user turns on tracking in Google Flights for the ranked route options they care about.
 5. Google Flights sends email and phone alerts when prices move.
 6. The user uploads those emails into the app as `.eml` files.
 7. The app labels each trip as `wait`, `book now`, `booked_monitoring`, or `rebook`.
@@ -98,7 +95,7 @@ Out of scope:
 - Show recommendations, not search-result dumps.
 - Default to one primary action per trip.
 - Explain every recommendation in one sentence.
-- Make the next 6 to 8 weeks visible at a glance.
+- Make the next 12 weeks visible at a glance.
 - Keep state entry simple enough that the user will actually maintain it.
 - Design the web app as a control panel, not a booking engine.
 - Use official upstream signals before adding unofficial scraping.
@@ -171,7 +168,7 @@ Purpose:
 - manage the Google Flights setup burden explicitly
 - make it obvious which trips are fully monitored versus partially monitored
 
-Trackers should be modeled per ranked slot inside a one-way rule.
+Trackers should be modeled per ranked route option inside a one-way rule.
 
 The page should group segments by trip and by setup state:
 
@@ -180,9 +177,9 @@ The page should group segments by trip and by setup state:
 - `Active`
 - `Stale`
 
-Each slot row must include:
+Each route-option row must include:
 
-- slot label, route, and date
+- rank label, route detail summary, and date
 - generated or pasted Google Flights link
 - tracker status
 - first enabled timestamp if known
@@ -287,28 +284,16 @@ The rule model should stay flat:
 Required fields:
 
 - rule name
-- origin airport pool
-- destination airport pool
-- ranked time slots
-- airline allow-list
-- fare preference
-- nonstop preference
-- lookahead window in weeks
-- alert threshold in dollars
+- ranked route options
+- active / paused toggle
 
 Major selectors should be constrained:
 
 - airports come from a supported searchable catalog
-- airlines come from a supported searchable catalog
+- airlines come from a supported constrained selector
 - weekdays are dropdowns
-- fare preference is a dropdown
-
-Multi-select airport and airline controls should behave like searchable chip pickers:
-
-- type to filter
-- click to add
-- remove chips with `x`
-- block save if unresolved free text remains in the picker
+- each route option owns its own airport, airline, weekday, time-window, and nonstop settings
+- ranked options can be reordered, duplicated, and removed
 
 The MVP should not require mailbox configuration. Automatic Gmail sync is a later enhancement.
 
@@ -367,7 +352,7 @@ Recommendations are derived from:
 
 The recommendation engine should treat Google Flights observations as price signals first and itinerary context second. The MVP should not depend on perfect fare-family parsing from the email body.
 
-For one-way rules with multiple ranked slots, the app should choose the best currently observed slot and use that for trip-level recommendations.
+For one-way rules with multiple ranked route options, the app should choose the best currently observed option and use that for trip-level recommendations.
 
 ### Needs Tracker Setup
 
@@ -380,7 +365,7 @@ Use when:
 
 Use when:
 
-- the trip is within the configured booking window
+- the trip is within the fixed 12-week planning horizon
 - a recent Google Flights observation indicates an attractive fare
 - the latest signal is strong enough to act on now
 
@@ -390,7 +375,7 @@ Use when:
 
 - the trip is still early or unusually expensive
 - there is no compelling recent signal that justifies booking
-- tracker coverage exists, but the latest observations do not cross the action threshold
+- tracker coverage exists, but the latest observations do not justify booking yet
 
 ### Booked Monitoring
 

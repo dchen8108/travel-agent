@@ -9,13 +9,17 @@ from app.models.fare_observation import FareObservation
 from app.models.program import Program
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
+from app.route_details import RankedRouteDetail, serialize_route_detail_rankings
 from app.services.email_import import import_email_payload
 from app.services.workflows import recompute_and_persist
 from app.settings import Settings
 from app.storage.repository import Repository
-from app.time_slots import RankedTimeSlot, serialize_time_slot_rankings
 
 FIXTURE = Path(__file__).parent / "fixtures" / "google_flights_sample.eml"
+
+
+def route_details_json(*details: RankedRouteDetail) -> str:
+    return serialize_route_detail_rankings(list(details))
 
 
 def test_import_email_is_idempotent_and_recomputes_trip_state(tmp_path: Path) -> None:
@@ -64,10 +68,10 @@ def test_booking_recompute_can_trigger_rebook(tmp_path: Path) -> None:
 
     trip = repository.load_trip_instances()[0]
     assert trip.status == TripStatus.REBOOK
-    assert "booked slot" in trip.recommendation_reason
+    assert "booked route option" in trip.recommendation_reason
 
 
-def test_booking_recompute_uses_booked_slot_not_cheapest_fallback(tmp_path: Path) -> None:
+def test_booking_recompute_uses_booked_route_option_not_cheapest_fallback(tmp_path: Path) -> None:
     repository = build_repository(tmp_path)
     seed_jfk_trip(repository)
     observed_at = datetime(2026, 4, 2, 8, 0).astimezone()
@@ -81,8 +85,8 @@ def test_booking_recompute_uses_booked_slot_not_cheapest_fallback(tmp_path: Path
                 source_id="email_primary",
                 observed_at=observed_at,
                 airline="American",
-                price=390,
-                outbound_summary="American 9:15 PM | Primary slot",
+                price=405,
+                outbound_summary="American 9:15 PM | Primary option",
             ),
             FareObservation(
                 observation_id="obs_backup",
@@ -93,7 +97,7 @@ def test_booking_recompute_uses_booked_slot_not_cheapest_fallback(tmp_path: Path
                 observed_at=observed_at,
                 airline="American",
                 price=200,
-                outbound_summary="American 10:15 PM | Backup slot",
+                outbound_summary="American 10:15 PM | Backup option",
             ),
         ]
     )
@@ -116,10 +120,10 @@ def test_booking_recompute_uses_booked_slot_not_cheapest_fallback(tmp_path: Path
     trip = repository.load_trip_instances()[0]
     assert trip.best_price == 200
     assert trip.status == TripStatus.BOOKED_MONITORING
-    assert "booked slot" not in trip.recommendation_reason.lower()
+    assert "monitored across your ranked route options" in trip.recommendation_reason.lower()
 
 
-def test_booking_recompute_waits_for_booked_slot_signal_before_rebook(tmp_path: Path) -> None:
+def test_booking_recompute_waits_for_booked_route_option_signal_before_rebook(tmp_path: Path) -> None:
     repository = build_repository(tmp_path)
     seed_jfk_trip(repository)
     observed_at = datetime(2026, 4, 2, 8, 0).astimezone()
@@ -134,7 +138,7 @@ def test_booking_recompute_waits_for_booked_slot_signal_before_rebook(tmp_path: 
                 observed_at=observed_at,
                 airline="American",
                 price=200,
-                outbound_summary="American 10:15 PM | Backup slot",
+                outbound_summary="American 10:15 PM | Backup option",
             ),
         ]
     )
@@ -177,19 +181,26 @@ def seed_jfk_trip(repository: Repository) -> None:
     program = Program(
         program_id="prog_jfk",
         program_name="LAX to JFK test",
-        origin_airports="LAX",
-        destination_airports="JFK",
-        time_slot_rankings=serialize_time_slot_rankings(
-            [
-                RankedTimeSlot(weekday="Wednesday", start_time="21:00", end_time="22:00"),
-                RankedTimeSlot(weekday="Wednesday", start_time="22:00", end_time="23:30"),
-            ]
+        route_detail_rankings=route_details_json(
+            RankedRouteDetail(
+                origin_airport="LAX",
+                destination_airport="JFK",
+                weekday="Wednesday",
+                start_time="21:00",
+                end_time="22:00",
+                airline="American",
+                nonstop_only=True,
+            ),
+            RankedRouteDetail(
+                origin_airport="LAX",
+                destination_airport="JFK",
+                weekday="Wednesday",
+                start_time="22:00",
+                end_time="23:30",
+                airline="American",
+                nonstop_only=True,
+            ),
         ),
-        airlines="American",
-        fare_preference="flexible",
-        nonstop_only=True,
-        lookahead_weeks=8,
-        rebook_alert_threshold=20,
     )
     trip = TripInstance(
         trip_instance_id="trip_jfk",
@@ -207,10 +218,12 @@ def seed_jfk_trip(repository: Repository) -> None:
                 tracker_id="trk_out_primary",
                 trip_instance_id=trip.trip_instance_id,
                 segment_type="outbound",
-                slot_rank=1,
-                slot_weekday="Wednesday",
-                slot_time_start="21:00",
-                slot_time_end="22:00",
+                detail_rank=1,
+                detail_weekday="Wednesday",
+                detail_time_start="21:00",
+                detail_time_end="22:00",
+                detail_airline="American",
+                detail_nonstop_only=True,
                 origin_airport="LAX",
                 destination_airport="JFK",
                 travel_date="2026-06-24",
@@ -221,10 +234,12 @@ def seed_jfk_trip(repository: Repository) -> None:
                 tracker_id="trk_out_backup",
                 trip_instance_id=trip.trip_instance_id,
                 segment_type="outbound",
-                slot_rank=2,
-                slot_weekday="Wednesday",
-                slot_time_start="22:00",
-                slot_time_end="23:30",
+                detail_rank=2,
+                detail_weekday="Wednesday",
+                detail_time_start="22:00",
+                detail_time_end="23:30",
+                detail_airline="American",
+                detail_nonstop_only=True,
                 origin_airport="LAX",
                 destination_airport="JFK",
                 travel_date="2026-06-24",

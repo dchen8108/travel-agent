@@ -11,6 +11,7 @@ from app.models.base import BookingStatus, ReviewStatus
 from app.models.booking import Booking
 from app.models.fare_observation import FareObservation
 from app.models.review_item import ReviewItem
+from app.route_details import RankedRouteDetail, parse_route_detail_rankings, serialize_route_detail_rankings
 from app.settings import Settings
 from app.storage.repository import Repository
 
@@ -29,6 +30,10 @@ def build_settings(tmp_path: Path) -> Settings:
     )
 
 
+def route_details_json(*details: RankedRouteDetail) -> str:
+    return serialize_route_detail_rankings(list(details))
+
+
 def test_rules_then_import_email_flow(tmp_path: Path) -> None:
     client = TestClient(create_app(build_settings(tmp_path)))
 
@@ -36,14 +41,18 @@ def test_rules_then_import_email_flow(tmp_path: Path) -> None:
         "/rules",
         data={
             "program_name": "LA to SF Weekly",
-            "origin_airports": "BUR|LAX",
-            "destination_airports": "SFO",
-            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"}]',
-            "airlines": "Alaska|United|Delta",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "8",
-            "rebook_alert_threshold": "20",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    weekday="Monday",
+                    start_time="06:00",
+                    end_time="10:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                )
+            ),
         },
         follow_redirects=True,
     )
@@ -69,14 +78,27 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
         data={
             "program_id": "draft",
             "program_name": "LA to SF Outbound",
-            "origin_airports": "BUR|LAX",
-            "destination_airports": "SFO",
-            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"},{"weekday":"Sunday","start_time":"18:00","end_time":"21:00"}]',
-            "airlines": "Alaska|United|Delta",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "8",
-            "rebook_alert_threshold": "20",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    weekday="Monday",
+                    start_time="06:00",
+                    end_time="10:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                ),
+                RankedRouteDetail(
+                    origin_airport="LAX",
+                    destination_airport="SFO",
+                    weekday="Sunday",
+                    start_time="18:00",
+                    end_time="21:00",
+                    airline="United",
+                    nonstop_only=True,
+                ),
+            ),
         },
         follow_redirects=True,
     )
@@ -87,14 +109,27 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
         data={
             "program_id": "draft",
             "program_name": "SF to LA Return",
-            "origin_airports": "SFO",
-            "destination_airports": "BUR|LAX",
-            "time_slot_rankings": '[{"weekday":"Wednesday","start_time":"16:00","end_time":"21:00"}]',
-            "airlines": "United|Alaska|Delta",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "8",
-            "rebook_alert_threshold": "20",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="SFO",
+                    destination_airport="BUR",
+                    weekday="Wednesday",
+                    start_time="16:00",
+                    end_time="21:00",
+                    airline="United",
+                    nonstop_only=True,
+                ),
+                RankedRouteDetail(
+                    origin_airport="SFO",
+                    destination_airport="LAX",
+                    weekday="Thursday",
+                    start_time="15:00",
+                    end_time="20:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                ),
+            ),
         },
         follow_redirects=True,
     )
@@ -116,7 +151,7 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
 
     booking = client.get(f"/bookings/new?trip_id={trip_id}")
     assert booking.status_code == 200
-    assert "Best live slot" in booking.text or "Primary slot target" in booking.text
+    assert "Best live option" in booking.text or "Primary target option" in booking.text
 
     repository = Repository(settings)
     programs = repository.load_programs()
@@ -128,14 +163,18 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
         data={
             "program_id": editable_program.program_id,
             "program_name": "SF to LA Return Updated",
-            "origin_airports": "SFO",
-            "destination_airports": "BUR|LAX",
-            "time_slot_rankings": '[{"weekday":"Thursday","start_time":"15:00","end_time":"20:00"}]',
-            "airlines": "United|Alaska|Delta",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "8",
-            "rebook_alert_threshold": "25",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="SFO",
+                    destination_airport="LAX",
+                    weekday="Thursday",
+                    start_time="15:00",
+                    end_time="20:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                )
+            ),
         },
         follow_redirects=True,
     )
@@ -156,14 +195,18 @@ def test_duplicate_rule_uses_current_form_edits(tmp_path: Path) -> None:
         data={
             "program_id": "draft",
             "program_name": "LA to SF Outbound",
-            "origin_airports": "BUR|LAX",
-            "destination_airports": "SFO",
-            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"}]',
-            "airlines": "Alaska|United",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "8",
-            "rebook_alert_threshold": "20",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    weekday="Monday",
+                    start_time="06:00",
+                    end_time="10:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                )
+            ),
         },
         follow_redirects=True,
     )
@@ -175,14 +218,18 @@ def test_duplicate_rule_uses_current_form_edits(tmp_path: Path) -> None:
         data={
             "program_id": existing.program_id,
             "program_name": "Sunday night fallback",
-            "origin_airports": "BUR",
-            "destination_airports": "SFO",
-            "time_slot_rankings": '[{"weekday":"Sunday","start_time":"18:00","end_time":"21:00"}]',
-            "airlines": "Alaska",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "6",
-            "rebook_alert_threshold": "35",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    weekday="Sunday",
+                    start_time="18:00",
+                    end_time="21:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                )
+            ),
         },
         follow_redirects=True,
     )
@@ -191,11 +238,11 @@ def test_duplicate_rule_uses_current_form_edits(tmp_path: Path) -> None:
     programs = repository.load_programs()
     assert len(programs) == 2
     copied = next(program for program in programs if program.program_id != existing.program_id)
+    details = parse_route_detail_rankings(copied.route_detail_rankings)
     assert copied.program_name == "Sunday night fallback Copy"
-    assert copied.origin_airports == "BUR"
-    assert copied.airlines == "Alaska"
-    assert copied.rebook_alert_threshold == 35
-    assert "Sunday" in copied.time_slot_rankings
+    assert details[0].origin_airport == "BUR"
+    assert details[0].airline == "Alaska"
+    assert details[0].weekday == "Sunday"
 
 
 def test_delete_rule_cleans_dependent_records(tmp_path: Path) -> None:
@@ -208,14 +255,18 @@ def test_delete_rule_cleans_dependent_records(tmp_path: Path) -> None:
         data={
             "program_id": "draft",
             "program_name": "Delete me",
-            "origin_airports": "BUR",
-            "destination_airports": "SFO",
-            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"}]',
-            "airlines": "Alaska",
-            "fare_preference": "flexible",
-            "nonstop_only": "true",
-            "lookahead_weeks": "4",
-            "rebook_alert_threshold": "20",
+            "active": "true",
+            "route_detail_rankings": route_details_json(
+                RankedRouteDetail(
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    weekday="Monday",
+                    start_time="06:00",
+                    end_time="10:00",
+                    airline="Alaska",
+                    nonstop_only=True,
+                )
+            ),
         },
         follow_redirects=True,
     )

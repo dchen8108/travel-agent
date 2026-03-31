@@ -3,14 +3,25 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.route_details import rank_label, route_detail_label_from_fields
 from app.services.dashboard import load_snapshot
 from app.services.trackers import mark_tracker_enabled, update_tracker_link
 from app.services.workflows import recompute_and_persist
 from app.storage.repository import Repository
-from app.time_slots import rank_label, slot_label_from_fields
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(prefix="/trackers", tags=["trackers"])
+
+
+def tracker_label(tracker) -> str:
+    return route_detail_label_from_fields(
+        tracker.origin_airport,
+        tracker.destination_airport,
+        tracker.detail_weekday,
+        tracker.detail_time_start,
+        tracker.detail_time_end,
+        tracker.detail_airline,
+    )
 
 
 @router.get("", response_class=HTMLResponse)
@@ -19,7 +30,17 @@ def trackers_page(request: Request, repository: Repository = Depends(get_reposit
     trips_by_id = {trip.trip_instance_id: trip for trip in snapshot.trips}
     programs_by_id = {program.program_id: program for program in snapshot.programs}
     grouped_rows: dict[str, dict[str, object]] = {}
-    for tracker in sorted(snapshot.trackers, key=lambda item: (item.travel_date, item.origin_airport, item.destination_airport, item.slot_rank)):
+    sorted_trackers = sorted(
+        snapshot.trackers,
+        key=lambda item: (
+            item.travel_date,
+            item.trip_instance_id,
+            item.detail_rank,
+            item.detail_time_start,
+            item.detail_airline,
+        ),
+    )
+    for tracker in sorted_trackers:
         trip = trips_by_id.get(tracker.trip_instance_id)
         if trip is None:
             continue
@@ -34,8 +55,8 @@ def trackers_page(request: Request, repository: Repository = Depends(get_reposit
         group["trackers"].append(
             {
                 "tracker": tracker,
-                "slot_rank_label": rank_label(tracker.slot_rank),
-                "slot_label": slot_label_from_fields(tracker.slot_weekday, tracker.slot_time_start, tracker.slot_time_end),
+                "detail_rank_label": rank_label(tracker.detail_rank),
+                "detail_label": tracker_label(tracker),
             }
         )
     groups = list(grouped_rows.values())

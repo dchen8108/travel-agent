@@ -5,7 +5,8 @@ from collections.abc import Mapping
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.catalog import FARE_PREFERENCES, WEEKDAY_OPTIONS, catalogs_json
+from app.catalog import WEEKDAY_OPTIONS, catalogs_json
+from app.route_details import parse_route_detail_rankings, route_detail_summary, serialize_route_detail_rankings
 from app.services.dashboard import load_snapshot
 from app.services.programs import (
     ProgramValidationError,
@@ -16,7 +17,6 @@ from app.services.programs import (
 from app.services.workflows import delete_program as delete_program_workflow
 from app.services.workflows import sync_program
 from app.storage.repository import Repository
-from app.time_slots import parse_time_slot_rankings, serialize_time_slot_rankings, time_slot_summary
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(prefix="/rules", tags=["rules"])
@@ -47,10 +47,7 @@ async def save_rules(request: Request, repository: Repository = Depends(get_repo
     form = await request.form()
     snapshot = load_snapshot(repository)
     incoming_program_id = str(form.get("program_id", "")).strip()
-    existing = next(
-        (program for program in snapshot.programs if program.program_id == incoming_program_id),
-        None,
-    )
+    existing = next((program for program in snapshot.programs if program.program_id == incoming_program_id), None)
     try:
         program = build_program(form, existing)
     except ProgramValidationError as exc:
@@ -68,10 +65,7 @@ async def save_rules(request: Request, repository: Repository = Depends(get_repo
             status_code=422,
         )
     sync_program(repository, program)
-    return RedirectResponse(
-        url=f"/rules?program_id={program.program_id}&message=Rule+saved",
-        status_code=303,
-    )
+    return RedirectResponse(url=f"/rules?program_id={program.program_id}&message=Rule+saved", status_code=303)
 
 
 @router.post("/duplicate")
@@ -98,10 +92,7 @@ async def duplicate_rule(request: Request, repository: Repository = Depends(get_
             status_code=422,
         )
     sync_program(repository, program)
-    return RedirectResponse(
-        url=f"/rules?program_id={program.program_id}&message=Rule+duplicated",
-        status_code=303,
-    )
+    return RedirectResponse(url=f"/rules?program_id={program.program_id}&message=Rule+duplicated", status_code=303)
 
 
 @router.post("/{program_id}/delete")
@@ -129,23 +120,23 @@ def rules_context(
         selected_program=selected_program,
         program=selected_program,
         weekday_options=WEEKDAY_OPTIONS,
-        fare_preferences=FARE_PREFERENCES,
         rules_catalogs_json=catalogs_json(),
-        selected_time_slots=parse_slots_for_template(selected_program),
-        program_slot_summaries={program.program_id: time_slot_summary(program.time_slot_rankings) for program in programs},
+        selected_route_details=parse_route_details_for_template(selected_program),
+        program_route_summaries={program.program_id: route_detail_summary(program.route_detail_rankings) for program in programs},
+        program_route_counts={program.program_id: len(parse_route_details_for_template(program)) for program in programs},
         error_message=error_message,
     )
 
 
-def parse_slots_for_template(program_like) -> list[dict[str, str]]:
-    raw = getattr(program_like, "time_slot_rankings", None)
+def parse_route_details_for_template(program_like) -> list[dict[str, object]]:
+    raw = getattr(program_like, "route_detail_rankings", None)
     if raw is None and isinstance(program_like, dict):
-        raw = program_like.get("time_slot_rankings", "")
+        raw = program_like.get("route_detail_rankings", "")
     try:
-        slots = parse_time_slot_rankings(raw)
+        details = parse_route_detail_rankings(raw)
     except ValueError:
-        slots = []
-    return [slot.model_dump(mode="json") for slot in slots]
+        details = []
+    return [detail.model_dump(mode="json") for detail in details]
 
 
 def draft_program_state(form: Mapping[str, object], existing) -> dict[str, object]:
@@ -154,14 +145,8 @@ def draft_program_state(form: Mapping[str, object], existing) -> dict[str, objec
         "program_id": str(form.get("program_id", "")).strip() or (existing.program_id if existing else "draft"),
         "program_name": str(form.get("program_name", "")).strip(),
         "active": _checkbox_state(form, "active", default=True),
-        "origin_airports": str(form.get("origin_airports", "")).strip(),
-        "destination_airports": str(form.get("destination_airports", "")).strip(),
-        "time_slot_rankings": str(form.get("time_slot_rankings", default.time_slot_rankings)).strip(),
-        "airlines": str(form.get("airlines", "")).strip(),
-        "fare_preference": str(form.get("fare_preference", default.fare_preference)).strip(),
-        "nonstop_only": _checkbox_state(form, "nonstop_only", default=default.nonstop_only),
-        "lookahead_weeks": str(form.get("lookahead_weeks", default.lookahead_weeks)),
-        "rebook_alert_threshold": str(form.get("rebook_alert_threshold", default.rebook_alert_threshold)),
+        "route_detail_rankings": str(form.get("route_detail_rankings", default.route_detail_rankings)).strip()
+        or serialize_route_detail_rankings(parse_route_detail_rankings(default.route_detail_rankings)),
     }
 
 

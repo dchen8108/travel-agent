@@ -48,6 +48,7 @@ class ParsedGoogleFlightsObservation:
     price: int
     previous_price: int | None
     price_direction: str | None
+    is_nonstop: bool | None
     time_line: str
     detail_line: str
     flight_url: str
@@ -132,12 +133,24 @@ def _parse_observations(block: str, fallback_route: str, travel_date: date) -> l
                 price=int(match.group("price")),
                 previous_price=int(delta_match.group("previous")) if delta_match else None,
                 price_direction=delta_match.group("direction") if delta_match else None,
+                is_nonstop=parse_nonstop(detail_line),
                 time_line=match.group("time_line").strip(),
                 detail_line=detail_line,
                 flight_url=match.group("flight_url").strip(),
             )
         )
     return observations
+
+
+def parse_nonstop(detail_line: str) -> bool | None:
+    normalized = detail_line.lower()
+    if "nonstop" in normalized:
+        return True
+    if re.search(r"\b\d+\s+stop(?:s)?\b", normalized):
+        return False
+    if "1 stop" in normalized or "2 stops" in normalized or "stopover" in normalized:
+        return False
+    return None
 
 
 def _parse_google_flights_message(message) -> ParsedGoogleFlightsEmail:

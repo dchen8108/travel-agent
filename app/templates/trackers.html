@@ -3,7 +3,7 @@
 <section class="hero compact">
   <div>
     <h2>Trackers</h2>
-    <p>Each one-way rule generates one Google Flights tracker per ranked slot. Turn on tracking for the slots you want monitored, then paste a stronger Google Flights link if you refine it manually.</p>
+    <p>Each one-way rule generates one Google Flights tracker per ranked route option. Turn on tracking for the options you want monitored, then paste a stronger Google Flights link if you refine it manually.</p>
   </div>
 </section>
 
@@ -33,8 +33,8 @@
         <div class="card-header tracker-slot-head">
           <div>
             <div class="tracker-slot-title">
-              <span class="badge">{{ row.slot_rank_label }}</span>
-              <strong>{{ row.slot_label }}</strong>
+              <span class="badge">{{ row.detail_rank_label }}</span>
+              <strong>{{ row.detail_label }}</strong>
             </div>
             <p>{{ row.tracker.travel_date.strftime('%a, %b %d') }} · {{ row.tracker.origin_airport }} → {{ row.tracker.destination_airport }}</p>
           </div>

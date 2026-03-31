@@ -79,7 +79,7 @@ This is enough to support:
 The first sample is strong, but we still need at least one more sample to know:
 
 - how stable the format is across multiple alerts
-- whether fallback-slot matching remains reliable across multiple alerts for the same one-way rule
+- whether fallback-option matching remains reliable across multiple alerts for the same one-way rule
 - whether airline and flexibility context remains present often enough
 
 ### 2. Generated-link quality
@@ -132,7 +132,7 @@ There is no Google Flights API key to provide for this design.
 Proceed only with the hardened baseline:
 
 - generated links plus manual link paste
-- slot-level trackers for each ranked one-way rule
+- route-option-level trackers for each ranked one-way rule
 - manual `.eml` upload first
 - Gmail IMAP later if the user wants it
 

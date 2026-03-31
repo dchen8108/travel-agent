@@ -21,3 +21,4 @@ def test_parse_google_flights_email_extracts_observations() -> None:
     assert first.price == 139
     assert first.previous_price == 149
     assert first.price_direction == "dropped"
+    assert first.is_nonstop is True

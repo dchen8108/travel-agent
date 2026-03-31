@@ -14,9 +14,9 @@
   <section class="hero compact rules-hero">
     <div class="hero-copy">
       <p class="eyebrow">Rules</p>
-      <h2>Build one-way commute rules.</h2>
+      <h2>Rank complete route options for each commute pattern.</h2>
       <p>
-        Each rule tracks a single directional commute pattern. Use multiple rules when your outbound and return behavior differ, and rank fallback schedule slots inside the rule instead of duplicating tiny variations by hand.
+        Each rule is one-way only. Add every acceptable route detail in ranked order so the app can monitor your preferred airport, day, time, and airline combinations without separate mini-rules.
       </p>
     </div>
     <div class="rules-hero-meta">
@@ -25,11 +25,11 @@
         <small>existing rules</small>
       </div>
       <div class="summary-pill">
-        <span>{{ selected_time_slots|length }}</span>
-        <small>ranked slots</small>
+        <span>{{ selected_route_details|length }}</span>
+        <small>ranked options</small>
       </div>
       <div class="summary-pill">
-        <span>{{ selected.lookahead_weeks }}</span>
+        <span>12</span>
         <small>weeks tracked</small>
       </div>
     </div>
@@ -41,7 +41,7 @@
         <div>
           <p class="eyebrow">Rule list</p>
           <h3>Existing rules</h3>
-          <p class="rules-note">Click a rule to edit it, duplicate it, or retire it.</p>
+          <p class="rules-note">Select a rule to edit it. Duplicate when you want a similar outbound or return pattern.</p>
         </div>
         <button type="button" class="button secondary" data-new-rule>New rule</button>
       </div>
@@ -55,27 +55,19 @@
           data-program-id="{{ rule.program_id }}"
           data-program-name="{{ rule.program_name|e }}"
           data-active="{{ 'true' if rule.active else 'false' }}"
-          data-origin-airports="{{ rule.origin_airports|e }}"
-          data-destination-airports="{{ rule.destination_airports|e }}"
-          data-time-slot-rankings="{{ rule.time_slot_rankings|e }}"
-          data-airlines="{{ rule.airlines|e }}"
-          data-fare-preference="{{ rule.fare_preference|e }}"
-          data-nonstop-only="{{ 'true' if rule.nonstop_only else 'false' }}"
-          data-lookahead-weeks="{{ rule.lookahead_weeks }}"
-          data-rebook-alert-threshold="{{ rule.rebook_alert_threshold }}"
+          data-route-detail-rankings="{{ rule.route_detail_rankings|e }}"
         >
           <div class="rule-card-top">
             <strong>{{ rule.program_name }}</strong>
             <span class="badge">One-way</span>
           </div>
           <div class="rule-card-route">
-            <span>{{ rule.origin_airports|replace('|', ', ') }}</span>
-            <span class="rule-arrow">→</span>
-            <span>{{ rule.destination_airports|replace('|', ', ') }}</span>
+            <span>{{ program_route_summaries.get(rule.program_id, 'No ranked options') }}</span>
           </div>
           <div class="rule-card-meta">
-            <span>{{ program_slot_summaries.get(rule.program_id, 'No time slots') }}</span>
-            <span>{{ rule.airlines|replace('|', ', ') if rule.airlines else 'Any airline' }}</span>
+            <span>{{ 'Active' if rule.active else 'Paused' }}</span>
+            {% set option_count = program_route_counts.get(rule.program_id, 0) %}
+            <span>{{ option_count }} option{{ '' if option_count == 1 else 's' }}</span>
           </div>
         </button>
         {% endfor %}
@@ -85,14 +77,14 @@
     <section class="form-card rules-editor">
       <form method="post" action="/rules" id="rules-form" class="rules-form" novalidate>
         <input type="hidden" name="program_id" value="{{ selected.program_id }}">
-        <input type="hidden" name="time_slot_rankings" value="{{ selected.time_slot_rankings }}">
+        <input type="hidden" name="route_detail_rankings" value="{{ selected.route_detail_rankings }}">
 
         <div class="editor-header">
           <div>
             <p class="eyebrow">Selected rule</p>
             <h3 data-editor-title>{{ selected.program_name if selected.program_id != 'draft' else 'New commute rule' }}</h3>
             <p class="rules-note" data-editor-note>
-              {{ 'Airports and airlines are catalog-constrained. Schedule slots are ranked with the first row treated as primary.' if selected.program_id != 'draft' else 'Start a new one-way rule. Save it once, then duplicate or delete it from here.' }}
+              {{ 'Rank route options from most preferred to least preferred. The first row is what the app treats as your default target.' if selected.program_id != 'draft' else 'Start with one route option, then add alternates for different airports, times, or airlines.' }}
             </p>
           </div>
           <div class="editor-actions">
@@ -100,11 +92,6 @@
             <label class="toggle-chip">
               <input type="checkbox" name="active" value="true" {{ 'checked' if selected.active else '' }}>
               <span>Active</span>
-            </label>
-            <input type="hidden" name="nonstop_only" value="false">
-            <label class="toggle-chip">
-              <input type="checkbox" name="nonstop_only" value="true" {{ 'checked' if selected.nonstop_only else '' }}>
-              <span>Nonstop only</span>
             </label>
           </div>
         </div>
@@ -114,98 +101,23 @@
             <span>Rule name</span>
             <input type="text" name="program_name" value="{{ selected.program_name }}" required>
           </label>
-          <label>
-            <span>Airlines</span>
-            <div class="multi-select" data-multi-select data-catalog="airlines" data-field="airlines">
-              <input type="hidden" name="airlines" value="{{ selected.airlines }}">
-              <div class="chip-list" data-chip-list></div>
-              <div class="multi-select-input-row">
-                <input type="text" data-search placeholder="Type Alaska, United, or Delta..." autocomplete="off" spellcheck="false">
-                <button type="button" class="button ghost" data-clear>Clear</button>
-              </div>
-              <div class="multi-select-menu" data-menu hidden></div>
-            </div>
-          </label>
+          <div class="inline-note-card">
+            <strong>Fixed for v0</strong>
+            <p>12-week planning window, one-way rules only, and rebook alerts on any lower price.</p>
+          </div>
         </div>
 
         <section class="rule-section">
           <div class="section-header">
             <div>
-              <p class="eyebrow">Route</p>
-              <h4>Airport pools</h4>
+              <p class="eyebrow">Ranked options</p>
+              <h4>Preferred route details</h4>
+              <p class="rules-note">Each row becomes one Google Flights tracker. Reorder rows to express what you would buy first.</p>
             </div>
+            <button type="button" class="button secondary" data-add-detail>Add route option</button>
           </div>
 
-          <div class="form-grid">
-            <label class="full-width">
-              <span>Origin airports</span>
-              <div class="multi-select" data-multi-select data-catalog="airports" data-field="origin_airports">
-                <input type="hidden" name="origin_airports" value="{{ selected.origin_airports }}">
-                <div class="chip-list" data-chip-list></div>
-                <div class="multi-select-input-row">
-                  <input type="text" data-search placeholder="Type LAX, BUR, or Burbank..." autocomplete="off" spellcheck="false">
-                  <button type="button" class="button ghost" data-clear>Clear</button>
-                </div>
-                <div class="multi-select-menu" data-menu hidden></div>
-              </div>
-            </label>
-
-            <label class="full-width">
-              <span>Destination airports</span>
-              <div class="multi-select" data-multi-select data-catalog="airports" data-field="destination_airports">
-                <input type="hidden" name="destination_airports" value="{{ selected.destination_airports }}">
-                <div class="chip-list" data-chip-list></div>
-                <div class="multi-select-input-row">
-                  <input type="text" data-search placeholder="Type SFO, JFK, or Los Angeles..." autocomplete="off" spellcheck="false">
-                  <button type="button" class="button ghost" data-clear>Clear</button>
-                </div>
-                <div class="multi-select-menu" data-menu hidden></div>
-              </div>
-            </label>
-          </div>
-        </section>
-
-        <section class="rule-section">
-          <div class="section-header">
-            <div>
-              <p class="eyebrow">Schedule</p>
-              <h4>Ranked time slots</h4>
-              <p class="rules-note">Use the first slot as primary. Add backups for nearby days or later windows.</p>
-            </div>
-            <button type="button" class="button secondary" data-add-slot>Add slot</button>
-          </div>
-
-          <div class="slot-list" data-slot-list></div>
-        </section>
-
-        <section class="rule-section">
-          <div class="section-header">
-            <div>
-              <p class="eyebrow">Fare guardrails</p>
-              <h4>Preferences</h4>
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <label>
-              <span>Fare preference</span>
-              <select name="fare_preference">
-                {% for option in fare_preferences %}
-                <option value="{{ option.value }}" {{ 'selected' if selected.fare_preference == option.value else '' }}>{{ option.label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-
-            <label>
-              <span>Lookahead weeks</span>
-              <input type="number" min="1" max="26" name="lookahead_weeks" value="{{ selected.lookahead_weeks }}">
-            </label>
-
-            <label>
-              <span>Rebook alert threshold</span>
-              <input type="number" min="1" name="rebook_alert_threshold" value="{{ selected.rebook_alert_threshold }}">
-            </label>
-          </div>
+          <div class="detail-list" data-detail-list></div>
         </section>
 
         <div class="actions rules-actions">
@@ -224,7 +136,7 @@
             </button>
           </div>
           <p class="rules-note">
-            v0 is one-way only. Model outbound and return differences as separate rules.
+            Model outbound and return habits as separate rules when the preferences differ.
           </p>
         </div>
       </form>
@@ -234,7 +146,7 @@
 
 <script>
   window.travelAgentRulesCatalogs = {{ rules_catalogs_json|safe }};
-  window.travelAgentRuleSlots = {{ selected_time_slots|tojson }};
+  window.travelAgentRouteDetails = {{ selected_route_details|tojson }};
 </script>
 <script src="{{ url_for('static', path='/rules.js') }}" defer></script>
 {% endblock %}

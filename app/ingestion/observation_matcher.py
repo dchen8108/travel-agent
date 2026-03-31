@@ -7,8 +7,8 @@ from app.models.base import SegmentType
 from app.models.fare_observation import FareObservation
 from app.models.review_item import ReviewItem
 from app.models.tracker import Tracker
+from app.route_details import RankedRouteDetail, route_detail_matches_time_line
 from app.services.ids import new_id
-from app.time_slots import RankedTimeSlot, time_slot_matches_time_line
 
 
 @dataclass
@@ -33,21 +33,42 @@ def _matching_trackers(
         if tracker.destination_airport != parsed.destination_airport:
             continue
         matches.append(tracker)
-    if len(matches) <= 1:
-        return matches
+
+    airline_filtered = [
+        tracker
+        for tracker in matches
+        if not tracker.detail_airline or not parsed.airline or tracker.detail_airline == parsed.airline
+    ]
+    candidate_matches = airline_filtered or matches
+
+    nonstop_filtered = [
+        tracker
+        for tracker in candidate_matches
+        if not tracker.detail_nonstop_only or parsed.is_nonstop is not False
+    ]
+    if parsed.is_nonstop is False:
+        candidate_matches = nonstop_filtered
+    else:
+        candidate_matches = nonstop_filtered or candidate_matches
+    if len(candidate_matches) <= 1:
+        return candidate_matches
 
     time_filtered: list[Tracker] = []
-    for tracker in matches:
-        slot = RankedTimeSlot(
-            weekday=tracker.slot_weekday or tracker.travel_date.strftime("%A"),
-            start_time=tracker.slot_time_start or "00:00",
-            end_time=tracker.slot_time_end or "23:59",
+    for tracker in candidate_matches:
+        detail = RankedRouteDetail(
+            origin_airport=tracker.origin_airport,
+            destination_airport=tracker.destination_airport,
+            weekday=tracker.detail_weekday or tracker.travel_date.strftime("%A"),
+            start_time=tracker.detail_time_start or "00:00",
+            end_time=tracker.detail_time_end or "23:59",
+            airline=tracker.detail_airline,
+            nonstop_only=tracker.detail_nonstop_only,
         )
-        if time_slot_matches_time_line(slot, parsed.time_line):
+        if route_detail_matches_time_line(detail, parsed.time_line):
             time_filtered.append(tracker)
     if len(time_filtered) == 1:
         return time_filtered
-    return time_filtered or matches
+    return time_filtered or candidate_matches
 
 
 def match_observations_to_trackers(

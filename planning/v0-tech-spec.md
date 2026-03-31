@@ -24,7 +24,7 @@ The hardened baseline is:
 
 Automatic Gmail IMAP polling is an upgrade path, not a prerequisite for the first usable MVP.
 
-After validating a real Google Flights email, the architecture should assume that Google signals are one-way route-and-date observations. The app should therefore model each saved rule as one directional commute pattern with one or more ranked schedule slots, then roll the best slot-level signals into trip-level decisions.
+After validating a real Google Flights email, the architecture should assume that Google signals are one-way route-and-date observations. The app should therefore model each saved rule as one directional commute pattern with one or more ranked route options, then roll the best route-option signals into trip-level decisions.
 
 ## Architecture Summary
 
@@ -150,17 +150,17 @@ travel-agent/
 3. Each rule represents one directional commute pattern.
 4. Major inputs are constrained to hardcoded airport, airline, weekday, and fare-preference catalogs.
 5. App saves `programs.csv`.
-6. App generates future `trip_instances.csv` rows and slot-level `trackers.csv` rows.
+6. App generates future `trip_instances.csv` rows and route-option-level `trackers.csv` rows.
 
 Generation rules:
 
-- one rule -> one trip row per future week and route pairing
-- each trip row -> one tracker per ranked slot that is still in the future
+- one rule -> one trip row per future week
+- each trip row -> one tracker per ranked route option that is still in the future
 
 ### 2. Tracker Setup
 
 1. User opens `Trackers`.
-2. App shows generated Google Flights links for each ranked slot and allows manual link paste.
+2. App shows generated Google Flights links for each ranked route option and allows manual link paste.
 3. User opens the link or pastes a better one and turns on `Track prices` in Google Flights.
 4. User clicks `Mark tracking enabled` in the app.
 5. Tracker status changes from `needs_setup` to `tracking_enabled`.
@@ -180,7 +180,7 @@ Generation rules:
 ### 4. Recommendation Refresh
 
 1. App reads trip instances, trackers, bookings, and latest observations.
-2. App rolls slot observations up to the trip level and recomputes trip status and explanation.
+2. App rolls route-option observations up to the trip level and recomputes trip status and explanation.
 3. Updated cards appear on `Today`, `Calendar`, and `Trip Detail`.
 
 ### 5. Booking Capture
@@ -207,7 +207,7 @@ Generation rules:
   Single trip detail page.
 
 - `GET /rules`
-  Multi-rule editor with constrained selectors and ranked time-slot support.
+  Multi-rule editor with constrained selectors and ranked route-option support.
 
 - `GET /bookings/new`
   Add booking form.
@@ -242,7 +242,7 @@ Generation rules:
 Purpose:
 
 - expand recurring rules into concrete trip instances
-- create missing segment tracker rows for the lookahead window
+- create missing tracker rows for the fixed 12-week planning window
 
 Run:
 
@@ -352,7 +352,7 @@ Use when:
 Use when:
 
 - a booking exists
-- the combined latest segment fare is lower than `booked_price - rebook_alert_threshold`
+- the latest comparable fare is lower than `booked_price`
 
 ## Email Ingestion Design
 

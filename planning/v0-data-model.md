@@ -39,8 +39,8 @@ Suggested fields:
 ```json
 {
   "timezone": "America/Los_Angeles",
-  "default_lookahead_weeks": 8,
-  "default_rebook_alert_threshold": 20,
+  "default_lookahead_weeks": 12,
+  "default_rebook_alert_threshold": 0,
   "email_ingestion_mode": "manual_upload",
   "version": 1
 }
@@ -59,28 +59,28 @@ Suggested columns:
 - `program_id`
 - `program_name`
 - `active`
-- `origin_airports`
-- `destination_airports`
-- `time_slot_rankings`
-- `airlines`
-- `fare_preference`
-- `nonstop_only`
-- `lookahead_weeks`
-- `rebook_alert_threshold`
+- `route_detail_rankings`
 - `created_at`
 - `updated_at`
 
 Notes:
 
-- store airport and airline lists as pipe-delimited strings, for example `BUR|LAX|SNA`
-- store `time_slot_rankings` as compact JSON ordered from primary to fallback
+- store `route_detail_rankings` as compact JSON ordered from primary to fallback
+- each ranked route detail includes:
+  - `origin_airport`
+  - `destination_airport`
+  - `weekday`
+  - `start_time`
+  - `end_time`
+  - `airline`
+  - `nonstop_only`
 - store booleans as `true` or `false`
 
 Example:
 
 ```csv
-program_id,program_name,active,origin_airports,destination_airports,time_slot_rankings,airlines,fare_preference,nonstop_only,lookahead_weeks,rebook_alert_threshold,created_at,updated_at
-prog_001,LA to SF Outbound,true,BUR|LAX|SNA,SFO,"[{""weekday"":""Monday"",""start_time"":""06:00"",""end_time"":""10:00""},{""weekday"":""Sunday"",""start_time"":""18:00"",""end_time"":""21:00""}]",Alaska|United|Delta,flexible,true,8,20,2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
+program_id,program_name,active,route_detail_rankings,created_at,updated_at
+prog_001,LA to SF Outbound,true,"[{""origin_airport"":""BUR"",""destination_airport"":""SFO"",""weekday"":""Monday"",""start_time"":""06:00"",""end_time"":""10:00"",""airline"":""Alaska"",""nonstop_only"":true},{""origin_airport"":""LAX"",""destination_airport"":""SFO"",""weekday"":""Sunday"",""start_time"":""18:00"",""end_time"":""21:00"",""airline"":""United"",""nonstop_only"":true}]",2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
 ```
 
 ## 3. `trip_instances.csv`
@@ -89,7 +89,7 @@ Purpose:
 
 - represent concrete future trips generated from recurring rules
 
-One row per concrete trip cycle. A one-way rule generates one trip per future week and route pairing.
+One row per concrete trip cycle. A one-way rule generates one trip per future week.
 
 Suggested columns:
 
@@ -123,35 +123,37 @@ Allowed `status` values:
 Notes:
 
 - `booking_id` is empty until the user records a booking
-- `outbound_date` is the primary slot anchor date for that trip cycle
+- `outbound_date` is the primary route-option anchor date for that trip cycle
 - `outbound_tracker_id` points to the primary tracker when it exists
 - this table drives the Today and Calendar screens
-- trip-level recommendations should use the best safe signal across all ranked slots for that trip
+- trip-level recommendations should use the best safe signal across all ranked route options for that trip
 
 Example:
 
 ```csv
 trip_instance_id,program_id,origin_airport,destination_airport,outbound_date,status,recommendation_reason,best_airline,best_fare_type,best_price,best_outbound_summary,outbound_tracker_id,last_checked_at,dismissed_until,booking_id,created_at,updated_at
-trip_001,prog_001,BUR,SFO,2026-05-12,book_now,Current fare is near the best observed price across your ranked slots.,Alaska,flexible,186,AS123 07:00-08:35,trk_001,2026-04-04T08:05:00-07:00,,book_001,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
+trip_001,prog_001,BUR,SFO,2026-05-12,book_now,Current fare is near the best observed price across your ranked route options.,Alaska,,186,AS123 07:00-08:35,trk_001,2026-04-04T08:05:00-07:00,,book_001,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
 ```
 
 ## 4. `trackers.csv`
 
 Purpose:
 
-- track Google Flights links and tracker readiness per ranked slot
+- track Google Flights links and tracker readiness per ranked route option
 
-One row per ranked slot that should be monitored in Google Flights.
+One row per ranked route option that should be monitored in Google Flights.
 
 Suggested columns:
 
 - `tracker_id`
 - `trip_instance_id`
 - `segment_type`
-- `slot_rank`
-- `slot_weekday`
-- `slot_time_start`
-- `slot_time_end`
+- `detail_rank`
+- `detail_weekday`
+- `detail_time_start`
+- `detail_time_end`
+- `detail_airline`
+- `detail_nonstop_only`
 - `origin_airport`
 - `destination_airport`
 - `travel_date`
@@ -188,8 +190,8 @@ Allowed `tracking_status` values:
 Example:
 
 ```csv
-tracker_id,trip_instance_id,segment_type,slot_rank,slot_weekday,slot_time_start,slot_time_end,origin_airport,destination_airport,travel_date,provider,link_source,tracking_status,google_flights_url,tracking_enabled_at,last_signal_at,latest_observed_price,created_at,updated_at
-trk_001,trip_001,outbound,1,Monday,06:00,10:00,BUR,SFO,2026-05-12,google_flights,manual,signal_received,https://www.google.com/travel/flights/search?... ,2026-04-01T18:00:00-07:00,2026-04-04T08:02:00-07:00,186,2026-03-31T09:00:00-07:00,2026-04-04T08:02:00-07:00
+tracker_id,trip_instance_id,segment_type,detail_rank,detail_weekday,detail_time_start,detail_time_end,detail_airline,detail_nonstop_only,origin_airport,destination_airport,travel_date,provider,link_source,tracking_status,google_flights_url,tracking_enabled_at,last_signal_at,latest_observed_price,created_at,updated_at
+trk_001,trip_001,outbound,1,Monday,06:00,10:00,Alaska,true,BUR,SFO,2026-05-12,google_flights,manual,signal_received,https://www.google.com/travel/flights/search?... ,2026-04-01T18:00:00-07:00,2026-04-04T08:02:00-07:00,186,2026-03-31T09:00:00-07:00,2026-04-04T08:02:00-07:00
 ```
 
 ## 5. `bookings.csv`

@@ -9,10 +9,14 @@ from app.models.base import TrackerStatus
 from app.models.program import Program
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
+from app.route_details import RankedRouteDetail, serialize_route_detail_rankings
 from app.settings import Settings
 from app.storage.repository import Repository
-from app.time_slots import RankedTimeSlot, serialize_time_slot_rankings
 from app.web import get_repository
+
+
+def route_details_json(*details: RankedRouteDetail) -> str:
+    return serialize_route_detail_rankings(list(details))
 
 
 def test_core_pages_render_with_empty_state(tmp_path: Path) -> None:
@@ -126,19 +130,26 @@ def seed_jfk_trip(repository: Repository) -> None:
     program = Program(
         program_id="prog_jfk",
         program_name="LAX to JFK test",
-        origin_airports="LAX",
-        destination_airports="JFK",
-        time_slot_rankings=serialize_time_slot_rankings(
-            [
-                RankedTimeSlot(weekday="Wednesday", start_time="21:00", end_time="22:00"),
-                RankedTimeSlot(weekday="Wednesday", start_time="22:00", end_time="23:30"),
-            ]
+        route_detail_rankings=route_details_json(
+            RankedRouteDetail(
+                origin_airport="LAX",
+                destination_airport="JFK",
+                weekday="Wednesday",
+                start_time="21:00",
+                end_time="22:00",
+                airline="American",
+                nonstop_only=True,
+            ),
+            RankedRouteDetail(
+                origin_airport="LAX",
+                destination_airport="JFK",
+                weekday="Wednesday",
+                start_time="22:00",
+                end_time="23:30",
+                airline="American",
+                nonstop_only=True,
+            ),
         ),
-        airlines="American",
-        fare_preference="flexible",
-        nonstop_only=True,
-        lookahead_weeks=8,
-        rebook_alert_threshold=20,
     )
     trip = TripInstance(
         trip_instance_id="trip_jfk",
@@ -156,10 +167,12 @@ def seed_jfk_trip(repository: Repository) -> None:
                 tracker_id="trk_primary",
                 trip_instance_id=trip.trip_instance_id,
                 segment_type="outbound",
-                slot_rank=1,
-                slot_weekday="Wednesday",
-                slot_time_start="21:00",
-                slot_time_end="22:00",
+                detail_rank=1,
+                detail_weekday="Wednesday",
+                detail_time_start="21:00",
+                detail_time_end="22:00",
+                detail_airline="American",
+                detail_nonstop_only=True,
                 origin_airport="LAX",
                 destination_airport="JFK",
                 travel_date="2026-06-24",
@@ -170,10 +183,12 @@ def seed_jfk_trip(repository: Repository) -> None:
                 tracker_id="trk_backup",
                 trip_instance_id=trip.trip_instance_id,
                 segment_type="outbound",
-                slot_rank=2,
-                slot_weekday="Wednesday",
-                slot_time_start="22:00",
-                slot_time_end="23:30",
+                detail_rank=2,
+                detail_weekday="Wednesday",
+                detail_time_start="22:00",
+                detail_time_end="23:30",
+                detail_airline="American",
+                detail_nonstop_only=True,
                 origin_airport="LAX",
                 destination_airport="JFK",
                 travel_date="2026-06-24",

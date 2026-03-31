@@ -3,29 +3,36 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import date, datetime
 
-from app.catalog import airport_codes, airline_codes, fare_preference_values
+from app.catalog import airline_codes, airport_codes
 from app.models.program import Program
 from app.models.trip_instance import TripInstance
+from app.route_details import (
+    RankedRouteDetail,
+    parse_route_detail_rankings,
+    serialize_route_detail_rankings,
+)
 from app.services.ids import new_id
 from app.services.trackers import sync_trackers
 from app.services.trip_instances import generate_trip_instances as generate_trip_rows
 from app.settings import get_settings
-from app.time_slots import RankedTimeSlot, parse_time_slot_rankings, serialize_time_slot_rankings
+
+DEFAULT_LOOKAHEAD_WEEKS = 12
 
 DEFAULT_PROGRAM_VALUES = {
     "program_name": "LA to SF Outbound",
-    "origin_airports": "BUR|LAX|SNA",
-    "destination_airports": "SFO",
-    "time_slot_rankings": serialize_time_slot_rankings(
+    "route_detail_rankings": serialize_route_detail_rankings(
         [
-            RankedTimeSlot(weekday="Monday", start_time="06:00", end_time="10:00"),
+            RankedRouteDetail(
+                origin_airport="BUR",
+                destination_airport="SFO",
+                weekday="Monday",
+                start_time="06:00",
+                end_time="10:00",
+                airline="Alaska",
+                nonstop_only=True,
+            )
         ]
     ),
-    "airlines": "Alaska|United|Delta",
-    "fare_preference": "flexible",
-    "nonstop_only": "true",
-    "lookahead_weeks": "8",
-    "rebook_alert_threshold": "20",
 }
 
 
@@ -38,72 +45,24 @@ def default_program() -> Program:
 
 
 def build_program(form: Mapping[str, str], existing: Program | None = None) -> Program:
-    origin_airports = normalize_supported_list(
-        form.get("origin_airports", ""),
-        airport_codes(),
-        value_type="airport",
-    )
-    if not origin_airports:
-        raise ProgramValidationError("Choose at least one origin airport.")
-    destination_airports = normalize_supported_list(
-        form.get("destination_airports", ""),
-        airport_codes(),
-        value_type="airport",
-    )
-    if not destination_airports:
-        raise ProgramValidationError("Choose at least one destination airport.")
+    detail_source = str(form.get("route_detail_rankings", "")).strip()
+    if not detail_source:
+        detail_source = build_legacy_route_details_payload(form)
 
-    airline_source = merge_airline_inputs(form)
-    airlines = normalize_supported_list(
-        airline_source,
-        airline_codes(),
-        value_type="airline",
-    )
-
-    fare_preference = form.get("fare_preference", "flexible").strip()
-    if fare_preference not in fare_preference_values():
-        raise ProgramValidationError("Choose a supported fare preference.")
-
-    time_slot_source = str(form.get("time_slot_rankings", "")).strip()
-    if not time_slot_source:
-        legacy_weekday = form.get("travel_weekday", "") or form.get("outbound_weekday", "")
-        legacy_start = form.get("outbound_time_start", "")
-        legacy_end = form.get("outbound_time_end", "")
-        if legacy_weekday and legacy_start and legacy_end:
-            time_slot_source = serialize_time_slot_rankings(
-                [
-                    RankedTimeSlot(
-                        weekday=legacy_weekday,
-                        start_time=legacy_start,
-                        end_time=legacy_end,
-                    )
-                ]
-            )
-
-    time_slot_rankings = normalize_time_slot_rankings(time_slot_source)
-    if not time_slot_rankings:
-        raise ProgramValidationError("Add at least one ranked time slot.")
+    route_detail_rankings = normalize_route_detail_rankings(detail_source)
+    if not route_detail_rankings:
+        raise ProgramValidationError("Add at least one ranked route detail.")
 
     incoming_program_id = str(form.get("program_id", "")).strip()
     if incoming_program_id == "draft":
         incoming_program_id = ""
 
-    try:
-        payload = {
-            "program_id": incoming_program_id or (existing.program_id if existing else new_id("prog")),
-            "program_name": str(form.get("program_name", "")).strip(),
-            "active": coerce_checkbox(form, "active", default=True),
-            "origin_airports": origin_airports,
-            "destination_airports": destination_airports,
-            "time_slot_rankings": time_slot_rankings,
-            "airlines": airlines,
-            "fare_preference": fare_preference,
-            "nonstop_only": coerce_checkbox(form, "nonstop_only", default=False),
-            "lookahead_weeks": int(form.get("lookahead_weeks", "8") or 8),
-            "rebook_alert_threshold": int(form.get("rebook_alert_threshold", "20") or 20),
-        }
-    except ValueError as exc:
-        raise ProgramValidationError("Enter valid numeric values for lookahead and alert threshold.") from exc
+    payload = {
+        "program_id": incoming_program_id or (existing.program_id if existing else new_id("prog")),
+        "program_name": str(form.get("program_name", "")).strip(),
+        "active": coerce_checkbox(form, "active", default=True),
+        "route_detail_rankings": route_detail_rankings,
+    }
 
     if existing is not None:
         payload["created_at"] = existing.created_at
@@ -126,43 +85,81 @@ def duplicate_program(existing: Program) -> Program:
     )
 
 
-def normalize_supported_list(value: str, allowed_values: set[str], value_type: str) -> str:
-    if not value:
-        return ""
-    raw_parts = [part.strip() for part in value.replace(",", "|").split("|") if part.strip()]
-    canonical_lookup = (
-        {allowed.upper(): allowed for allowed in allowed_values}
-        if value_type == "airport"
-        else {allowed.lower(): allowed for allowed in allowed_values}
-    )
-    normalized_parts: list[str] = []
-    for part in raw_parts:
-        key = part.upper() if value_type == "airport" else part.lower()
-        normalized = canonical_lookup.get(key)
-        if normalized is None:
-            raise ProgramValidationError(f"Choose a supported {value_type}.")
-        if normalized not in normalized_parts:
-            normalized_parts.append(normalized)
-    return "|".join(normalized_parts)
-
-
-def merge_airline_inputs(form: Mapping[str, str]) -> str:
-    merged: list[str] = []
-    for field in ("airlines", "preferred_airlines", "allowed_airlines"):
-        raw = str(form.get(field, "") or "")
-        for part in raw.replace(",", "|").split("|"):
-            candidate = part.strip()
-            if candidate and candidate not in merged:
-                merged.append(candidate)
-    return "|".join(merged)
-
-
-def normalize_time_slot_rankings(value: str) -> str:
+def normalize_route_detail_rankings(value: str) -> str:
     try:
-        slots = parse_time_slot_rankings(value)
+        details = parse_route_detail_rankings(value)
     except ValueError as exc:
-        raise ProgramValidationError("Time slots must be valid weekday and time ranges.") from exc
-    return serialize_time_slot_rankings(slots)
+        raise ProgramValidationError("Route details must use supported airports, airlines, weekdays, and valid time ranges.") from exc
+    if not details:
+        return ""
+    return serialize_route_detail_rankings(details)
+
+
+def build_legacy_route_details_payload(form: Mapping[str, str]) -> str:
+    origin_airports = normalize_supported_airport_list(str(form.get("origin_airports", "")))
+    destination_airports = normalize_supported_airport_list(str(form.get("destination_airports", "")))
+    weekdays = str(form.get("travel_weekday", "") or form.get("outbound_weekday", "")).strip()
+    start_time = str(form.get("outbound_time_start", "")).strip()
+    end_time = str(form.get("outbound_time_end", "")).strip()
+    airline_tokens: list[str] = []
+    for field_name in ("airline", "airlines", "preferred_airlines", "allowed_airlines"):
+        raw_value = str(form.get(field_name, "")).strip()
+        if not raw_value:
+            continue
+        for token in raw_value.replace(",", "|").split("|"):
+            candidate = token.strip()
+            if candidate and candidate not in airline_tokens:
+                airline_tokens.append(candidate)
+    airlines = normalize_supported_airline_list("|".join(airline_tokens))
+    if not origin_airports or not destination_airports or not weekdays or not start_time or not end_time:
+        return ""
+    airline_values = airlines or [""]
+    details: list[RankedRouteDetail] = []
+    for origin_airport in origin_airports:
+        for destination_airport in destination_airports:
+            for airline in airline_values:
+                details.append(
+                    RankedRouteDetail(
+                        origin_airport=origin_airport,
+                        destination_airport=destination_airport,
+                        weekday=weekdays,
+                        start_time=start_time,
+                        end_time=end_time,
+                        airline=airline,
+                        nonstop_only=coerce_checkbox(form, "nonstop_only", default=True),
+                    )
+                )
+    return serialize_route_detail_rankings(details)
+
+
+def normalize_supported_airport_list(value: str) -> list[str]:
+    if not value:
+        return []
+    raw_parts = [part.strip() for part in value.replace(",", "|").split("|") if part.strip()]
+    canonical_lookup = {allowed.upper(): allowed for allowed in airport_codes()}
+    normalized: list[str] = []
+    for part in raw_parts:
+        candidate = canonical_lookup.get(part.upper())
+        if candidate is None:
+            raise ProgramValidationError("Choose a supported airport.")
+        if candidate not in normalized:
+            normalized.append(candidate)
+    return normalized
+
+
+def normalize_supported_airline_list(value: str) -> list[str]:
+    if not value:
+        return []
+    raw_parts = [part.strip() for part in value.replace(",", "|").split("|") if part.strip()]
+    canonical_lookup = {allowed.lower(): allowed for allowed in airline_codes()}
+    normalized: list[str] = []
+    for part in raw_parts:
+        candidate = canonical_lookup.get(part.lower())
+        if candidate is None:
+            raise ProgramValidationError("Choose a supported airline.")
+        if candidate not in normalized:
+            normalized.append(candidate)
+    return normalized
 
 
 def coerce_checkbox(form: Mapping[str, str], field_name: str, *, default: bool) -> bool:
@@ -174,28 +171,23 @@ def coerce_checkbox(form: Mapping[str, str], field_name: str, *, default: bool) 
     raw = form.get(field_name)
     if raw is None:
         return default
-    return raw == "true"
+    return str(raw) == "true"
 
 
 def generate_trip_instances(
     program: Program,
     *,
-    lookahead_weeks: int | None = None,
     today: date | None = None,
 ) -> tuple[list[TripInstance], list]:
-    effective_program = (
-        program.model_copy(update={"lookahead_weeks": lookahead_weeks})
-        if lookahead_weeks is not None
-        else program
-    )
     trips = generate_trip_rows(
-        effective_program,
+        program,
         get_settings(),
         today=today,
+        lookahead_weeks=DEFAULT_LOOKAHEAD_WEEKS,
     )
     trips, trackers = sync_trackers(
         trips,
-        programs_by_id={effective_program.program_id: effective_program},
+        programs_by_id={program.program_id: program},
         today=today,
     )
     return trips, trackers

@@ -4,7 +4,7 @@
 <section class="hero compact">
   <div>
     <h2>Select a trip</h2>
-    <p>Pick the exact commute trip you booked so the booking attaches to the right week and ranked slot.</p>
+    <p>Pick the exact commute trip you booked so the booking attaches to the right week and ranked route option.</p>
   </div>
 </section>
 
@@ -32,9 +32,9 @@
       {{ trip.origin_airport }} → {{ trip.destination_airport }} · {{ (best_tracker.travel_date if best_tracker else trip.outbound_date).strftime('%b %d') }}
     </p>
     {% if best_tracker %}
-    <small>Best live slot: {{ best_tracker.slot_weekday }} {{ best_tracker.slot_time_start }}-{{ best_tracker.slot_time_end }}</small>
+    <small>Best live option: {{ tracker_label(best_tracker) }}</small>
     {% else %}
-    <small>Primary slot target: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
+    <small>Primary target option: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
     {% endif %}
   </div>
 </section>
@@ -43,9 +43,9 @@
   <input type="hidden" name="trip_instance_id" value="{{ trip.trip_instance_id }}">
   <div class="form-grid">
     <label>
-      <span>Booked slot</span>
+      <span>Booked route option</span>
       <select name="tracker_id">
-        <option value="">No tracked slot selected</option>
+        <option value="">No tracked option selected</option>
         {% for tracker_choice in tracker_choices %}
         {% set selected_tracker = booking.tracker_id if booking else (best_tracker.tracker_id if best_tracker else trip.outbound_tracker_id) %}
         <option value="{{ tracker_choice.tracker_id }}" {{ 'selected' if selected_tracker == tracker_choice.tracker_id else '' }}>

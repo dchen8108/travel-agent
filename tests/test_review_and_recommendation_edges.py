@@ -7,6 +7,8 @@ from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
 from app.models.review_item import ReviewItem
 from app.models.tracker import Tracker
+from app.ingestion.google_flights_email_parser import ParsedGoogleFlightsEmail, ParsedGoogleFlightsObservation
+from app.ingestion.observation_matcher import match_observations_to_trackers
 from app.services.recommendations import history_totals_by_trip
 from app.services.review import build_review_contexts, refresh_event_statuses
 
@@ -105,3 +107,51 @@ def test_history_totals_do_not_mix_different_import_batches() -> None:
     )
 
     assert sorted(history["trip_1"]) == [250, 280]
+
+
+def test_nonstop_only_trackers_do_not_match_explicit_stop_observations() -> None:
+    observed_at = datetime(2026, 3, 31, 8, 0).astimezone()
+    tracker = Tracker(
+        tracker_id="trk_nonstop",
+        trip_instance_id="trip_1",
+        segment_type=SegmentType.OUTBOUND,
+        detail_rank=1,
+        detail_weekday="Monday",
+        detail_time_start="06:00",
+        detail_time_end="10:00",
+        detail_airline="Alaska",
+        detail_nonstop_only=True,
+        origin_airport="BUR",
+        destination_airport="SFO",
+        travel_date="2026-06-01",
+        google_flights_url="https://example.com/nonstop",
+    )
+    parsed_email = ParsedGoogleFlightsEmail(
+        message_id="msg_1",
+        subject="Tracked flight changed",
+        received_at=observed_at,
+        plain_text="",
+        html_text=None,
+        sections=[],
+        observations=[
+            ParsedGoogleFlightsObservation(
+                route_text="Burbank to San Francisco",
+                travel_date=tracker.travel_date,
+                airline="Alaska",
+                origin_airport="BUR",
+                destination_airport="SFO",
+                price=120,
+                previous_price=135,
+                price_direction="dropped",
+                is_nonstop=False,
+                time_line="7:00 AM – 8:30 AM",
+                detail_line="Alaska · 1 stop · BUR–SFO",
+                flight_url="https://example.com/obs",
+            )
+        ],
+    )
+
+    result = match_observations_to_trackers(parsed_email, [tracker])
+
+    assert result.observations == []
+    assert len(result.review_items) == 1

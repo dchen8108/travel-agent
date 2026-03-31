@@ -15,6 +15,17 @@ from app.models.trip_instance import TripInstance
 from app.models.view_models import DashboardBuckets, TripContext
 from app.settings import Settings
 
+REBOOK_ALERT_THRESHOLD = 0
+
+
+def tracker_sort_key(tracker: Tracker) -> tuple[int, object, str, str]:
+    return (
+        tracker.detail_rank,
+        tracker.travel_date,
+        tracker.detail_time_start,
+        tracker.detail_airline,
+    )
+
 
 @dataclass
 class TripRollup:
@@ -88,7 +99,7 @@ def build_trip_rollups(
     for tracker in trackers:
         trackers_by_trip[tracker.trip_instance_id].append(tracker)
     for tracker_list in trackers_by_trip.values():
-        tracker_list.sort(key=lambda tracker: (tracker.slot_rank, tracker.travel_date, tracker.slot_time_start))
+        tracker_list.sort(key=tracker_sort_key)
 
     bookings_by_trip = {
         booking.trip_instance_id: booking
@@ -140,7 +151,7 @@ def best_tracker_for_trip(
         return None, None
     best_tracker, best_observation = min(
         candidates,
-        key=lambda item: (item[1].price, item[0].slot_rank, item[0].travel_date),
+        key=lambda item: (item[1].price, *tracker_sort_key(item[0])),
     )
     return best_tracker, best_observation
 
@@ -187,39 +198,33 @@ def derive_trip_status(
 ) -> tuple[TripStatus, str]:
     ready_trackers = [tracker for tracker in rollup.trackers if tracker_ready(tracker)]
     if not ready_trackers:
-        return TripStatus.NEEDS_TRACKER_SETUP, "Set up Google Flights tracking for at least one ranked slot before this trip can be monitored reliably."
-
-    rebook_threshold = (
-        program.rebook_alert_threshold
-        if program is not None
-        else settings.default_rebook_alert_threshold
-    )
+        return TripStatus.NEEDS_TRACKER_SETUP, "Set up Google Flights tracking for at least one ranked route option before this trip can be monitored reliably."
 
     if rollup.booking is not None:
         comparison_price = rollup.booking_observation.price if rollup.booking_observation is not None else None
-        if comparison_price is not None and comparison_price <= rollup.booking.booked_price - rebook_threshold:
+        if comparison_price is not None and comparison_price < rollup.booking.booked_price - REBOOK_ALERT_THRESHOLD:
             savings = rollup.booking.booked_price - comparison_price
             if rollup.booking_tracker is not None:
-                return TripStatus.REBOOK, f"Latest price for your booked slot is ${savings} below what you paid."
-            return TripStatus.REBOOK, f"Best tracked slot is ${savings} below your booked fare."
+                return TripStatus.REBOOK, f"Latest price for your booked route option is ${savings} below what you paid."
+            return TripStatus.REBOOK, f"Best tracked option is ${savings} below your booked fare."
         if rollup.booking_tracker is not None and rollup.booking_observation is None:
-            return TripStatus.BOOKED_MONITORING, "Tracking is active, but your booked slot needs a fresh price signal before this trip can be evaluated for rebooking."
-        if rollup.booking_tracker is None and rollup.latest_total is not None and rollup.latest_total <= rollup.booking.booked_price - rebook_threshold:
+            return TripStatus.BOOKED_MONITORING, "Tracking is active, but your booked route option needs a fresh price signal before this trip can be evaluated for rebooking."
+        if rollup.booking_tracker is None and rollup.latest_total is not None and rollup.latest_total < rollup.booking.booked_price - REBOOK_ALERT_THRESHOLD:
             savings = rollup.booking.booked_price - rollup.latest_total
-            return TripStatus.REBOOK, f"Best tracked slot is ${savings} below your booked fare."
-        return TripStatus.BOOKED_MONITORING, "Tracking is active and this booked trip is being monitored across your ranked slots."
+            return TripStatus.REBOOK, f"Best tracked option is ${savings} below your booked fare."
+        return TripStatus.BOOKED_MONITORING, "Tracking is active and this booked trip is being monitored across your ranked route options."
 
     if rollup.latest_total is None:
-        return TripStatus.WAIT, "Tracking is active, but no recent price signal has been observed for your ranked slots yet."
+        return TripStatus.WAIT, "Tracking is active, but no recent price signal has been observed for your ranked route options yet."
 
     today = datetime.now(ZoneInfo(settings.timezone)).date()
     trip_date = rollup.best_tracker.travel_date if rollup.best_tracker is not None else rollup.trip.outbound_date
     days_until_trip = max((trip_date - today).days, 0)
     if days_until_trip <= 28:
-        return TripStatus.BOOK_NOW, "Recent price signal looks good for one of your ranked slots."
+        return TripStatus.BOOK_NOW, "Recent price signal looks good for one of your ranked route options."
 
-    if rollup.historic_best_total is not None and rollup.latest_total <= rollup.historic_best_total + rebook_threshold:
-        return TripStatus.BOOK_NOW, "Current fare is near the best observed price across your ranked slots."
+    if rollup.historic_best_total is not None and rollup.latest_total <= rollup.historic_best_total + REBOOK_ALERT_THRESHOLD:
+        return TripStatus.BOOK_NOW, "Current fare is near the best observed price across your ranked route options."
 
     return TripStatus.WAIT, "Tracking is active, but the latest signal does not justify booking yet."
 

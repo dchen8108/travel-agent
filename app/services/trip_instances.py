@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 from app.models.base import ProgramWeekday
 from app.models.program import Program
 from app.models.trip_instance import TripInstance
+from app.route_details import parse_route_detail_rankings
 from app.settings import Settings
-from app.time_slots import parse_time_slot_rankings
 
 WEEKDAY_INDEX = {
     ProgramWeekday.MONDAY: 0,
@@ -25,35 +25,32 @@ def generate_trip_instances(
     settings: Settings,
     existing_trips: list[TripInstance] | None = None,
     today: date | None = None,
+    lookahead_weeks: int = 12,
 ) -> list[TripInstance]:
     existing_by_id = {trip.trip_instance_id: trip for trip in (existing_trips or [])}
     start_date = today or datetime.now(ZoneInfo(settings.timezone)).date()
-    ranked_slots = parse_time_slot_rankings(program.time_slot_rankings)
-    primary_slot = ranked_slots[0]
-    anchor_dates = next_weekday_dates(start_date, primary_slot.weekday, program.lookahead_weeks)
+    route_details = parse_route_detail_rankings(program.route_detail_rankings)
+    primary_detail = route_details[0]
+    anchor_dates = next_weekday_dates(start_date, primary_detail.weekday, lookahead_weeks)
     trips: list[TripInstance] = []
 
-    origins = split_pipe(program.origin_airports)
-    destinations = split_pipe(program.destination_airports)
     for anchor_date in anchor_dates:
-        for origin in origins:
-            for destination in destinations:
-                trip_id = stable_trip_id(program.program_id, origin, destination, anchor_date)
-                prior = existing_by_id.get(trip_id)
-                trip = TripInstance(
-                    trip_instance_id=trip_id,
-                    program_id=program.program_id,
-                    origin_airport=origin,
-                    destination_airport=destination,
-                    outbound_date=anchor_date,
-                    booking_id=prior.booking_id if prior else "",
-                    outbound_tracker_id=prior.outbound_tracker_id if prior else "",
-                    dismissed_until=prior.dismissed_until if prior else None,
-                    created_at=prior.created_at if prior else datetime.now().astimezone(),
-                )
-                if prior is not None:
-                    trip.updated_at = prior.updated_at
-                trips.append(trip)
+        trip_id = stable_trip_id(program.program_id, anchor_date)
+        prior = existing_by_id.get(trip_id)
+        trip = TripInstance(
+            trip_instance_id=trip_id,
+            program_id=program.program_id,
+            origin_airport=primary_detail.origin_airport,
+            destination_airport=primary_detail.destination_airport,
+            outbound_date=anchor_date,
+            booking_id=prior.booking_id if prior else "",
+            outbound_tracker_id=prior.outbound_tracker_id if prior else "",
+            dismissed_until=prior.dismissed_until if prior else None,
+            created_at=prior.created_at if prior else datetime.now().astimezone(),
+        )
+        if prior is not None:
+            trip.updated_at = prior.updated_at
+        trips.append(trip)
     return trips
 
 
@@ -64,20 +61,11 @@ def next_weekday_dates(start: date, weekday: ProgramWeekday, count: int) -> list
     return [first + timedelta(days=7 * offset) for offset in range(count)]
 
 
-def slot_date_from_anchor(anchor_date: date, primary_weekday: ProgramWeekday, slot_weekday: ProgramWeekday) -> date:
+def detail_date_from_anchor(anchor_date: date, primary_weekday: ProgramWeekday, detail_weekday: ProgramWeekday) -> date:
     primary_index = WEEKDAY_INDEX[primary_weekday]
-    slot_index = WEEKDAY_INDEX[slot_weekday]
-    return anchor_date + timedelta(days=slot_index - primary_index)
+    detail_index = WEEKDAY_INDEX[detail_weekday]
+    return anchor_date + timedelta(days=detail_index - primary_index)
 
 
-def stable_trip_id(
-    program_id: str,
-    origin: str,
-    destination: str,
-    anchor_date: date,
-) -> str:
-    return f"trip_{program_id}_{origin}_{destination}_{anchor_date.isoformat()}_oneway"
-
-
-def split_pipe(value: str) -> list[str]:
-    return [part for part in value.split("|") if part]
+def stable_trip_id(program_id: str, anchor_date: date) -> str:
+    return f"trip_{program_id}_{anchor_date.isoformat()}_oneway"

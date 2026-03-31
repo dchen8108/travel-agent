@@ -18,12 +18,12 @@
       <dd>{{ '$%s' % context.booking.booked_price if context.booking else 'Not booked' }}</dd>
     </div>
     <div>
-      <dt>Best slot</dt>
+      <dt>Best option</dt>
       <dd>
         {% if context.best_tracker %}
-        {{ context.best_tracker.slot_weekday }} {{ context.best_tracker.slot_time_start }}-{{ context.best_tracker.slot_time_end }}
+        {{ context.best_tracker.origin_airport }} → {{ context.best_tracker.destination_airport }} · {{ context.best_tracker.detail_weekday }} {{ context.best_tracker.detail_time_start }}-{{ context.best_tracker.detail_time_end }}{% if context.best_tracker.detail_airline %} · {{ context.best_tracker.detail_airline }}{% endif %}
         {% else %}
-        Primary slot pending
+        Primary option pending
         {% endif %}
       </dd>
     </div>

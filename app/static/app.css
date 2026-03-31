@@ -631,6 +631,52 @@ code {
   gap: 10px;
 }
 
+.inline-note-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid rgba(216, 209, 195, 0.92);
+  border-radius: 18px;
+  background: rgba(255, 253, 248, 0.82);
+  color: var(--muted);
+}
+
+.inline-note-card strong {
+  color: var(--ink);
+}
+
+.inline-note-card p {
+  margin: 0;
+}
+
+.detail-list {
+  display: grid;
+  gap: 14px;
+}
+
+.detail-row {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(216, 209, 195, 0.9);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.detail-row-head,
+.detail-row-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.detail-row-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .tracker-group {
   display: grid;
   gap: 16px;
@@ -734,7 +780,9 @@ code {
   .rule-card-top,
   .rule-card-route,
   .rule-card-meta,
-  .rules-actions {
+  .rules-actions,
+  .detail-row-head,
+  .detail-row-actions {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -747,5 +795,9 @@ code {
   .multi-select-menu {
     left: 10px;
     right: 10px;
+  }
+
+  .detail-row-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -46,15 +46,6 @@ SUPPORTED_AIRLINES = [
     {"code": "Sun Country", "label": "Sun Country", "keywords": "SY"},
 ]
 
-FARE_PREFERENCES = [
-    {"value": "flexible", "label": "Flexible / travel credit"},
-    {"value": "main", "label": "Main cabin or better"},
-    {"value": "any", "label": "Any fare"},
-    {"value": "best_value", "label": "Best value"},
-    {"value": "lowest_price", "label": "Lowest price"},
-    {"value": "nonstop", "label": "Nonstop-focused"},
-]
-
 BOOKING_FARE_TYPES = [
     {"value": "Flexible", "label": "Flexible / credit-friendly"},
     {"value": "Main", "label": "Main cabin"},
@@ -72,10 +63,6 @@ def airport_codes() -> set[str]:
 
 def airline_codes() -> set[str]:
     return {item["code"] for item in SUPPORTED_AIRLINES}
-
-
-def fare_preference_values() -> set[str]:
-    return {item["value"] for item in FARE_PREFERENCES}
 
 
 def booking_fare_values() -> set[str]:
@@ -108,7 +95,6 @@ def catalogs_json() -> str:
     payload = {
         "airports": airport_options(),
         "airlines": airline_options(),
-        "farePreferences": FARE_PREFERENCES,
         "bookingFareTypes": BOOKING_FARE_TYPES,
         "weekdays": WEEKDAY_OPTIONS,
     }

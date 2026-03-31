@@ -13,8 +13,8 @@ class Settings(BaseModel):
     templates_dir: Path = project_root / "app" / "templates"
     static_dir: Path = project_root / "app" / "static"
     timezone: str = "America/Los_Angeles"
-    default_lookahead_weeks: int = 8
-    default_rebook_alert_threshold: int = 20
+    default_lookahead_weeks: int = 12
+    default_rebook_alert_threshold: int = 0
 
 
 @lru_cache(maxsize=1)
