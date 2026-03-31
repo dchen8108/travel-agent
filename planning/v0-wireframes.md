@@ -8,7 +8,7 @@ These are intentionally low-fidelity. They define layout, information order, and
 +----------------------------------------------------------------------------------+
 | travel-agent                                                   Last updated 8:05 |
 +----------------------------------------------------------------------------------+
-| Today | Calendar | Trackers | Rules | Add Booking                               |
+| Today | Trackers | Imports | Review | Rules | Add Booking                       |
 +----------------------------------------------------------------------------------+
 | 1 tracker gap | 1 book now | 1 safe to wait | 1 rebook opportunity              |
 +----------------------------------------------------------------------------------+
@@ -42,35 +42,7 @@ These are intentionally low-fidelity. They define layout, information order, and
 +----------------------------------------------------------------------------------+
 ```
 
-## 2. Calendar
-
-```text
-+----------------------------------------------------------------------------------+
-| travel-agent                                                                    |
-+----------------------------------------------------------------------------------+
-| Today | Calendar | Trackers | Rules | Add Booking                               |
-+----------------------------------------------------------------------------------+
-| Next 8 weeks                                                                    |
-+----------------------------------------------------------------------------------+
-| Week of May 12                                                                  |
-| Mon May 12 -> Wed May 14 | BUR -> SFO | SETUP NEEDED | no tracker               |
-| [View details]                                                                  |
-|----------------------------------------------------------------------------------|
-| Week of May 19                                                                  |
-| Mon May 19 -> Wed May 21 | LAX -> SFO | BOOK NOW | latest $186                  |
-| [View details]                                                                  |
-|----------------------------------------------------------------------------------|
-| Week of May 26                                                                  |
-| Mon May 26 -> Wed May 28 | BUR -> SFO | WAIT | tracking active                  |
-| [View details]                                                                  |
-|----------------------------------------------------------------------------------|
-| Week of Jun 2                                                                   |
-| Mon Jun 2 -> Wed Jun 4 | LAX -> SFO | BOOKED / REBOOK | booked $224, now $181   |
-| [View details]                                                                  |
-+----------------------------------------------------------------------------------+
-```
-
-## 3. Trackers
+## 2. Trackers
 
 ```text
 +----------------------------------------------------------------------------------+
@@ -86,6 +58,27 @@ These are intentionally low-fidelity. They define layout, information order, and
 |----------------------------------------------------------------------------------|
 | SFO -> BUR | Wed May 21             TRACKING ENABLED   Yesterday      $201      |
 | [Open Google Flights] [Upload email] [View trip]                                |
++----------------------------------------------------------------------------------+
+```
+
+## 3. Imports / Review
+
+```text
++----------------------------------------------------------------------------------+
+| Imports                                                                         |
++----------------------------------------------------------------------------------+
+| [Choose .eml] [Import Google Flights email]                                     |
++----------------------------------------------------------------------------------+
+| RECENT IMPORTS                                                                  |
+| -------------------------------------------------------------------------------- |
+| Prices for your tracked flights... | PARSED | 5 observations                     |
+| Prices for your tracked flights... | NEEDS REVIEW | 3 observations               |
++----------------------------------------------------------------------------------+
+| NEEDS REVIEW                                                                    |
+| -------------------------------------------------------------------------------- |
+| JFK -> LAX | Tue Jun 30 | American | $269                                       |
+| 12:00 PM – 3:21 PM · American · nonstop · JFK–LAX                               |
+| [match to tracker ▼] [Ignore]                                                   |
 +----------------------------------------------------------------------------------+
 ```
 
@@ -173,9 +166,7 @@ These are intentionally low-fidelity. They define layout, information order, and
 | Nonstop only:       [ Yes                                                    ] |
 | Lookahead window:   [ 8 weeks                                                ] |
 | Rebook alert threshold: [ $20                                                ] |
-| Email ingestion mode: [ Gmail IMAP                                           ] |
-| Gmail label/folder:  [ travel-agent                                          ] |
-| Manual upload also supported: [ Yes                                          ] |
+| Email import mode:    [ Manual .eml upload                                   ] |
 | [Save rules]                                                                    |
 +----------------------------------------------------------------------------------+
 ```

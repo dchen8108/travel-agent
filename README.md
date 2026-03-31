@@ -33,7 +33,7 @@ Then open `http://127.0.0.1:8000`.
 2. Open `Trackers` and use the generated Google Flights links.
 3. In Google Flights, turn on `Track prices` for each segment you care about.
 4. When Google sends a price alert email, save it as `.eml`.
-5. Import the `.eml` from the dashboard or `Imports`.
+5. Import the `.eml` from `Imports`.
 6. Review `Today` and `Review` for matched and ambiguous observations.
 7. Record bookings through `Add booking` / `Record booking`.
 

@@ -105,14 +105,15 @@ Out of scope:
 
 ## Information Architecture
 
-The first usable MVP should include 6 screens:
+The first usable MVP should include 7 screens:
 
 1. `Today`
-2. `Price Tracking`
+2. `Trackers`
 3. `Imports`
-4. `Trip Detail`
-5. `Rules`
-6. `Add Booking`
+4. `Review`
+5. `Trip Detail`
+6. `Rules`
+7. `Add Booking`
 
 `Today` should be the landing page.
 
@@ -133,7 +134,7 @@ Required summary strip:
 - trips that need setup
 - trips that need action now
 - booked trips being monitored
-- booked trips with rebook opportunities
+- open review items
 
 Required sections:
 
@@ -162,7 +163,7 @@ Global utility actions:
 - `Import Google Flights email`
 - `Add booking`
 
-### 2. Price Tracking
+### 2. Trackers
 
 Purpose:
 
@@ -179,7 +180,7 @@ The page should group segments by trip and by setup state:
 - `Needs setup`
 - `Awaiting first signal`
 - `Active`
-- `Needs review`
+- `Stale`
 
 Each segment row must include:
 
@@ -225,7 +226,21 @@ Required actions:
 - `Review unmatched observations`
 - `Open related trip`
 
-### 4. Trip Detail
+### 4. Review
+
+Purpose:
+
+- resolve ambiguous or unmatched observations safely
+- keep price signals from being silently applied to the wrong trip
+
+Requirements:
+
+- group open review items by source email
+- show route, date, airline, price, and itinerary context
+- offer only candidate trackers that match the observed route and date
+- allow the user to ignore a bad or irrelevant observation
+
+### 5. Trip Detail
 
 Purpose:
 
@@ -285,7 +300,7 @@ The MVP should not require mailbox configuration. Automatic Gmail sync is a late
 
 The screen should optimize for clarity over flexibility. Advanced rules can wait until later.
 
-### 6. Add Booking
+### 7. Add Booking
 
 Purpose:
 
