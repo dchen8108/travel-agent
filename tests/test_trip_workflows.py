@@ -112,6 +112,7 @@ def test_deactivating_weekly_trip_preserves_existing_instances_without_growing_f
 
     assert paused_dates == initial_dates
     assert paused_tracker_ids == initial_tracker_ids
+    assert all(instance.instance_kind == "generated" for instance in paused_instances)
 
 
 def test_trip_labels_must_be_unique(repository: Repository) -> None:

@@ -69,9 +69,24 @@ def reconcile_trip_instances(
             continue
         trip = trip_map.get(instance.trip_id)
         if trip is not None and not trip.active:
+            instance.instance_kind = instance_kind_for_trip(trip)
+            instance.display_label = (
+                trip.label
+                if instance.instance_kind == TripInstanceKind.STANDALONE
+                else f"{trip.label} ({instance.anchor_date.isoformat()})"
+            )
+            instance.updated_at = utcnow()
             kept.append(instance)
             continue
         if instance.anchor_date < today or instance.travel_state != TravelState.OPEN or instance.booking_id:
+            if trip is not None:
+                instance.instance_kind = instance_kind_for_trip(trip)
+                instance.display_label = (
+                    trip.label
+                    if instance.instance_kind == TripInstanceKind.STANDALONE
+                    else f"{trip.label} ({instance.anchor_date.isoformat()})"
+                )
+                instance.updated_at = utcnow()
             kept.append(instance)
             continue
         if trip is None:
