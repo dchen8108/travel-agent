@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>travel-agent</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>travel-agent</h1>
+          <p>Recurring flight monitor</p>
+        </div>
+        <nav class="nav">
+          <a href="/" class="{{ 'active' if page == 'today' else '' }}">Today</a>
+          <a href="/rules" class="{{ 'active' if page == 'rules' else '' }}">Rules</a>
+          <a href="/trackers" class="{{ 'active' if page == 'trackers' else '' }}">Trackers</a>
+          <a href="/imports" class="{{ 'active' if page == 'imports' else '' }}">Imports</a>
+          <a href="/bookings/new" class="{{ 'active' if page == 'booking' else '' }}">Add booking</a>
+          <a href="/review" class="{{ 'active' if page == 'review' else '' }}">Review</a>
+        </nav>
+      </aside>
+      <main class="content">
+        {% if message %}
+        <div class="flash">{{ message }}</div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+  </html>

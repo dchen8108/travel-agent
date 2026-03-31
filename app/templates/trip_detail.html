@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <h2>{{ trip.origin_airport }} → {{ trip.destination_airport }}</h2>
+    <p>{{ trip.outbound_date.strftime('%A, %b %d') }} to {{ trip.return_date.strftime('%A, %b %d') }}</p>
+  </div>
+  <div class="summary-strip">
+    <div class="summary-pill">
+      <span>{{ trip.status.replace('_', ' ') }}</span>
+      <small>Status</small>
+    </div>
+    <div class="summary-pill">
+      <span>{{ '$%s' % trip.best_price if trip.best_price is not none else '—' }}</span>
+      <small>Latest total</small>
+    </div>
+    <div class="summary-pill">
+      <span>{{ '$%s' % booking.booked_price if booking else '—' }}</span>
+      <small>Booked total</small>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Recommendation</h3>
+  <p>{{ trip.recommendation_reason }}</p>
+  <div class="actions">
+    <a class="button primary" href="/bookings/new?trip_id={{ trip.trip_instance_id }}">{{ 'Update booking' if booking else 'Record booking' }}</a>
+    <a class="button secondary" href="/trackers">Manage trackers</a>
+  </div>
+</section>
+
+<section class="two-column">
+  <article class="card">
+    <h3>Tracker status</h3>
+    {% for tracker in trackers %}
+    <div class="list-row">
+      <div>
+        <strong>{{ tracker.segment_type.title() }}</strong>
+        <div>{{ tracker.origin_airport }} → {{ tracker.destination_airport }} · {{ tracker.travel_date.strftime('%b %d') }}</div>
+      </div>
+      <span class="badge">{{ tracker.tracking_status.replace('_', ' ') }}</span>
+    </div>
+    {% endfor %}
+  </article>
+  <article class="card">
+    <h3>Best current signal</h3>
+    <p><strong>Airline:</strong> {{ trip.best_airline or 'Unknown' }}</p>
+    <p><strong>Outbound:</strong> {{ trip.best_outbound_summary or 'No signal yet' }}</p>
+    <p><strong>Return:</strong> {{ trip.best_return_summary or 'No signal yet' }}</p>
+  </article>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <h3>Recent observations</h3>
+    <a href="/imports">Import another email</a>
+  </div>
+  {% if observations %}
+  <div class="stack">
+    {% for observation in observations %}
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <h3>{{ observation.segment_type.title() }} · {{ observation.airline or 'Unknown airline' }}</h3>
+          <p>{{ observation.observed_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        </div>
+        <span class="badge">${{ observation.price }}</span>
+      </div>
+      <p>{{ observation.outbound_summary or observation.return_summary }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-inline">No observations imported for this trip yet.</div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+{% if not trip %}
+<section class="empty-state">
+  <h3>No trip selected</h3>
+  <p>Create rules first so there is a trip to attach a booking to.</p>
+  <a class="button primary" href="/rules">Set up rules</a>
+</section>
+{% else %}
+<section class="hero compact">
+  <div>
+    <h2>{{ 'Update booking' if booking else 'Add booking' }}</h2>
+    <p>{{ trip.origin_airport }} → {{ trip.destination_airport }} · {{ trip.outbound_date.strftime('%b %d') }} to {{ trip.return_date.strftime('%b %d') }}</p>
+  </div>
+</section>
+
+<form class="form-card" method="post" action="/bookings">
+  <input type="hidden" name="trip_instance_id" value="{{ trip.trip_instance_id }}">
+  <div class="form-grid">
+    <label>
+      <span>Booked price</span>
+      <input type="number" min="0" step="1" name="booked_price" value="{{ booking.booked_price if booking else '' }}" required>
+    </label>
+    <label>
+      <span>Booked at</span>
+      <input type="datetime-local" name="booked_at" value="{{ booking.booked_at.strftime('%Y-%m-%dT%H:%M') if booking else '' }}">
+    </label>
+    <label>
+      <span>Airline</span>
+      <input type="text" name="airline" value="{{ booking.airline if booking else '' }}">
+    </label>
+    <label>
+      <span>Fare type</span>
+      <input type="text" name="fare_type" value="{{ booking.fare_type if booking else 'Flexible' }}">
+    </label>
+    <label>
+      <span>Record locator</span>
+      <input type="text" name="record_locator" value="{{ booking.record_locator if booking else '' }}">
+    </label>
+    <label>
+      <span>Outbound summary</span>
+      <input type="text" name="outbound_summary" value="{{ booking.outbound_summary if booking else trip.best_outbound_summary }}">
+    </label>
+    <label>
+      <span>Return summary</span>
+      <input type="text" name="return_summary" value="{{ booking.return_summary if booking else trip.best_return_summary }}">
+    </label>
+    <label class="full-width">
+      <span>Notes</span>
+      <textarea name="notes" rows="4">{{ booking.notes if booking else '' }}</textarea>
+    </label>
+  </div>
+  <div class="actions">
+    <button class="button primary" type="submit">Save booking</button>
+    <a class="button secondary" href="/trips/{{ trip.trip_instance_id }}">Back to trip</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

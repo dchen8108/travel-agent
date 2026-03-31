@@ -1,0 +1,32 @@
+<article class="card trip-card status-{{ context.trip.status }}">
+  <div class="card-header">
+    <div>
+      <h3>{{ context.trip.origin_airport }} → {{ context.trip.destination_airport }}</h3>
+      <p>{{ context.trip.outbound_date.strftime('%a, %b %d') }} to {{ context.trip.return_date.strftime('%a, %b %d') }}</p>
+    </div>
+    <span class="badge">{{ context.trip.status.replace('_', ' ') }}</span>
+  </div>
+  <dl class="meta-grid">
+    <div>
+      <dt>Latest total</dt>
+      <dd>{{ '$%s' % context.latest_total_price if context.latest_total_price is not none else 'No full signal yet' }}</dd>
+    </div>
+    <div>
+      <dt>Booked total</dt>
+      <dd>{{ '$%s' % context.booking.booked_price if context.booking else 'Not booked' }}</dd>
+    </div>
+    <div>
+      <dt>Airline</dt>
+      <dd>{{ context.trip.best_airline or 'Unknown' }}</dd>
+    </div>
+  </dl>
+  <p class="reason">{{ context.trip.recommendation_reason }}</p>
+  <div class="actions">
+    <a class="button secondary" href="/trips/{{ context.trip.trip_instance_id }}">View details</a>
+    {% if context.booking %}
+    <a class="button secondary" href="/bookings/new?trip_id={{ context.trip.trip_instance_id }}">Update booking</a>
+    {% else %}
+    <a class="button primary" href="/bookings/new?trip_id={{ context.trip.trip_instance_id }}">Record booking</a>
+    {% endif %}
+  </div>
+</article>

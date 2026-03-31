@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero">
+  <div>
+    <h2>Today</h2>
+    <p>Focus on what needs setup, what needs action, and what is already being monitored.</p>
+  </div>
+  <div class="summary-strip">
+    <div class="summary-pill">
+      <span>{{ snapshot.dashboard.setup|length }}</span>
+      <small>Need setup</small>
+    </div>
+    <div class="summary-pill">
+      <span>{{ snapshot.dashboard.action|length }}</span>
+      <small>Act now / wait</small>
+    </div>
+    <div class="summary-pill">
+      <span>{{ snapshot.dashboard.booked|length }}</span>
+      <small>Booked</small>
+    </div>
+    <div class="summary-pill">
+      <span>{{ open_review_count }}</span>
+      <small>Review items</small>
+    </div>
+  </div>
+</section>
+
+{% if not snapshot.programs %}
+<section class="empty-state">
+  <h3>No program yet</h3>
+  <p>Create your recurring route first so the app can generate trips and trackers.</p>
+  <a class="button primary" href="/rules">Set up rules</a>
+</section>
+{% else %}
+<section class="section">
+  <div class="section-header">
+    <h3>Set up price tracking</h3>
+    <a href="/trackers">Manage trackers</a>
+  </div>
+  {% if snapshot.dashboard.setup %}
+    <div class="card-grid">
+      {% for context in snapshot.dashboard.setup %}
+        {% include "partials/trip_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-inline">All visible trips already have outbound and return tracking set up.</div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <h3>Act now</h3>
+    <a href="/imports">Import a Google Flights email</a>
+  </div>
+  {% if snapshot.dashboard.action %}
+    <div class="card-grid">
+      {% for context in snapshot.dashboard.action %}
+        {% include "partials/trip_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-inline">No unbooked trips need action right now.</div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <h3>Booked trips</h3>
+    <a href="/review">Review queue</a>
+  </div>
+  {% if snapshot.dashboard.booked %}
+    <div class="card-grid">
+      {% for context in snapshot.dashboard.booked %}
+        {% include "partials/trip_card.html" %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-inline">No booked trips are being monitored yet.</div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

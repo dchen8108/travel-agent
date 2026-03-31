@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <h2>Rules</h2>
+    <p>Define one recurring commute program. Saving rules regenerates future trips and segment trackers.</p>
+  </div>
+</section>
+
+<form class="form-card" method="post" action="/rules">
+  <div class="form-grid">
+    <label>
+      <span>Program name</span>
+      <input type="text" name="program_name" value="{{ program.program_name }}" required>
+    </label>
+    <label>
+      <span>Origin airports</span>
+      <input type="text" name="origin_airports" value="{{ program.origin_airports }}" required>
+      <small>Pipe or comma separated, e.g. BUR|LAX|SNA</small>
+    </label>
+    <label>
+      <span>Destination airports</span>
+      <input type="text" name="destination_airports" value="{{ program.destination_airports }}" required>
+    </label>
+    <label>
+      <span>Preferred airlines</span>
+      <input type="text" name="preferred_airlines" value="{{ program.preferred_airlines }}">
+    </label>
+    <label>
+      <span>Allowed airlines</span>
+      <input type="text" name="allowed_airlines" value="{{ program.allowed_airlines }}">
+    </label>
+    <label>
+      <span>Fare preference</span>
+      <input type="text" name="fare_preference" value="{{ program.fare_preference }}">
+    </label>
+    <label>
+      <span>Outbound weekday</span>
+      <select name="outbound_weekday">
+        {% for weekday in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+        <option value="{{ weekday }}" {{ 'selected' if program.outbound_weekday == weekday else '' }}>{{ weekday }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Outbound start</span>
+      <input type="time" name="outbound_time_start" value="{{ program.outbound_time_start }}">
+    </label>
+    <label>
+      <span>Outbound end</span>
+      <input type="time" name="outbound_time_end" value="{{ program.outbound_time_end }}">
+    </label>
+    <label>
+      <span>Return weekday</span>
+      <select name="return_weekday">
+        {% for weekday in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+        <option value="{{ weekday }}" {{ 'selected' if program.return_weekday == weekday else '' }}>{{ weekday }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Return start</span>
+      <input type="time" name="return_time_start" value="{{ program.return_time_start }}">
+    </label>
+    <label>
+      <span>Return end</span>
+      <input type="time" name="return_time_end" value="{{ program.return_time_end }}">
+    </label>
+    <label>
+      <span>Lookahead weeks</span>
+      <input type="number" min="1" max="26" name="lookahead_weeks" value="{{ program.lookahead_weeks }}">
+    </label>
+    <label>
+      <span>Rebook alert threshold</span>
+      <input type="number" min="1" name="rebook_alert_threshold" value="{{ program.rebook_alert_threshold }}">
+    </label>
+    <label class="checkbox-row">
+      <input type="hidden" name="nonstop_only" value="false">
+      <input type="checkbox" name="nonstop_only" value="true" {{ 'checked' if program.nonstop_only else '' }}>
+      <span>Nonstop only</span>
+    </label>
+    <label class="checkbox-row">
+      <input type="hidden" name="active" value="false">
+      <input type="checkbox" name="active" value="true" {{ 'checked' if program.active else '' }}>
+      <span>Program active</span>
+    </label>
+  </div>
+  <div class="actions">
+    <button class="button primary" type="submit">Save rules and regenerate trips</button>
+  </div>
+</form>
+{% endblock %}
