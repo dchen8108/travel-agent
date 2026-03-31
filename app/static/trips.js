@@ -1,6 +1,23 @@
 (() => {
   const tripState = window.travelAgentTripForm;
   const bookingState = window.travelAgentBookingForm;
+  const pickerRegistry = [];
+
+  function closeOtherPickers(currentRoot = null) {
+    pickerRegistry.forEach((picker) => {
+      if (!currentRoot || picker.root !== currentRoot) {
+        picker.close();
+      }
+    });
+  }
+
+  document.addEventListener("pointerdown", (event) => {
+    pickerRegistry.forEach((picker) => {
+      if (!picker.root.contains(event.target)) {
+        picker.close();
+      }
+    });
+  });
 
   function buildSearchText(option) {
     return [option.value, option.label, option.keywords || ""].join(" ").toLowerCase();
@@ -24,6 +41,10 @@
     const chipList = root.querySelector("[data-chip-list]");
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
+
+    function closeMenu() {
+      menu.hidden = true;
+    }
 
     function renderChips() {
       chipList.innerHTML = "";
@@ -57,7 +78,7 @@
         .slice(0, 10);
       menu.innerHTML = "";
       if (!matches.length) {
-        menu.hidden = true;
+        closeMenu();
         return;
       }
       matches.forEach((option) => {
@@ -80,11 +101,22 @@
 
     renderChips();
 
-    search.addEventListener("focus", () => renderMenu(search.value));
+    pickerRegistry.push({ root, close: closeMenu });
+
+    search.addEventListener("focus", () => {
+      closeOtherPickers(root);
+      renderMenu(search.value);
+    });
     search.addEventListener("input", () => renderMenu(search.value));
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeMenu();
+        search.blur();
+      }
+    });
     search.addEventListener("blur", () => {
       window.setTimeout(() => {
-        menu.hidden = true;
+        closeMenu();
       }, 150);
     });
   }
@@ -105,6 +137,10 @@
     const chipList = root.querySelector("[data-chip-list]");
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
+
+    function closeMenu() {
+      menu.hidden = true;
+    }
 
     function renderChip() {
       chipList.innerHTML = "";
@@ -135,7 +171,7 @@
         .slice(0, 10);
       menu.innerHTML = "";
       if (!matches.length) {
-        menu.hidden = true;
+        closeMenu();
         return;
       }
       matches.forEach((option) => {
@@ -157,11 +193,22 @@
     }
 
     renderChip();
-    search.addEventListener("focus", () => renderMenu(search.value));
+    pickerRegistry.push({ root, close: closeMenu });
+
+    search.addEventListener("focus", () => {
+      closeOtherPickers(root);
+      renderMenu(search.value);
+    });
     search.addEventListener("input", () => renderMenu(search.value));
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeMenu();
+        search.blur();
+      }
+    });
     search.addEventListener("blur", () => {
       window.setTimeout(() => {
-        menu.hidden = true;
+        closeMenu();
       }, 150);
     });
   }

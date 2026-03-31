@@ -446,6 +446,10 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.multi-select-menu[hidden] {
+  display: none;
+}
+
 .multi-select-option {
   padding: 10px 12px;
   border-radius: 12px;
