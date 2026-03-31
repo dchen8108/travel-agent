@@ -16,18 +16,13 @@ router = APIRouter(prefix="/trackers", tags=["trackers"])
 def trackers_page(request: Request, repository: Repository = Depends(get_repository)) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     trips_by_id = {trip.trip_instance_id: trip for trip in snapshot.trips}
-    tracker_groups: dict[str, list[tuple[object, object]]] = {
-        "needs_setup": [],
-        "tracking_enabled": [],
-        "signal_received": [],
-        "stale": [],
-    }
+    rows: list[dict[str, object]] = []
     for tracker in sorted(snapshot.trackers, key=lambda item: (item.travel_date, item.origin_airport, item.destination_airport)):
-        tracker_groups.setdefault(tracker.tracking_status, []).append((tracker, trips_by_id.get(tracker.trip_instance_id)))
+        rows.append({"tracker": tracker, "trip": trips_by_id.get(tracker.trip_instance_id)})
     return get_templates(request).TemplateResponse(
         request=request,
         name="trackers.html",
-        context=base_context(request, page="trackers", tracker_groups=tracker_groups, snapshot=snapshot),
+        context=base_context(request, page="trackers", rows=rows, snapshot=snapshot),
     )
 
 

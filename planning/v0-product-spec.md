@@ -59,11 +59,9 @@ In scope:
 - Google Flights link generation or manual tracker-link paste
 - tracker setup and tracker-status visibility
 - manual Google Flights email upload
-- optional Gmail IMAP ingestion
 - booked-trip monitoring
 - rebook recommendations
 - local web interface
-- local daily digest email
 - local-file storage
 
 Out of scope:
@@ -77,6 +75,8 @@ Out of scope:
 - Google Flights scraping
 - chatbot-first interface
 - multi-user support
+- Gmail IMAP automation
+- daily digest email
 
 ## Core User Loop
 
@@ -85,12 +85,12 @@ Out of scope:
 3. The system generates Google Flights search links for those trip instances or lets the user paste exact tracker links.
 4. The user turns on tracking in Google Flights for the trips they care about.
 5. Google Flights sends email and phone alerts when prices move.
-6. The user uploads those emails or the app ingests them automatically if Gmail IMAP is configured.
+6. The user uploads those emails into the app as `.eml` files.
 7. The app labels each trip as `wait`, `book now`, `booked_monitoring`, or `rebook`.
 8. The user books manually outside the tool.
 9. The user records the booking in the tool.
 10. The app keeps monitoring booked trips through subsequent Google Flights alerts.
-11. The user gets a local daily digest summarizing what matters now.
+11. The dashboard and review queue summarize what matters now.
 
 ## Product Principles
 

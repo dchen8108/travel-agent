@@ -238,7 +238,7 @@ These are intentionally low-fidelity. They define layout, information order, and
 - price shown: booked price and latest comparable fare
 - CTA: `Mark rebooked`
 
-## Email Digest Wireframe
+## Deferred: Email Digest Wireframe
 
 ```text
 Subject: travel-agent daily digest: 1 tracker, 1 action, 1 rebook

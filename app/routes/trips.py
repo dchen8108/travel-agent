@@ -5,7 +5,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.bookings import upsert_booking
 from app.services.dashboard import load_snapshot
-from app.services.recommendations import latest_observation_by_tracker
 from app.services.workflows import recompute_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -21,7 +20,7 @@ def trip_detail(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     trip = next(item for item in snapshot.trips if item.trip_instance_id == trip_instance_id)
-    tracker_by_id = {tracker.tracker_id: tracker for tracker in snapshot.trackers}
+    trackers = [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id]
     booking = next((item for item in snapshot.bookings if item.trip_instance_id == trip_instance_id and item.status == "active"), None)
     observations = [
         observation
@@ -29,17 +28,6 @@ def trip_detail(
         if observation.trip_instance_id == trip_instance_id
     ]
     observations.sort(key=lambda item: item.observed_at, reverse=True)
-    latest_by_tracker = latest_observation_by_tracker(observations)
-    latest_total = None
-    if trip.outbound_tracker_id in latest_by_tracker and trip.return_tracker_id in latest_by_tracker:
-        latest_total = latest_by_tracker[trip.outbound_tracker_id].price + latest_by_tracker[trip.return_tracker_id].price
-    context = {
-        "trip": trip,
-        "outbound_tracker": tracker_by_id.get(trip.outbound_tracker_id),
-        "return_tracker": tracker_by_id.get(trip.return_tracker_id),
-        "booking": booking,
-        "latest_total_price": latest_total,
-    }
     return get_templates(request).TemplateResponse(
         request=request,
         name="trip_detail.html",
@@ -47,8 +35,10 @@ def trip_detail(
             request,
             page="trip-detail",
             snapshot=snapshot,
-            context=context,
-            history=observations[:20],
+            trip=trip,
+            trackers=trackers,
+            booking=booking,
+            observations=observations[:20],
         ),
     )
 
