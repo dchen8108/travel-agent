@@ -77,3 +77,24 @@ def trackers_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[
 
 def best_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
     return best_tracker_for_instance(trackers_for_instance(snapshot, trip_instance_id))
+
+
+def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:
+    instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if instance is None:
+        return None
+    return next((trip for trip in snapshot.trips if trip.trip_id == instance.trip_id), None)
+
+
+def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
+    return sorted(
+        [trip for trip in snapshot.trips if trip.trip_kind == "weekly"],
+        key=lambda item: item.label.lower(),
+    )
+
+
+def scheduled_instances(snapshot: AppSnapshot) -> list[TripInstance]:
+    return sorted(
+        snapshot.trip_instances,
+        key=lambda item: (item.anchor_date, item.display_label.lower()),
+    )

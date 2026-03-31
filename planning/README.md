@@ -7,6 +7,8 @@ The current design baseline is:
 - `travel-agent` is a tracker-of-trackers
 - the top-level object is a `Trip`, not a `Rule`
 - trips can be `one_time` or `weekly`
+- weekly trips are parent plans
+- dated trip instances are the scheduled trips the user actually flies
 - route options are ranked tracker definitions under a trip
 - weekly trips maintain the next 12 future occurrences
 - only unmatched bookings go to `Resolve`

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from app.models.base import TravelState, utcnow
+from app.models.base import TravelState, TripInstanceKind, utcnow
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.services.ids import stable_id
@@ -23,6 +23,12 @@ def desired_anchor_dates(trip: Trip, *, today: date, future_weeks: int) -> list[
     return [start + timedelta(days=7 * offset) for offset in range(future_weeks)]
 
 
+def instance_kind_for_trip(trip: Trip) -> TripInstanceKind:
+    if trip.trip_kind == "weekly":
+        return TripInstanceKind.GENERATED
+    return TripInstanceKind.STANDALONE
+
+
 def reconcile_trip_instances(
     trips: list[Trip],
     existing_trip_instances: list[TripInstance],
@@ -35,13 +41,15 @@ def reconcile_trip_instances(
     kept: list[TripInstance] = []
 
     for trip in trips:
+        instance_kind = instance_kind_for_trip(trip)
         for anchor_date in desired_anchor_dates(trip, today=today, future_weeks=future_weeks):
             key = (trip.trip_id, anchor_date)
             desired_keys.add(key)
             existing = existing_by_key.get(key)
-            display_label = f"{trip.label} ({anchor_date.isoformat()})"
+            display_label = trip.label if instance_kind == TripInstanceKind.STANDALONE else f"{trip.label} ({anchor_date.isoformat()})"
             if existing:
                 existing.display_label = display_label
+                existing.instance_kind = instance_kind
                 existing.updated_at = utcnow()
                 kept.append(existing)
                 continue
@@ -51,6 +59,7 @@ def reconcile_trip_instances(
                     trip_id=trip.trip_id,
                     display_label=display_label,
                     anchor_date=anchor_date,
+                    instance_kind=instance_kind,
                 )
             )
 

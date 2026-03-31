@@ -33,6 +33,11 @@ class TripKind(StrEnum):
     WEEKLY = "weekly"
 
 
+class TripInstanceKind(StrEnum):
+    STANDALONE = "standalone"
+    GENERATED = "generated"
+
+
 class TravelState(StrEnum):
     OPEN = "open"
     BOOKED = "booked"

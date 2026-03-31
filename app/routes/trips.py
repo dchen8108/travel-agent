@@ -15,8 +15,11 @@ from app.services.dashboard import (
     booking_for_instance,
     instances_for_trip,
     load_snapshot,
+    recurring_trips,
     route_options_for_trip,
+    scheduled_instances,
     trackers_for_instance,
+    trip_for_instance,
 )
 from app.services.trips import delete_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
@@ -134,8 +137,14 @@ def trips_index(
             request,
             page="trips",
             snapshot=snapshot,
+            recurring_trips=recurring_trips,
+            scheduled_instances=scheduled_instances,
             instances_for_trip=instances_for_trip,
             route_options_for_trip=route_options_for_trip,
+            booking_for_instance=booking_for_instance,
+            best_tracker=best_tracker,
+            trackers_for_instance=trackers_for_instance,
+            trip_for_instance=trip_for_instance,
         ),
     )
 

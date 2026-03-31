@@ -26,9 +26,9 @@ This version is intentionally local and simple:
 
 ## Core Objects
 
-- `Trip`: top-level travel construct with a unique label
+- `Trip`: authoring object with a unique label
 - `Route Option`: ranked tracker definition under a trip
-- `Trip Instance`: one dated occurrence of a trip
+- `Trip Instance`: one dated scheduled trip, either standalone or generated from a weekly trip
 - `Tracker`: one Google Flights tracker/search envelope for a route option on a trip instance
 - `Booking`: a purchased itinerary attached to a trip instance
 - `Unmatched Booking`: a booking the system could not confidently place
@@ -47,9 +47,9 @@ Then open `http://127.0.0.1:8000`.
 1. Create a `Trip`.
 2. Choose whether it is `one_time` or `weekly`.
 3. Add ranked `Route Options`.
-4. Open generated Google Flights links and enable `Track prices`.
-5. Import Google Flights `.eml` alerts as they arrive.
-6. Review `Today`, `Trips`, and `Bookings`.
+4. Use `Trips` to manage weekly recurring trips at the parent level and review all dated scheduled trips below them.
+5. Open generated Google Flights links and enable `Track prices`.
+6. Import Google Flights `.eml` alerts as they arrive.
 7. Record bookings in the app.
 8. Let the app continue comparing booked prices against tracker signals.
 

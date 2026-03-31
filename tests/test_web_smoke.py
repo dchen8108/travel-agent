@@ -104,3 +104,43 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
     activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
     assert activate.status_code == 303
     assert activate.headers["location"] == "/trips?message=Trip+activated"
+
+
+def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    client.post(
+        "/trips",
+        data={
+            "label": "Weekly LA to SF",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    client.post(
+        "/trips",
+        data={
+            "label": "Conference Arrival",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-05-10",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    trips_page = client.get("/trips")
+    assert trips_page.status_code == 200
+    assert "Recurring trips" in trips_page.text
+    assert "Scheduled trips" in trips_page.text
+    assert "Weekly LA to SF" in trips_page.text
+    assert "Conference Arrival" in trips_page.text

@@ -34,6 +34,7 @@ def test_weekly_trip_generates_twelve_future_instances(repository: Repository) -
     assert len(trip_instances) == 12
     assert trip_instances[0].anchor_date == date(2026, 4, 6)
     assert all(instance.display_label.startswith("LA to SF Outbound") for instance in trip_instances)
+    assert all(instance.instance_kind == "generated" for instance in trip_instances)
     assert len([tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instances[0].trip_instance_id]) == 1
 
 
@@ -158,3 +159,32 @@ def test_trip_labels_must_be_unique(repository: Repository) -> None:
         assert "unique" in str(exc).lower()
     else:
         raise AssertionError("Expected duplicate trip labels to raise.")
+
+
+def test_one_time_trip_creates_a_standalone_instance(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Conference Arrival",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
+
+    assert len(trip_instances) == 1
+    assert trip_instances[0].display_label == "Conference Arrival"
+    assert trip_instances[0].instance_kind == "standalone"

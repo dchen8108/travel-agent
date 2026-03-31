@@ -123,6 +123,7 @@ One dated occurrence of a trip.
 
 - one-time trips create exactly one instance
 - weekly trips maintain the next 12 future instances
+- in the product UI, trip instances are the scheduled trips the user actually acts on
 
 ### Tracker
 
@@ -217,6 +218,11 @@ The MVP should include these primary screens:
 3. `Bookings`
 4. `Imports`
 5. `Resolve`
+
+The `Trips` screen should be split into:
+
+- `Recurring trips`: weekly parent plans with edit/pause controls
+- `Scheduled trips`: every dated trip instance, including standalone one-time trips and recurring-generated occurrences
 
 Optional operational surface:
 
