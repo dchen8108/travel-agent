@@ -50,15 +50,16 @@ Suggested fields:
 
 Purpose:
 
-- define recurring flight programs
+- define recurring flight rules
 
-One row per recurring program.
+One row per recurring rule.
 
 Suggested columns:
 
 - `program_id`
 - `program_name`
 - `active`
+- `trip_mode`
 - `origin_airports`
 - `destination_airports`
 - `outbound_weekday`
@@ -80,26 +81,29 @@ Notes:
 
 - store airport and airline lists as pipe-delimited strings, for example `BUR|LAX|SNA`
 - store booleans as `true` or `false`
+- `trip_mode` is `one_way` or `round_trip`
+- for one-way rules, return fields stay blank
 
 Example:
 
 ```csv
-program_id,program_name,active,origin_airports,destination_airports,outbound_weekday,outbound_time_start,outbound_time_end,return_weekday,return_time_start,return_time_end,preferred_airlines,allowed_airlines,fare_preference,nonstop_only,lookahead_weeks,rebook_alert_threshold,created_at,updated_at
-prog_001,LA to SF Weekly,true,BUR|LAX|SNA,SFO,Monday,06:00,10:00,Wednesday,16:00,21:00,Alaska|United|Delta,Alaska|United|Delta|Southwest,flexible,true,8,20,2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
+program_id,program_name,active,trip_mode,origin_airports,destination_airports,outbound_weekday,outbound_time_start,outbound_time_end,return_weekday,return_time_start,return_time_end,preferred_airlines,allowed_airlines,fare_preference,nonstop_only,lookahead_weeks,rebook_alert_threshold,created_at,updated_at
+prog_001,LA to SF Outbound,true,one_way,BUR|LAX|SNA,SFO,Monday,06:00,10:00,,,,Alaska|United|Delta,Alaska|United|Delta|Southwest,flexible,true,8,20,2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
 ```
 
 ## 3. `trip_instances.csv`
 
 Purpose:
 
-- represent concrete future trips generated from recurring programs
+- represent concrete future trips generated from recurring rules
 
-One row per outbound/return pair.
+One row per concrete trip. A one-way rule generates one-way trips, while a round-trip rule generates outbound/return pairs.
 
 Suggested columns:
 
 - `trip_instance_id`
 - `program_id`
+- `trip_mode`
 - `origin_airport`
 - `destination_airport`
 - `outbound_date`
@@ -133,13 +137,15 @@ Notes:
 - `booking_id` is empty until the user records a booking
 - `outbound_tracker_id` and `return_tracker_id` point to segment trackers when they exist
 - this table drives the Today and Calendar screens
-- a trip recommendation should be computed from the latest safe outbound and return observations
+- a round-trip recommendation should be computed from the latest safe outbound and return observations
+- a one-way recommendation should be computed from the latest safe outbound observation
+- `return_date`, `best_return_summary`, and `return_tracker_id` can be blank for one-way trips
 
 Example:
 
 ```csv
-trip_instance_id,program_id,origin_airport,destination_airport,outbound_date,return_date,status,recommendation_reason,best_airline,best_fare_type,best_price,best_outbound_summary,best_return_summary,outbound_tracker_id,return_tracker_id,last_checked_at,dismissed_until,booking_id,created_at,updated_at
-trip_001,prog_001,BUR,SFO,2026-05-12,2026-05-14,book_now,Combined latest segment prices are acceptable inside your booking window.,Alaska,flexible,387,AS123 07:00-08:35,AS456 18:15-19:45,trk_001,trk_002,2026-04-04T08:05:00-07:00,,,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
+trip_instance_id,program_id,trip_mode,origin_airport,destination_airport,outbound_date,return_date,status,recommendation_reason,best_airline,best_fare_type,best_price,best_outbound_summary,best_return_summary,outbound_tracker_id,return_tracker_id,last_checked_at,dismissed_until,booking_id,created_at,updated_at
+trip_001,prog_001,one_way,BUR,SFO,2026-05-12,,book_now,Current fare is near the best observed price for this trip.,Alaska,flexible,186,AS123 07:00-08:35,,trk_001,,2026-04-04T08:05:00-07:00,,,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
 ```
 
 ## 4. `trackers.csv`

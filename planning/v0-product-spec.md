@@ -50,7 +50,8 @@ Based on a real Google Flights alert email, v0 should assume that tracking signa
 In scope:
 
 - one user
-- one or more recurring flight programs
+- one or more recurring flight rules
+- each rule can be `one_way` or `round_trip`
 - multiple acceptable origin airports
 - one or more destination airports
 - preferred airlines
@@ -80,7 +81,7 @@ Out of scope:
 
 ## Core User Loop
 
-1. The user defines a recurring flight program.
+1. The user defines one or more recurring flight rules.
 2. The system generates the next 6 to 8 weeks of trip instances.
 3. The system generates Google Flights search links for those trip instances or lets the user paste exact tracker links.
 4. The user turns on tracking in Google Flights for the trips they care about.
@@ -145,7 +146,7 @@ Required sections:
 Each trip card must include:
 
 - route and dates
-- outbound and return tracking status
+- tracking status for the segments that actually apply
 - latest observed price if available
 - signal timestamp if available
 - status badge
@@ -174,6 +175,8 @@ Trackers should be modeled per trip segment:
 
 - outbound segment
 - return segment
+
+One-way rules should only create outbound segments.
 
 The page should group segments by trip and by setup state:
 
@@ -274,27 +277,48 @@ Required actions:
 - `Mark rebooked`
 - `Mark cancelled`
 
-### 5. Rules
+### 6. Rules
 
 Purpose:
 
-- define how the recurring travel program behaves
+- define how the recurring travel rules behave
+
+The rule model should stay flat:
+
+- one saved rule row per recurring pattern
+- multiple rules allowed
+- use multiple one-way rules when outbound and return preferences differ
 
 Required fields:
 
-- program name
+- rule name
+- trip mode: `one_way` or `round_trip`
 - origin airport pool
 - destination airport pool
 - outbound weekday
 - outbound preferred departure window
-- return weekday
-- return preferred departure window
+- return weekday, only for round-trip
+- return preferred departure window, only for round-trip
 - preferred airlines
 - allowed airlines
 - fare preference
 - nonstop preference
 - lookahead window in weeks
 - alert threshold in dollars
+
+Major selectors should be constrained:
+
+- airports come from a supported searchable catalog
+- airlines come from a supported searchable catalog
+- weekdays are dropdowns
+- fare preference is a dropdown
+
+Multi-select airport and airline controls should behave like searchable chip pickers:
+
+- type to filter
+- click to add
+- remove chips with `x`
+- block save if unresolved free text remains in the picker
 
 The MVP should not require mailbox configuration. Automatic Gmail sync is a later enhancement.
 

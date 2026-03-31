@@ -10,7 +10,14 @@
 <section class="hero compact">
   <div>
     <h2>{{ 'Update booking' if booking else 'Add booking' }}</h2>
-    <p>{{ trip.origin_airport }} → {{ trip.destination_airport }} · {{ trip.outbound_date.strftime('%b %d') }} to {{ trip.return_date.strftime('%b %d') }}</p>
+    <p>
+      {{ trip.origin_airport }} → {{ trip.destination_airport }} · {{ trip.outbound_date.strftime('%b %d') }}
+      {% if trip.return_date %}
+      to {{ trip.return_date.strftime('%b %d') }}
+      {% else %}
+      · One-way
+      {% endif %}
+    </p>
   </div>
 </section>
 
@@ -41,10 +48,12 @@
       <span>Outbound summary</span>
       <input type="text" name="outbound_summary" value="{{ booking.outbound_summary if booking else trip.best_outbound_summary }}">
     </label>
+    {% if trip.return_date %}
     <label>
       <span>Return summary</span>
       <input type="text" name="return_summary" value="{{ booking.return_summary if booking else trip.best_return_summary }}">
     </label>
+    {% endif %}
     <label class="full-width">
       <span>Notes</span>
       <textarea name="notes" rows="4">{{ booking.notes if booking else '' }}</textarea>

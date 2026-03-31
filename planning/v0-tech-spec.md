@@ -24,7 +24,7 @@ The hardened baseline is:
 
 Automatic Gmail IMAP polling is an upgrade path, not a prerequisite for the first usable MVP.
 
-After validating a real Google Flights email, the architecture should assume that Google signals are segment-level. The app should therefore track outbound and return legs separately and combine them into trip-level decisions.
+After validating a real Google Flights email, the architecture should assume that Google signals are segment-level. The app should therefore track outbound and return legs separately and combine them into trip-level decisions. The rule model should stay flat: one persisted recurring rule row per directional pattern, with `trip_mode` deciding whether that rule creates one-way trips or paired round trips.
 
 ## Architecture Summary
 
@@ -146,9 +146,16 @@ travel-agent/
 ### 1. Program Setup
 
 1. User opens `Rules`.
-2. User defines origins, destinations, weekdays, time windows, and airline preferences.
-3. App saves `programs.csv`.
-4. App generates future `trip_instances.csv` rows and two segment-level `trackers.csv` rows per round trip when both outbound and return are present.
+2. User creates or edits one or more saved rules.
+3. Each rule is configured as `one_way` or `round_trip`.
+4. Major inputs are constrained to hardcoded airport, airline, weekday, and fare-preference catalogs.
+5. App saves `programs.csv`.
+6. App generates future `trip_instances.csv` rows and segment-level `trackers.csv` rows.
+
+Generation rules:
+
+- one-way rule -> one tracker per trip instance
+- round-trip rule -> outbound and return trackers per trip instance
 
 ### 2. Tracker Setup
 
@@ -200,7 +207,7 @@ travel-agent/
   Single trip detail page.
 
 - `GET /rules`
-  Rules and ingestion settings form.
+  Multi-rule editor with constrained selectors and one-way or round-trip rule support.
 
 - `GET /bookings/new`
   Add booking form.
@@ -211,7 +218,7 @@ travel-agent/
 ### Actions
 
 - `POST /rules`
-  Save rules and regenerate trip instances.
+  Save one rule by `program_id` and regenerate trip instances for all active rules.
 
 - `POST /trackers/{tracker_id}/mark-enabled`
   Mark a tracker as enabled by the user.

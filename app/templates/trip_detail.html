@@ -3,7 +3,14 @@
 <section class="hero compact">
   <div>
     <h2>{{ trip.origin_airport }} → {{ trip.destination_airport }}</h2>
-    <p>{{ trip.outbound_date.strftime('%A, %b %d') }} to {{ trip.return_date.strftime('%A, %b %d') }}</p>
+    <p>
+      {{ trip.outbound_date.strftime('%A, %b %d') }}
+      {% if trip.return_date %}
+      to {{ trip.return_date.strftime('%A, %b %d') }}
+      {% else %}
+      · One-way
+      {% endif %}
+    </p>
   </div>
   <div class="summary-strip">
     <div class="summary-pill">
@@ -12,11 +19,11 @@
     </div>
     <div class="summary-pill">
       <span>{{ '$%s' % trip.best_price if trip.best_price is not none else '—' }}</span>
-      <small>Latest total</small>
+      <small>{{ 'Latest tracked total' if trip.return_date else 'Latest tracked fare' }}</small>
     </div>
     <div class="summary-pill">
       <span>{{ '$%s' % booking.booked_price if booking else '—' }}</span>
-      <small>Booked total</small>
+      <small>{{ 'Booked total' if trip.return_date else 'Booked fare' }}</small>
     </div>
   </div>
 </section>
@@ -47,7 +54,9 @@
     <h3>Best current signal</h3>
     <p><strong>Airline:</strong> {{ trip.best_airline or 'Unknown' }}</p>
     <p><strong>Outbound:</strong> {{ trip.best_outbound_summary or 'No signal yet' }}</p>
+    {% if trip.return_date %}
     <p><strong>Return:</strong> {{ trip.best_return_summary or 'No signal yet' }}</p>
+    {% endif %}
   </article>
 </section>
 

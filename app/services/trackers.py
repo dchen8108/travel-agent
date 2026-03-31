@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from urllib.parse import quote_plus
 
-from app.models.base import SegmentType, TrackerStatus
+from app.models.base import SegmentType, TrackerStatus, TripMode
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
 
@@ -18,10 +18,14 @@ def sync_trackers(
 
     for trip in trips:
         outbound_tracker = build_tracker(trip, SegmentType.OUTBOUND, existing_by_id)
-        return_tracker = build_tracker(trip, SegmentType.RETURN, existing_by_id)
-        trackers.extend([outbound_tracker, return_tracker])
+        trackers.append(outbound_tracker)
         trip.outbound_tracker_id = outbound_tracker.tracker_id
-        trip.return_tracker_id = return_tracker.tracker_id
+        if trip.trip_mode == TripMode.ROUND_TRIP and trip.return_date is not None:
+            return_tracker = build_tracker(trip, SegmentType.RETURN, existing_by_id)
+            trackers.append(return_tracker)
+            trip.return_tracker_id = return_tracker.tracker_id
+        else:
+            trip.return_tracker_id = ""
         updated_trips.append(trip)
 
     return updated_trips, trackers
@@ -37,6 +41,8 @@ def build_tracker(
     origin = trip.origin_airport if segment_type == SegmentType.OUTBOUND else trip.destination_airport
     destination = trip.destination_airport if segment_type == SegmentType.OUTBOUND else trip.origin_airport
     travel_date = trip.outbound_date if segment_type == SegmentType.OUTBOUND else trip.return_date
+    if travel_date is None:
+        raise ValueError("Return trackers require a return date.")
     generated_url = generate_google_flights_url(origin, destination, travel_date.isoformat())
     tracker = Tracker(
         tracker_id=tracker_id,

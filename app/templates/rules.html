@@ -1,92 +1,291 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="hero compact">
-  <div>
-    <h2>Rules</h2>
-    <p>Define one recurring commute program. Saving rules regenerates future trips and segment trackers.</p>
-  </div>
-</section>
+{% set rules = programs|default([program], true) %}
+{% set selected = selected_program|default(program, true) %}
+{% set trip_mode = selected.trip_mode|default('round_trip', true) %}
 
-<form class="form-card" method="post" action="/rules">
-  <div class="form-grid">
-    <label>
-      <span>Program name</span>
-      <input type="text" name="program_name" value="{{ program.program_name }}" required>
-    </label>
-    <label>
-      <span>Origin airports</span>
-      <input type="text" name="origin_airports" value="{{ program.origin_airports }}" required>
-      <small>Pipe or comma separated, e.g. BUR|LAX|SNA</small>
-    </label>
-    <label>
-      <span>Destination airports</span>
-      <input type="text" name="destination_airports" value="{{ program.destination_airports }}" required>
-    </label>
-    <label>
-      <span>Preferred airlines</span>
-      <input type="text" name="preferred_airlines" value="{{ program.preferred_airlines }}">
-    </label>
-    <label>
-      <span>Allowed airlines</span>
-      <input type="text" name="allowed_airlines" value="{{ program.allowed_airlines }}">
-    </label>
-    <label>
-      <span>Fare preference</span>
-      <input type="text" name="fare_preference" value="{{ program.fare_preference }}">
-    </label>
-    <label>
-      <span>Outbound weekday</span>
-      <select name="outbound_weekday">
-        {% for weekday in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
-        <option value="{{ weekday }}" {{ 'selected' if program.outbound_weekday == weekday else '' }}>{{ weekday }}</option>
+<div class="rules-page">
+  {% if error_message %}
+  <section class="card error-card">
+    <strong>Rule not saved</strong>
+    <p>{{ error_message }}</p>
+  </section>
+  {% endif %}
+
+  <section class="hero compact rules-hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Rules</p>
+      <h2>Build segment-level commute rules.</h2>
+      <p>
+        Pick only from the supported airport and airline catalogs, switch between one-way and round-trip rules, and keep each direction independent when you need different preferences.
+      </p>
+    </div>
+    <div class="rules-hero-meta">
+      <div class="summary-pill">
+        <span>{{ rules|length }}</span>
+        <small>existing rules</small>
+      </div>
+      <div class="summary-pill">
+        <span>{{ trip_mode|replace('_', ' ')|title }}</span>
+        <small>selected mode</small>
+      </div>
+      <div class="summary-pill">
+        <span>{{ selected.lookahead_weeks }}</span>
+        <small>weeks tracked</small>
+      </div>
+    </div>
+  </section>
+
+  <div class="rules-layout">
+    <aside class="card rules-index">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Rule list</p>
+          <h3>Existing rules</h3>
+          <p class="rules-note">Click a card to load it into the editor.</p>
+        </div>
+        <button type="button" class="button secondary" data-new-rule>New rule</button>
+      </div>
+
+      <div class="rule-list" data-rule-list>
+        {% for rule in rules %}
+        <button
+          type="button"
+          class="rule-card {{ 'active' if rule.program_id == selected.program_id else '' }}"
+          data-rule-card
+          data-program-id="{{ rule.program_id }}"
+          data-program-name="{{ rule.program_name|e }}"
+          data-active="{{ 'true' if rule.active else 'false' }}"
+          data-trip-mode="{{ rule.trip_mode|default('round_trip', true)|e }}"
+          data-origin-airports="{{ rule.origin_airports|e }}"
+          data-destination-airports="{{ rule.destination_airports|e }}"
+          data-outbound-weekday="{{ rule.outbound_weekday|e }}"
+          data-outbound-time-start="{{ rule.outbound_time_start|e }}"
+          data-outbound-time-end="{{ rule.outbound_time_end|e }}"
+          data-return-weekday="{{ rule.return_weekday|default('', true)|e }}"
+          data-return-time-start="{{ rule.return_time_start|default('', true)|e }}"
+          data-return-time-end="{{ rule.return_time_end|default('', true)|e }}"
+          data-preferred-airlines="{{ rule.preferred_airlines|e }}"
+          data-allowed-airlines="{{ rule.allowed_airlines|e }}"
+          data-fare-preference="{{ rule.fare_preference|e }}"
+          data-nonstop-only="{{ 'true' if rule.nonstop_only else 'false' }}"
+          data-lookahead-weeks="{{ rule.lookahead_weeks }}"
+          data-rebook-alert-threshold="{{ rule.rebook_alert_threshold }}"
+        >
+          <div class="rule-card-top">
+            <strong>{{ rule.program_name }}</strong>
+            <span class="badge">{{ rule.trip_mode|default('round_trip', true)|replace('_', ' ')|title }}</span>
+          </div>
+          <div class="rule-card-route">
+            <span>{{ rule.origin_airports|replace('|', ', ') if rule.origin_airports else 'Any origin' }}</span>
+            <span class="rule-arrow">→</span>
+            <span>{{ rule.destination_airports|replace('|', ', ') if rule.destination_airports else 'Any destination' }}</span>
+          </div>
+          <div class="rule-card-meta">
+            <span>{{ rule.preferred_airlines|replace('|', ', ') if rule.preferred_airlines else 'Any airline' }}</span>
+            <span>{{ rule.fare_preference|replace('_', ' ') }}</span>
+          </div>
+        </button>
         {% endfor %}
-      </select>
-    </label>
-    <label>
-      <span>Outbound start</span>
-      <input type="time" name="outbound_time_start" value="{{ program.outbound_time_start }}">
-    </label>
-    <label>
-      <span>Outbound end</span>
-      <input type="time" name="outbound_time_end" value="{{ program.outbound_time_end }}">
-    </label>
-    <label>
-      <span>Return weekday</span>
-      <select name="return_weekday">
-        {% for weekday in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
-        <option value="{{ weekday }}" {{ 'selected' if program.return_weekday == weekday else '' }}>{{ weekday }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>
-      <span>Return start</span>
-      <input type="time" name="return_time_start" value="{{ program.return_time_start }}">
-    </label>
-    <label>
-      <span>Return end</span>
-      <input type="time" name="return_time_end" value="{{ program.return_time_end }}">
-    </label>
-    <label>
-      <span>Lookahead weeks</span>
-      <input type="number" min="1" max="26" name="lookahead_weeks" value="{{ program.lookahead_weeks }}">
-    </label>
-    <label>
-      <span>Rebook alert threshold</span>
-      <input type="number" min="1" name="rebook_alert_threshold" value="{{ program.rebook_alert_threshold }}">
-    </label>
-    <label class="checkbox-row">
-      <input type="hidden" name="nonstop_only" value="false">
-      <input type="checkbox" name="nonstop_only" value="true" {{ 'checked' if program.nonstop_only else '' }}>
-      <span>Nonstop only</span>
-    </label>
-    <label class="checkbox-row">
-      <input type="hidden" name="active" value="false">
-      <input type="checkbox" name="active" value="true" {{ 'checked' if program.active else '' }}>
-      <span>Program active</span>
-    </label>
+      </div>
+    </aside>
+
+    <section class="form-card rules-editor">
+      <form method="post" action="/rules" id="rules-form" class="rules-form" novalidate>
+        <input type="hidden" name="program_id" value="{{ selected.program_id }}">
+
+        <div class="editor-header">
+          <div>
+            <p class="eyebrow">Selected rule</p>
+            <h3>Edit commute pattern</h3>
+            <p class="rules-note">
+              Searches are constrained to the catalog. Type to filter, then click to add chips.
+            </p>
+          </div>
+        <div class="editor-actions">
+          <input type="hidden" name="active" value="false">
+          <label class="toggle-chip">
+            <input type="checkbox" name="active" value="true" {{ 'checked' if selected.active else '' }}>
+            <span>Active</span>
+          </label>
+          <input type="hidden" name="nonstop_only" value="false">
+          <label class="toggle-chip">
+            <input type="checkbox" name="nonstop_only" value="true" {{ 'checked' if selected.nonstop_only else '' }}>
+            <span>Nonstop only</span>
+          </label>
+        </div>
+        </div>
+
+        <div class="form-grid form-grid-tight">
+          <label>
+            <span>Rule name</span>
+            <input type="text" name="program_name" value="{{ selected.program_name }}" required>
+          </label>
+          <label>
+            <span>Trip mode</span>
+            <select name="trip_mode" data-trip-mode>
+              {% for option in trip_mode_options %}
+              <option value="{{ option.value }}" {{ 'selected' if trip_mode == option.value else '' }}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <section class="rule-section">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Outbound leg</p>
+              <h4>Departure search</h4>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label class="full-width">
+              <span>Origin airports</span>
+              <div class="multi-select" data-multi-select data-catalog="airports" data-field="origin_airports">
+                <input type="hidden" name="origin_airports" value="{{ selected.origin_airports }}">
+                <div class="chip-list" data-chip-list></div>
+                <div class="multi-select-input-row">
+                  <input type="text" data-search placeholder="Type LAX, BUR, or Burbank..." autocomplete="off" spellcheck="false">
+                  <button type="button" class="button ghost" data-clear>Clear</button>
+                </div>
+                <div class="multi-select-menu" data-menu hidden></div>
+              </div>
+            </label>
+
+            <label class="full-width">
+              <span>Destination airports</span>
+              <div class="multi-select" data-multi-select data-catalog="airports" data-field="destination_airports">
+                <input type="hidden" name="destination_airports" value="{{ selected.destination_airports }}">
+                <div class="chip-list" data-chip-list></div>
+                <div class="multi-select-input-row">
+                  <input type="text" data-search placeholder="Type SFO, JFK, or Los Angeles..." autocomplete="off" spellcheck="false">
+                  <button type="button" class="button ghost" data-clear>Clear</button>
+                </div>
+                <div class="multi-select-menu" data-menu hidden></div>
+              </div>
+            </label>
+
+            <label>
+              <span>Outbound weekday</span>
+              <select name="outbound_weekday">
+                {% for weekday in weekday_options %}
+                <option value="{{ weekday }}" {{ 'selected' if selected.outbound_weekday == weekday else '' }}>{{ weekday }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              <span>Outbound start</span>
+              <input type="time" name="outbound_time_start" value="{{ selected.outbound_time_start }}">
+            </label>
+
+            <label>
+              <span>Outbound end</span>
+              <input type="time" name="outbound_time_end" value="{{ selected.outbound_time_end }}">
+            </label>
+          </div>
+        </section>
+
+        <section class="rule-section" data-return-panel>
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Return leg</p>
+              <h4>Shown for round-trip rules</h4>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span>Return weekday</span>
+              <select name="return_weekday" data-return-field>
+                {% for weekday in weekday_options %}
+                <option value="{{ weekday }}" {{ 'selected' if selected.return_weekday == weekday else '' }}>{{ weekday }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              <span>Return start</span>
+              <input type="time" name="return_time_start" value="{{ selected.return_time_start }}" data-return-field>
+            </label>
+
+            <label>
+              <span>Return end</span>
+              <input type="time" name="return_time_end" value="{{ selected.return_time_end }}" data-return-field>
+            </label>
+          </div>
+        </section>
+
+        <section class="rule-section">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Airlines and fare</p>
+              <h4>Preference guardrails</h4>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label class="full-width">
+              <span>Preferred airlines</span>
+              <div class="multi-select" data-multi-select data-catalog="airlines" data-field="preferred_airlines">
+                <input type="hidden" name="preferred_airlines" value="{{ selected.preferred_airlines }}">
+                <div class="chip-list" data-chip-list></div>
+                <div class="multi-select-input-row">
+                  <input type="text" data-search placeholder="Type Alaska, United, or Delta..." autocomplete="off" spellcheck="false">
+                  <button type="button" class="button ghost" data-clear>Clear</button>
+                </div>
+                <div class="multi-select-menu" data-menu hidden></div>
+              </div>
+            </label>
+
+            <label class="full-width">
+              <span>Allowed airlines</span>
+              <div class="multi-select" data-multi-select data-catalog="airlines" data-field="allowed_airlines">
+                <input type="hidden" name="allowed_airlines" value="{{ selected.allowed_airlines }}">
+                <div class="chip-list" data-chip-list></div>
+                <div class="multi-select-input-row">
+                  <input type="text" data-search placeholder="Add backup airlines..." autocomplete="off" spellcheck="false">
+                  <button type="button" class="button ghost" data-clear>Clear</button>
+                </div>
+                <div class="multi-select-menu" data-menu hidden></div>
+              </div>
+            </label>
+
+            <label>
+              <span>Fare preference</span>
+              <select name="fare_preference">
+                {% for option in fare_preferences %}
+                <option value="{{ option.value }}" {{ 'selected' if selected.fare_preference == option.value else '' }}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              <span>Lookahead weeks</span>
+              <input type="number" min="1" max="26" name="lookahead_weeks" value="{{ selected.lookahead_weeks }}">
+            </label>
+
+            <label>
+              <span>Rebook alert threshold</span>
+              <input type="number" min="1" name="rebook_alert_threshold" value="{{ selected.rebook_alert_threshold }}">
+            </label>
+          </div>
+        </section>
+
+        <div class="actions rules-actions">
+          <p class="rules-note">
+            This editor is catalog-constrained. One-way mode hides the return section in the UI.
+          </p>
+          <button class="button primary" type="submit">Save rule</button>
+        </div>
+      </form>
+    </section>
   </div>
-  <div class="actions">
-    <button class="button primary" type="submit">Save rules and regenerate trips</button>
-  </div>
-</form>
+</div>
+
+<script>
+  window.travelAgentRulesCatalogs = {{ rules_catalogs_json|safe }};
+</script>
+<script src="{{ url_for('static', path='/rules.js') }}" defer></script>
 {% endblock %}

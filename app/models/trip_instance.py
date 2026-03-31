@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from app.models.base import CsvModel, TripStatus, utcnow
+from app.models.base import CsvModel, TripMode, TripStatus, utcnow
 
 
 class TripInstance(CsvModel):
     trip_instance_id: str
     program_id: str
+    trip_mode: TripMode = TripMode.ROUND_TRIP
     origin_airport: str
     destination_airport: str
     outbound_date: date
-    return_date: date
+    return_date: date | None = None
     status: TripStatus = TripStatus.NEEDS_TRACKER_SETUP
     recommendation_reason: str = ""
     best_airline: str = ""
@@ -28,3 +29,13 @@ class TripInstance(CsvModel):
     booking_id: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_optional_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        if normalized.get("return_date") == "":
+            normalized["return_date"] = None
+        return normalized

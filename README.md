@@ -4,7 +4,8 @@ Local-first recurring flight monitor for one user.
 
 This MVP is built around the free Google Flights workflow:
 
-- you save one recurring travel program
+- you save one or more recurring flight rules
+- each rule can be `one_way` or `round_trip`
 - the app generates future trip instances and segment-level tracker tasks
 - you turn on `Track prices` in Google Flights manually
 - you import Google Flights `.eml` alerts into the app
@@ -29,7 +30,8 @@ Then open `http://127.0.0.1:8000`.
 
 ## First-time flow
 
-1. Open `Rules` and save your recurring trip program.
+1. Open `Rules` and save your recurring flight rules.
+   Use multiple one-way rules when your outbound and return preferences differ.
 2. Open `Trackers` and use the generated Google Flights links.
 3. In Google Flights, turn on `Track prices` for each segment you care about.
 4. When Google sends a price alert email, save it as `.eml`.

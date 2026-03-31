@@ -34,6 +34,11 @@ class ProgramWeekday(StrEnum):
     SUNDAY = "Sunday"
 
 
+class TripMode(StrEnum):
+    ONE_WAY = "one_way"
+    ROUND_TRIP = "round_trip"
+
+
 class TripStatus(StrEnum):
     NEEDS_TRACKER_SETUP = "needs_tracker_setup"
     NOT_READY = "not_ready"

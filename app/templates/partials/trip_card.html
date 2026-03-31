@@ -2,17 +2,24 @@
   <div class="card-header">
     <div>
       <h3>{{ context.trip.origin_airport }} → {{ context.trip.destination_airport }}</h3>
-      <p>{{ context.trip.outbound_date.strftime('%a, %b %d') }} to {{ context.trip.return_date.strftime('%a, %b %d') }}</p>
+      <p>
+        {{ context.trip.outbound_date.strftime('%a, %b %d') }}
+        {% if context.trip.return_date %}
+        to {{ context.trip.return_date.strftime('%a, %b %d') }}
+        {% else %}
+        · One-way
+        {% endif %}
+      </p>
     </div>
     <span class="badge">{{ context.trip.status.replace('_', ' ') }}</span>
   </div>
   <dl class="meta-grid">
     <div>
-      <dt>Latest total</dt>
-      <dd>{{ '$%s' % context.latest_total_price if context.latest_total_price is not none else 'No full signal yet' }}</dd>
+      <dt>{{ 'Latest tracked total' if context.trip.return_date else 'Latest tracked fare' }}</dt>
+      <dd>{{ '$%s' % context.latest_total_price if context.latest_total_price is not none else ('No full signal yet' if context.trip.return_date else 'No fare signal yet') }}</dd>
     </div>
     <div>
-      <dt>Booked total</dt>
+      <dt>{{ 'Booked total' if context.trip.return_date else 'Booked fare' }}</dt>
       <dd>{{ '$%s' % context.booking.booked_price if context.booking else 'Not booked' }}</dd>
     </div>
     <div>

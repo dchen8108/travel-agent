@@ -11,8 +11,8 @@ Status on March 31, 2026:
 
 The first version is successful if the user can:
 
-- define one recurring flight program
-- generate upcoming trips and outbound/return price-tracking tasks
+- define one or more recurring flight rules
+- generate upcoming trips and one-way or outbound/return price-tracking tasks
 - import a Google Flights `.eml` alert
 - map safe observations to trip segments
 - record a booking
@@ -54,8 +54,8 @@ Deferred:
 
 - define typed models for programs, trips, trackers, bookings, email events, observations, and review items
 - implement repository helpers for load/save operations
-- implement trip generation from one recurring program
-- implement tracker generation for outbound and return segments
+- implement trip generation from one or more recurring rules
+- implement tracker generation for one-way and round-trip segments
 
 ### 3. Email Import Path
 

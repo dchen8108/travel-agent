@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from app.models.base import ProgramWeekday
+from app.models.base import ProgramWeekday, TripMode
 from app.models.program import Program
 from app.models.trip_instance import TripInstance
 from app.settings import Settings
@@ -33,7 +33,11 @@ def generate_trip_instances(
     origins = split_pipe(program.origin_airports)
     destinations = split_pipe(program.destination_airports)
     for outbound_date in outbound_dates:
-        return_date = paired_return_date(outbound_date, program.return_weekday)
+        return_date = (
+            paired_return_date(outbound_date, program.return_weekday)
+            if program.trip_mode == TripMode.ROUND_TRIP and program.return_weekday is not None
+            else None
+        )
         for origin in origins:
             for destination in destinations:
                 trip_id = stable_trip_id(program.program_id, origin, destination, outbound_date, return_date)
@@ -41,6 +45,7 @@ def generate_trip_instances(
                 trip = TripInstance(
                     trip_instance_id=trip_id,
                     program_id=program.program_id,
+                    trip_mode=program.trip_mode,
                     origin_airport=origin,
                     destination_airport=destination,
                     outbound_date=outbound_date,
@@ -78,8 +83,10 @@ def stable_trip_id(
     origin: str,
     destination: str,
     outbound_date: date,
-    return_date: date,
+    return_date: date | None,
 ) -> str:
+    if return_date is None:
+        return f"trip_{program_id}_{origin}_{destination}_{outbound_date.isoformat()}_oneway"
     return f"trip_{program_id}_{origin}_{destination}_{outbound_date.isoformat()}_{return_date.isoformat()}"
 
 

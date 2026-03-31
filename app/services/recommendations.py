@@ -7,7 +7,7 @@ from typing import Iterable
 from zoneinfo import ZoneInfo
 
 from app.models.program import Program
-from app.models.base import SegmentType, TrackerStatus, TripStatus
+from app.models.base import SegmentType, TrackerStatus, TripMode, TripStatus
 from app.models.booking import Booking
 from app.models.fare_observation import FareObservation
 from app.models.tracker import Tracker
@@ -99,11 +99,7 @@ def build_trip_rollups(
         return_tracker = trackers_by_id.get(trip.return_tracker_id)
         outbound_price = latest_by_tracker.get(trip.outbound_tracker_id)
         return_price = latest_by_tracker.get(trip.return_tracker_id)
-        latest_total = (
-            outbound_price.price + return_price.price
-            if outbound_price is not None and return_price is not None
-            else None
-        )
+        latest_total = latest_trip_price(trip, outbound_price, return_price)
         historic_best = min(history_by_trip[trip.trip_instance_id]) if history_by_trip[trip.trip_instance_id] else None
         rollups.append(
             TripRollup(
@@ -140,6 +136,11 @@ def history_totals_by_trip(
     trackers_by_id: dict[str, Tracker],
 ) -> dict[str, list[int]]:
     grouped: dict[tuple[str, str], dict[SegmentType, int]] = defaultdict(dict)
+    trip_has_return_tracker = {
+        tracker.trip_instance_id
+        for tracker in trackers_by_id.values()
+        if tracker.segment_type == SegmentType.RETURN
+    }
     for observation in observations:
         batch_key = observation.source_id or observation.observed_at.isoformat()
         bucket = grouped[(observation.trip_instance_id, batch_key)]
@@ -150,6 +151,8 @@ def history_totals_by_trip(
     for (trip_instance_id, _), prices in grouped.items():
         if SegmentType.OUTBOUND in prices and SegmentType.RETURN in prices:
             history[trip_instance_id].append(prices[SegmentType.OUTBOUND] + prices[SegmentType.RETURN])
+        elif SegmentType.OUTBOUND in prices and trip_instance_id not in trip_has_return_tracker:
+            history[trip_instance_id].append(prices[SegmentType.OUTBOUND])
     return history
 
 
@@ -158,9 +161,13 @@ def derive_trip_status(
     program: Program | None,
     settings: Settings,
 ) -> tuple[TripStatus, str]:
-    trackers_ready = tracker_ready(rollup.outbound_tracker) and tracker_ready(rollup.return_tracker)
+    trackers_ready = tracker_ready(rollup.outbound_tracker)
+    if rollup.trip.trip_mode == TripMode.ROUND_TRIP:
+        trackers_ready = trackers_ready and tracker_ready(rollup.return_tracker)
     if not trackers_ready:
-        return TripStatus.NEEDS_TRACKER_SETUP, "Set up outbound and return Google Flights tracking before this trip can be monitored reliably."
+        if rollup.trip.trip_mode == TripMode.ROUND_TRIP:
+            return TripStatus.NEEDS_TRACKER_SETUP, "Set up outbound and return Google Flights tracking before this trip can be monitored reliably."
+        return TripStatus.NEEDS_TRACKER_SETUP, "Set up Google Flights tracking before this trip can be monitored reliably."
 
     rebook_threshold = (
         program.rebook_alert_threshold
@@ -171,11 +178,15 @@ def derive_trip_status(
     if rollup.booking is not None:
         if rollup.latest_total is not None and rollup.latest_total <= rollup.booking.booked_price - rebook_threshold:
             savings = rollup.booking.booked_price - rollup.latest_total
-            return TripStatus.REBOOK, f"Latest segment prices are ${savings} below your booked total."
+            if rollup.trip.trip_mode == TripMode.ROUND_TRIP:
+                return TripStatus.REBOOK, f"Latest tracked total is ${savings} below your booked total."
+            return TripStatus.REBOOK, f"Latest tracked fare is ${savings} below your booked total."
         return TripStatus.BOOKED_MONITORING, "Tracking is active and this booked trip is being monitored for a better price."
 
     if rollup.latest_total is None:
-        return TripStatus.WAIT, "Tracking is active, but both segment prices have not been observed yet."
+        if rollup.trip.trip_mode == TripMode.ROUND_TRIP:
+            return TripStatus.WAIT, "Tracking is active, but both segment prices have not been observed yet."
+        return TripStatus.WAIT, "Tracking is active, but no recent price signal has been observed yet."
 
     today = datetime.now(ZoneInfo(settings.timezone)).date()
     days_until_trip = max((rollup.trip.outbound_date - today).days, 0)
@@ -183,7 +194,9 @@ def derive_trip_status(
         return TripStatus.BOOK_NOW, "Recent price signal looks good for this trip."
 
     if rollup.historic_best_total is not None and rollup.latest_total <= rollup.historic_best_total + rebook_threshold:
-        return TripStatus.BOOK_NOW, "Current combined price is near the best observed total for this trip."
+        if rollup.trip.trip_mode == TripMode.ROUND_TRIP:
+            return TripStatus.BOOK_NOW, "Current combined price is near the best observed total for this trip."
+        return TripStatus.BOOK_NOW, "Current fare is near the best observed price for this trip."
 
     return TripStatus.WAIT, "Tracking is active, but the latest signal does not justify booking yet."
 
@@ -235,3 +248,17 @@ def summarize_airlines(
     if len(set(airlines)) == 1:
         return airlines[0]
     return " / ".join(airlines)
+
+
+def latest_trip_price(
+    trip: TripInstance,
+    outbound_observation: FareObservation | None,
+    return_observation: FareObservation | None,
+) -> int | None:
+    if outbound_observation is None:
+        return None
+    if trip.trip_mode == TripMode.ONE_WAY:
+        return outbound_observation.price
+    if return_observation is None:
+        return None
+    return outbound_observation.price + return_observation.price
