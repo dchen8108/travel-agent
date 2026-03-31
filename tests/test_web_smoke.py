@@ -36,7 +36,6 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
         data={
             "label": "LA to SF Outbound",
             "trip_kind": "one_time",
-            "active": "true",
             "anchor_date": "2026-04-06",
             "anchor_weekday": "",
             "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
@@ -72,3 +71,36 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
 
     bookings_page = client.get("/bookings")
     assert "ABC123" in bookings_page.text
+
+
+def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Test Weekly Trip",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    trip_location = response.headers["location"]
+    trip_id = trip_location.split("/trips/")[1].split("?")[0]
+
+    pause = client.post(f"/trips/{trip_id}/pause", follow_redirects=False)
+    assert pause.status_code == 303
+    assert pause.headers["location"] == "/trips?message=Trip+paused"
+
+    activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
+    assert activate.status_code == 303
+    assert activate.headers["location"] == "/trips?message=Trip+activated"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -23,6 +24,25 @@ from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(tags=["trips"])
+
+
+def _redirect_back(request: Request, *, fallback_url: str) -> RedirectResponse:
+    referer = request.headers.get("referer", "")
+    if referer:
+        parsed = urlsplit(referer)
+        same_origin = (
+            (not parsed.scheme and not parsed.netloc)
+            or (
+                parsed.scheme == request.url.scheme
+                and parsed.netloc == request.url.netloc
+            )
+        )
+        if same_origin and parsed.path.startswith("/"):
+            target = parsed.path
+            if parsed.query:
+                target = f"{target}?{parsed.query}"
+            return RedirectResponse(url=target, status_code=303)
+    return RedirectResponse(url=fallback_url, status_code=303)
 
 
 def _trip_form_state(trip, route_options):
@@ -260,6 +280,7 @@ async def save_trip_action(
 @router.post("/trips/{trip_id}/pause")
 def pause_trip_action(
     trip_id: str,
+    request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     try:
@@ -267,12 +288,13 @@ def pause_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sync_and_persist(repository)
-    return RedirectResponse(url="/trips?message=Trip+paused", status_code=303)
+    return _redirect_back(request, fallback_url="/trips?message=Trip+paused")
 
 
 @router.post("/trips/{trip_id}/activate")
 def activate_trip_action(
     trip_id: str,
+    request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     try:
@@ -280,7 +302,7 @@ def activate_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sync_and_persist(repository)
-    return RedirectResponse(url=f"/trips/{trip_id}?message=Trip+activated", status_code=303)
+    return _redirect_back(request, fallback_url="/trips?message=Trip+activated")
 
 
 @router.post("/trips/{trip_id}/delete")

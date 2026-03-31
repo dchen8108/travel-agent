@@ -59,10 +59,13 @@ def reconcile_trip_instances(
         if (instance.trip_id, instance.anchor_date) in desired_keys:
             continue
         trip = trip_map.get(instance.trip_id)
+        if trip is not None and not trip.active:
+            kept.append(instance)
+            continue
         if instance.anchor_date < today or instance.travel_state != TravelState.OPEN or instance.booking_id:
             kept.append(instance)
             continue
-        if trip is None or not trip.active:
+        if trip is None:
             continue
 
     kept.sort(key=lambda item: (item.anchor_date, item.display_label))
