@@ -31,7 +31,6 @@ def _trip_form_state(trip, route_options):
             "trip_id": "",
             "label": "",
             "trip_kind": "weekly",
-            "active": True,
             "anchor_date": "",
             "anchor_weekday": "Monday",
         }
@@ -39,7 +38,6 @@ def _trip_form_state(trip, route_options):
         "trip_id": trip.trip_id,
         "label": trip.label,
         "trip_kind": trip.trip_kind,
-        "active": trip.active,
         "anchor_date": trip.anchor_date.isoformat() if trip.anchor_date else "",
         "anchor_weekday": trip.anchor_weekday or "Monday",
         "created_at": trip.created_at.isoformat(),
@@ -209,6 +207,7 @@ async def save_trip_action(
 ):
     form = await request.form()
     trip_id = str(form.get("trip_id", "")).strip() or None
+    existing_trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None) if trip_id else None
     trip_kind = str(form.get("trip_kind", "weekly"))
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
@@ -225,7 +224,7 @@ async def save_trip_action(
             trip_id=trip_id,
             label=str(form.get("label", "")).strip(),
             trip_kind=trip_kind,
-            active=str(form.get("active", "false")).lower() == "true",
+            active=existing_trip.active if existing_trip else True,
             anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
             anchor_weekday=anchor_weekday,
             route_option_payloads=route_options,
@@ -248,7 +247,6 @@ async def save_trip_action(
                     "trip_id": trip_id or "",
                     "label": str(form.get("label", "")).strip(),
                     "trip_kind": trip_kind,
-                    "active": str(form.get("active", "false")).lower() == "true",
                     "anchor_date": anchor_date_value,
                     "anchor_weekday": anchor_weekday or "Monday",
                 },

@@ -43,11 +43,8 @@
           {% endfor %}
         </select>
       </label>
-      <label class="toggle-chip">
-        <input type="checkbox" name="active" value="true" {{ 'checked' if trip_form_state.active else '' }}>
-        <span>Active</span>
-      </label>
     </div>
+    <p class="muted">New trips start active automatically. You can pause them later from the Trips page.</p>
 
     <section class="route-editor">
       <div class="section-header">

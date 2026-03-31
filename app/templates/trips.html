@@ -30,6 +30,14 @@
     <div class="actions">
       <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
       <a class="button primary" href="/trips/{{ trip.trip_id }}">View</a>
+      <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
+        <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
+          <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
+          <span class="toggle-switch-track" aria-hidden="true">
+            <span class="toggle-switch-thumb"></span>
+          </span>
+        </button>
+      </form>
     </div>
   </article>
   {% else %}

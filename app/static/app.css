@@ -308,6 +308,54 @@ button.danger {
   border: 1px solid rgba(139, 64, 54, 0.16);
 }
 
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.92);
+  color: var(--muted);
+}
+
+.toggle-switch-label {
+  font-weight: 700;
+}
+
+.toggle-switch-track {
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(95, 102, 86, 0.18);
+  transition: background 120ms ease;
+}
+
+.toggle-switch-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(24, 27, 22, 0.12);
+  transform: translateX(0);
+  transition: transform 120ms ease;
+}
+
+.toggle-switch.is-on {
+  color: var(--accent);
+}
+
+.toggle-switch.is-on .toggle-switch-track {
+  background: rgba(31, 92, 82, 0.3);
+}
+
+.toggle-switch.is-on .toggle-switch-thumb {
+  transform: translateX(18px);
+}
+
 button:disabled,
 .button[disabled] {
   opacity: 0.45;
