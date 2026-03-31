@@ -93,15 +93,18 @@ def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
     )
 
 
-def scheduled_instances(snapshot: AppSnapshot) -> list[TripInstance]:
+def scheduled_instances(
+    snapshot: AppSnapshot,
+    *,
+    include_skipped: bool = False,
+    recurring_trip_ids: set[str] | None = None,
+) -> list[TripInstance]:
+    items = snapshot.trip_instances
+    if not include_skipped:
+        items = [item for item in items if item.travel_state != "skipped"]
+    if recurring_trip_ids:
+        items = [item for item in items if item.trip_id in recurring_trip_ids]
     return sorted(
-        [item for item in snapshot.trip_instances if item.travel_state != "skipped"],
-        key=lambda item: (item.anchor_date, item.display_label.lower()),
-    )
-
-
-def skipped_scheduled_instances(snapshot: AppSnapshot) -> list[TripInstance]:
-    return sorted(
-        [item for item in snapshot.trip_instances if item.travel_state == "skipped"],
+        items,
         key=lambda item: (item.anchor_date, item.display_label.lower()),
     )

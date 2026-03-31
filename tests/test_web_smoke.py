@@ -181,9 +181,13 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert "Skipped trips" in trips_page.text
-    assert "Restore trip" in trips_page.text
-    assert "No scheduled trips yet." in trips_page.text
+    assert "Unskip" not in trips_page.text
+    assert "No scheduled trips match the current filters." in trips_page.text
+
+    skipped_page = client.get("/trips?show_skipped=true")
+    assert skipped_page.status_code == 200
+    assert "Doctor Visit Flight" in skipped_page.text
+    assert "Unskip" in skipped_page.text
 
     restore = client.post(f"/trip-instances/{trip_instance_id}/restore", follow_redirects=False)
     assert restore.status_code == 303
@@ -230,3 +234,57 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
     assert trips_page.status_code == 200
     assert trips_page.text.count('class="badge horizon-badge') == 12
     assert 'class="badge horizon-badge is-skipped"' in trips_page.text
+
+
+def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    weekly_one = client.post(
+        "/trips",
+        data={
+            "label": "Weekly Commute A",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    weekly_two = client.post(
+        "/trips",
+        data={
+            "label": "Weekly Commute B",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Tuesday",
+            "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
+        },
+        follow_redirects=False,
+    )
+    standalone = client.post(
+        "/trips",
+        data={
+            "label": "One-off Flight",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-05-10",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["SFO"],"destination_airports":["JFK"],"airlines":["United"],"day_offset":0,"start_time":"08:00","end_time":"12:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert weekly_one.status_code == 303
+    assert weekly_two.status_code == 303
+    assert standalone.status_code == 303
+
+    weekly_one_id = weekly_one.headers["location"].split("/trips/")[1].split("?")[0]
+
+    filtered_page = client.get(f"/trips?recurring_trip_id={weekly_one_id}")
+    assert filtered_page.status_code == 200
+    assert "Weekly Commute A" in filtered_page.text
+    assert "One-off Flight" not in filtered_page.text

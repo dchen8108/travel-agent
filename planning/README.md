@@ -9,7 +9,7 @@ The current design baseline is:
 - trips can be `one_time` or `weekly`
 - weekly trips are parent plans
 - dated trip instances are the scheduled trips the user actually flies
-- skipped trip instances are separated from the active scheduled queue and can be restored later
+- skipped trip instances are hidden by default and can be surfaced again through scheduled-trip filters
 - route options are ranked tracker definitions under a trip
 - weekly trips maintain the next 12 future occurrences
 - only unmatched bookings go to `Resolve`

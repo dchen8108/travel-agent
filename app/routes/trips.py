@@ -18,7 +18,6 @@ from app.services.dashboard import (
     recurring_trips,
     route_options_for_trip,
     scheduled_instances,
-    skipped_scheduled_instances,
     trackers_for_instance,
     trip_for_instance,
 )
@@ -131,6 +130,36 @@ def trips_index(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
+    recurring_items = recurring_trips(snapshot)
+    recurring_ids = {trip.trip_id for trip in recurring_items}
+    selected_recurring_trip_ids = {
+        value
+        for value in request.query_params.getlist("recurring_trip_id")
+        if value in recurring_ids
+    }
+    show_skipped = str(request.query_params.get("show_skipped", "")).lower() in {"1", "true", "on", "yes"}
+    search_query = str(request.query_params.get("q", "")).strip()
+
+    scheduled_items = scheduled_instances(
+        snapshot,
+        include_skipped=show_skipped,
+        recurring_trip_ids=selected_recurring_trip_ids or None,
+    )
+    if search_query:
+        lowered = search_query.lower()
+        scheduled_items = [
+            instance
+            for instance in scheduled_items
+            if lowered in instance.display_label.lower()
+            or (
+                (parent_trip := trip_for_instance(snapshot, instance.trip_instance_id)) is not None
+                and lowered in parent_trip.label.lower()
+            )
+        ]
+
+    total_active_scheduled = len(scheduled_instances(snapshot))
+    total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True)) - total_active_scheduled
+
     return get_templates(request).TemplateResponse(
         request=request,
         name="trips.html",
@@ -138,9 +167,13 @@ def trips_index(
             request,
             page="trips",
             snapshot=snapshot,
-            recurring_trips=recurring_trips,
-            scheduled_instances=scheduled_instances,
-            skipped_scheduled_instances=skipped_scheduled_instances,
+            recurring_items=recurring_items,
+            scheduled_items=scheduled_items,
+            selected_recurring_trip_ids=selected_recurring_trip_ids,
+            show_skipped=show_skipped,
+            search_query=search_query,
+            total_active_scheduled=total_active_scheduled,
+            total_skipped_scheduled=total_skipped_scheduled,
             instances_for_trip=instances_for_trip,
             route_options_for_trip=route_options_for_trip,
             booking_for_instance=booking_for_instance,

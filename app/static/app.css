@@ -224,6 +224,78 @@ small,
   flex-wrap: wrap;
 }
 
+.filter-card {
+  display: grid;
+  gap: 12px;
+}
+
+.filter-form {
+  display: grid;
+  gap: 14px;
+}
+
+.filter-field,
+.filter-toggle {
+  display: grid;
+  gap: 8px;
+}
+
+.filter-toggle {
+  align-items: center;
+  grid-auto-flow: column;
+  justify-content: start;
+}
+
+.filter-toggle input {
+  width: auto;
+}
+
+.filter-dropdown {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 253, 249, 0.92);
+  padding: 12px 14px;
+}
+
+.filter-dropdown summary {
+  cursor: pointer;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-summary-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.filter-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 92, 82, 0.16);
+  background: rgba(216, 235, 230, 0.35);
+}
+
+.check-chip input {
+  width: auto;
+  margin: 0;
+}
+
+.filter-results-copy {
+  margin: 0;
+}
+
 .horizon-badge.is-skipped {
   text-decoration: line-through;
   text-decoration-thickness: 2px;
@@ -531,6 +603,10 @@ textarea {
 .scheduled-card {
   display: grid;
   gap: 16px;
+}
+
+.scheduled-card.is-skipped {
+  border-style: dashed;
 }
 
 .scheduled-card-head {
