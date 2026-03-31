@@ -1,71 +1,69 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date, timedelta
 
-from app.models.base import ProgramWeekday
-from app.models.program import Program
+from app.models.base import TravelState, utcnow
+from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
-from app.route_details import parse_route_detail_rankings
-from app.settings import Settings
-
-WEEKDAY_INDEX = {
-    ProgramWeekday.MONDAY: 0,
-    ProgramWeekday.TUESDAY: 1,
-    ProgramWeekday.WEDNESDAY: 2,
-    ProgramWeekday.THURSDAY: 3,
-    ProgramWeekday.FRIDAY: 4,
-    ProgramWeekday.SATURDAY: 5,
-    ProgramWeekday.SUNDAY: 6,
-}
+from app.services.ids import stable_id
 
 
-def generate_trip_instances(
-    program: Program,
-    settings: Settings,
-    existing_trips: list[TripInstance] | None = None,
-    today: date | None = None,
-    lookahead_weeks: int = 12,
+def next_weekday_on_or_after(today: date, weekday_name: str) -> date:
+    target = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].index(weekday_name)
+    delta = (target - today.weekday()) % 7
+    return today + timedelta(days=delta)
+
+
+def desired_anchor_dates(trip: Trip, *, today: date, future_weeks: int) -> list[date]:
+    if not trip.active:
+        return []
+    if trip.trip_kind == "one_time":
+        return [trip.anchor_date] if trip.anchor_date else []
+    start = next_weekday_on_or_after(today, trip.anchor_weekday)
+    return [start + timedelta(days=7 * offset) for offset in range(future_weeks)]
+
+
+def reconcile_trip_instances(
+    trips: list[Trip],
+    existing_trip_instances: list[TripInstance],
+    *,
+    today: date,
+    future_weeks: int,
 ) -> list[TripInstance]:
-    existing_by_id = {trip.trip_instance_id: trip for trip in (existing_trips or [])}
-    start_date = today or datetime.now(ZoneInfo(settings.timezone)).date()
-    route_details = parse_route_detail_rankings(program.route_detail_rankings)
-    primary_detail = route_details[0]
-    anchor_dates = next_weekday_dates(start_date, primary_detail.weekday, lookahead_weeks)
-    trips: list[TripInstance] = []
+    existing_by_key = {(item.trip_id, item.anchor_date): item for item in existing_trip_instances}
+    desired_keys: set[tuple[str, date]] = set()
+    kept: list[TripInstance] = []
 
-    for anchor_date in anchor_dates:
-        trip_id = stable_trip_id(program.program_id, anchor_date)
-        prior = existing_by_id.get(trip_id)
-        trip = TripInstance(
-            trip_instance_id=trip_id,
-            program_id=program.program_id,
-            origin_airport=primary_detail.origin_airport,
-            destination_airport=primary_detail.destination_airport,
-            outbound_date=anchor_date,
-            booking_id=prior.booking_id if prior else "",
-            outbound_tracker_id=prior.outbound_tracker_id if prior else "",
-            dismissed_until=prior.dismissed_until if prior else None,
-            created_at=prior.created_at if prior else datetime.now().astimezone(),
-        )
-        if prior is not None:
-            trip.updated_at = prior.updated_at
-        trips.append(trip)
-    return trips
+    for trip in trips:
+        for anchor_date in desired_anchor_dates(trip, today=today, future_weeks=future_weeks):
+            key = (trip.trip_id, anchor_date)
+            desired_keys.add(key)
+            existing = existing_by_key.get(key)
+            display_label = f"{trip.label} ({anchor_date.isoformat()})"
+            if existing:
+                existing.display_label = display_label
+                existing.updated_at = utcnow()
+                kept.append(existing)
+                continue
+            kept.append(
+                TripInstance(
+                    trip_instance_id=stable_id("inst", trip.trip_id, anchor_date.isoformat()),
+                    trip_id=trip.trip_id,
+                    display_label=display_label,
+                    anchor_date=anchor_date,
+                )
+            )
 
+    trip_map = {trip.trip_id: trip for trip in trips}
+    for instance in existing_trip_instances:
+        if (instance.trip_id, instance.anchor_date) in desired_keys:
+            continue
+        trip = trip_map.get(instance.trip_id)
+        if instance.anchor_date < today or instance.travel_state != TravelState.OPEN or instance.booking_id:
+            kept.append(instance)
+            continue
+        if trip is None or not trip.active:
+            continue
 
-def next_weekday_dates(start: date, weekday: ProgramWeekday, count: int) -> list[date]:
-    target = WEEKDAY_INDEX[weekday]
-    delta = (target - start.weekday()) % 7
-    first = start + timedelta(days=delta)
-    return [first + timedelta(days=7 * offset) for offset in range(count)]
-
-
-def detail_date_from_anchor(anchor_date: date, primary_weekday: ProgramWeekday, detail_weekday: ProgramWeekday) -> date:
-    primary_index = WEEKDAY_INDEX[primary_weekday]
-    detail_index = WEEKDAY_INDEX[detail_weekday]
-    return anchor_date + timedelta(days=detail_index - primary_index)
-
-
-def stable_trip_id(program_id: str, anchor_date: date) -> str:
-    return f"trip_{program_id}_{anchor_date.isoformat()}_oneway"
+    kept.sort(key=lambda item: (item.anchor_date, item.display_label))
+    return kept

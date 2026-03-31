@@ -4,7 +4,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 CsvScalar: TypeAlias = str | int | float | bool | date | datetime | None
 
@@ -19,24 +19,28 @@ class CsvModel(BaseModel):
             return data
         normalized = dict(data)
         for field_name, field_info in cls.model_fields.items():
-            if normalized.get(field_name) is None and field_info.annotation is str:
+            if field_name not in normalized:
+                continue
+            if normalized[field_name] is None and field_info.annotation is str:
+                normalized[field_name] = ""
+            elif normalized[field_name] == "" and field_info.annotation is str:
                 normalized[field_name] = ""
         return normalized
 
 
-class ProgramWeekday(StrEnum):
-    MONDAY = "Monday"
-    TUESDAY = "Tuesday"
-    WEDNESDAY = "Wednesday"
-    THURSDAY = "Thursday"
-    FRIDAY = "Friday"
-    SATURDAY = "Saturday"
-    SUNDAY = "Sunday"
+class TripKind(StrEnum):
+    ONE_TIME = "one_time"
+    WEEKLY = "weekly"
 
 
-class TripStatus(StrEnum):
+class TravelState(StrEnum):
+    OPEN = "open"
+    BOOKED = "booked"
+    SKIPPED = "skipped"
+
+
+class RecommendationState(StrEnum):
     NEEDS_TRACKER_SETUP = "needs_tracker_setup"
-    NOT_READY = "not_ready"
     WAIT = "wait"
     BOOK_NOW = "book_now"
     BOOKED_MONITORING = "booked_monitoring"
@@ -50,35 +54,27 @@ class TrackerStatus(StrEnum):
     STALE = "stale"
 
 
-class SegmentType(StrEnum):
-    OUTBOUND = "outbound"
-    RETURN = "return"
-
-
 class EmailParsedStatus(StrEnum):
     PARSED = "parsed"
-    UNMATCHED = "unmatched"
-    NEEDS_REVIEW = "needs_review"
+    PARSED_WITH_IGNORED_OBSERVATIONS = "parsed_with_ignored_observations"
+    FAILED = "failed"
 
 
 class BookingStatus(StrEnum):
     ACTIVE = "active"
-    CANCELLED = "cancelled"
     REBOOKED = "rebooked"
 
 
-class ReviewStatus(StrEnum):
+class UnmatchedBookingStatus(StrEnum):
     OPEN = "open"
     RESOLVED = "resolved"
-    IGNORED = "ignored"
 
 
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
-    default_lookahead_weeks: int = 12
-    default_rebook_alert_threshold: int = 0
+    future_weeks: int = 12
     email_ingestion_mode: str = "manual_upload"
-    version: int = 1
+    version: int = 2
 
 
 def utcnow() -> datetime:

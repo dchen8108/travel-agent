@@ -2,24 +2,25 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
-from app.models.base import CsvModel, SegmentType, TrackerStatus, utcnow
+from app.catalog import normalize_airline_code, normalize_airport_code
+from app.models.base import CsvModel, TrackerStatus, utcnow
+from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
 class Tracker(CsvModel):
     tracker_id: str
     trip_instance_id: str
-    segment_type: SegmentType
-    detail_rank: int = 1
-    detail_weekday: str = ""
-    detail_time_start: str = ""
-    detail_time_end: str = ""
-    detail_airline: str = ""
-    detail_nonstop_only: bool = True
-    origin_airport: str
-    destination_airport: str
+    route_option_id: str
+    rank: int
+    origin_airports: str
+    destination_airports: str
+    airlines: str
+    day_offset: int
     travel_date: date
+    start_time: str
+    end_time: str
     provider: str = "google_flights"
     link_source: str = "generated"
     tracking_status: TrackerStatus = TrackerStatus.NEEDS_SETUP
@@ -27,5 +28,94 @@ class Tracker(CsvModel):
     tracking_enabled_at: datetime | None = None
     last_signal_at: datetime | None = None
     latest_observed_price: int | None = None
+    latest_match_summary: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+    @field_validator("origin_airports", "destination_airports")
+    @classmethod
+    def validate_airport_list(cls, value: str) -> str:
+        return join_pipe([normalize_airport_code(item) for item in split_pipe(value)])
+
+    @field_validator("airlines")
+    @classmethod
+    def validate_airline_list(cls, value: str) -> str:
+        return join_pipe([normalize_airline_code(item) for item in split_pipe(value)])
+
+    @field_validator("rank")
+    @classmethod
+    def validate_rank(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("Tracker rank must be positive.")
+        return value
+
+    @field_validator("provider")
+    @classmethod
+    def validate_provider(cls, value: str) -> str:
+        if value != "google_flights":
+            raise ValueError("Only Google Flights is supported in v0.")
+        return value
+
+    @field_validator("link_source")
+    @classmethod
+    def validate_link_source(cls, value: str) -> str:
+        if value not in {"generated", "manual"}:
+            raise ValueError("Unsupported tracker link source.")
+        return value
+
+    @field_validator("day_offset")
+    @classmethod
+    def validate_day_offset(cls, value: int) -> int:
+        if value < -1 or value > 1:
+            raise ValueError("Choose a supported relative day.")
+        return value
+
+    @field_validator("tracking_status")
+    @classmethod
+    def validate_tracking_status(cls, value: TrackerStatus) -> TrackerStatus:
+        return value
+
+    @field_validator("google_flights_url")
+    @classmethod
+    def normalize_url(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def validate_time_field(cls, value: str) -> str:
+        return value
+
+    @field_validator("latest_observed_price")
+    @classmethod
+    def validate_latest_price(cls, value: int | None) -> int | None:
+        if value is not None and value < 0:
+            raise ValueError("Tracker price cannot be negative.")
+        return value
+
+    @property
+    def origin_codes(self) -> list[str]:
+        return split_pipe(self.origin_airports)
+
+    @property
+    def destination_codes(self) -> list[str]:
+        return split_pipe(self.destination_airports)
+
+    @property
+    def airline_codes(self) -> list[str]:
+        return split_pipe(self.airlines)
+
+    @property
+    def primary_origin(self) -> str:
+        return self.origin_codes[0]
+
+    @property
+    def primary_destination(self) -> str:
+        return self.destination_codes[0]
+
+    @field_validator("end_time")
+    @classmethod
+    def validate_range(cls, value: str, info) -> str:
+        start_time = info.data.get("start_time")
+        if start_time:
+            validate_time_window(start_time, value)
+        return value

@@ -1,150 +1,99 @@
 from __future__ import annotations
 
-from app.models.base import TrackerStatus
+from dataclasses import dataclass
+from datetime import date
+
 from app.models.booking import Booking
+from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
-from app.models.program import Program
+from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
+from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
-from app.services.recommendations import recompute_trip_states
-from app.services.trackers import sync_trackers
-from app.services.trip_instances import generate_trip_instances
+from app.models.unmatched_booking import UnmatchedBooking
+from app.route_options import join_pipe, split_pipe
+from app.services.recommendations import recompute_trip_states, refresh_tracker_projections
+from app.services.trackers import reconcile_trackers
+from app.services.trip_instances import reconcile_trip_instances
 from app.storage.repository import Repository
 
 
-def sync_program(repository: Repository, program: Program) -> tuple[list[TripInstance], list[Tracker]]:
-    programs = [existing for existing in repository.load_programs() if existing.program_id != program.program_id]
-    programs.append(program)
-    return persist_programs(repository, programs)
+@dataclass
+class WorkflowSnapshot:
+    trips: list[Trip]
+    route_options: list[RouteOption]
+    trip_instances: list[TripInstance]
+    trackers: list[Tracker]
+    bookings: list[Booking]
+    unmatched_bookings: list[UnmatchedBooking]
+    observations: list[FareObservation]
+    email_events: list[EmailEvent]
 
 
-def delete_program(repository: Repository, program_id: str) -> tuple[list[TripInstance], list[Tracker]]:
-    existing_trips = repository.load_trip_instances()
-    existing_trackers = repository.load_trackers()
-    programs = [program for program in repository.load_programs() if program.program_id != program_id]
-    trips, trackers = persist_programs(repository, programs)
-
-    removed_trip_ids = {
-        trip.trip_instance_id
-        for trip in existing_trips
-        if trip.program_id == program_id
-    }
-    removed_tracker_ids = {
-        tracker.tracker_id
-        for tracker in existing_trackers
-        if tracker.trip_instance_id in removed_trip_ids
-    }
-    if removed_trip_ids or removed_tracker_ids:
-        repository.save_bookings(
-            [booking for booking in repository.load_bookings() if booking.trip_instance_id not in removed_trip_ids]
-        )
-        repository.save_fare_observations(
-            [
-                observation
-                for observation in repository.load_fare_observations()
-                if observation.trip_instance_id not in removed_trip_ids and observation.tracker_id not in removed_tracker_ids
-            ]
-        )
-        repository.save_review_items(filter_review_items(repository.load_review_items(), removed_tracker_ids))
-    return trips, trackers
+def _filter_candidate_trip_ids(value: str, valid_ids: set[str]) -> str:
+    return join_pipe([item for item in split_pipe(value) if item in valid_ids])
 
 
-def persist_programs(repository: Repository, programs: list[Program]) -> tuple[list[TripInstance], list[Tracker]]:
-    repository.save_programs(programs)
+def sync_and_persist(repository: Repository, *, today: date | None = None) -> WorkflowSnapshot:
+    repository.ensure_data_dir()
+    today = today or date.today()
 
-    active_programs = [item for item in programs if item.active]
-    existing_trips = repository.load_trip_instances()
+    app_state = repository.load_app_state()
+    trips = repository.load_trips()
+    route_options = repository.load_route_options()
+    existing_trip_instances = repository.load_trip_instances()
     existing_trackers = repository.load_trackers()
     bookings = repository.load_bookings()
+    unmatched_bookings = repository.load_unmatched_bookings()
     observations = repository.load_fare_observations()
+    email_events = repository.load_email_events()
 
-    generated_trips: list[TripInstance] = []
-    for active_program in active_programs:
-        prior = [trip for trip in existing_trips if trip.program_id == active_program.program_id]
-        generated_trips.extend(generate_trip_instances(active_program, repository.settings, prior))
-
-    trips_with_trackers, trackers = sync_trackers(
-        generated_trips,
-        existing_trackers,
-        {program.program_id: program for program in active_programs},
+    trip_instances = reconcile_trip_instances(
+        trips,
+        existing_trip_instances,
+        today=today,
+        future_weeks=app_state.future_weeks,
     )
-    recomputed_trips = recompute_trip_states(
-        trips_with_trackers,
-        trackers,
-        bookings,
-        observations,
-        active_programs,
-        repository.settings,
-    )
+    trackers = reconcile_trackers(trip_instances, route_options, existing_trackers, today=today)
 
-    repository.save_trip_instances(recomputed_trips)
-    repository.save_trackers(trackers)
-    return recomputed_trips, trackers
+    valid_trip_instance_ids = {item.trip_instance_id for item in trip_instances}
+    valid_tracker_ids = {item.tracker_id for item in trackers}
 
-
-def recompute_and_persist(repository: Repository) -> tuple[list[TripInstance], list[Tracker]]:
-    programs = [program for program in repository.load_programs() if program.active]
-    trips = repository.load_trip_instances()
-    trackers = repository.load_trackers()
-    bookings = repository.load_bookings()
-    observations = repository.load_fare_observations()
+    filtered_bookings: list[Booking] = []
+    for booking in bookings:
+        if booking.trip_instance_id not in valid_trip_instance_ids:
+            continue
+        if booking.tracker_id and booking.tracker_id not in valid_tracker_ids:
+            booking.tracker_id = ""
+        filtered_bookings.append(booking)
+    bookings = filtered_bookings
+    observations = [
+        observation
+        for observation in observations
+        if observation.trip_instance_id in valid_trip_instance_ids and observation.tracker_id in valid_tracker_ids
+    ]
+    for unmatched in unmatched_bookings:
+        unmatched.candidate_trip_instance_ids = _filter_candidate_trip_ids(
+            unmatched.candidate_trip_instance_ids,
+            valid_trip_instance_ids,
+        )
 
     refresh_tracker_projections(trackers, observations)
-    recomputed_trips = recompute_trip_states(
-        trips,
-        trackers,
-        bookings,
-        observations,
-        programs,
-        repository.settings,
-    )
+    recompute_trip_states(trip_instances, trackers, bookings, observations)
+
+    repository.save_trip_instances(trip_instances)
     repository.save_trackers(trackers)
-    repository.save_trip_instances(recomputed_trips)
-    return recomputed_trips, trackers
+    repository.save_bookings(bookings)
+    repository.save_unmatched_bookings(unmatched_bookings)
+    repository.save_fare_observations(observations)
 
-
-def refresh_tracker_projections(
-    trackers: list[Tracker],
-    observations: list[FareObservation],
-) -> list[Tracker]:
-    latest_by_tracker: dict[str, FareObservation] = {}
-    for observation in observations:
-        current = latest_by_tracker.get(observation.tracker_id)
-        if current is None:
-            latest_by_tracker[observation.tracker_id] = observation
-            continue
-        if observation.observed_at > current.observed_at:
-            latest_by_tracker[observation.tracker_id] = observation
-            continue
-        if observation.observed_at == current.observed_at and observation.price < current.price:
-            latest_by_tracker[observation.tracker_id] = observation
-
-    for tracker in trackers:
-        latest = latest_by_tracker.get(tracker.tracker_id)
-        if latest is None:
-            continue
-        tracker.latest_observed_price = latest.price
-        tracker.last_signal_at = latest.observed_at
-        if tracker.tracking_status == TrackerStatus.NEEDS_SETUP:
-            tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
-        elif tracker.tracking_status in {
-            TrackerStatus.TRACKING_ENABLED,
-            TrackerStatus.STALE,
-        }:
-            tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
-    return trackers
-
-
-def filter_review_items(review_items, removed_tracker_ids: set[str]):
-    if not removed_tracker_ids:
-        return review_items
-    filtered = []
-    for item in review_items:
-        candidate_ids = [candidate for candidate in item.candidate_tracker_ids.split("|") if candidate and candidate not in removed_tracker_ids]
-        if item.resolved_tracker_id and item.resolved_tracker_id in removed_tracker_ids:
-            continue
-        if item.candidate_tracker_ids and not candidate_ids and not item.resolved_tracker_id:
-            continue
-        item.candidate_tracker_ids = "|".join(candidate_ids)
-        filtered.append(item)
-    return filtered
+    return WorkflowSnapshot(
+        trips=trips,
+        route_options=route_options,
+        trip_instances=trip_instances,
+        trackers=trackers,
+        bookings=bookings,
+        unmatched_bookings=unmatched_bookings,
+        observations=observations,
+        email_events=email_events,
+    )

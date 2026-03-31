@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <p class="eyebrow">Trips</p>
+    <h2>Trips are the home for trackers, bookings, and recurring instances.</h2>
+    <p>Create one-time trips for isolated travel and weekly trips for rolling supercommuter patterns.</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button primary" href="/trips/new">New trip</a>
+  </div>
+</section>
+
+<div class="card-grid">
+  {% for trip in snapshot.trips|sort(attribute='label') %}
+  {% set route_options = route_options_for_trip(snapshot, trip.trip_id) %}
+  {% set instances = instances_for_trip(snapshot, trip.trip_id) %}
+  <article class="card">
+    <div class="card-header">
+      <div>
+        <strong>{{ trip.label }}</strong>
+        <p class="muted">{{ trip.trip_kind }} · {{ 'active' if trip.active else 'paused' }}</p>
+      </div>
+      <span class="badge">{{ route_options|length }} options</span>
+    </div>
+    <div class="meta-grid">
+      <div><dt>Instances</dt><dd>{{ instances|length }}</dd></div>
+      <div><dt>Next instance</dt><dd>{{ instances[0].anchor_date.isoformat() if instances else 'None' }}</dd></div>
+    </div>
+    <div class="actions">
+      <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
+      <a class="button primary" href="/trips/{{ trip.trip_id }}">View</a>
+    </div>
+  </article>
+  {% else %}
+  <article class="empty-state">
+    <strong>No trips yet.</strong>
+    <p>Create your first one-time or weekly trip to start organizing trackers.</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

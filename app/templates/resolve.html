@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <p class="eyebrow">Resolve</p>
+    <h2>Only unmatched bookings should land here.</h2>
+    <p>Tracker noise is ignored. This queue is reserved for real travel commitments that could not be placed confidently.</p>
+  </div>
+</section>
+
+<div class="stack">
+  {% for unmatched in open_unmatched %}
+  <article class="card">
+    <div class="card-header">
+      <div>
+        <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
+        <p class="muted">{{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }} · {{ unmatched.airline }}</p>
+      </div>
+      <span class="badge">${{ unmatched.booked_price }}</span>
+    </div>
+    <div class="two-column top-gap-small">
+      <form method="post" action="/resolve/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
+        <h4>Link to existing trip instance</h4>
+        <label>
+          <span>Trip instance</span>
+          <select name="trip_instance_id" required>
+            <option value="">Choose one</option>
+            {% for trip_instance in trip_instances %}
+            <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="button primary">Link booking</button>
+      </form>
+
+      <form method="post" action="/resolve/{{ unmatched.unmatched_booking_id }}/create-trip" class="subcard">
+        <h4>Create one-time trip</h4>
+        <label>
+          <span>New trip label</span>
+          <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
+        </label>
+        <button type="submit" class="button secondary">Create trip from booking</button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+  <article class="empty-state">
+    <strong>No unmatched bookings.</strong>
+    <p>This queue stays empty unless the app cannot place a booking confidently.</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

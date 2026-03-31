@@ -4,31 +4,32 @@
 
 Use local files only.
 
-For v0, prefer CSV files for record lists because they are easy to inspect and can be opened in Excel or Numbers. Use one small JSON file for app-level metadata that does not fit naturally into CSV.
+For v0, store record lists as CSV files because they are easy to inspect and back up. Use one small JSON file for app-level metadata.
 
-Suggested future folder:
+Suggested layout:
 
 ```text
 data/
   app.json
-  programs.csv
+  trips.csv
+  route_options.csv
   trip_instances.csv
   trackers.csv
   bookings.csv
+  unmatched_bookings.csv
   email_events.csv
   fare_observations.csv
-  review_items.csv
   imported_emails/
 ```
 
 ## Design Goals
 
 - easy to inspect manually
-- easy to back up with git
-- simple enough to edit outside the app if needed
-- enough structure to support end-to-end recommendations
+- easy to reset during development
+- enough structure to support recurring generation and booking linkage
+- isolate Google Flights specifics to trackers, email events, and observations
 
-## 1. `app.json`
+## `app.json`
 
 Purpose:
 
@@ -39,82 +40,97 @@ Suggested fields:
 ```json
 {
   "timezone": "America/Los_Angeles",
-  "default_lookahead_weeks": 12,
-  "default_rebook_alert_threshold": 0,
+  "future_weeks": 12,
   "email_ingestion_mode": "manual_upload",
-  "version": 1
+  "version": 2
 }
 ```
 
-## 2. `programs.csv`
+## `trips.csv`
 
 Purpose:
 
-- define recurring flight rules
+- persistent top-level trip definitions
 
-One row per recurring rule.
+One row per trip label.
 
 Suggested columns:
 
-- `program_id`
-- `program_name`
+- `trip_id`
+- `label`
+- `trip_kind`
 - `active`
-- `route_detail_rankings`
+- `anchor_date`
+- `anchor_weekday`
 - `created_at`
 - `updated_at`
 
 Notes:
 
-- store `route_detail_rankings` as compact JSON ordered from primary to fallback
-- each ranked route detail includes:
-  - `origin_airport`
-  - `destination_airport`
-  - `weekday`
-  - `start_time`
-  - `end_time`
-  - `airline`
-  - `nonstop_only`
-- store booleans as `true` or `false`
+- `label` must be unique
+- `trip_kind` is `one_time` or `weekly`
+- `anchor_date` is used by one-time trips
+- `anchor_weekday` is used by weekly trips and defines the rolling weekly anchor day
 
-Example:
-
-```csv
-program_id,program_name,active,route_detail_rankings,created_at,updated_at
-prog_001,LA to SF Outbound,true,"[{""origin_airport"":""BUR"",""destination_airport"":""SFO"",""weekday"":""Monday"",""start_time"":""06:00"",""end_time"":""10:00"",""airline"":""Alaska"",""nonstop_only"":true},{""origin_airport"":""LAX"",""destination_airport"":""SFO"",""weekday"":""Sunday"",""start_time"":""18:00"",""end_time"":""21:00"",""airline"":""United"",""nonstop_only"":true}]",2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
-```
-
-## 3. `trip_instances.csv`
+## `route_options.csv`
 
 Purpose:
 
-- represent concrete future trips generated from recurring rules
+- ranked tracker definitions under a trip
 
-One row per concrete trip cycle. A one-way rule generates one trip per future week.
+One row per route option.
+
+Suggested columns:
+
+- `route_option_id`
+- `trip_id`
+- `rank`
+- `origin_airports`
+- `destination_airports`
+- `airlines`
+- `day_offset`
+- `start_time`
+- `end_time`
+- `created_at`
+- `updated_at`
+
+Notes:
+
+- store airport and airline selections as `|`-delimited values
+- `day_offset` is an integer, typically `-1`, `0`, or `1`
+- all route options are implicitly nonstop-only in v0
+
+## `trip_instances.csv`
+
+Purpose:
+
+- dated occurrences generated from trips
+
+One row per trip occurrence.
 
 Suggested columns:
 
 - `trip_instance_id`
-- `program_id`
-- `origin_airport`
-- `destination_airport`
-- `outbound_date`
-- `status`
+- `trip_id`
+- `display_label`
+- `anchor_date`
+- `travel_state`
+- `recommendation_state`
 - `recommendation_reason`
-- `best_airline`
-- `best_fare_type`
-- `best_price`
-- `best_outbound_summary`
-- `outbound_tracker_id`
-- `last_checked_at`
-- `dismissed_until`
 - `booking_id`
+- `last_signal_at`
 - `created_at`
 - `updated_at`
 
-Allowed `status` values:
+Allowed `travel_state` values:
+
+- `open`
+- `booked`
+- `skipped`
+
+Allowed `recommendation_state` values:
 
 - `needs_tracker_setup`
-- `not_ready`
 - `wait`
 - `book_now`
 - `booked_monitoring`
@@ -122,41 +138,31 @@ Allowed `status` values:
 
 Notes:
 
-- `booking_id` is empty until the user records a booking
-- `outbound_date` is the primary route-option anchor date for that trip cycle
-- `outbound_tracker_id` points to the primary tracker when it exists
-- this table drives the Today and Calendar screens
-- trip-level recommendations should use the best safe signal across all ranked route options for that trip
+- weekly trips maintain the next 12 future instances
+- skipping one occurrence should set `travel_state = skipped`
+- recommendation state is distinct from travel state
 
-Example:
-
-```csv
-trip_instance_id,program_id,origin_airport,destination_airport,outbound_date,status,recommendation_reason,best_airline,best_fare_type,best_price,best_outbound_summary,outbound_tracker_id,last_checked_at,dismissed_until,booking_id,created_at,updated_at
-trip_001,prog_001,BUR,SFO,2026-05-12,book_now,Current fare is near the best observed price across your ranked route options.,Alaska,,186,AS123 07:00-08:35,trk_001,2026-04-04T08:05:00-07:00,,book_001,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
-```
-
-## 4. `trackers.csv`
+## `trackers.csv`
 
 Purpose:
 
-- track Google Flights links and tracker readiness per ranked route option
+- operational Google Flights tracker rows for a specific route option on a specific trip instance
 
-One row per ranked route option that should be monitored in Google Flights.
+One row per route option per trip instance.
 
 Suggested columns:
 
 - `tracker_id`
 - `trip_instance_id`
-- `segment_type`
-- `detail_rank`
-- `detail_weekday`
-- `detail_time_start`
-- `detail_time_end`
-- `detail_airline`
-- `detail_nonstop_only`
-- `origin_airport`
-- `destination_airport`
+- `route_option_id`
+- `rank`
+- `origin_airports`
+- `destination_airports`
+- `airlines`
+- `day_offset`
 - `travel_date`
+- `start_time`
+- `end_time`
 - `provider`
 - `link_source`
 - `tracking_status`
@@ -164,16 +170,13 @@ Suggested columns:
 - `tracking_enabled_at`
 - `last_signal_at`
 - `latest_observed_price`
+- `latest_match_summary`
 - `created_at`
 - `updated_at`
 
 Allowed `provider` values:
 
 - `google_flights`
-
-Allowed `segment_type` values:
-
-- `outbound`
 
 Allowed `link_source` values:
 
@@ -187,32 +190,33 @@ Allowed `tracking_status` values:
 - `signal_received`
 - `stale`
 
-Example:
+Notes:
 
-```csv
-tracker_id,trip_instance_id,segment_type,detail_rank,detail_weekday,detail_time_start,detail_time_end,detail_airline,detail_nonstop_only,origin_airport,destination_airport,travel_date,provider,link_source,tracking_status,google_flights_url,tracking_enabled_at,last_signal_at,latest_observed_price,created_at,updated_at
-trk_001,trip_001,outbound,1,Monday,06:00,10:00,Alaska,true,BUR,SFO,2026-05-12,google_flights,manual,signal_received,https://www.google.com/travel/flights/search?... ,2026-04-01T18:00:00-07:00,2026-04-04T08:02:00-07:00,186,2026-03-31T09:00:00-07:00,2026-04-04T08:02:00-07:00
-```
+- a tracker is a search envelope, not a single concrete itinerary
+- actual observed itineraries belong in `fare_observations.csv`
 
-## 5. `bookings.csv`
+## `bookings.csv`
 
 Purpose:
 
-- store the trips the user actually booked
+- store user bookings that have been attached to a trip instance
 
-One row per booked trip instance.
+One row per attached booking.
 
 Suggested columns:
 
 - `booking_id`
 - `trip_instance_id`
+- `tracker_id`
 - `airline`
-- `fare_type`
+- `origin_airport`
+- `destination_airport`
+- `departure_date`
+- `departure_time`
+- `arrival_time`
 - `booked_price`
-- `booked_at`
-- `outbound_summary`
-- `return_summary`
 - `record_locator`
+- `booked_at`
 - `status`
 - `notes`
 - `created_at`
@@ -221,30 +225,61 @@ Suggested columns:
 Allowed `status` values:
 
 - `active`
-- `cancelled`
 - `rebooked`
 
 Notes:
 
-- `trip_instance_id` should point back to the generated trip
-- if the user rebooks, the prior row can be marked `rebooked` and a fresh booking row can be created
-- keep the required fields minimal so manual entry is fast
+- a booking should attach to the best matching tracker when possible
+- `tracker_id` may be empty if the trip instance match is known but tracker match is unclear
 
-Example:
-
-```csv
-booking_id,trip_instance_id,airline,fare_type,booked_price,booked_at,outbound_summary,return_summary,record_locator,status,notes,created_at,updated_at
-book_001,trip_004,United,flexible,224,2026-04-03T07:20:00-07:00,UA123 07:00-08:31,UA456 18:10-19:40,ABC123,active,Booked after alert,2026-04-03T07:20:00-07:00,2026-04-03T07:20:00-07:00
-```
-
-## 6. `email_events.csv`
+## `unmatched_bookings.csv`
 
 Purpose:
 
-- keep a raw-ish record of ingested Google Flights emails
-- support debugging when parsing fails or mapping is ambiguous
+- hold bookings that could not be attached confidently
 
-One row per ingested email.
+One row per unresolved booking.
+
+Suggested columns:
+
+- `unmatched_booking_id`
+- `source`
+- `airline`
+- `origin_airport`
+- `destination_airport`
+- `departure_date`
+- `departure_time`
+- `arrival_time`
+- `booked_price`
+- `record_locator`
+- `raw_summary`
+- `candidate_trip_instance_ids`
+- `resolution_status`
+- `created_at`
+- `updated_at`
+
+Allowed `source` values:
+
+- `manual`
+- `email_import`
+
+Allowed `resolution_status` values:
+
+- `open`
+- `resolved`
+
+Notes:
+
+- only unmatched bookings should surface in `Resolve`
+- unmatched tracker observations should never create rows here
+
+## `email_events.csv`
+
+Purpose:
+
+- keep a record of imported Google Flights emails
+
+One row per `.eml` import.
 
 Suggested columns:
 
@@ -255,131 +290,51 @@ Suggested columns:
 - `subject`
 - `parsed_status`
 - `observation_count`
- - `imported_email_path`
- - `raw_excerpt`
- - `created_at`
-
-Allowed `provider` values:
-
-- `google_flights_email`
+- `matched_observation_count`
+- `imported_email_path`
+- `raw_excerpt`
+- `created_at`
 
 Allowed `parsed_status` values:
 
 - `parsed`
-- `unmatched`
-- `needs_review`
-
-Example:
-
-```csv
-email_event_id,provider,source_message_id,received_at,subject,parsed_status,observation_count,imported_email_path,raw_excerpt,created_at
-mail_001,google_flights_email,<abc123@example.com>,2026-04-04T08:02:00-07:00,Prices for your tracked flights have changed,parsed,3,imported_emails/mail_001.eml,San Francisco to Burbank ... Los Angeles to New York ... New York to Los Angeles,2026-04-04T08:02:10-07:00
-```
-
-## 7. `fare_observations.csv`
-
-Purpose:
-
-- store price snapshots over time
-- support explanations and rebook checks
-
-One row per observed fare option at a point in time.
-
-Suggested columns:
-
-- `observation_id`
-- `tracker_id`
-- `trip_instance_id`
-- `segment_type`
-- `source_type`
-- `source_id`
-- `observed_at`
-- `airline`
-- `fare_type`
-- `price`
-- `outbound_summary`
-- `return_summary`
-- `is_best_current_option`
+- `parsed_with_ignored_observations`
+- `failed`
 
 Notes:
 
-- keep this table append-only
-- the best current option for a trip is derived from the latest observation set
-- most v0 observations will come from parsed Google Flights emails
-- if a parsed observation cannot be matched safely, it should not appear here until manual review resolves it
+- the email event exists for debugging and history
+- ignored observations should not create user-facing review work
 
-Example:
-
-```csv
-observation_id,tracker_id,trip_instance_id,segment_type,source_type,source_id,observed_at,airline,fare_type,price,outbound_summary,return_summary,is_best_current_option
-obs_001,trk_001,trip_001,outbound,google_flights_email,mail_001,2026-04-04T08:02:00-07:00,Alaska,flexible,186,AS123 07:00-08:35,,true
-```
-
-## 8. `review_items.csv`
+## `fare_observations.csv`
 
 Purpose:
 
-- hold ambiguous or unmatched parsed observations until the user resolves them
+- store concrete price observations extracted from Google Flights emails
 
-One row per parsed observation that needs a human decision.
+One row per accepted matched observation.
 
 Suggested columns:
 
-- `review_item_id`
+- `fare_observation_id`
 - `email_event_id`
-- `observed_route`
-- `observed_date`
-- `observed_airline`
-- `observed_price`
-- `status`
-- `resolution_notes`
-- `resolved_tracker_id`
+- `tracker_id`
+- `trip_instance_id`
+- `observed_at`
+- `airline`
+- `origin_airport`
+- `destination_airport`
+- `travel_date`
+- `departure_time`
+- `arrival_time`
+- `price`
+- `previous_price`
+- `price_direction`
+- `match_summary`
 - `created_at`
-- `resolved_at`
 
-Allowed `status` values:
+Notes:
 
-- `open`
-- `resolved`
-- `ignored`
-
-## Relationships
-
-Core relationships:
-
-- one `program` generates many `trip_instances`
-- one `trip_instance` should have up to two segment `trackers`
-- one `trip_instance` may have zero or one active `booking`
-- one `email_event` may produce many `fare_observations`
-- one `email_event` may also produce many `review_items`
-- one `trip_instance` may have many `fare_observations`
-
-## Minimal Logic Supported By This Model
-
-This model is enough to:
-
-- generate upcoming commute weeks
-- generate and track Google Flights segment monitoring links
-- ingest Google Flights email alerts
-- store current segment observations and roll them up into a trip recommendation
-- record a booking
-- compare booked trip price against the combined current segment price
-- show recent price history
-- preserve ambiguous imports without losing evidence
-
-## Intentional Omissions
-
-v0 does not model:
-
-- credits
-- hotels
-- seat assignments
-- baggage details
-- multiple travelers
-- loyalty programs
-- refund rules beyond the high-level fare type
-- direct live-search provider sessions
-- automatic Gmail sync
-- outbound email delivery
-
-Those can be added later if the core booking and rebooking loop proves valuable.
+- only confidently matched observations should be stored here
+- ambiguous or unmatched tracker observations should be ignored
+- trip-level recommendation logic should rely on the best latest observations per tracker envelope

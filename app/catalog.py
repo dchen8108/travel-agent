@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import json
 
-from app.models.base import ProgramWeekday
+WEEKDAYS = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
 
 SUPPORTED_AIRPORTS = [
     {"code": "BUR", "label": "Hollywood Burbank", "keywords": "Burbank Los Angeles"},
@@ -34,39 +42,42 @@ SUPPORTED_AIRPORTS = [
 ]
 
 SUPPORTED_AIRLINES = [
-    {"code": "Alaska", "label": "Alaska Airlines", "keywords": "AS"},
-    {"code": "American", "label": "American Airlines", "keywords": "AA"},
-    {"code": "Delta", "label": "Delta Air Lines", "keywords": "DL"},
-    {"code": "JetBlue", "label": "JetBlue", "keywords": "B6"},
-    {"code": "Southwest", "label": "Southwest Airlines", "keywords": "WN"},
-    {"code": "United", "label": "United Airlines", "keywords": "UA"},
-    {"code": "Hawaiian", "label": "Hawaiian Airlines", "keywords": "HA"},
-    {"code": "Frontier", "label": "Frontier Airlines", "keywords": "F9"},
-    {"code": "Spirit", "label": "Spirit Airlines", "keywords": "NK"},
-    {"code": "Sun Country", "label": "Sun Country", "keywords": "SY"},
+    {"code": "Alaska", "label": "Alaska Airlines", "keywords": "AS Alaska Airlines"},
+    {"code": "American", "label": "American Airlines", "keywords": "AA American Airlines"},
+    {"code": "Delta", "label": "Delta Air Lines", "keywords": "DL Delta Air Lines"},
+    {"code": "JetBlue", "label": "JetBlue", "keywords": "B6 JetBlue Airways"},
+    {"code": "Southwest", "label": "Southwest Airlines", "keywords": "WN Southwest"},
+    {"code": "United", "label": "United Airlines", "keywords": "UA United Airlines"},
+    {"code": "Hawaiian", "label": "Hawaiian Airlines", "keywords": "HA Hawaiian"},
+    {"code": "Frontier", "label": "Frontier Airlines", "keywords": "F9 Frontier"},
+    {"code": "Spirit", "label": "Spirit Airlines", "keywords": "NK Spirit"},
+    {"code": "Sun Country", "label": "Sun Country", "keywords": "SY Sun Country"},
 ]
 
-BOOKING_FARE_TYPES = [
-    {"value": "Flexible", "label": "Flexible / credit-friendly"},
-    {"value": "Main", "label": "Main cabin"},
-    {"value": "Basic", "label": "Basic economy"},
-    {"value": "First", "label": "First / premium cabin"},
-    {"value": "Unknown", "label": "Unknown / other"},
-]
-
-WEEKDAY_OPTIONS = [weekday.value for weekday in ProgramWeekday]
-
-
-def airport_codes() -> set[str]:
-    return {item["code"] for item in SUPPORTED_AIRPORTS}
-
-
-def airline_codes() -> set[str]:
-    return {item["code"] for item in SUPPORTED_AIRLINES}
-
-
-def booking_fare_values() -> set[str]:
-    return {item["value"] for item in BOOKING_FARE_TYPES}
+AIRPORT_CODES = {item["code"] for item in SUPPORTED_AIRPORTS}
+AIRLINE_CODES = {item["code"] for item in SUPPORTED_AIRLINES}
+AIRLINE_ALIASES = {
+    "alaska": "Alaska",
+    "alaska airlines": "Alaska",
+    "american": "American",
+    "american airlines": "American",
+    "delta": "Delta",
+    "delta air lines": "Delta",
+    "delta airlines": "Delta",
+    "jetblue": "JetBlue",
+    "jetblue airways": "JetBlue",
+    "southwest": "Southwest",
+    "southwest airlines": "Southwest",
+    "united": "United",
+    "united airlines": "United",
+    "hawaiian": "Hawaiian",
+    "hawaiian airlines": "Hawaiian",
+    "frontier": "Frontier",
+    "frontier airlines": "Frontier",
+    "spirit": "Spirit",
+    "spirit airlines": "Spirit",
+    "sun country": "Sun Country",
+}
 
 
 def airport_options() -> list[dict[str, str]]:
@@ -91,11 +102,31 @@ def airline_options() -> list[dict[str, str]]:
     ]
 
 
+def normalize_airport_code(value: str) -> str:
+    airport = value.strip().upper()
+    if airport not in AIRPORT_CODES:
+        raise ValueError("Choose a supported airport.")
+    return airport
+
+
+def normalize_airline_code(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("Choose a supported airline.")
+    alias = AIRLINE_ALIASES.get(normalized.lower(), normalized)
+    if alias not in AIRLINE_CODES:
+        raise ValueError("Choose a supported airline.")
+    return alias
+
+
 def catalogs_json() -> str:
     payload = {
         "airports": airport_options(),
         "airlines": airline_options(),
-        "bookingFareTypes": BOOKING_FARE_TYPES,
-        "weekdays": WEEKDAY_OPTIONS,
+        "weekdays": WEEKDAYS,
+        "tripKinds": [
+            {"value": "one_time", "label": "One-time"},
+            {"value": "weekly", "label": "Weekly"},
+        ],
     }
     return json.dumps(payload)

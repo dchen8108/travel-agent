@@ -2,86 +2,96 @@
 {% block content %}
 <section class="hero compact">
   <div>
-    <h2>{{ trip.origin_airport }} → {{ trip.destination_airport }}</h2>
-    <p>
-      {{ (best_tracker.travel_date if best_tracker else trip.outbound_date).strftime('%A, %b %d') }}
-    </p>
-    {% if best_tracker %}
-    <small>Best live option: {{ tracker_label(best_tracker) }}</small>
+    <p class="eyebrow">Trip</p>
+    <h2>{{ trip.label }}</h2>
+    <p>{{ trip.trip_kind }} · {{ 'active' if trip.active else 'paused' }}</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
+    {% if trip.active %}
+    <form method="post" action="/trips/{{ trip.trip_id }}/pause"><button class="button ghost" type="submit">Pause</button></form>
     {% else %}
-    <small>Primary target option: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
+    <form method="post" action="/trips/{{ trip.trip_id }}/activate"><button class="button ghost" type="submit">Activate</button></form>
     {% endif %}
-  </div>
-  <div class="summary-strip">
-    <div class="summary-pill">
-      <span>{{ trip.status.replace('_', ' ') }}</span>
-      <small>Status</small>
-    </div>
-    <div class="summary-pill">
-      <span>{{ '$%s' % trip.best_price if trip.best_price is not none else '—' }}</span>
-      <small>Latest tracked fare</small>
-    </div>
-    <div class="summary-pill">
-      <span>{{ '$%s' % booking.booked_price if booking else '—' }}</span>
-      <small>Booked fare</small>
-    </div>
+    <form method="post" action="/trips/{{ trip.trip_id }}/delete"><button class="button danger" type="submit">Delete</button></form>
   </div>
 </section>
 
-<section class="card">
-  <h3>Recommendation</h3>
-  <p>{{ trip.recommendation_reason }}</p>
-  <div class="actions">
-    <a class="button primary" href="/bookings/new?trip_id={{ trip.trip_instance_id }}">{{ 'Update booking' if booking else 'Record booking' }}</a>
-    <a class="button secondary" href="/trackers">Manage trackers</a>
+<section class="card top-gap">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Route options</p>
+      <h3>Ranked tracker definitions</h3>
+    </div>
   </div>
-</section>
-
-<section class="two-column">
-  <article class="card">
-    <h3>Tracker status</h3>
-    {% for tracker in trackers %}
-    <div class="list-row">
-      <div>
-        <strong>{{ rank_label(tracker.detail_rank) }}</strong>
-        <div>{{ tracker_label(tracker) }} · {{ tracker.travel_date.strftime('%b %d') }}</div>
+  <div class="stack">
+    {% for option in route_options %}
+    <article class="subcard">
+      <div class="card-header">
+        <strong>#{{ option.rank }}</strong>
+        <span class="badge">{{ day_offset_label(trip.effective_anchor_weekday, option.day_offset) }}</span>
       </div>
-      <span class="badge">{{ tracker.tracking_status.replace('_', ' ') }}</span>
-    </div>
+      <p>{{ route_option_summary(option.origin_codes, option.destination_codes, option.airline_codes, day_offset_label(trip.effective_anchor_weekday, option.day_offset), option.start_time, option.end_time) }}</p>
+    </article>
+    {% else %}
+    <div class="empty-inline">No route options saved.</div>
     {% endfor %}
-  </article>
-  <article class="card">
-    <h3>Best current signal</h3>
-    <p><strong>Airline:</strong> {{ trip.best_airline or 'Unknown' }}</p>
-    {% if best_tracker %}
-    <p><strong>Option:</strong> {{ tracker_label(best_tracker) }}</p>
-    {% endif %}
-    <p><strong>Outbound:</strong> {{ trip.best_outbound_summary or 'No signal yet' }}</p>
-  </article>
+  </div>
 </section>
 
 <section class="section">
   <div class="section-header">
-    <h3>Recent observations</h3>
-    <a href="/imports">Import another email</a>
+    <div>
+      <p class="eyebrow">Occurrences</p>
+      <h3>{{ trip_instances|length }} generated instances</h3>
+    </div>
   </div>
-  {% if observations %}
   <div class="stack">
-    {% for observation in observations %}
+    {% for instance in trip_instances %}
+    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     <article class="card">
       <div class="card-header">
         <div>
-          <h3>{{ observation.airline or 'Unknown airline' }}</h3>
-          <p>{{ observation.observed_at.strftime('%Y-%m-%d %H:%M') }}</p>
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ instance.recommendation_reason }}</p>
         </div>
-        <span class="badge">${{ observation.price }}</span>
+        <div class="badge-stack">
+          <span class="badge">{{ instance.travel_state }}</span>
+          <span class="badge">{{ instance.recommendation_state }}</span>
+        </div>
       </div>
-      <p>{{ observation.outbound_summary or observation.return_summary }}</p>
+      <div class="meta-grid">
+        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Booking</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Not booked' }}</dd></div>
+        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
+      </div>
+      <div class="actions">
+        {% if instance.travel_state == 'open' %}
+        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip"><button class="button ghost" type="submit">Skip occurrence</button></form>
+        {% elif instance.travel_state == 'skipped' %}
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore"><button class="button ghost" type="submit">Restore occurrence</button></form>
+        {% endif %}
+      </div>
+      <div class="tracker-stack top-gap-small">
+        {% for tracker_item in trackers_for_instance(snapshot, instance.trip_instance_id) %}
+        <div class="tracker-row">
+          <div>
+            <strong>Option {{ tracker_item.rank }}</strong>
+            <p class="muted">{{ tracker_item.origin_airports|replace('|', ', ') }} → {{ tracker_item.destination_airports|replace('|', ', ') }} · {{ tracker_item.travel_date.isoformat() }} · {{ tracker_item.start_time }}-{{ tracker_item.end_time }}</p>
+          </div>
+          <span class="badge">{{ tracker_item.tracking_status }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No instances yet.</strong>
+      <p>This trip has not generated any occurrences.</p>
     </article>
     {% endfor %}
   </div>
-  {% else %}
-  <div class="empty-inline">No observations imported for this trip yet.</div>
-  {% endif %}
 </section>
 {% endblock %}

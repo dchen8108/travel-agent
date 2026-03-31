@@ -5,14 +5,13 @@ from datetime import date, datetime
 from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import BookingStatus, CsvModel, utcnow
-from app.route_options import parse_time
+from app.models.base import CsvModel, UnmatchedBookingStatus, utcnow
+from app.route_options import join_pipe, parse_time, split_pipe
 
 
-class Booking(CsvModel):
-    booking_id: str
-    trip_instance_id: str
-    tracker_id: str = ""
+class UnmatchedBooking(CsvModel):
+    unmatched_booking_id: str
+    source: str = "manual"
     airline: str
     origin_airport: str
     destination_airport: str
@@ -21,9 +20,9 @@ class Booking(CsvModel):
     arrival_time: str = ""
     booked_price: int
     record_locator: str = ""
-    booked_at: datetime = Field(default_factory=utcnow)
-    status: BookingStatus = BookingStatus.ACTIVE
-    notes: str = ""
+    raw_summary: str = ""
+    candidate_trip_instance_ids: str = ""
+    resolution_status: UnmatchedBookingStatus = UnmatchedBookingStatus.OPEN
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -52,9 +51,14 @@ class Booking(CsvModel):
     def normalize_record_locator(cls, value: str) -> str:
         return value.strip().upper()
 
+    @field_validator("candidate_trip_instance_ids")
+    @classmethod
+    def normalize_candidates(cls, value: str) -> str:
+        return join_pipe(split_pipe(value))
+
     @field_validator("booked_price")
     @classmethod
-    def validate_booked_price(cls, value: int) -> int:
+    def validate_price(cls, value: int) -> int:
         if value < 0:
             raise ValueError("Booked price must be positive.")
         return value

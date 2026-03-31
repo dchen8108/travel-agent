@@ -4,196 +4,71 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.models.base import TrackerStatus
-from app.models.program import Program
-from app.models.tracker import Tracker
-from app.models.trip_instance import TripInstance
-from app.route_details import RankedRouteDetail, serialize_route_detail_rankings
+from app.main import create_app
 from app.settings import Settings
-from app.storage.repository import Repository
-from app.web import get_repository
 
 
-def route_details_json(*details: RankedRouteDetail) -> str:
-    return serialize_route_detail_rankings(list(details))
-
-
-def test_core_pages_render_with_empty_state(tmp_path: Path) -> None:
-    repository = Repository(
-        Settings(
-            data_dir=tmp_path / "data",
-            imported_email_dir=tmp_path / "data" / "imported_emails",
-            templates_dir=Path("app/templates"),
-            static_dir=Path("app/static"),
-        )
+def test_core_pages_render(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
     )
-    repository.ensure_data_dir()
-    app.dependency_overrides[get_repository] = lambda: repository
-    client = TestClient(app)
+    client = TestClient(create_app(settings))
 
-    try:
-        for path in ["/", "/rules", "/trackers", "/imports", "/review", "/bookings/new"]:
-            response = client.get(path)
-            assert response.status_code == 200
-    finally:
-        app.dependency_overrides.clear()
+    for path in ["/", "/trips", "/trips/new", "/bookings", "/bookings/new", "/imports", "/resolve", "/trackers"]:
+        response = client.get(path)
+        assert response.status_code == 200
 
 
-def test_web_happy_path_import_and_booking(tmp_path: Path) -> None:
-    repository = Repository(
-        Settings(
-            data_dir=tmp_path / "data",
-            imported_email_dir=tmp_path / "data" / "imported_emails",
-            templates_dir=Path("app/templates"),
-            static_dir=Path("app/static"),
-        )
+def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
     )
-    repository.ensure_data_dir()
-    seed_jfk_trip(repository)
-    app.dependency_overrides[get_repository] = lambda: repository
-    client = TestClient(app)
-    fixture = Path(__file__).parent / "fixtures" / "google_flights_sample.eml"
+    client = TestClient(create_app(settings))
 
-    try:
-        response = client.post(
-            "/imports/upload",
-            files={"email_file": ("google.eml", fixture.read_bytes(), "message/rfc822")},
-            follow_redirects=False,
-        )
-        assert response.status_code == 303
-        assert len(repository.load_fare_observations()) == 2
-
-        detail = client.get("/trips/trip_jfk")
-        assert detail.status_code == 200
-        assert "LAX → JFK" in detail.text
-
-        booking_response = client.post(
-            "/bookings",
-            data={"trip_instance_id": "trip_jfk", "booked_price": "650", "fare_type": "Flexible"},
-            follow_redirects=False,
-        )
-        assert booking_response.status_code == 303
-        refreshed = client.get("/trips/trip_jfk")
-        assert "rebook" in refreshed.text.lower()
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_invalid_ids_return_404(tmp_path: Path) -> None:
-    repository = Repository(
-        Settings(
-            data_dir=tmp_path / "data",
-            imported_email_dir=tmp_path / "data" / "imported_emails",
-            templates_dir=Path("app/templates"),
-            static_dir=Path("app/static"),
-        )
+    response = client.post(
+        "/trips",
+        data={
+            "label": "LA to SF Outbound",
+            "trip_kind": "one_time",
+            "active": "true",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
     )
-    repository.ensure_data_dir()
-    app.dependency_overrides[get_repository] = lambda: repository
-    client = TestClient(app)
+    assert response.status_code == 303
 
-    try:
-        assert client.get("/trips/missing-trip").status_code == 404
-        assert client.post("/trackers/missing-tracker/mark-enabled").status_code == 404
-        assert client.post("/review/missing-review/ignore").status_code == 404
-    finally:
-        app.dependency_overrides.clear()
+    trips_page = client.get("/trips")
+    assert "LA to SF Outbound" in trips_page.text
 
+    booking_page = client.get("/bookings/new")
+    assert booking_page.status_code == 200
 
-def test_booking_rejects_foreign_tracker_ids(tmp_path: Path) -> None:
-    repository = Repository(
-        Settings(
-            data_dir=tmp_path / "data",
-            imported_email_dir=tmp_path / "data" / "imported_emails",
-            templates_dir=Path("app/templates"),
-            static_dir=Path("app/static"),
-        )
+    booking_response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "tracker_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "ABC123",
+            "notes": "",
+        },
+        follow_redirects=False,
     )
-    repository.ensure_data_dir()
-    seed_jfk_trip(repository)
-    app.dependency_overrides[get_repository] = lambda: repository
-    client = TestClient(app)
+    assert booking_response.status_code == 303
 
-    try:
-        response = client.post(
-            "/bookings",
-            data={"trip_instance_id": "trip_jfk", "tracker_id": "trk_foreign", "booked_price": "650", "fare_type": "Flexible"},
-            follow_redirects=False,
-        )
-        assert response.status_code == 400
-    finally:
-        app.dependency_overrides.clear()
-
-
-def seed_jfk_trip(repository: Repository) -> None:
-    program = Program(
-        program_id="prog_jfk",
-        program_name="LAX to JFK test",
-        route_detail_rankings=route_details_json(
-            RankedRouteDetail(
-                origin_airport="LAX",
-                destination_airport="JFK",
-                weekday="Wednesday",
-                start_time="21:00",
-                end_time="22:00",
-                airline="American",
-                nonstop_only=True,
-            ),
-            RankedRouteDetail(
-                origin_airport="LAX",
-                destination_airport="JFK",
-                weekday="Wednesday",
-                start_time="22:00",
-                end_time="23:30",
-                airline="American",
-                nonstop_only=True,
-            ),
-        ),
-    )
-    trip = TripInstance(
-        trip_instance_id="trip_jfk",
-        program_id=program.program_id,
-        origin_airport="LAX",
-        destination_airport="JFK",
-        outbound_date="2026-06-24",
-        outbound_tracker_id="trk_primary",
-    )
-    repository.save_programs([program])
-    repository.save_trip_instances([trip])
-    repository.save_trackers(
-        [
-            Tracker(
-                tracker_id="trk_primary",
-                trip_instance_id=trip.trip_instance_id,
-                segment_type="outbound",
-                detail_rank=1,
-                detail_weekday="Wednesday",
-                detail_time_start="21:00",
-                detail_time_end="22:00",
-                detail_airline="American",
-                detail_nonstop_only=True,
-                origin_airport="LAX",
-                destination_airport="JFK",
-                travel_date="2026-06-24",
-                tracking_status=TrackerStatus.TRACKING_ENABLED,
-                google_flights_url="https://example.com/primary",
-            ),
-            Tracker(
-                tracker_id="trk_backup",
-                trip_instance_id=trip.trip_instance_id,
-                segment_type="outbound",
-                detail_rank=2,
-                detail_weekday="Wednesday",
-                detail_time_start="22:00",
-                detail_time_end="23:30",
-                detail_airline="American",
-                detail_nonstop_only=True,
-                origin_airport="LAX",
-                destination_airport="JFK",
-                travel_date="2026-06-24",
-                tracking_status=TrackerStatus.TRACKING_ENABLED,
-                google_flights_url="https://example.com/backup",
-            ),
-        ]
-    )
+    bookings_page = client.get("/bookings")
+    assert "ABC123" in bookings_page.text

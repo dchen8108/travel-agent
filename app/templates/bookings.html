@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <p class="eyebrow">Bookings</p>
+    <h2>Record flights and keep them attached to the right trip.</h2>
+    <p>Bookings are the only high-signal item that should create manual resolution work when the app cannot place them confidently.</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button primary" href="/bookings/new">Add booking</a>
+  </div>
+</section>
+
+{% if open_unmatched %}
+<section class="card warning-card">
+  <strong>{{ open_unmatched|length }} booking{{ '' if open_unmatched|length == 1 else 's' }} need resolution.</strong>
+  <p>Only unresolved bookings appear in the queue. Unmatched tracker noise is ignored.</p>
+  <a class="button secondary" href="/resolve">Open resolve</a>
+</section>
+{% endif %}
+
+<div class="stack">
+  {% for booking in active_bookings %}
+  <article class="card">
+    <div class="card-header">
+      <div>
+        <strong>{{ booking.origin_airport }} → {{ booking.destination_airport }}</strong>
+        <p class="muted">{{ booking.departure_date.isoformat() }} · {{ booking.departure_time }} · {{ booking.airline }}</p>
+      </div>
+      <span class="badge">${{ booking.booked_price }}</span>
+    </div>
+    <div class="meta-grid">
+      <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
+      <div><dt>Linked trip instance</dt><dd>{{ booking.trip_instance_id }}</dd></div>
+      <div><dt>Tracker</dt><dd>{{ booking.tracker_id or 'Unspecified' }}</dd></div>
+    </div>
+  </article>
+  {% else %}
+  <article class="empty-state">
+    <strong>No bookings saved.</strong>
+    <p>Add a booking after purchase and the app will start comparing it against tracker signals.</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,194 +1,335 @@
 from __future__ import annotations
 
+import json
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.catalog import BOOKING_FARE_TYPES, SUPPORTED_AIRLINES
-from app.route_details import rank_label, route_detail_label_from_fields
-from app.services.bookings import upsert_booking
-from app.services.dashboard import load_snapshot
-from app.services.workflows import recompute_and_persist
+from app.catalog import catalogs_json
+from app.models.base import TravelState
+from app.route_options import day_offset_label, route_option_summary
+from app.services.dashboard import (
+    best_tracker,
+    booking_for_instance,
+    instances_for_trip,
+    load_snapshot,
+    route_options_for_trip,
+    trackers_for_instance,
+)
+from app.services.trips import delete_trip, save_trip, set_trip_active
+from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(tags=["trips"])
 
 
-def tracker_sort_key(tracker) -> tuple[int, object, str, str]:
-    return (
-        tracker.detail_rank,
-        tracker.travel_date,
-        tracker.detail_time_start,
-        tracker.detail_airline,
-    )
+def _trip_form_state(trip, route_options):
+    if trip is None:
+        return {
+            "trip_id": "",
+            "label": "",
+            "trip_kind": "weekly",
+            "active": True,
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+        }
+    return {
+        "trip_id": trip.trip_id,
+        "label": trip.label,
+        "trip_kind": trip.trip_kind,
+        "active": trip.active,
+        "anchor_date": trip.anchor_date.isoformat() if trip.anchor_date else "",
+        "anchor_weekday": trip.anchor_weekday or "Monday",
+        "created_at": trip.created_at.isoformat(),
+    }
 
 
-def tracker_label(tracker) -> str:
-    return route_detail_label_from_fields(
-        tracker.origin_airport,
-        tracker.destination_airport,
-        tracker.detail_weekday,
-        tracker.detail_time_start,
-        tracker.detail_time_end,
-        tracker.detail_airline,
-    )
+def _route_option_state(route_options):
+    return [
+        {
+            "route_option_id": option.route_option_id,
+            "origin_airports": option.origin_codes,
+            "destination_airports": option.destination_codes,
+            "airlines": option.airline_codes,
+            "day_offset": option.day_offset,
+            "start_time": option.start_time,
+            "end_time": option.end_time,
+        }
+        for option in route_options
+    ]
 
 
-@router.get("/trips/{trip_instance_id}", response_class=HTMLResponse)
-def trip_detail(
-    trip_instance_id: str,
+def _route_option_state_from_payloads(payloads: list[dict[str, object]]):
+    def _as_list(value: object) -> list[str]:
+        if isinstance(value, str):
+            return [item for item in value.split("|") if item]
+        return list(value or [])
+
+    return [
+        {
+            "route_option_id": str(item.get("route_option_id", "") or ""),
+            "origin_airports": _as_list(item.get("origin_airports")),
+            "destination_airports": _as_list(item.get("destination_airports")),
+            "airlines": _as_list(item.get("airlines")),
+            "day_offset": int(item.get("day_offset", 0)),
+            "start_time": str(item.get("start_time", "") or ""),
+            "end_time": str(item.get("end_time", "") or ""),
+        }
+        for item in payloads
+    ]
+
+
+def _parse_route_options(raw: str) -> list[dict[str, object]]:
+    payload = json.loads(raw or "[]")
+    if not isinstance(payload, list):
+        raise ValueError("Route options payload must be a list.")
+    route_options: list[dict[str, object]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError("Route options payload is invalid.")
+        route_options.append(
+            {
+                "route_option_id": str(item.get("route_option_id", "") or ""),
+                "origin_airports": "|".join(item.get("origin_airports", []) or []),
+                "destination_airports": "|".join(item.get("destination_airports", []) or []),
+                "airlines": "|".join(item.get("airlines", []) or []),
+                "day_offset": int(item.get("day_offset", 0)),
+                "start_time": str(item.get("start_time", "") or ""),
+                "end_time": str(item.get("end_time", "") or ""),
+            }
+        )
+    return route_options
+
+
+@router.get("/trips", response_class=HTMLResponse)
+def trips_index(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_instance_id), None)
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="trips.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            instances_for_trip=instances_for_trip,
+            route_options_for_trip=route_options_for_trip,
+        ),
+    )
+
+
+@router.get("/trips/new", response_class=HTMLResponse)
+def new_trip(
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> HTMLResponse:
+    snapshot = load_snapshot(repository)
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="trip_form.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            trip=None,
+            route_options=[],
+            trip_form_state=_trip_form_state(None, []),
+            route_option_state=_route_option_state([]),
+            catalogs_json=catalogs_json(),
+        ),
+    )
+
+
+@router.get("/trips/{trip_id}", response_class=HTMLResponse)
+def trip_detail(
+    trip_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> HTMLResponse:
+    snapshot = load_snapshot(repository)
+    trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
-    trackers = sorted(
-        [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id],
-        key=tracker_sort_key,
-    )
-    best_tracker = next(
-        (
-            tracker
-            for tracker in sorted(
-                trackers,
-                key=lambda item: (
-                    item.latest_observed_price is None,
-                    item.latest_observed_price or 10**9,
-                    *tracker_sort_key(item),
-                ),
-            )
-            if tracker.latest_observed_price is not None
-        ),
-        None,
-    )
-    booking = next(
-        (
-            item
-            for item in snapshot.bookings
-            if item.trip_instance_id == trip_instance_id and item.status == "active"
-        ),
-        None,
-    )
-    observations = [
-        observation
-        for observation in snapshot.observations
-        if observation.trip_instance_id == trip_instance_id
-    ]
-    observations.sort(key=lambda item: item.observed_at, reverse=True)
+    route_options = route_options_for_trip(snapshot, trip.trip_id)
+    trip_instances = instances_for_trip(snapshot, trip.trip_id)
     return get_templates(request).TemplateResponse(
         request=request,
         name="trip_detail.html",
         context=base_context(
             request,
-            page="trip-detail",
+            page="trips",
             snapshot=snapshot,
             trip=trip,
-            trackers=trackers,
+            route_options=route_options,
+            trip_instances=trip_instances,
+            trackers_for_instance=trackers_for_instance,
+            booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
-            booking=booking,
-            observations=observations[:20],
-            tracker_label=tracker_label,
-            rank_label=rank_label,
+            day_offset_label=day_offset_label,
+            route_option_summary=route_option_summary,
         ),
     )
 
 
-@router.get("/bookings/new", response_class=HTMLResponse)
-def add_booking_form(
+@router.get("/trips/{trip_id}/edit", response_class=HTMLResponse)
+def edit_trip(
+    trip_id: str,
     request: Request,
     repository: Repository = Depends(get_repository),
-    trip_id: str | None = None,
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_id), None) if trip_id else None
-    if trip is None and len(snapshot.trips) == 1:
-        trip = snapshot.trips[0]
-    existing = (
-        next(
-            (
-                item
-                for item in snapshot.bookings
-                if item.trip_instance_id == trip.trip_instance_id and item.status == "active"
-            ),
-            None,
+    trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    route_options = route_options_for_trip(snapshot, trip.trip_id)
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="trip_form.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            trip=trip,
+            route_options=route_options,
+            trip_form_state=_trip_form_state(trip, route_options),
+            route_option_state=_route_option_state(route_options),
+            catalogs_json=catalogs_json(),
+        ),
+    )
+
+
+@router.post("/trips")
+async def save_trip_action(
+    request: Request,
+    repository: Repository = Depends(get_repository),
+):
+    form = await request.form()
+    trip_id = str(form.get("trip_id", "")).strip() or None
+    trip_kind = str(form.get("trip_kind", "weekly"))
+    anchor_date_value = str(form.get("anchor_date", "")).strip()
+    anchor_weekday = str(form.get("anchor_weekday", "")).strip()
+    route_options_json = str(form.get("route_options_json", "[]"))
+    raw_route_option_state: list[dict[str, object]]
+    try:
+        raw_route_option_state = json.loads(route_options_json or "[]")
+    except ValueError:
+        raw_route_option_state = []
+    try:
+        route_options = _parse_route_options(route_options_json)
+        trip = save_trip(
+            repository,
+            trip_id=trip_id,
+            label=str(form.get("label", "")).strip(),
+            trip_kind=trip_kind,
+            active=str(form.get("active", "false")).lower() == "true",
+            anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
+            anchor_weekday=anchor_weekday,
+            route_option_payloads=route_options,
         )
-        if trip is not None
-        else None
-    )
-    trip_trackers = sorted(
-        [item for item in snapshot.trackers if trip is not None and item.trip_instance_id == trip.trip_instance_id],
-        key=tracker_sort_key,
-    )
-    best_tracker = next(
+        sync_and_persist(repository)
+        return RedirectResponse(url=f"/trips/{trip.trip_id}?message=Trip+saved", status_code=303)
+    except ValueError as exc:
+        snapshot = load_snapshot(repository)
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name="trip_form.html",
+            context=base_context(
+                request,
+                page="trips",
+                snapshot=snapshot,
+                trip=None,
+                route_options=[],
+                error_message=str(exc),
+                trip_form_state={
+                    "trip_id": trip_id or "",
+                    "label": str(form.get("label", "")).strip(),
+                    "trip_kind": trip_kind,
+                    "active": str(form.get("active", "false")).lower() == "true",
+                    "anchor_date": anchor_date_value,
+                    "anchor_weekday": anchor_weekday or "Monday",
+                },
+                route_option_state=_route_option_state_from_payloads(raw_route_option_state),
+                catalogs_json=catalogs_json(),
+            ),
+            status_code=400,
+        )
+
+
+@router.post("/trips/{trip_id}/pause")
+def pause_trip_action(
+    trip_id: str,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    try:
+        set_trip_active(repository, trip_id, False)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    sync_and_persist(repository)
+    return RedirectResponse(url="/trips?message=Trip+paused", status_code=303)
+
+
+@router.post("/trips/{trip_id}/activate")
+def activate_trip_action(
+    trip_id: str,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    try:
+        set_trip_active(repository, trip_id, True)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    sync_and_persist(repository)
+    return RedirectResponse(url=f"/trips/{trip_id}?message=Trip+activated", status_code=303)
+
+
+@router.post("/trips/{trip_id}/delete")
+def delete_trip_action(
+    trip_id: str,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    delete_trip(repository, trip_id)
+    sync_and_persist(repository)
+    return RedirectResponse(url="/trips?message=Trip+deleted", status_code=303)
+
+
+@router.post("/trip-instances/{trip_instance_id}/skip")
+def skip_trip_instance(
+    trip_instance_id: str,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    trip_instances = repository.load_trip_instances()
+    booking = next(
         (
-            tracker
-            for tracker in sorted(
-                trip_trackers,
-                key=lambda item: (
-                    item.latest_observed_price is None,
-                    item.latest_observed_price or 10**9,
-                    *tracker_sort_key(item),
-                ),
-            )
-            if tracker.latest_observed_price is not None
+            item
+            for item in repository.load_bookings()
+            if item.trip_instance_id == trip_instance_id and item.status == "active"
         ),
         None,
     )
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="add_booking.html",
-        context=base_context(
-            request,
-            page="booking",
-            snapshot=snapshot,
-            trip=trip,
-            booking=existing,
-            trips=sorted(
-                snapshot.trips,
-                key=lambda item: (item.outbound_date, item.origin_airport, item.destination_airport),
-            ),
-            trip_trackers=trip_trackers,
-            tracker_choices=[
-                {
-                    "tracker_id": tracker.tracker_id,
-                    "title": rank_label(tracker.detail_rank),
-                    "label": tracker_label(tracker),
-                    "travel_date": tracker.travel_date,
-                    "price": tracker.latest_observed_price,
-                }
-                for tracker in trip_trackers
-            ],
-            best_tracker=best_tracker,
-            booking_airline_options=SUPPORTED_AIRLINES,
-            booking_fare_options=BOOKING_FARE_TYPES,
-            tracker_label=tracker_label,
-            rank_label=rank_label,
-        ),
-    )
+    if booking is not None:
+        raise HTTPException(status_code=400, detail="Cannot skip an occurrence with an active booking.")
+    trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if trip_instance is None:
+        raise HTTPException(status_code=404, detail="Trip instance not found")
+    trip_instance.travel_state = TravelState.SKIPPED
+    repository.save_trip_instances(trip_instances)
+    sync_and_persist(repository)
+    return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Occurrence+skipped", status_code=303)
 
 
-@router.post("/bookings")
-async def save_booking(
-    request: Request,
+@router.post("/trip-instances/{trip_instance_id}/restore")
+def restore_trip_instance(
+    trip_instance_id: str,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
-    form = await request.form()
-    trip_id = str(form.get("trip_instance_id", ""))
-    snapshot = load_snapshot(repository, recompute=False)
-    trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_id), None)
-    if trip is None:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    tracker_id = str(form.get("tracker_id", "")).strip()
-    if tracker_id and not any(
-        item.tracker_id == tracker_id
-        for item in snapshot.trackers
-        if item.trip_instance_id == trip_id
-    ):
-        raise HTTPException(status_code=400, detail="Tracked option does not belong to this trip")
-    bookings, _booking = upsert_booking(snapshot.bookings, trip, form)
-    repository.save_bookings(bookings)
-    repository.save_trip_instances(snapshot.trips)
-    recompute_and_persist(repository)
-    return RedirectResponse(url=f"/trips/{trip_id}?message=Booking+saved", status_code=303)
+    trip_instances = repository.load_trip_instances()
+    trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if trip_instance is None:
+        raise HTTPException(status_code=404, detail="Trip instance not found")
+    trip_instance.travel_state = TravelState.OPEN
+    repository.save_trip_instances(trip_instances)
+    sync_and_persist(repository)
+    return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Occurrence+restored", status_code=303)

@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from app.models.base import AppState
 from app.models.booking import Booking
 from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
-from app.models.program import Program
-from app.models.review_item import ReviewItem
+from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
+from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
+from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
 from app.storage.csv_store import load_csv_models, save_csv_models
 from app.storage.json_store import load_json_model, save_json_model
@@ -34,13 +34,14 @@ class Repository:
         if not self._path("app.json").exists():
             self.save_app_state(AppState())
         for name, model_type in (
-            ("programs.csv", Program),
+            ("trips.csv", Trip),
+            ("route_options.csv", RouteOption),
             ("trip_instances.csv", TripInstance),
             ("trackers.csv", Tracker),
             ("bookings.csv", Booking),
+            ("unmatched_bookings.csv", UnmatchedBooking),
             ("email_events.csv", EmailEvent),
             ("fare_observations.csv", FareObservation),
-            ("review_items.csv", ReviewItem),
         ):
             path = self._path(name)
             if not path.exists():
@@ -52,17 +53,23 @@ class Repository:
     def save_app_state(self, app_state: AppState) -> None:
         save_json_model(self._path("app.json"), app_state)
 
-    def load_programs(self) -> list[Program]:
-        return load_csv_models(self._path("programs.csv"), Program)
+    def load_trips(self) -> list[Trip]:
+        return load_csv_models(self._path("trips.csv"), Trip)
 
-    def save_programs(self, programs: list[Program]) -> None:
-        save_csv_models(self._path("programs.csv"), programs, _fieldnames(Program))
+    def save_trips(self, trips: list[Trip]) -> None:
+        save_csv_models(self._path("trips.csv"), trips, _fieldnames(Trip))
+
+    def load_route_options(self) -> list[RouteOption]:
+        return load_csv_models(self._path("route_options.csv"), RouteOption)
+
+    def save_route_options(self, route_options: list[RouteOption]) -> None:
+        save_csv_models(self._path("route_options.csv"), route_options, _fieldnames(RouteOption))
 
     def load_trip_instances(self) -> list[TripInstance]:
         return load_csv_models(self._path("trip_instances.csv"), TripInstance)
 
-    def save_trip_instances(self, trips: list[TripInstance]) -> None:
-        save_csv_models(self._path("trip_instances.csv"), trips, _fieldnames(TripInstance))
+    def save_trip_instances(self, trip_instances: list[TripInstance]) -> None:
+        save_csv_models(self._path("trip_instances.csv"), trip_instances, _fieldnames(TripInstance))
 
     def load_trackers(self) -> list[Tracker]:
         return load_csv_models(self._path("trackers.csv"), Tracker)
@@ -75,6 +82,16 @@ class Repository:
 
     def save_bookings(self, bookings: list[Booking]) -> None:
         save_csv_models(self._path("bookings.csv"), bookings, _fieldnames(Booking))
+
+    def load_unmatched_bookings(self) -> list[UnmatchedBooking]:
+        return load_csv_models(self._path("unmatched_bookings.csv"), UnmatchedBooking)
+
+    def save_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
+        save_csv_models(
+            self._path("unmatched_bookings.csv"),
+            unmatched_bookings,
+            _fieldnames(UnmatchedBooking),
+        )
 
     def load_email_events(self) -> list[EmailEvent]:
         return load_csv_models(self._path("email_events.csv"), EmailEvent)
@@ -91,14 +108,3 @@ class Repository:
             observations,
             _fieldnames(FareObservation),
         )
-
-    def load_review_items(self) -> list[ReviewItem]:
-        return load_csv_models(self._path("review_items.csv"), ReviewItem)
-
-    def save_review_items(self, items: list[ReviewItem]) -> None:
-        save_csv_models(self._path("review_items.csv"), items, _fieldnames(ReviewItem))
-
-
-def replace_in_list[T](items: list[T], replacement: T, key_fn: Callable[[T], str]) -> list[T]:
-    key = key_fn(replacement)
-    return [replacement if key_fn(item) == key else item for item in items]

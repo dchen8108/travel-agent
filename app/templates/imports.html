@@ -2,40 +2,40 @@
 {% block content %}
 <section class="hero compact">
   <div>
-    <h2>Imports</h2>
-    <p>Bring in Google Flights `.eml` alerts, then review anything the matcher could not place safely.</p>
+    <p class="eyebrow">Imports</p>
+    <h2>Upload Google Flights alerts as raw `.eml` files.</h2>
+    <p>Accepted observations update trackers. Unmatched tracker noise is ignored and does not create queue work.</p>
   </div>
 </section>
 
-<section class="card">
-  <form method="post" action="/imports/upload" enctype="multipart/form-data" class="inline-form">
+<section class="form-card">
+  <form method="post" action="/imports/email" enctype="multipart/form-data" class="inline-form">
     <input type="file" name="email_file" accept=".eml,message/rfc822" required>
-    <button class="button primary" type="submit">Import Google Flights email</button>
+    <button type="submit" class="button primary">Import email</button>
   </form>
 </section>
 
-<section class="section">
-  <div class="section-header">
-    <h3>Recent imports</h3>
-    <a href="/review">Open review queue</a>
-  </div>
-  {% if recent_events %}
-  <div class="stack">
-    {% for event in recent_events %}
-    <article class="card">
-      <div class="card-header">
-        <div>
-          <h3>{{ event.subject }}</h3>
-          <p>{{ event.received_at.strftime('%Y-%m-%d %H:%M') }}</p>
-        </div>
-        <span class="badge">{{ event.parsed_status.replace('_', ' ') }}</span>
+<div class="stack">
+  {% for event in recent_events %}
+  <article class="card">
+    <div class="card-header">
+      <div>
+        <strong>{{ event.subject }}</strong>
+        <p class="muted">{{ event.received_at.strftime('%Y-%m-%d %H:%M') }}</p>
       </div>
-      <p>{{ event.raw_excerpt }}</p>
-    </article>
-    {% endfor %}
-  </div>
+      <span class="badge">{{ event.parsed_status }}</span>
+    </div>
+    <div class="meta-grid">
+      <div><dt>Observations</dt><dd>{{ event.observation_count }}</dd></div>
+      <div><dt>Matched</dt><dd>{{ event.matched_observation_count }}</dd></div>
+      <div><dt>Stored file</dt><dd>{{ event.imported_email_path }}</dd></div>
+    </div>
+  </article>
   {% else %}
-  <div class="empty-inline">No emails imported yet.</div>
-  {% endif %}
-</section>
+  <article class="empty-state">
+    <strong>No imports yet.</strong>
+    <p>Upload a real Google Flights alert email to create tracker observations.</p>
+  </article>
+  {% endfor %}
+</div>
 {% endblock %}

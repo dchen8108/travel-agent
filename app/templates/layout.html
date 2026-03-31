@@ -7,19 +7,26 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
   </head>
   <body>
+    {% set resolve_count = snapshot.unmatched_bookings|selectattr('resolution_status', 'equalto', 'open')|list|length if snapshot is defined else 0 %}
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
+          <p class="eyebrow">Local-first</p>
           <h1>travel-agent</h1>
-          <p>Recurring flight monitor</p>
+          <p>Tracker of trackers for recurring flight travel.</p>
         </div>
         <nav class="nav">
           <a href="/" class="{{ 'active' if page == 'today' else '' }}">Today</a>
-          <a href="/rules" class="{{ 'active' if page == 'rules' else '' }}">Rules</a>
-          <a href="/trackers" class="{{ 'active' if page == 'trackers' else '' }}">Trackers</a>
+          <a href="/trips" class="{{ 'active' if page == 'trips' else '' }}">Trips</a>
+          <a href="/bookings" class="{{ 'active' if page == 'bookings' else '' }}">Bookings</a>
           <a href="/imports" class="{{ 'active' if page == 'imports' else '' }}">Imports</a>
-          <a href="/bookings/new" class="{{ 'active' if page == 'booking' else '' }}">Add booking</a>
-          <a href="/review" class="{{ 'active' if page == 'review' else '' }}">Review</a>
+          <a href="/trackers" class="{{ 'active' if page == 'trackers' else '' }}">Trackers</a>
+          <a href="/resolve" class="{{ 'active' if page == 'resolve' else '' }}">
+            Resolve
+            {% if resolve_count %}
+            <span class="nav-badge">{{ resolve_count }}</span>
+            {% endif %}
+          </a>
         </nav>
       </aside>
       <main class="content">
@@ -30,4 +37,4 @@
       </main>
     </div>
   </body>
-  </html>
+</html>

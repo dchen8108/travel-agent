@@ -2,101 +2,111 @@
 
 ## Goal
 
-Ship a local MVP that is usable today on one machine.
+Ship a local MVP that is usable today on one machine and reflects the current product direction.
 
-Status on March 31, 2026:
+The first usable version is successful if the user can:
 
-- completed: project scaffold, local storage, rules flow, tracker management, manual `.eml` import, parser/matcher, review queue, booking capture, and server-rendered UI
-- deferred: Gmail IMAP, outbound digest email, and calendar page
-
-The first version is successful if the user can:
-
-- define one or more recurring flight rules
-- generate upcoming trips and ranked route-option price-tracking tasks
-- import a Google Flights `.eml` alert
-- map safe observations to tracked route options
-- record a booking
-- see `set up`, `act now`, `booked`, and `rebook` states on a single dashboard
+- create one-time and weekly trips
+- manage recurring trips over time
+- maintain ranked route options under each trip
+- see the next 12 weekly instances automatically
+- set up Google Flights trackers for those instances
+- import Google Flights `.eml` alerts safely
+- record bookings
+- let easy bookings attach automatically
+- resolve only unmatched bookings
+- view open, booked, skipped, and cheaper-than-booked instances in one place
 
 ## Final MVP Boundary
 
 Included:
 
 - Python 3.12 local app using `uv`
-- FastAPI + Jinja + htmx
+- FastAPI + Jinja
 - CSV/JSON storage under `data/`
+- trips-first information architecture
+- one-time and weekly trips
+- rolling 12-week recurring generation
+- ranked route options
 - manual Google Flights tracker setup
 - manual Google Flights link paste
 - manual `.eml` import
-- route-option-level observation parsing and matching
-- manual review queue for ambiguous imports
+- safe observation matching
 - booking capture
-- trip recommendation rollup
+- unmatched booking resolution
 
 Deferred:
 
 - Gmail IMAP
-- email digest sending
-- calendar page
-- phone-specific access
+- outbound digest email
 - credits
+- hotels
+- paid fare APIs
+- generalized tracker review queue
 
 ## Implementation Order
 
-### 1. Skeleton
+### 1. Planning reset
 
-- initialize `pyproject.toml`
-- create `app/`, `data/`, `tests/`, and template/static folders
-- add settings, app factory, and health route
-- add storage layer for CSV/JSON bootstrap and writes
+- rewrite planning docs around `Trip`, `Route Option`, `Trip Instance`, `Tracker`, and `Unmatched Booking`
+- remove stale references to rules-first architecture and tracker review queue
 
-### 2. Core Models and Services
+### 2. Domain and storage rewrite
 
-- define typed models for programs, trips, trackers, bookings, email events, observations, and review items
-- implement repository helpers for load/save operations
-- implement trip generation from one or more recurring rules
-- implement tracker generation for ranked one-way route options
+- replace `Program` with `Trip`
+- add `RouteOption`
+- add `UnmatchedBooking`
+- reshape `TripInstance` states
+- reshape `Tracker` to point to `route_option_id`
+- update repository bootstrap for new CSV file set
+- drop compatibility with earlier test data
 
-### 3. Email Import Path
+### 3. Core services
 
-- build file upload route for `.eml`
-- preserve raw `.eml` in `data/imported_emails/`
-- parse Google Flights email into candidate observations
-- write `email_events.csv`
-- auto-match only clear route/date tracker matches
-- create `review_items.csv` rows for ambiguous or unmatched candidates
+- trip create/edit/delete/pause flows
+- recurring-instance generation
+- tracker synchronization
+- booking attachment and unmatched booking creation
+- recommendation rollup
+- observation matching that ignores ambiguous tracker noise
 
-### 4. Recommendation Engine
-
-- compute latest per-route-option observations
-- roll the best current option into a trip-level current total
-- derive `needs_tracker_setup`, `wait`, `book_now`, `booked_monitoring`, and `rebook`
-- attach short explanations to each trip
-
-### 5. UI
+### 4. UI rebuild
 
 - `Today`
-- `Price Tracking`
+- `Trips`
 - `Trip Detail`
-- `Rules`
-- `Add Booking`
-- `Review`
+- `Bookings`
+- `Imports`
+- `Resolve`
+- `Trackers`
 
-### 6. Verification and Polish
+### 5. Verification
 
-- seed a local sample program
-- import the known Google Flights sample email
-- verify parser outputs and dashboard updates
-- add tests for parser, matcher, trip generation, and recommendation logic
-- review code and fix issues before commit
+- parser tests
+- generation tests
+- booking matching tests
+- resolve-flow tests
+- smoke tests for key pages
+
+### 6. Review and hardening
+
+- run reviewer subagent on the implementation
+- fix agreed issues
+- rerun tests
+- commit and push
 
 ## Quality Gates
 
 Before the MVP is considered usable:
 
 - app boots with one command
-- data directory auto-initializes cleanly
-- known sample `.eml` imports without crashing
-- at least one observation is matched into a tracker
-- ambiguous observations land in review instead of being misapplied
-- a booking can be recorded and rebook logic recomputes correctly
+- repository bootstraps the new schema cleanly
+- the old test data can be discarded without breaking startup
+- a weekly trip produces 12 future instances
+- skipping one occurrence persists
+- tracker rows are created from ranked route options
+- known Google Flights sample email imports without crashing
+- ambiguous tracker observations are ignored instead of becoming user work
+- unmatched bookings appear in `Resolve`
+- linking an unmatched booking clears it from `Resolve`
+- a cheaper matched observation can drive a booked instance into `rebook`

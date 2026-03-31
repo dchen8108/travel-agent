@@ -2,87 +2,129 @@
 {% block content %}
 <section class="hero">
   <div>
-    <h2>Today</h2>
-    <p>Focus on what needs setup, what needs action, and what is already being monitored.</p>
+    <p class="eyebrow">Today</p>
+    <h2>Keep your Google Flights trackers and bookings in one place.</h2>
+    <p>Trips are the primary object. Trackers and bookings are attached underneath them, and only unresolved bookings become queue work.</p>
   </div>
-  <div class="summary-strip">
-    <div class="summary-pill">
-      <span>{{ snapshot.dashboard.setup|length }}</span>
-      <small>Need setup</small>
-    </div>
-    <div class="summary-pill">
-      <span>{{ snapshot.dashboard.action|length }}</span>
-      <small>Act now / wait</small>
-    </div>
-    <div class="summary-pill">
-      <span>{{ snapshot.dashboard.booked|length }}</span>
-      <small>Booked</small>
-    </div>
-    <div class="summary-pill">
-      <span>{{ open_review_count }}</span>
-      <small>Review items</small>
-    </div>
+  <div class="hero-actions">
+    <a class="button secondary" href="/imports">Import .eml</a>
+    <a class="button primary" href="/trips/new">New trip</a>
   </div>
 </section>
 
-{% if not snapshot.programs %}
-<section class="empty-state">
-  <h3>No program yet</h3>
-  <p>Create your recurring route first so the app can generate trips and trackers.</p>
-  <a class="button primary" href="/rules">Set up rules</a>
-</section>
-{% else %}
-<div class="actions">
-  <a class="button primary" href="/imports">Import email</a>
-  <a class="button secondary" href="/bookings/new">Add booking</a>
-</div>
-
-<section class="section">
-  <div class="section-header">
-    <h3>Set up price tracking</h3>
-    <a href="/trackers">Manage trackers</a>
-  </div>
-  {% if snapshot.dashboard.setup %}
-    <div class="card-grid">
-      {% for context in snapshot.dashboard.setup %}
-        {% include "partials/trip_card.html" %}
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="empty-inline">All visible trips already have tracking set up.</div>
-  {% endif %}
+<section class="summary-strip">
+  <div class="summary-pill"><span>{{ setup_instances|length }}</span><small>need setup</small></div>
+  <div class="summary-pill"><span>{{ open_instances|length }}</span><small>open trips</small></div>
+  <div class="summary-pill"><span>{{ booked_instances|length }}</span><small>booked</small></div>
+  <div class="summary-pill"><span>{{ open_unmatched|length }}</span><small>to resolve</small></div>
 </section>
 
 <section class="section">
   <div class="section-header">
-    <h3>Act now</h3>
-    <a href="/imports">Import a Google Flights email</a>
-  </div>
-  {% if snapshot.dashboard.action %}
-    <div class="card-grid">
-      {% for context in snapshot.dashboard.action %}
-        {% include "partials/trip_card.html" %}
-      {% endfor %}
+    <div>
+      <p class="eyebrow">Needs setup</p>
+      <h3>Trips without enough tracker coverage</h3>
     </div>
-  {% else %}
-    <div class="empty-inline">No unbooked trips need action right now.</div>
-  {% endif %}
+  </div>
+  <div class="card-grid">
+    {% for instance in setup_instances %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    <article class="card trip-card status-{{ instance.recommendation_state }}">
+      <div class="card-header">
+        <div>
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ instance.recommendation_reason }}</p>
+        </div>
+        <span class="badge">{{ instance.recommendation_state }}</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
+        <div><dt>Latest price</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="/trackers">Trackers</a>
+        <a class="button primary" href="/trips/{{ instance.trip_id }}">View trip</a>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No setup gaps.</strong>
+      <p>All current trip instances have at least one tracker started.</p>
+    </article>
+    {% endfor %}
+  </div>
 </section>
 
 <section class="section">
   <div class="section-header">
-    <h3>Booked trips</h3>
-    <a href="/review">Review queue</a>
-  </div>
-  {% if snapshot.dashboard.booked %}
-    <div class="card-grid">
-      {% for context in snapshot.dashboard.booked %}
-        {% include "partials/trip_card.html" %}
-      {% endfor %}
+    <div>
+      <p class="eyebrow">Open trips</p>
+      <h3>Upcoming one-way instances still in play</h3>
     </div>
-  {% else %}
-    <div class="empty-inline">No booked trips are being monitored yet.</div>
-  {% endif %}
+  </div>
+  <div class="card-grid">
+    {% for instance in open_instances %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    <article class="card trip-card status-{{ instance.recommendation_state }}">
+      <div class="card-header">
+        <div>
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ instance.recommendation_reason }}</p>
+        </div>
+        <span class="badge">{{ instance.recommendation_state }}</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Last signal</dt><dd>{{ instance.last_signal_at.strftime('%Y-%m-%d %H:%M') if instance.last_signal_at else 'No signal yet' }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
+        <a class="button primary" href="/trips/{{ instance.trip_id }}">View trip</a>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No open trip instances.</strong>
+      <p>Everything is either booked, skipped, or still waiting for tracker setup.</p>
+    </article>
+    {% endfor %}
+  </div>
 </section>
-{% endif %}
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Booked trips</p>
+      <h3>Lower-price checks for booked travel</h3>
+    </div>
+  </div>
+  <div class="card-grid">
+    {% for instance in booked_instances %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    <article class="card trip-card status-{{ instance.recommendation_state }}">
+      <div class="card-header">
+        <div>
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ instance.recommendation_reason }}</p>
+        </div>
+        <span class="badge">{{ instance.recommendation_state }}</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Booked at</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Unknown' }}</dd></div>
+        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="/bookings">Bookings</a>
+        <a class="button primary" href="/trips/{{ instance.trip_id }}">View trip</a>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No booked trips yet.</strong>
+      <p>Record bookings after purchase and the app will keep watching them.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

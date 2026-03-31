@@ -2,138 +2,99 @@
 
 ## Objective
 
-Reduce the remaining unknowns around the free-only v0 before implementation starts.
+Validate that Google Flights can act as the upstream signal source for a free local MVP.
 
-## What Is Proven So Far
+## What Is Proven
 
-### 1. No API key is required for basic Google Flights web access
+### 1. No API key is required
 
-A direct request to a query-style Google Flights URL returns `HTTP/2 200` without any API key:
+Google Flights is being used as a consumer web product, not through a public fare API.
 
-```text
-https://www.google.com/travel/flights?q=Flights%20from%20BUR%20to%20SFO%20on%202026-05-12%20through%202026-05-14
-```
+The MVP depends on:
 
-This is enough to support the idea of:
+- generated or pasted Google Flights links
+- manual tracker setup by the user
+- Google Flights alert emails
+
+There is no Google Flights API key to provide.
+
+### 2. Query-style Google Flights links are reachable
+
+A query-style Google Flights URL is reachable without special credentials, which is enough to support:
 
 - generated search links
-- opening Google Flights from the local app
-- manual tracker setup by the user
+- manual `Track prices` setup
+- manual link correction when generated links are imperfect
 
-Important caveat:
+Generated links should still be treated as best-effort rather than a hard API contract.
 
-- this proves link reachability, not a stable public URL contract from Google
-- generated links should therefore be treated as best-effort
-- manual tracker-link paste must remain supported
-
-### 2. The tracked-flights surface is a web page, not a public API
-
-A direct request to:
-
-```text
-https://www.google.com/travel/flights/saves
-```
-
-also returns `HTTP/2 200`, which supports the assumption that this is an account-backed web surface rather than a separate public API product.
-
-### 3. There is no provider-specific API credential for the Google Flights plan
-
-The free-only design does not rely on any published Google Flights API key or secret.
-
-The critical dependency is access to:
-
-- Google Flights tracking emails
-- and optionally the Gmail inbox that receives them
-
-### 4. A real Google Flights alert email is parseable enough to support the product
+### 3. Real Google Flights emails are parseable enough to support the MVP
 
 The sample email at:
 
 `/Users/davidchen/Downloads/Prices for your tracked flights to Burbank, New York, Los Angeles have changed.eml`
 
-proves that the plain-text body includes:
+proves that the plain-text body can contain:
 
-- human-readable route names, for example `San Francisco to Burbank`
-- travel date, for example `Thu, Jun 4`
-- trip type and cabin line, for example `One way · Economy (include Basic) · 1 adult`
-- specific tracked flight observations with:
-  - departure and arrival times
-  - airline
-  - stop pattern
-  - airport code pair, for example `SFO–BUR`
-  - current price
-  - prior price and direction, for example `dropped from $149`
-- Google Flights links for each market and each flight option
+- route names
+- travel date
+- airline
+- airport code pair
+- stop pattern
+- current price
+- previous price movement
+- Google Flights links
 
 This is enough to support:
 
-- segment-level tracker matching
-- current-price observation storage
-- price-direction tracking
-- booked-vs-current comparison logic
+- tracker-level observations
+- booked-vs-current comparison
+- trip-instance rollups
 
-## What Is Still Unknown
+### 4. Tracker signals can be noisy
 
-### 1. Email parse quality
+Google Flights alert emails may contain observations that do not map neatly to the user’s saved tracker set.
 
-The first sample is strong, but we still need at least one more sample to know:
+The MVP should treat these as low-signal noise.
 
-- how stable the format is across multiple alerts
-- whether fallback-option matching remains reliable across multiple alerts for the same one-way rule
-- whether airline and flexibility context remains present often enough
+Product decision:
 
-### 2. Generated-link quality
+- unmatched tracker observations are ignored
+- only unmatched bookings create user-facing resolution work
 
-We have only proven that a query-style Google Flights URL is reachable.
+## Remaining Practical Assumptions
 
-We have not proven:
+These are acceptable assumptions for the MVP:
 
-- that the generated link always lands on the exact intended trip search
-- that it will always be the best UX for enabling tracking
-
-That is why manual link paste remains in the hardened spec.
-
-### 3. Gmail auth path
-
-Automatic inbox polling is still dependent on the actual Google account type and chosen auth method.
-
-The baseline product no longer depends on this, because manual `.eml` upload is sufficient for the first working version.
+- users can manually enable `Track prices` in Google Flights
+- users can upload `.eml` files manually
+- Google Flights email format may evolve, so parsing is an adapter concern rather than a product-wide assumption
 
 ## Current Confidence
 
 ### High confidence
 
 - local web app
-- local CSV and JSON storage
-- Google Flights link-out flow
-- tracker-management UX
-- segment-level observation parsing from the plain-text body
-- manual booking capture
-- manual `.eml` upload and parsed observation storage
+- local CSV/JSON storage
+- generated or pasted Google Flights links
+- manual tracker setup flow
+- manual `.eml` upload
+- tracker-level observation parsing from plain text
+- booking capture and attachment logic
 
 ### Medium confidence
 
-- automatic Gmail IMAP ingestion
-- fully reliable generated Google Flights links
-- fully reliable booked-trip recommendation quality from Google email content alone
+- long-term stability of generated links
+- long-term stability of Google Flights email formatting
+- richness of tracker signals for every travel market
 
-## What We Need From The User
+## Recommended Product Stance
 
-To close the biggest remaining unknowns, the user can provide:
+Proceed with the hardened baseline:
 
-1. one or more real Google Flights tracking emails
-2. ideally the raw `.eml` export of those emails
-3. if automatic Gmail sync is desired, the Gmail account details and preferred auth method
-
-There is no Google Flights API key to provide for this design.
-
-## Recommended Implementation Stance
-
-Proceed only with the hardened baseline:
-
-- generated links plus manual link paste
-- route-option-level trackers for each ranked one-way rule
-- manual `.eml` upload first
-- Gmail IMAP later if the user wants it
-
-That is the version with the best chance of being working end to end today.
+- Google Flights as an upstream signal source only
+- route-option trackers generated by the app
+- manual link setup
+- manual `.eml` import
+- ignore unmatched tracker noise
+- only surface unmatched bookings for resolution

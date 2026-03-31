@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <p class="eyebrow">{{ 'Edit trip' if trip else 'New trip' }}</p>
+    <h2>{{ trip.label if trip else 'Build a trip around ranked route options.' }}</h2>
+    <p>Each route option is one Google Flights tracker definition. Rank them from most preferred to least preferred.</p>
+  </div>
+</section>
+
+<section class="form-card trip-form-page">
+  {% if error_message %}
+  <section class="warning-card top-gap-small">
+    <strong>Trip not saved.</strong>
+    <p>{{ error_message }}</p>
+  </section>
+  {% endif %}
+  <form method="post" action="/trips" id="trip-form" novalidate>
+    <input type="hidden" name="trip_id" value="{{ trip.trip_id if trip else '' }}">
+    <input type="hidden" name="route_options_json" value="">
+
+    <div class="form-grid">
+      <label>
+        <span>Trip label</span>
+        <input type="text" name="label" value="{{ trip_form_state.label }}" required>
+      </label>
+      <label>
+        <span>Trip kind</span>
+        <select name="trip_kind" data-trip-kind>
+          <option value="one_time" {{ 'selected' if trip_form_state.trip_kind == 'one_time' else '' }}>One-time</option>
+          <option value="weekly" {{ 'selected' if trip_form_state.trip_kind == 'weekly' else '' }}>Weekly</option>
+        </select>
+      </label>
+      <label class="kind-one-time {{ '' if trip_form_state.trip_kind == 'one_time' else 'is-hidden' }}" data-anchor-date-field>
+        <span>Anchor date</span>
+        <input type="date" name="anchor_date" value="{{ trip_form_state.anchor_date }}">
+      </label>
+      <label class="kind-weekly {{ '' if trip_form_state.trip_kind == 'weekly' else 'is-hidden' }}" data-anchor-weekday-field>
+        <span>Anchor weekday</span>
+        <select name="anchor_weekday" data-anchor-weekday>
+          {% for weekday in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+          <option value="{{ weekday }}" {{ 'selected' if trip_form_state.anchor_weekday == weekday else '' }}>{{ weekday }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="toggle-chip">
+        <input type="checkbox" name="active" value="true" {{ 'checked' if trip_form_state.active else '' }}>
+        <span>Active</span>
+      </label>
+    </div>
+
+    <section class="route-editor">
+      <div class="section-header">
+        <div>
+          <p class="eyebrow">Route options</p>
+          <h3>Ranked tracker definitions</h3>
+          <p class="muted">A route option can include multiple airports and airlines, but only one day and one time window.</p>
+        </div>
+        <button type="button" class="button secondary" data-add-route-option>Add route option</button>
+      </div>
+      <div class="stack" data-route-options></div>
+    </section>
+
+    <div class="actions top-gap">
+      <a class="button ghost" href="/trips">Cancel</a>
+      <button type="submit" class="button primary">Save trip</button>
+    </div>
+  </form>
+</section>
+
+<script>
+  window.travelAgentTripForm = {
+    catalogs: {{ catalogs_json|safe }},
+    trip: {{ trip_form_state|tojson }},
+    routeOptions: {{ route_option_state|tojson }}
+  };
+</script>
+<script src="{{ url_for('static', path='/trips.js') }}" defer></script>
+{% endblock %}

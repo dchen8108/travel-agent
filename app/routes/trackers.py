@@ -1,95 +1,80 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.route_details import rank_label, route_detail_label_from_fields
-from app.services.dashboard import load_snapshot
-from app.services.trackers import mark_tracker_enabled, update_tracker_link
-from app.services.workflows import recompute_and_persist
+from app.models.base import TrackerStatus, utcnow
+from app.services.dashboard import best_tracker, load_snapshot, trackers_for_instance
+from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 
-router = APIRouter(prefix="/trackers", tags=["trackers"])
+router = APIRouter(tags=["trackers"])
 
 
-def tracker_label(tracker) -> str:
-    return route_detail_label_from_fields(
-        tracker.origin_airport,
-        tracker.destination_airport,
-        tracker.detail_weekday,
-        tracker.detail_time_start,
-        tracker.detail_time_end,
-        tracker.detail_airline,
-    )
-
-
-@router.get("", response_class=HTMLResponse)
-def trackers_page(request: Request, repository: Repository = Depends(get_repository)) -> HTMLResponse:
+@router.get("/trackers", response_class=HTMLResponse)
+def trackers_index(
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    trips_by_id = {trip.trip_instance_id: trip for trip in snapshot.trips}
-    programs_by_id = {program.program_id: program for program in snapshot.programs}
-    grouped_rows: dict[str, dict[str, object]] = {}
-    sorted_trackers = sorted(
-        snapshot.trackers,
-        key=lambda item: (
-            item.travel_date,
-            item.trip_instance_id,
-            item.detail_rank,
-            item.detail_time_start,
-            item.detail_airline,
-        ),
-    )
-    for tracker in sorted_trackers:
-        trip = trips_by_id.get(tracker.trip_instance_id)
-        if trip is None:
-            continue
-        group = grouped_rows.setdefault(
-            tracker.trip_instance_id,
-            {
-                "trip": trip,
-                "program": programs_by_id.get(trip.program_id),
-                "trackers": [],
-            },
+    grouped: dict[str, list] = defaultdict(list)
+    trip_instances_by_id = {item.trip_instance_id: item for item in snapshot.trip_instances}
+    for tracker in snapshot.trackers:
+        grouped[tracker.trip_instance_id].append(tracker)
+    ordered_groups = [
+        (trip_instances_by_id[trip_instance_id], sorted(trackers, key=lambda item: item.rank))
+        for trip_instance_id, trackers in sorted(
+            grouped.items(),
+            key=lambda item: (trip_instances_by_id[item[0]].anchor_date, trip_instances_by_id[item[0]].display_label),
         )
-        group["trackers"].append(
-            {
-                "tracker": tracker,
-                "detail_rank_label": rank_label(tracker.detail_rank),
-                "detail_label": tracker_label(tracker),
-            }
-        )
-    groups = list(grouped_rows.values())
+    ]
     return get_templates(request).TemplateResponse(
         request=request,
         name="trackers.html",
-        context=base_context(request, page="trackers", groups=groups, snapshot=snapshot),
+        context=base_context(
+            request,
+            page="trackers",
+            snapshot=snapshot,
+            ordered_groups=ordered_groups,
+            best_tracker=best_tracker,
+            trackers_for_instance=trackers_for_instance,
+        ),
     )
 
 
-@router.post("/{tracker_id}/mark-enabled")
-def enable_tracker(tracker_id: str, repository: Repository = Depends(get_repository)) -> RedirectResponse:
+@router.post("/trackers/{tracker_id}/mark-enabled")
+def mark_tracker_enabled(
+    tracker_id: str,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
     trackers = repository.load_trackers()
     tracker = next((item for item in trackers if item.tracker_id == tracker_id), None)
     if tracker is None:
         raise HTTPException(status_code=404, detail="Tracker not found")
-    mark_tracker_enabled(tracker)
+    tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
+    if tracker.tracking_enabled_at is None:
+        tracker.tracking_enabled_at = utcnow()
     repository.save_trackers(trackers)
-    recompute_and_persist(repository)
+    sync_and_persist(repository)
     return RedirectResponse(url="/trackers?message=Tracker+updated", status_code=303)
 
 
-@router.post("/{tracker_id}/paste-link")
+@router.post("/trackers/{tracker_id}/paste-link")
 async def paste_tracker_link(
     tracker_id: str,
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
-    form = await request.form()
     trackers = repository.load_trackers()
     tracker = next((item for item in trackers if item.tracker_id == tracker_id), None)
     if tracker is None:
         raise HTTPException(status_code=404, detail="Tracker not found")
-    update_tracker_link(tracker, str(form.get("google_flights_url", "")))
+    form = await request.form()
+    tracker.google_flights_url = str(form.get("google_flights_url", "")).strip()
+    tracker.link_source = "manual" if tracker.google_flights_url else "generated"
     repository.save_trackers(trackers)
+    sync_and_persist(repository)
     return RedirectResponse(url="/trackers?message=Tracker+link+saved", status_code=303)
