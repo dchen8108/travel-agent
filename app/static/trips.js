@@ -48,7 +48,7 @@
 
     function renderChips() {
       chipList.innerHTML = "";
-      state.values.forEach((value) => {
+      state.values.forEach((value, index) => {
         const option = options.find((item) => item.value === value);
         if (!option) return;
         const chip = document.createElement("button");
@@ -56,7 +56,7 @@
         chip.className = "chip";
         chip.innerHTML = `<span>${formatOption(option)}</span><span class="chip-remove" aria-hidden="true">×</span>`;
         chip.addEventListener("click", () => {
-          state.values = state.values.filter((item) => item !== value);
+          state.values = state.values.filter((_, itemIndex) => itemIndex !== index);
           renderChips();
           onChange(state.values);
         });
@@ -230,12 +230,12 @@
       ? tripState.routeOptions
       : [{
           route_option_id: "",
-          origin_airports: ["BUR"],
-          destination_airports: ["SFO"],
-          airlines: ["Alaska"],
+          origin_airports: [],
+          destination_airports: [],
+          airlines: [],
           day_offset: 0,
-          start_time: "06:00",
-          end_time: "10:00"
+          start_time: "",
+          end_time: ""
         }];
 
     function currentAnchorWeekday() {
@@ -298,8 +298,8 @@
             <label><span>Destination airports</span><div data-field="destination_airports"></div></label>
             <label><span>Airlines</span><div data-field="airlines"></div></label>
             <label><span>Relative day</span><select data-field="day_offset"></select></label>
-            <label><span>Start time</span><input type="time" data-field="start_time" value="${option.start_time}"></label>
-            <label><span>End time</span><input type="time" data-field="end_time" value="${option.end_time}"></label>
+            <label><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></label>
+            <label><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></label>
           </div>
         `;
         const daySelect = card.querySelector('[data-field="day_offset"]');
@@ -361,8 +361,8 @@
               destination_airports: [],
               airlines: [],
               day_offset: 0,
-              start_time: "06:00",
-              end_time: "10:00"
+              start_time: "",
+              end_time: ""
             }];
           }
           render();
@@ -389,8 +389,8 @@
         destination_airports: [],
         airlines: [],
         day_offset: 0,
-        start_time: "06:00",
-        end_time: "10:00"
+        start_time: "",
+        end_time: ""
       });
       render();
     });
