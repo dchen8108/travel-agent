@@ -86,7 +86,7 @@
       <div class="actions">
         {% if instance.travel_state == 'open' %}
         <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip"><button class="button ghost" type="submit">Skip occurrence</button></form>
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip"><button class="button danger" type="submit">Skip occurrence</button></form>
         {% elif instance.travel_state == 'skipped' %}
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore"><button class="button ghost" type="submit">Restore occurrence</button></form>
         {% endif %}

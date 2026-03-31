@@ -18,6 +18,7 @@ from app.services.dashboard import (
     recurring_trips,
     route_options_for_trip,
     scheduled_instances,
+    skipped_scheduled_instances,
     trackers_for_instance,
     trip_for_instance,
 )
@@ -139,6 +140,7 @@ def trips_index(
             snapshot=snapshot,
             recurring_trips=recurring_trips,
             scheduled_instances=scheduled_instances,
+            skipped_scheduled_instances=skipped_scheduled_instances,
             instances_for_trip=instances_for_trip,
             route_options_for_trip=route_options_for_trip,
             booking_for_instance=booking_for_instance,

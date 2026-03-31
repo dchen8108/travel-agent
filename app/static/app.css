@@ -224,6 +224,14 @@ small,
   flex-wrap: wrap;
 }
 
+.horizon-badge.is-skipped {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  background: rgba(139, 64, 54, 0.1);
+  color: rgba(139, 64, 54, 0.88);
+  border: 1px solid rgba(139, 64, 54, 0.18);
+}
+
 .section {
   margin-bottom: 28px;
 }

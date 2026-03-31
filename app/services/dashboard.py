@@ -95,6 +95,13 @@ def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
 
 def scheduled_instances(snapshot: AppSnapshot) -> list[TripInstance]:
     return sorted(
-        snapshot.trip_instances,
+        [item for item in snapshot.trip_instances if item.travel_state != "skipped"],
+        key=lambda item: (item.anchor_date, item.display_label.lower()),
+    )
+
+
+def skipped_scheduled_instances(snapshot: AppSnapshot) -> list[TripInstance]:
+    return sorted(
+        [item for item in snapshot.trip_instances if item.travel_state == "skipped"],
         key=lambda item: (item.anchor_date, item.display_label.lower()),
     )

@@ -223,6 +223,7 @@ The `Trips` screen should be split into:
 
 - `Recurring trips`: weekly parent plans with edit/pause controls
 - `Scheduled trips`: every dated trip instance, including standalone one-time trips and recurring-generated occurrences
+- `Skipped trips`: a separate restore queue for instances that were intentionally removed from the active scheduled list
 
 Optional operational surface:
 
