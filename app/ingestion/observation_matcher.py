@@ -8,6 +8,7 @@ from app.models.fare_observation import FareObservation
 from app.models.review_item import ReviewItem
 from app.models.tracker import Tracker
 from app.services.ids import new_id
+from app.time_slots import RankedTimeSlot, time_slot_matches_time_line
 
 
 @dataclass
@@ -32,7 +33,21 @@ def _matching_trackers(
         if tracker.destination_airport != parsed.destination_airport:
             continue
         matches.append(tracker)
-    return matches
+    if len(matches) <= 1:
+        return matches
+
+    time_filtered: list[Tracker] = []
+    for tracker in matches:
+        slot = RankedTimeSlot(
+            weekday=tracker.slot_weekday or tracker.travel_date.strftime("%A"),
+            start_time=tracker.slot_time_start or "00:00",
+            end_time=tracker.slot_time_end or "23:59",
+        )
+        if time_slot_matches_time_line(slot, parsed.time_line):
+            time_filtered.append(tracker)
+    if len(time_filtered) == 1:
+        return time_filtered
+    return time_filtered or matches
 
 
 def match_observations_to_trackers(

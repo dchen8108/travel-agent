@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime
 
+from app.catalog import SUPPORTED_AIRLINES, booking_fare_values
 from app.models.base import BookingStatus
 from app.models.booking import Booking
 from app.models.trip_instance import TripInstance
@@ -19,12 +20,12 @@ def upsert_booking(
     booking = Booking(
         booking_id=existing.booking_id if existing else new_id("book"),
         trip_instance_id=trip.trip_instance_id,
-        airline=form.get("airline", "").strip(),
-        fare_type=form.get("fare_type", "").strip(),
+        tracker_id=form.get("tracker_id", "").strip(),
+        airline=normalize_airline(form.get("airline", "").strip()),
+        fare_type=normalize_fare_type(form.get("fare_type", "").strip()),
         booked_price=int(form.get("booked_price", "0") or 0),
         booked_at=parse_datetime_input(form.get("booked_at", "")) or now,
         outbound_summary=form.get("outbound_summary", "").strip(),
-        return_summary=form.get("return_summary", "").strip(),
         record_locator=form.get("record_locator", "").strip(),
         status=BookingStatus.ACTIVE,
         notes=form.get("notes", "").strip(),
@@ -45,3 +46,17 @@ def parse_datetime_input(value: str) -> datetime | None:
     except ValueError:
         return None
     return naive.astimezone() if naive.tzinfo else naive.astimezone()
+
+
+def normalize_airline(value: str) -> str:
+    if not value:
+        return ""
+    lookup = {item["code"].lower(): item["code"] for item in SUPPORTED_AIRLINES}
+    return lookup.get(value.lower(), value)
+
+
+def normalize_fare_type(value: str) -> str:
+    if not value:
+        return "Flexible"
+    lookup = {item.lower(): item for item in booking_fare_values()}
+    return lookup.get(value.lower(), value)

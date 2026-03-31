@@ -43,7 +43,7 @@ The intended flow is:
 
 This is a deliberate product decision to keep v0 free and operationally simple.
 
-Based on a real Google Flights alert email, v0 should assume that tracking signals arrive per one-way route and date rather than as a neat round-trip package. The app should therefore model tracked price signals at the segment level and roll them up into trip-level recommendations.
+Based on a real Google Flights alert email, v0 should assume that tracking signals arrive per one-way route and date rather than as a neat round-trip package. The app should therefore model tracked price signals at the ranked-slot level and roll them up into trip-level recommendations.
 
 ## v0 Scope
 
@@ -51,10 +51,10 @@ In scope:
 
 - one user
 - one or more recurring flight rules
-- each rule can be `one_way` or `round_trip`
+- each rule is one-way only
 - multiple acceptable origin airports
 - one or more destination airports
-- preferred airlines
+- one airline allow-list per rule
 - flexible fare preference
 - booking window configuration
 - Google Flights link generation or manual tracker-link paste
@@ -84,7 +84,7 @@ Out of scope:
 1. The user defines one or more recurring flight rules.
 2. The system generates the next 6 to 8 weeks of trip instances.
 3. The system generates Google Flights search links for those trip instances or lets the user paste exact tracker links.
-4. The user turns on tracking in Google Flights for the trips they care about.
+4. The user turns on tracking in Google Flights for the ranked slots they care about.
 5. Google Flights sends email and phone alerts when prices move.
 6. The user uploads those emails into the app as `.eml` files.
 7. The app labels each trip as `wait`, `book now`, `booked_monitoring`, or `rebook`.
@@ -171,12 +171,7 @@ Purpose:
 - manage the Google Flights setup burden explicitly
 - make it obvious which trips are fully monitored versus partially monitored
 
-Trackers should be modeled per trip segment:
-
-- outbound segment
-- return segment
-
-One-way rules should only create outbound segments.
+Trackers should be modeled per ranked slot inside a one-way rule.
 
 The page should group segments by trip and by setup state:
 
@@ -185,9 +180,9 @@ The page should group segments by trip and by setup state:
 - `Active`
 - `Stale`
 
-Each segment row must include:
+Each slot row must include:
 
-- segment route and date
+- slot label, route, and date
 - generated or pasted Google Flights link
 - tracker status
 - first enabled timestamp if known
@@ -292,15 +287,10 @@ The rule model should stay flat:
 Required fields:
 
 - rule name
-- trip mode: `one_way` or `round_trip`
 - origin airport pool
 - destination airport pool
-- outbound weekday
-- outbound preferred departure window
-- return weekday, only for round-trip
-- return preferred departure window, only for round-trip
-- preferred airlines
-- allowed airlines
+- ranked time slots
+- airline allow-list
 - fare preference
 - nonstop preference
 - lookahead window in weeks
@@ -377,7 +367,7 @@ Recommendations are derived from:
 
 The recommendation engine should treat Google Flights observations as price signals first and itinerary context second. The MVP should not depend on perfect fare-family parsing from the email body.
 
-For round trips, the app should combine the latest outbound and return segment observations to form a trip-level view.
+For one-way rules with multiple ranked slots, the app should choose the best currently observed slot and use that for trip-level recommendations.
 
 ### Needs Tracker Setup
 

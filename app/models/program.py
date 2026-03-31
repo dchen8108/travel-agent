@@ -4,24 +4,18 @@ from datetime import datetime
 
 from pydantic import Field, model_validator
 
-from app.models.base import CsvModel, ProgramWeekday, TripMode, utcnow
+from app.models.base import CsvModel, utcnow
+from app.time_slots import RankedTimeSlot, parse_time_slot_rankings, serialize_time_slot_rankings
 
 
 class Program(CsvModel):
     program_id: str
     program_name: str
     active: bool = True
-    trip_mode: TripMode = TripMode.ROUND_TRIP
     origin_airports: str
     destination_airports: str
-    outbound_weekday: ProgramWeekday
-    outbound_time_start: str
-    outbound_time_end: str
-    return_weekday: ProgramWeekday | None = None
-    return_time_start: str = ""
-    return_time_end: str = ""
-    preferred_airlines: str = ""
-    allowed_airlines: str = ""
+    time_slot_rankings: str
+    airlines: str = ""
     fare_preference: str = "flexible"
     nonstop_only: bool = True
     lookahead_weeks: int = 8
@@ -31,20 +25,39 @@ class Program(CsvModel):
 
     @model_validator(mode="before")
     @classmethod
-    def normalize_optional_fields(cls, data):
+    def normalize_legacy_fields(cls, data):
         if not isinstance(data, dict):
             return data
         normalized = dict(data)
-        if normalized.get("return_weekday") == "":
-            normalized["return_weekday"] = None
+
+        if not normalized.get("time_slot_rankings"):
+            weekday = normalized.get("travel_weekday") or normalized.get("outbound_weekday")
+            start_time = normalized.get("outbound_time_start")
+            end_time = normalized.get("outbound_time_end")
+            if weekday and start_time and end_time:
+                slot = RankedTimeSlot(
+                    weekday=weekday,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                normalized["time_slot_rankings"] = serialize_time_slot_rankings([slot])
+
+        if not normalized.get("airlines"):
+            merged_airlines: list[str] = []
+            for field in ("preferred_airlines", "allowed_airlines"):
+                raw = normalized.get(field, "")
+                for value in str(raw).split("|"):
+                    candidate = value.strip()
+                    if candidate and candidate not in merged_airlines:
+                        merged_airlines.append(candidate)
+            normalized["airlines"] = "|".join(merged_airlines)
+
         return normalized
 
     @model_validator(mode="after")
-    def validate_mode_fields(self) -> "Program":
-        if self.trip_mode == TripMode.ROUND_TRIP and self.return_weekday is None:
-            raise ValueError("Round-trip rules require a return weekday.")
-        if self.trip_mode == TripMode.ONE_WAY:
-            self.return_weekday = None
-            self.return_time_start = ""
-            self.return_time_end = ""
+    def validate_slot_rankings(self) -> "Program":
+        slots = parse_time_slot_rankings(self.time_slot_rankings)
+        if not slots:
+            raise ValueError("Rules require at least one ranked time slot.")
+        self.time_slot_rankings = serialize_time_slot_rankings(slots)
         return self

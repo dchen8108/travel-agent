@@ -3,11 +3,11 @@
 <section class="hero compact">
   <div>
     <h2>Trackers</h2>
-    <p>Each round trip uses two Google Flights trackers: one outbound segment and one return segment.</p>
+    <p>Each one-way rule generates one Google Flights tracker per ranked slot. Turn on tracking for the slots you want monitored, then paste a stronger Google Flights link if you refine it manually.</p>
   </div>
 </section>
 
-{% if not rows %}
+{% if not groups %}
 <section class="empty-state">
   <h3>No trackers yet</h3>
   <p>Save rules first to generate segment trackers.</p>
@@ -15,39 +15,58 @@
 </section>
 {% else %}
 <div class="stack">
-  {% for row in rows %}
-      <article class="card tracker-card">
-        <div class="card-header">
+  {% for group in groups %}
+  <article class="card tracker-group">
+    <div class="card-header">
+      <div>
+        <h3>{{ group.trip.origin_airport }} → {{ group.trip.destination_airport }}</h3>
+        <p>{{ group.program.program_name if group.program else 'Unassigned rule' }} · Week of {{ group.trip.outbound_date.strftime('%b %d') }}</p>
+      </div>
+      <div class="actions">
+        <a class="button secondary" href="/trips/{{ group.trip.trip_instance_id }}">View trip</a>
+        <a class="button ghost" href="/rules?program_id={{ group.trip.program_id }}">Edit rule</a>
+      </div>
+    </div>
+    <div class="stack tracker-slot-list">
+      {% for row in group.trackers %}
+      <article class="tracker-slot">
+        <div class="card-header tracker-slot-head">
           <div>
-            <h3>{{ row.tracker.origin_airport }} → {{ row.tracker.destination_airport }}</h3>
-            <p>{{ row.tracker.segment_type.title() }} for {{ row.tracker.travel_date.strftime('%b %d') }}</p>
+            <div class="tracker-slot-title">
+              <span class="badge">{{ row.slot_rank_label }}</span>
+              <strong>{{ row.slot_label }}</strong>
+            </div>
+            <p>{{ row.tracker.travel_date.strftime('%a, %b %d') }} · {{ row.tracker.origin_airport }} → {{ row.tracker.destination_airport }}</p>
           </div>
           <span class="badge">{{ row.tracker.tracking_status.replace('_', ' ') }}</span>
         </div>
-    <dl class="meta-grid">
-      <div>
-        <dt>Travel date</dt>
-        <dd>{{ row.tracker.travel_date.strftime('%a, %b %d') }}</dd>
-      </div>
-      <div>
-        <dt>Latest signal</dt>
-        <dd>{{ '$%s' % row.tracker.latest_observed_price if row.tracker.latest_observed_price is not none else 'None yet' }}</dd>
-      </div>
-      <div>
-        <dt>Link source</dt>
-        <dd>{{ row.tracker.link_source }}</dd>
-      </div>
-    </dl>
-    <div class="link-box">
-      <a href="{{ row.tracker.google_flights_url }}" target="_blank" rel="noreferrer">Open Google Flights</a>
+        <dl class="meta-grid">
+          <div>
+            <dt>Travel date</dt>
+            <dd>{{ row.tracker.travel_date.strftime('%a, %b %d') }}</dd>
+          </div>
+          <div>
+            <dt>Latest signal</dt>
+            <dd>{{ '$%s' % row.tracker.latest_observed_price if row.tracker.latest_observed_price is not none else 'None yet' }}</dd>
+          </div>
+          <div>
+            <dt>Link source</dt>
+            <dd>{{ row.tracker.link_source }}</dd>
+          </div>
+        </dl>
+        <div class="actions tracker-slot-actions">
+          <a class="button primary" href="{{ row.tracker.google_flights_url }}" target="_blank" rel="noreferrer">Open Google Flights</a>
+          <form method="post" action="/trackers/{{ row.tracker.tracker_id }}/mark-enabled">
+            <button class="button secondary" type="submit">Mark tracking enabled</button>
+          </form>
+        </div>
+        <form class="inline-form tracker-link-form" method="post" action="/trackers/{{ row.tracker.tracker_id }}/paste-link">
+          <input type="url" name="google_flights_url" value="{{ row.tracker.google_flights_url }}" required>
+          <button class="button ghost" type="submit">Save pasted link</button>
+        </form>
+      </article>
+      {% endfor %}
     </div>
-    <form class="inline-form" method="post" action="/trackers/{{ row.tracker.tracker_id }}/paste-link">
-      <input type="url" name="google_flights_url" value="{{ row.tracker.google_flights_url }}" required>
-      <button class="button secondary" type="submit">Save pasted link</button>
-    </form>
-    <form method="post" action="/trackers/{{ row.tracker.tracker_id }}/mark-enabled">
-      <button class="button primary" type="submit">Mark tracking enabled</button>
-    </form>
   </article>
   {% endfor %}
 </div>

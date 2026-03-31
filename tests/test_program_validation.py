@@ -10,7 +10,6 @@ def test_build_program_normalizes_legacy_airline_case() -> None:
         {
             "program_id": "draft",
             "program_name": "Legacy rule",
-            "trip_mode": "one_way",
             "origin_airports": "BUR|LAX",
             "destination_airports": "SFO",
             "outbound_weekday": "Monday",
@@ -25,8 +24,7 @@ def test_build_program_normalizes_legacy_airline_case() -> None:
         }
     )
 
-    assert program.preferred_airlines == "Alaska|United"
-    assert program.allowed_airlines == "Alaska|United|Delta"
+    assert program.airlines == "Alaska|United|Delta"
     assert program.fare_preference == "lowest_price"
 
 
@@ -36,7 +34,6 @@ def test_build_program_requires_origin_and_destination_airports() -> None:
             {
                 "program_id": "draft",
                 "program_name": "Broken rule",
-                "trip_mode": "one_way",
                 "origin_airports": "",
                 "destination_airports": "SFO",
                 "outbound_weekday": "Monday",
@@ -53,7 +50,6 @@ def test_build_program_requires_origin_and_destination_airports() -> None:
             {
                 "program_id": "draft",
                 "program_name": "Broken rule",
-                "trip_mode": "one_way",
                 "origin_airports": "BUR",
                 "destination_airports": "",
                 "outbound_weekday": "Monday",

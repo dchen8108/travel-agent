@@ -3,28 +3,29 @@
     <div>
       <h3>{{ context.trip.origin_airport }} → {{ context.trip.destination_airport }}</h3>
       <p>
-        {{ context.trip.outbound_date.strftime('%a, %b %d') }}
-        {% if context.trip.return_date %}
-        to {{ context.trip.return_date.strftime('%a, %b %d') }}
-        {% else %}
-        · One-way
-        {% endif %}
+        {{ (context.best_tracker.travel_date if context.best_tracker else context.trip.outbound_date).strftime('%a, %b %d') }}
       </p>
     </div>
     <span class="badge">{{ context.trip.status.replace('_', ' ') }}</span>
   </div>
   <dl class="meta-grid">
     <div>
-      <dt>{{ 'Latest tracked total' if context.trip.return_date else 'Latest tracked fare' }}</dt>
-      <dd>{{ '$%s' % context.latest_total_price if context.latest_total_price is not none else ('No full signal yet' if context.trip.return_date else 'No fare signal yet') }}</dd>
+      <dt>Latest tracked fare</dt>
+      <dd>{{ '$%s' % context.latest_total_price if context.latest_total_price is not none else 'No fare signal yet' }}</dd>
     </div>
     <div>
-      <dt>{{ 'Booked total' if context.trip.return_date else 'Booked fare' }}</dt>
+      <dt>Booked fare</dt>
       <dd>{{ '$%s' % context.booking.booked_price if context.booking else 'Not booked' }}</dd>
     </div>
     <div>
-      <dt>Airline</dt>
-      <dd>{{ context.trip.best_airline or 'Unknown' }}</dd>
+      <dt>Best slot</dt>
+      <dd>
+        {% if context.best_tracker %}
+        {{ context.best_tracker.slot_weekday }} {{ context.best_tracker.slot_time_start }}-{{ context.best_tracker.slot_time_end }}
+        {% else %}
+        Primary slot pending
+        {% endif %}
+      </dd>
     </div>
   </dl>
   <p class="reason">{{ context.trip.recommendation_reason }}</p>

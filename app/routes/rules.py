@@ -2,14 +2,21 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.catalog import FARE_PREFERENCES, TRIP_MODE_OPTIONS, WEEKDAY_OPTIONS, catalogs_json
+from app.catalog import FARE_PREFERENCES, WEEKDAY_OPTIONS, catalogs_json
 from app.services.dashboard import load_snapshot
-from app.services.programs import ProgramValidationError, build_program, default_program
+from app.services.programs import (
+    ProgramValidationError,
+    build_program,
+    default_program,
+    duplicate_program,
+)
+from app.services.workflows import delete_program as delete_program_workflow
 from app.services.workflows import sync_program
 from app.storage.repository import Repository
+from app.time_slots import parse_time_slot_rankings, serialize_time_slot_rankings, time_slot_summary
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(prefix="/rules", tags=["rules"])
@@ -67,6 +74,45 @@ async def save_rules(request: Request, repository: Repository = Depends(get_repo
     )
 
 
+@router.post("/duplicate")
+async def duplicate_rule(request: Request, repository: Repository = Depends(get_repository)) -> RedirectResponse:
+    form = await request.form()
+    snapshot = load_snapshot(repository)
+    incoming_program_id = str(form.get("program_id", "")).strip()
+    existing = next((program for program in snapshot.programs if program.program_id == incoming_program_id), None)
+    try:
+        built = build_program(form, existing)
+        program = duplicate_program(built)
+    except ProgramValidationError as exc:
+        selected_program = draft_program_state(form, existing)
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name="rules.html",
+            context=rules_context(
+                request,
+                snapshot=snapshot,
+                programs=snapshot.programs,
+                selected_program=selected_program,
+                error_message=str(exc),
+            ),
+            status_code=422,
+        )
+    sync_program(repository, program)
+    return RedirectResponse(
+        url=f"/rules?program_id={program.program_id}&message=Rule+duplicated",
+        status_code=303,
+    )
+
+
+@router.post("/{program_id}/delete")
+def delete_rule(program_id: str, repository: Repository = Depends(get_repository)) -> RedirectResponse:
+    snapshot = load_snapshot(repository)
+    if not any(program.program_id == program_id for program in snapshot.programs):
+        raise HTTPException(status_code=404, detail="Rule not found")
+    delete_program_workflow(repository, program_id)
+    return RedirectResponse(url="/rules?message=Rule+deleted", status_code=303)
+
+
 def rules_context(
     request: Request,
     *,
@@ -84,30 +130,34 @@ def rules_context(
         program=selected_program,
         weekday_options=WEEKDAY_OPTIONS,
         fare_preferences=FARE_PREFERENCES,
-        trip_mode_options=TRIP_MODE_OPTIONS,
         rules_catalogs_json=catalogs_json(),
+        selected_time_slots=parse_slots_for_template(selected_program),
+        program_slot_summaries={program.program_id: time_slot_summary(program.time_slot_rankings) for program in programs},
         error_message=error_message,
     )
 
 
+def parse_slots_for_template(program_like) -> list[dict[str, str]]:
+    raw = getattr(program_like, "time_slot_rankings", None)
+    if raw is None and isinstance(program_like, dict):
+        raw = program_like.get("time_slot_rankings", "")
+    try:
+        slots = parse_time_slot_rankings(raw)
+    except ValueError:
+        slots = []
+    return [slot.model_dump(mode="json") for slot in slots]
+
+
 def draft_program_state(form: Mapping[str, object], existing) -> dict[str, object]:
     default = default_program()
-    trip_mode = str(form.get("trip_mode", default.trip_mode))
     return {
         "program_id": str(form.get("program_id", "")).strip() or (existing.program_id if existing else "draft"),
         "program_name": str(form.get("program_name", "")).strip(),
         "active": _checkbox_state(form, "active", default=True),
-        "trip_mode": trip_mode,
         "origin_airports": str(form.get("origin_airports", "")).strip(),
         "destination_airports": str(form.get("destination_airports", "")).strip(),
-        "outbound_weekday": str(form.get("outbound_weekday", default.outbound_weekday)),
-        "outbound_time_start": str(form.get("outbound_time_start", default.outbound_time_start)),
-        "outbound_time_end": str(form.get("outbound_time_end", default.outbound_time_end)),
-        "return_weekday": str(form.get("return_weekday", default.return_weekday or "")).strip(),
-        "return_time_start": str(form.get("return_time_start", default.return_time_start)),
-        "return_time_end": str(form.get("return_time_end", default.return_time_end)),
-        "preferred_airlines": str(form.get("preferred_airlines", "")).strip(),
-        "allowed_airlines": str(form.get("allowed_airlines", "")).strip(),
+        "time_slot_rankings": str(form.get("time_slot_rankings", default.time_slot_rankings)).strip(),
+        "airlines": str(form.get("airlines", "")).strip(),
         "fare_preference": str(form.get("fare_preference", default.fare_preference)).strip(),
         "nonstop_only": _checkbox_state(form, "nonstop_only", default=default.nonstop_only),
         "lookahead_weeks": str(form.get("lookahead_weeks", default.lookahead_weeks)),

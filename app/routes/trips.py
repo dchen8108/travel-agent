@@ -3,10 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.catalog import BOOKING_FARE_TYPES, SUPPORTED_AIRLINES
 from app.services.bookings import upsert_booking
 from app.services.dashboard import load_snapshot
 from app.services.workflows import recompute_and_persist
 from app.storage.repository import Repository
+from app.time_slots import rank_label, slot_label_from_fields
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(tags=["trips"])
@@ -22,7 +24,14 @@ def trip_detail(
     trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_instance_id), None)
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
-    trackers = [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id]
+    trackers = sorted(
+        [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id],
+        key=lambda item: (item.slot_rank, item.travel_date, item.slot_time_start),
+    )
+    best_tracker = next(
+        (tracker for tracker in sorted(trackers, key=lambda item: (item.latest_observed_price is None, item.latest_observed_price or 10**9, item.slot_rank, item.travel_date)) if tracker.latest_observed_price is not None),
+        None,
+    )
     booking = next((item for item in snapshot.bookings if item.trip_instance_id == trip_instance_id and item.status == "active"), None)
     observations = [
         observation
@@ -39,6 +48,7 @@ def trip_detail(
             snapshot=snapshot,
             trip=trip,
             trackers=trackers,
+            best_tracker=best_tracker,
             booking=booking,
             observations=observations[:20],
         ),
@@ -53,12 +63,27 @@ def add_booking_form(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_id), None) if trip_id else None
-    if trip is None and snapshot.trips:
+    if trip is None and len(snapshot.trips) == 1:
         trip = snapshot.trips[0]
     existing = (
         next((item for item in snapshot.bookings if item.trip_instance_id == trip.trip_instance_id and item.status == "active"), None)
         if trip is not None
         else None
+    )
+    trip_trackers = sorted(
+        [item for item in snapshot.trackers if trip is not None and item.trip_instance_id == trip.trip_instance_id],
+        key=lambda item: (item.slot_rank, item.travel_date, item.slot_time_start),
+    )
+    best_tracker = next(
+        (
+            tracker
+            for tracker in sorted(
+                trip_trackers,
+                key=lambda item: (item.latest_observed_price is None, item.latest_observed_price or 10**9, item.slot_rank, item.travel_date),
+            )
+            if tracker.latest_observed_price is not None
+        ),
+        None,
     )
     return get_templates(request).TemplateResponse(
         request=request,
@@ -69,7 +94,21 @@ def add_booking_form(
             snapshot=snapshot,
             trip=trip,
             booking=existing,
-            trips=snapshot.trips,
+            trips=sorted(snapshot.trips, key=lambda item: (item.outbound_date, item.origin_airport, item.destination_airport)),
+            trip_trackers=trip_trackers,
+            tracker_choices=[
+                {
+                    "tracker_id": tracker.tracker_id,
+                    "title": rank_label(tracker.slot_rank),
+                    "label": slot_label_from_fields(tracker.slot_weekday, tracker.slot_time_start, tracker.slot_time_end),
+                    "travel_date": tracker.travel_date,
+                    "price": tracker.latest_observed_price,
+                }
+                for tracker in trip_trackers
+            ],
+            best_tracker=best_tracker,
+            booking_airline_options=SUPPORTED_AIRLINES,
+            booking_fare_options=BOOKING_FARE_TYPES,
         ),
     )
 
@@ -82,6 +121,11 @@ async def save_booking(request: Request, repository: Repository = Depends(get_re
     trip = next((item for item in snapshot.trips if item.trip_instance_id == trip_id), None)
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
+    tracker_id = str(form.get("tracker_id", "")).strip()
+    if tracker_id and not any(
+        item.tracker_id == tracker_id for item in snapshot.trackers if item.trip_instance_id == trip_id
+    ):
+        raise HTTPException(status_code=400, detail="Tracked slot does not belong to this trip")
     bookings, _booking = upsert_booking(snapshot.bookings, trip, form)
     repository.save_bookings(bookings)
     repository.save_trip_instances(snapshot.trips)

@@ -1,6 +1,24 @@
 {% extends "layout.html" %}
 {% block content %}
-{% if not trip %}
+{% if not trip and trips %}
+<section class="hero compact">
+  <div>
+    <h2>Select a trip</h2>
+    <p>Pick the exact commute trip you booked so the booking attaches to the right week and ranked slot.</p>
+  </div>
+</section>
+
+<section class="card">
+  <div class="stack">
+    {% for trip_option in trips %}
+    <a class="trip-picker-row" href="/bookings/new?trip_id={{ trip_option.trip_instance_id }}">
+      <strong>{{ trip_option.origin_airport }} → {{ trip_option.destination_airport }}</strong>
+      <span>{{ trip_option.outbound_date.strftime('%a, %b %d') }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% elif not trip %}
 <section class="empty-state">
   <h3>No trip selected</h3>
   <p>Create rules first so there is a trip to attach a booking to.</p>
@@ -11,19 +29,31 @@
   <div>
     <h2>{{ 'Update booking' if booking else 'Add booking' }}</h2>
     <p>
-      {{ trip.origin_airport }} → {{ trip.destination_airport }} · {{ trip.outbound_date.strftime('%b %d') }}
-      {% if trip.return_date %}
-      to {{ trip.return_date.strftime('%b %d') }}
-      {% else %}
-      · One-way
-      {% endif %}
+      {{ trip.origin_airport }} → {{ trip.destination_airport }} · {{ (best_tracker.travel_date if best_tracker else trip.outbound_date).strftime('%b %d') }}
     </p>
+    {% if best_tracker %}
+    <small>Best live slot: {{ best_tracker.slot_weekday }} {{ best_tracker.slot_time_start }}-{{ best_tracker.slot_time_end }}</small>
+    {% else %}
+    <small>Primary slot target: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
+    {% endif %}
   </div>
 </section>
 
 <form class="form-card" method="post" action="/bookings">
   <input type="hidden" name="trip_instance_id" value="{{ trip.trip_instance_id }}">
   <div class="form-grid">
+    <label>
+      <span>Booked slot</span>
+      <select name="tracker_id">
+        <option value="">No tracked slot selected</option>
+        {% for tracker_choice in tracker_choices %}
+        {% set selected_tracker = booking.tracker_id if booking else (best_tracker.tracker_id if best_tracker else trip.outbound_tracker_id) %}
+        <option value="{{ tracker_choice.tracker_id }}" {{ 'selected' if selected_tracker == tracker_choice.tracker_id else '' }}>
+          {{ tracker_choice.title }} · {{ tracker_choice.label }} · {{ tracker_choice.travel_date.strftime('%b %d') }}{% if tracker_choice.price is not none %} · ${{ tracker_choice.price }}{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
     <label>
       <span>Booked price</span>
       <input type="number" min="0" step="1" name="booked_price" value="{{ booking.booked_price if booking else '' }}" required>
@@ -34,11 +64,21 @@
     </label>
     <label>
       <span>Airline</span>
-      <input type="text" name="airline" value="{{ booking.airline if booking else '' }}">
+      <select name="airline">
+        <option value="">Unknown / not listed</option>
+        {% for option in booking_airline_options %}
+        <option value="{{ option.code }}" {{ 'selected' if booking and booking.airline == option.code else '' }}>{{ option.code }} · {{ option.label }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label>
       <span>Fare type</span>
-      <input type="text" name="fare_type" value="{{ booking.fare_type if booking else 'Flexible' }}">
+      <select name="fare_type">
+        {% for option in booking_fare_options %}
+        {% set selected_fare = booking.fare_type if booking else 'Flexible' %}
+        <option value="{{ option.value }}" {{ 'selected' if selected_fare == option.value else '' }}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
     </label>
     <label>
       <span>Record locator</span>
@@ -48,12 +88,6 @@
       <span>Outbound summary</span>
       <input type="text" name="outbound_summary" value="{{ booking.outbound_summary if booking else trip.best_outbound_summary }}">
     </label>
-    {% if trip.return_date %}
-    <label>
-      <span>Return summary</span>
-      <input type="text" name="return_summary" value="{{ booking.return_summary if booking else trip.best_return_summary }}">
-    </label>
-    {% endif %}
     <label class="full-width">
       <span>Notes</span>
       <textarea name="notes" rows="4">{{ booking.notes if booking else '' }}</textarea>

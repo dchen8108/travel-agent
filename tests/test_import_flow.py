@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from app.models.base import BookingStatus, ProgramWeekday, TrackerStatus, TripStatus
+from app.models.base import BookingStatus, TrackerStatus, TripStatus
 from app.models.booking import Booking
+from app.models.fare_observation import FareObservation
 from app.models.program import Program
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
@@ -12,6 +13,7 @@ from app.services.email_import import import_email_payload
 from app.services.workflows import recompute_and_persist
 from app.settings import Settings
 from app.storage.repository import Repository
+from app.time_slots import RankedTimeSlot, serialize_time_slot_rankings
 
 FIXTURE = Path(__file__).parent / "fixtures" / "google_flights_sample.eml"
 
@@ -32,12 +34,12 @@ def test_import_email_is_idempotent_and_recomputes_trip_state(tmp_path: Path) ->
 
     assert first_event.email_event_id == second_event.email_event_id
     assert len(email_events) == 1
-    assert len(observations) == 4
-    assert len(review_items) == 1
-    assert trackers["trk_out"].tracking_status == TrackerStatus.SIGNAL_RECEIVED
-    assert trackers["trk_out"].latest_observed_price == 334
-    assert trackers["trk_ret"].latest_observed_price == 269
-    assert trip.best_price == 603
+    assert len(observations) == 2
+    assert len(review_items) == 3
+    assert trackers["trk_out_primary"].tracking_status == TrackerStatus.SIGNAL_RECEIVED
+    assert trackers["trk_out_primary"].latest_observed_price == 334
+    assert trackers["trk_out_backup"].latest_observed_price == 334
+    assert trip.best_price == 334
     assert trip.status == TripStatus.BOOK_NOW
     assert trip.best_airline == "American"
 
@@ -50,6 +52,7 @@ def test_booking_recompute_can_trigger_rebook(tmp_path: Path) -> None:
     booking = Booking(
         booking_id="book_1",
         trip_instance_id="trip_jfk",
+        tracker_id="trk_out_primary",
         airline="American",
         fare_type="Flexible",
         booked_price=650,
@@ -61,7 +64,100 @@ def test_booking_recompute_can_trigger_rebook(tmp_path: Path) -> None:
 
     trip = repository.load_trip_instances()[0]
     assert trip.status == TripStatus.REBOOK
-    assert "below your booked total" in trip.recommendation_reason
+    assert "booked slot" in trip.recommendation_reason
+
+
+def test_booking_recompute_uses_booked_slot_not_cheapest_fallback(tmp_path: Path) -> None:
+    repository = build_repository(tmp_path)
+    seed_jfk_trip(repository)
+    observed_at = datetime(2026, 4, 2, 8, 0).astimezone()
+    repository.save_fare_observations(
+        [
+            FareObservation(
+                observation_id="obs_primary",
+                tracker_id="trk_out_primary",
+                trip_instance_id="trip_jfk",
+                segment_type="outbound",
+                source_id="email_primary",
+                observed_at=observed_at,
+                airline="American",
+                price=390,
+                outbound_summary="American 9:15 PM | Primary slot",
+            ),
+            FareObservation(
+                observation_id="obs_backup",
+                tracker_id="trk_out_backup",
+                trip_instance_id="trip_jfk",
+                segment_type="outbound",
+                source_id="email_backup",
+                observed_at=observed_at,
+                airline="American",
+                price=200,
+                outbound_summary="American 10:15 PM | Backup slot",
+            ),
+        ]
+    )
+    repository.save_bookings(
+        [
+            Booking(
+                booking_id="book_2",
+                trip_instance_id="trip_jfk",
+                tracker_id="trk_out_primary",
+                airline="American",
+                fare_type="Flexible",
+                booked_price=400,
+                booked_at=observed_at,
+                status=BookingStatus.ACTIVE,
+            )
+        ]
+    )
+    recompute_and_persist(repository)
+
+    trip = repository.load_trip_instances()[0]
+    assert trip.best_price == 200
+    assert trip.status == TripStatus.BOOKED_MONITORING
+    assert "booked slot" not in trip.recommendation_reason.lower()
+
+
+def test_booking_recompute_waits_for_booked_slot_signal_before_rebook(tmp_path: Path) -> None:
+    repository = build_repository(tmp_path)
+    seed_jfk_trip(repository)
+    observed_at = datetime(2026, 4, 2, 8, 0).astimezone()
+    repository.save_fare_observations(
+        [
+            FareObservation(
+                observation_id="obs_backup_only",
+                tracker_id="trk_out_backup",
+                trip_instance_id="trip_jfk",
+                segment_type="outbound",
+                source_id="email_backup_only",
+                observed_at=observed_at,
+                airline="American",
+                price=200,
+                outbound_summary="American 10:15 PM | Backup slot",
+            ),
+        ]
+    )
+    repository.save_bookings(
+        [
+            Booking(
+                booking_id="book_3",
+                trip_instance_id="trip_jfk",
+                tracker_id="trk_out_primary",
+                airline="American",
+                fare_type="Flexible",
+                booked_price=400,
+                booked_at=observed_at,
+                status=BookingStatus.ACTIVE,
+            )
+        ]
+    )
+    recompute_and_persist(repository)
+
+    trip = repository.load_trip_instances()[0]
+    assert trip.best_price == 200
+    assert trip.status == TripStatus.BOOKED_MONITORING
+    assert "fresh price signal" in trip.recommendation_reason.lower()
 
 
 def build_repository(tmp_path: Path) -> Repository:
@@ -83,14 +179,13 @@ def seed_jfk_trip(repository: Repository) -> None:
         program_name="LAX to JFK test",
         origin_airports="LAX",
         destination_airports="JFK",
-        outbound_weekday=ProgramWeekday.WEDNESDAY,
-        outbound_time_start="08:00",
-        outbound_time_end="12:00",
-        return_weekday=ProgramWeekday.TUESDAY,
-        return_time_start="12:00",
-        return_time_end="20:00",
-        preferred_airlines="American",
-        allowed_airlines="American",
+        time_slot_rankings=serialize_time_slot_rankings(
+            [
+                RankedTimeSlot(weekday="Wednesday", start_time="21:00", end_time="22:00"),
+                RankedTimeSlot(weekday="Wednesday", start_time="22:00", end_time="23:30"),
+            ]
+        ),
+        airlines="American",
         fare_preference="flexible",
         nonstop_only=True,
         lookahead_weeks=8,
@@ -102,30 +197,39 @@ def seed_jfk_trip(repository: Repository) -> None:
         origin_airport="LAX",
         destination_airport="JFK",
         outbound_date=date(2026, 6, 24),
-        return_date=date(2026, 6, 30),
-        outbound_tracker_id="trk_out",
-        return_tracker_id="trk_ret",
-    )
-    outbound_tracker = Tracker(
-        tracker_id="trk_out",
-        trip_instance_id=trip.trip_instance_id,
-        segment_type="outbound",
-        origin_airport="LAX",
-        destination_airport="JFK",
-        travel_date=trip.outbound_date,
-        tracking_status=TrackerStatus.TRACKING_ENABLED,
-        google_flights_url="https://example.com/outbound",
-    )
-    return_tracker = Tracker(
-        tracker_id="trk_ret",
-        trip_instance_id=trip.trip_instance_id,
-        segment_type="return",
-        origin_airport="JFK",
-        destination_airport="LAX",
-        travel_date=trip.return_date,
-        tracking_status=TrackerStatus.TRACKING_ENABLED,
-        google_flights_url="https://example.com/return",
+        outbound_tracker_id="trk_out_primary",
     )
     repository.save_programs([program])
     repository.save_trip_instances([trip])
-    repository.save_trackers([outbound_tracker, return_tracker])
+    repository.save_trackers(
+        [
+            Tracker(
+                tracker_id="trk_out_primary",
+                trip_instance_id=trip.trip_instance_id,
+                segment_type="outbound",
+                slot_rank=1,
+                slot_weekday="Wednesday",
+                slot_time_start="21:00",
+                slot_time_end="22:00",
+                origin_airport="LAX",
+                destination_airport="JFK",
+                travel_date="2026-06-24",
+                tracking_status=TrackerStatus.TRACKING_ENABLED,
+                google_flights_url="https://example.com/outbound-primary",
+            ),
+            Tracker(
+                tracker_id="trk_out_backup",
+                trip_instance_id=trip.trip_instance_id,
+                segment_type="outbound",
+                slot_rank=2,
+                slot_weekday="Wednesday",
+                slot_time_start="22:00",
+                slot_time_end="23:30",
+                origin_airport="LAX",
+                destination_airport="JFK",
+                travel_date="2026-06-24",
+                tracking_status=TrackerStatus.TRACKING_ENABLED,
+                google_flights_url="https://example.com/outbound-backup",
+            ),
+        ]
+    )

@@ -234,10 +234,23 @@ button.secondary {
   color: var(--ink);
 }
 
+.button.danger,
+button.danger {
+  background: var(--alert-soft);
+  color: var(--alert);
+  border: 1px solid rgba(142, 59, 47, 0.16);
+}
+
 .button.ghost,
 button.ghost {
   background: transparent;
   border: 1px solid var(--line);
+}
+
+button:disabled,
+.button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .form-grid {
@@ -610,6 +623,69 @@ code {
 
 .rules-actions {
   align-items: center;
+}
+
+.rule-actions-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tracker-group {
+  display: grid;
+  gap: 16px;
+}
+
+.tracker-slot-list {
+  gap: 12px;
+}
+
+.tracker-slot {
+  border: 1px solid rgba(216, 209, 195, 0.9);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.tracker-slot-head {
+  align-items: flex-start;
+}
+
+.tracker-slot-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.tracker-slot-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tracker-slot-actions form {
+  margin: 0;
+}
+
+.tracker-link-form {
+  margin-bottom: 0;
+}
+
+.trip-picker-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(216, 209, 195, 0.9);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.trip-picker-row:hover {
+  border-color: rgba(32, 91, 82, 0.3);
+  background: var(--accent-soft);
 }
 
 @media (max-width: 900px) {

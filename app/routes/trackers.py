@@ -7,6 +7,7 @@ from app.services.dashboard import load_snapshot
 from app.services.trackers import mark_tracker_enabled, update_tracker_link
 from app.services.workflows import recompute_and_persist
 from app.storage.repository import Repository
+from app.time_slots import rank_label, slot_label_from_fields
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(prefix="/trackers", tags=["trackers"])
@@ -16,13 +17,32 @@ router = APIRouter(prefix="/trackers", tags=["trackers"])
 def trackers_page(request: Request, repository: Repository = Depends(get_repository)) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     trips_by_id = {trip.trip_instance_id: trip for trip in snapshot.trips}
-    rows: list[dict[str, object]] = []
-    for tracker in sorted(snapshot.trackers, key=lambda item: (item.travel_date, item.origin_airport, item.destination_airport)):
-        rows.append({"tracker": tracker, "trip": trips_by_id.get(tracker.trip_instance_id)})
+    programs_by_id = {program.program_id: program for program in snapshot.programs}
+    grouped_rows: dict[str, dict[str, object]] = {}
+    for tracker in sorted(snapshot.trackers, key=lambda item: (item.travel_date, item.origin_airport, item.destination_airport, item.slot_rank)):
+        trip = trips_by_id.get(tracker.trip_instance_id)
+        if trip is None:
+            continue
+        group = grouped_rows.setdefault(
+            tracker.trip_instance_id,
+            {
+                "trip": trip,
+                "program": programs_by_id.get(trip.program_id),
+                "trackers": [],
+            },
+        )
+        group["trackers"].append(
+            {
+                "tracker": tracker,
+                "slot_rank_label": rank_label(tracker.slot_rank),
+                "slot_label": slot_label_from_fields(tracker.slot_weekday, tracker.slot_time_start, tracker.slot_time_end),
+            }
+        )
+    groups = list(grouped_rows.values())
     return get_templates(request).TemplateResponse(
         request=request,
         name="trackers.html",
-        context=base_context(request, page="trackers", rows=rows, snapshot=snapshot),
+        context=base_context(request, page="trackers", groups=groups, snapshot=snapshot),
     )
 
 

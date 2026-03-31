@@ -12,9 +12,9 @@ Status on March 31, 2026:
 The first version is successful if the user can:
 
 - define one or more recurring flight rules
-- generate upcoming trips and one-way or outbound/return price-tracking tasks
+- generate upcoming trips and ranked-slot price-tracking tasks
 - import a Google Flights `.eml` alert
-- map safe observations to trip segments
+- map safe observations to tracked slots
 - record a booking
 - see `set up`, `act now`, `booked`, and `rebook` states on a single dashboard
 
@@ -28,7 +28,7 @@ Included:
 - manual Google Flights tracker setup
 - manual Google Flights link paste
 - manual `.eml` import
-- segment-level observation parsing and matching
+- slot-level observation parsing and matching
 - manual review queue for ambiguous imports
 - booking capture
 - trip recommendation rollup
@@ -55,7 +55,7 @@ Deferred:
 - define typed models for programs, trips, trackers, bookings, email events, observations, and review items
 - implement repository helpers for load/save operations
 - implement trip generation from one or more recurring rules
-- implement tracker generation for one-way and round-trip segments
+- implement tracker generation for ranked one-way slots
 
 ### 3. Email Import Path
 
@@ -68,8 +68,8 @@ Deferred:
 
 ### 4. Recommendation Engine
 
-- compute latest per-segment observations
-- roll outbound and return into a trip-level current total
+- compute latest per-slot observations
+- roll the best current slot into a trip-level current total
 - derive `needs_tracker_setup`, `wait`, `book_now`, `booked_monitoring`, and `rebook`
 - attach short explanations to each trip
 

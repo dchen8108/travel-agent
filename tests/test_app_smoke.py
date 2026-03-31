@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from app.models.base import BookingStatus, ReviewStatus
+from app.models.booking import Booking
+from app.models.fare_observation import FareObservation
+from app.models.review_item import ReviewItem
 from app.settings import Settings
 from app.storage.repository import Repository
 
@@ -31,17 +36,10 @@ def test_rules_then_import_email_flow(tmp_path: Path) -> None:
         "/rules",
         data={
             "program_name": "LA to SF Weekly",
-            "trip_mode": "round_trip",
             "origin_airports": "BUR|LAX",
             "destination_airports": "SFO",
-            "outbound_weekday": "Monday",
-            "outbound_time_start": "06:00",
-            "outbound_time_end": "10:00",
-            "return_weekday": "Wednesday",
-            "return_time_start": "16:00",
-            "return_time_end": "21:00",
-            "preferred_airlines": "Alaska|United",
-            "allowed_airlines": "Alaska|United|Delta",
+            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"}]',
+            "airlines": "Alaska|United|Delta",
             "fare_preference": "flexible",
             "nonstop_only": "true",
             "lookahead_weeks": "8",
@@ -71,14 +69,10 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
         data={
             "program_id": "draft",
             "program_name": "LA to SF Outbound",
-            "trip_mode": "one_way",
             "origin_airports": "BUR|LAX",
             "destination_airports": "SFO",
-            "outbound_weekday": "Monday",
-            "outbound_time_start": "06:00",
-            "outbound_time_end": "10:00",
-            "preferred_airlines": "Alaska|United",
-            "allowed_airlines": "Alaska|United|Delta",
+            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"},{"weekday":"Sunday","start_time":"18:00","end_time":"21:00"}]',
+            "airlines": "Alaska|United|Delta",
             "fare_preference": "flexible",
             "nonstop_only": "true",
             "lookahead_weeks": "8",
@@ -93,14 +87,10 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
         data={
             "program_id": "draft",
             "program_name": "SF to LA Return",
-            "trip_mode": "one_way",
             "origin_airports": "SFO",
             "destination_airports": "BUR|LAX",
-            "outbound_weekday": "Wednesday",
-            "outbound_time_start": "16:00",
-            "outbound_time_end": "21:00",
-            "preferred_airlines": "United|Alaska",
-            "allowed_airlines": "United|Alaska|Delta",
+            "time_slot_rankings": '[{"weekday":"Wednesday","start_time":"16:00","end_time":"21:00"}]',
+            "airlines": "United|Alaska|Delta",
             "fare_preference": "flexible",
             "nonstop_only": "true",
             "lookahead_weeks": "8",
@@ -114,7 +104,7 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
 
     today = client.get("/")
     assert today.status_code == 200
-    assert "One-way" in today.text
+    assert "Record booking" in today.text
 
     match = re.search(r'href="/trips/([^"]+)"', today.text)
     assert match is not None
@@ -122,11 +112,11 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
 
     detail = client.get(f"/trips/{trip_id}")
     assert detail.status_code == 200
-    assert "One-way" in detail.text
+    assert "Best current signal" in detail.text
 
     booking = client.get(f"/bookings/new?trip_id={trip_id}")
     assert booking.status_code == 200
-    assert "One-way" in booking.text
+    assert "Best live slot" in booking.text or "Primary slot target" in booking.text
 
     repository = Repository(settings)
     programs = repository.load_programs()
@@ -138,14 +128,10 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
         data={
             "program_id": editable_program.program_id,
             "program_name": "SF to LA Return Updated",
-            "trip_mode": "one_way",
             "origin_airports": "SFO",
             "destination_airports": "BUR|LAX",
-            "outbound_weekday": "Thursday",
-            "outbound_time_start": "15:00",
-            "outbound_time_end": "20:00",
-            "preferred_airlines": "United|Alaska",
-            "allowed_airlines": "United|Alaska|Delta",
+            "time_slot_rankings": '[{"weekday":"Thursday","start_time":"15:00","end_time":"20:00"}]',
+            "airlines": "United|Alaska|Delta",
             "fare_preference": "flexible",
             "nonstop_only": "true",
             "lookahead_weeks": "8",
@@ -158,3 +144,132 @@ def test_rules_page_supports_multiple_one_way_rules(tmp_path: Path) -> None:
     programs = repository.load_programs()
     assert len(programs) == 2
     assert any(program.program_name == "SF to LA Return Updated" for program in programs)
+
+
+def test_duplicate_rule_uses_current_form_edits(tmp_path: Path) -> None:
+    settings = build_settings(tmp_path)
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    initial = client.post(
+        "/rules",
+        data={
+            "program_id": "draft",
+            "program_name": "LA to SF Outbound",
+            "origin_airports": "BUR|LAX",
+            "destination_airports": "SFO",
+            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"}]',
+            "airlines": "Alaska|United",
+            "fare_preference": "flexible",
+            "nonstop_only": "true",
+            "lookahead_weeks": "8",
+            "rebook_alert_threshold": "20",
+        },
+        follow_redirects=True,
+    )
+    assert initial.status_code == 200
+
+    existing = repository.load_programs()[0]
+    duplicate = client.post(
+        "/rules/duplicate",
+        data={
+            "program_id": existing.program_id,
+            "program_name": "Sunday night fallback",
+            "origin_airports": "BUR",
+            "destination_airports": "SFO",
+            "time_slot_rankings": '[{"weekday":"Sunday","start_time":"18:00","end_time":"21:00"}]',
+            "airlines": "Alaska",
+            "fare_preference": "flexible",
+            "nonstop_only": "true",
+            "lookahead_weeks": "6",
+            "rebook_alert_threshold": "35",
+        },
+        follow_redirects=True,
+    )
+    assert duplicate.status_code == 200
+
+    programs = repository.load_programs()
+    assert len(programs) == 2
+    copied = next(program for program in programs if program.program_id != existing.program_id)
+    assert copied.program_name == "Sunday night fallback Copy"
+    assert copied.origin_airports == "BUR"
+    assert copied.airlines == "Alaska"
+    assert copied.rebook_alert_threshold == 35
+    assert "Sunday" in copied.time_slot_rankings
+
+
+def test_delete_rule_cleans_dependent_records(tmp_path: Path) -> None:
+    settings = build_settings(tmp_path)
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    response = client.post(
+        "/rules",
+        data={
+            "program_id": "draft",
+            "program_name": "Delete me",
+            "origin_airports": "BUR",
+            "destination_airports": "SFO",
+            "time_slot_rankings": '[{"weekday":"Monday","start_time":"06:00","end_time":"10:00"}]',
+            "airlines": "Alaska",
+            "fare_preference": "flexible",
+            "nonstop_only": "true",
+            "lookahead_weeks": "4",
+            "rebook_alert_threshold": "20",
+        },
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+
+    program = repository.load_programs()[0]
+    trip = repository.load_trip_instances()[0]
+    tracker = repository.load_trackers()[0]
+    timestamp = datetime(2026, 4, 1, 9, 0).astimezone()
+    repository.save_bookings(
+        [
+            Booking(
+                booking_id="book_delete",
+                trip_instance_id=trip.trip_instance_id,
+                tracker_id=tracker.tracker_id,
+                airline="Alaska",
+                fare_type="Flexible",
+                booked_price=180,
+                booked_at=timestamp,
+                status=BookingStatus.ACTIVE,
+            )
+        ]
+    )
+    repository.save_fare_observations(
+        [
+            FareObservation(
+                observation_id="obs_delete",
+                tracker_id=tracker.tracker_id,
+                trip_instance_id=trip.trip_instance_id,
+                segment_type="outbound",
+                source_id="email_delete",
+                observed_at=timestamp,
+                airline="Alaska",
+                price=160,
+            )
+        ]
+    )
+    repository.save_review_items(
+        [
+            ReviewItem(
+                review_item_id="review_delete",
+                email_event_id="mail_delete",
+                observed_route="BUR to SFO",
+                candidate_tracker_ids=tracker.tracker_id,
+                status=ReviewStatus.OPEN,
+            )
+        ]
+    )
+
+    deleted = client.post(f"/rules/{program.program_id}/delete", follow_redirects=True)
+    assert deleted.status_code == 200
+    assert repository.load_programs() == []
+    assert repository.load_trip_instances() == []
+    assert repository.load_trackers() == []
+    assert repository.load_bookings() == []
+    assert repository.load_fare_observations() == []
+    assert repository.load_review_items() == []

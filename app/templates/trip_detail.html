@@ -4,13 +4,13 @@
   <div>
     <h2>{{ trip.origin_airport }} → {{ trip.destination_airport }}</h2>
     <p>
-      {{ trip.outbound_date.strftime('%A, %b %d') }}
-      {% if trip.return_date %}
-      to {{ trip.return_date.strftime('%A, %b %d') }}
-      {% else %}
-      · One-way
-      {% endif %}
+      {{ (best_tracker.travel_date if best_tracker else trip.outbound_date).strftime('%A, %b %d') }}
     </p>
+    {% if best_tracker %}
+    <small>Best live slot: {{ best_tracker.slot_weekday }} {{ best_tracker.slot_time_start }}-{{ best_tracker.slot_time_end }}</small>
+    {% else %}
+    <small>Primary target slot: {{ trip.outbound_date.strftime('%A, %b %d') }}</small>
+    {% endif %}
   </div>
   <div class="summary-strip">
     <div class="summary-pill">
@@ -19,11 +19,11 @@
     </div>
     <div class="summary-pill">
       <span>{{ '$%s' % trip.best_price if trip.best_price is not none else '—' }}</span>
-      <small>{{ 'Latest tracked total' if trip.return_date else 'Latest tracked fare' }}</small>
+      <small>Latest tracked fare</small>
     </div>
     <div class="summary-pill">
       <span>{{ '$%s' % booking.booked_price if booking else '—' }}</span>
-      <small>{{ 'Booked total' if trip.return_date else 'Booked fare' }}</small>
+      <small>Booked fare</small>
     </div>
   </div>
 </section>
@@ -43,8 +43,8 @@
     {% for tracker in trackers %}
     <div class="list-row">
       <div>
-        <strong>{{ tracker.segment_type.title() }}</strong>
-        <div>{{ tracker.origin_airport }} → {{ tracker.destination_airport }} · {{ tracker.travel_date.strftime('%b %d') }}</div>
+        <strong>{{ 'Primary' if tracker.slot_rank == 1 else ('Backup' if tracker.slot_rank == 2 else 'Fallback %s' % (tracker.slot_rank - 1)) }}</strong>
+        <div>{{ tracker.slot_weekday }} {{ tracker.slot_time_start }}-{{ tracker.slot_time_end }} · {{ tracker.travel_date.strftime('%b %d') }}</div>
       </div>
       <span class="badge">{{ tracker.tracking_status.replace('_', ' ') }}</span>
     </div>
@@ -53,10 +53,10 @@
   <article class="card">
     <h3>Best current signal</h3>
     <p><strong>Airline:</strong> {{ trip.best_airline or 'Unknown' }}</p>
-    <p><strong>Outbound:</strong> {{ trip.best_outbound_summary or 'No signal yet' }}</p>
-    {% if trip.return_date %}
-    <p><strong>Return:</strong> {{ trip.best_return_summary or 'No signal yet' }}</p>
+    {% if best_tracker %}
+    <p><strong>Slot:</strong> {{ best_tracker.slot_weekday }} {{ best_tracker.slot_time_start }}-{{ best_tracker.slot_time_end }}</p>
     {% endif %}
+    <p><strong>Outbound:</strong> {{ trip.best_outbound_summary or 'No signal yet' }}</p>
   </article>
 </section>
 
@@ -71,7 +71,7 @@
     <article class="card">
       <div class="card-header">
         <div>
-          <h3>{{ observation.segment_type.title() }} · {{ observation.airline or 'Unknown airline' }}</h3>
+          <h3>{{ observation.airline or 'Unknown airline' }}</h3>
           <p>{{ observation.observed_at.strftime('%Y-%m-%d %H:%M') }}</p>
         </div>
         <span class="badge">${{ observation.price }}</span>

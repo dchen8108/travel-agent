@@ -12,8 +12,8 @@ from app.models.trip_instance import TripInstance
 @dataclass
 class TripContext:
     trip: TripInstance
-    outbound_tracker: Tracker | None = None
-    return_tracker: Tracker | None = None
+    trackers: list[Tracker] = field(default_factory=list)
+    best_tracker: Tracker | None = None
     booking: Booking | None = None
     latest_total_price: int | None = None
 

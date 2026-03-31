@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from app.models.base import ProgramWeekday, TripMode
+from app.models.base import ProgramWeekday
 
 SUPPORTED_AIRPORTS = [
     {"code": "BUR", "label": "Hollywood Burbank", "keywords": "Burbank Los Angeles"},
@@ -55,9 +55,12 @@ FARE_PREFERENCES = [
     {"value": "nonstop", "label": "Nonstop-focused"},
 ]
 
-TRIP_MODE_OPTIONS = [
-    {"value": TripMode.ONE_WAY, "label": "One-way"},
-    {"value": TripMode.ROUND_TRIP, "label": "Round-trip"},
+BOOKING_FARE_TYPES = [
+    {"value": "Flexible", "label": "Flexible / credit-friendly"},
+    {"value": "Main", "label": "Main cabin"},
+    {"value": "Basic", "label": "Basic economy"},
+    {"value": "First", "label": "First / premium cabin"},
+    {"value": "Unknown", "label": "Unknown / other"},
 ]
 
 WEEKDAY_OPTIONS = [weekday.value for weekday in ProgramWeekday]
@@ -73,6 +76,10 @@ def airline_codes() -> set[str]:
 
 def fare_preference_values() -> set[str]:
     return {item["value"] for item in FARE_PREFERENCES}
+
+
+def booking_fare_values() -> set[str]:
+    return {item["value"] for item in BOOKING_FARE_TYPES}
 
 
 def airport_options() -> list[dict[str, str]]:
@@ -102,7 +109,7 @@ def catalogs_json() -> str:
         "airports": airport_options(),
         "airlines": airline_options(),
         "farePreferences": FARE_PREFERENCES,
-        "tripModes": TRIP_MODE_OPTIONS,
+        "bookingFareTypes": BOOKING_FARE_TYPES,
         "weekdays": WEEKDAY_OPTIONS,
     }
     return json.dumps(payload)

@@ -51,28 +51,28 @@ def test_build_review_contexts_ignores_resolved_items() -> None:
 
 def test_history_totals_do_not_mix_different_import_batches() -> None:
     observed_at = datetime(2026, 3, 31, 8, 0).astimezone()
-    outbound_tracker = Tracker(
-        tracker_id="trk_out",
+    primary_tracker = Tracker(
+        tracker_id="trk_primary",
         trip_instance_id="trip_1",
         segment_type=SegmentType.OUTBOUND,
         origin_airport="LAX",
         destination_airport="JFK",
         travel_date="2026-06-24",
-        google_flights_url="https://example.com/out",
+        google_flights_url="https://example.com/primary",
     )
-    return_tracker = Tracker(
-        tracker_id="trk_ret",
+    backup_tracker = Tracker(
+        tracker_id="trk_backup",
         trip_instance_id="trip_1",
-        segment_type=SegmentType.RETURN,
-        origin_airport="JFK",
-        destination_airport="LAX",
+        segment_type=SegmentType.OUTBOUND,
+        origin_airport="LAX",
+        destination_airport="JFK",
         travel_date="2026-06-30",
-        google_flights_url="https://example.com/ret",
+        google_flights_url="https://example.com/backup",
     )
     observations = [
         FareObservation(
             observation_id="obs_1",
-            tracker_id=outbound_tracker.tracker_id,
+            tracker_id=primary_tracker.tracker_id,
             trip_instance_id="trip_1",
             segment_type=SegmentType.OUTBOUND,
             source_id="email_a",
@@ -81,18 +81,27 @@ def test_history_totals_do_not_mix_different_import_batches() -> None:
         ),
         FareObservation(
             observation_id="obs_2",
-            tracker_id=return_tracker.tracker_id,
+            tracker_id=backup_tracker.tracker_id,
             trip_instance_id="trip_1",
-            segment_type=SegmentType.RETURN,
-            source_id="email_b",
+            segment_type=SegmentType.OUTBOUND,
+            source_id="email_a",
             observed_at=observed_at,
             price=250,
+        ),
+        FareObservation(
+            observation_id="obs_3",
+            tracker_id=primary_tracker.tracker_id,
+            trip_instance_id="trip_1",
+            segment_type=SegmentType.OUTBOUND,
+            source_id="email_b",
+            observed_at=observed_at,
+            price=280,
         ),
     ]
 
     history = history_totals_by_trip(
         observations,
-        {outbound_tracker.tracker_id: outbound_tracker, return_tracker.tracker_id: return_tracker},
+        {primary_tracker.tracker_id: primary_tracker, backup_tracker.tracker_id: backup_tracker},
     )
 
-    assert history["trip_1"] == []
+    assert sorted(history["trip_1"]) == [250, 280]

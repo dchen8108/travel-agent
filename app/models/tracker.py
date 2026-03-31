@@ -11,6 +11,10 @@ class Tracker(CsvModel):
     tracker_id: str
     trip_instance_id: str
     segment_type: SegmentType
+    slot_rank: int = 1
+    slot_weekday: str = ""
+    slot_time_start: str = ""
+    slot_time_end: str = ""
     origin_airport: str
     destination_airport: str
     travel_date: date

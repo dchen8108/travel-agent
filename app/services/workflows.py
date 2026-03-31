@@ -15,6 +15,41 @@ from app.storage.repository import Repository
 def sync_program(repository: Repository, program: Program) -> tuple[list[TripInstance], list[Tracker]]:
     programs = [existing for existing in repository.load_programs() if existing.program_id != program.program_id]
     programs.append(program)
+    return persist_programs(repository, programs)
+
+
+def delete_program(repository: Repository, program_id: str) -> tuple[list[TripInstance], list[Tracker]]:
+    existing_trips = repository.load_trip_instances()
+    existing_trackers = repository.load_trackers()
+    programs = [program for program in repository.load_programs() if program.program_id != program_id]
+    trips, trackers = persist_programs(repository, programs)
+
+    removed_trip_ids = {
+        trip.trip_instance_id
+        for trip in existing_trips
+        if trip.program_id == program_id
+    }
+    removed_tracker_ids = {
+        tracker.tracker_id
+        for tracker in existing_trackers
+        if tracker.trip_instance_id in removed_trip_ids
+    }
+    if removed_trip_ids or removed_tracker_ids:
+        repository.save_bookings(
+            [booking for booking in repository.load_bookings() if booking.trip_instance_id not in removed_trip_ids]
+        )
+        repository.save_fare_observations(
+            [
+                observation
+                for observation in repository.load_fare_observations()
+                if observation.trip_instance_id not in removed_trip_ids and observation.tracker_id not in removed_tracker_ids
+            ]
+        )
+        repository.save_review_items(filter_review_items(repository.load_review_items(), removed_tracker_ids))
+    return trips, trackers
+
+
+def persist_programs(repository: Repository, programs: list[Program]) -> tuple[list[TripInstance], list[Tracker]]:
     repository.save_programs(programs)
 
     active_programs = [item for item in programs if item.active]
@@ -28,7 +63,11 @@ def sync_program(repository: Repository, program: Program) -> tuple[list[TripIns
         prior = [trip for trip in existing_trips if trip.program_id == active_program.program_id]
         generated_trips.extend(generate_trip_instances(active_program, repository.settings, prior))
 
-    trips_with_trackers, trackers = sync_trackers(generated_trips, existing_trackers)
+    trips_with_trackers, trackers = sync_trackers(
+        generated_trips,
+        existing_trackers,
+        {program.program_id: program for program in active_programs},
+    )
     recomputed_trips = recompute_trip_states(
         trips_with_trackers,
         trackers,
@@ -94,3 +133,18 @@ def refresh_tracker_projections(
         }:
             tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
     return trackers
+
+
+def filter_review_items(review_items, removed_tracker_ids: set[str]):
+    if not removed_tracker_ids:
+        return review_items
+    filtered = []
+    for item in review_items:
+        candidate_ids = [candidate for candidate in item.candidate_tracker_ids.split("|") if candidate and candidate not in removed_tracker_ids]
+        if item.resolved_tracker_id and item.resolved_tracker_id in removed_tracker_ids:
+            continue
+        if item.candidate_tracker_ids and not candidate_ids and not item.resolved_tracker_id:
+            continue
+        item.candidate_tracker_ids = "|".join(candidate_ids)
+        filtered.append(item)
+    return filtered

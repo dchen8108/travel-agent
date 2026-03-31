@@ -59,17 +59,10 @@ Suggested columns:
 - `program_id`
 - `program_name`
 - `active`
-- `trip_mode`
 - `origin_airports`
 - `destination_airports`
-- `outbound_weekday`
-- `outbound_time_start`
-- `outbound_time_end`
-- `return_weekday`
-- `return_time_start`
-- `return_time_end`
-- `preferred_airlines`
-- `allowed_airlines`
+- `time_slot_rankings`
+- `airlines`
 - `fare_preference`
 - `nonstop_only`
 - `lookahead_weeks`
@@ -80,15 +73,14 @@ Suggested columns:
 Notes:
 
 - store airport and airline lists as pipe-delimited strings, for example `BUR|LAX|SNA`
+- store `time_slot_rankings` as compact JSON ordered from primary to fallback
 - store booleans as `true` or `false`
-- `trip_mode` is `one_way` or `round_trip`
-- for one-way rules, return fields stay blank
 
 Example:
 
 ```csv
-program_id,program_name,active,trip_mode,origin_airports,destination_airports,outbound_weekday,outbound_time_start,outbound_time_end,return_weekday,return_time_start,return_time_end,preferred_airlines,allowed_airlines,fare_preference,nonstop_only,lookahead_weeks,rebook_alert_threshold,created_at,updated_at
-prog_001,LA to SF Outbound,true,one_way,BUR|LAX|SNA,SFO,Monday,06:00,10:00,,,,Alaska|United|Delta,Alaska|United|Delta|Southwest,flexible,true,8,20,2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
+program_id,program_name,active,origin_airports,destination_airports,time_slot_rankings,airlines,fare_preference,nonstop_only,lookahead_weeks,rebook_alert_threshold,created_at,updated_at
+prog_001,LA to SF Outbound,true,BUR|LAX|SNA,SFO,"[{""weekday"":""Monday"",""start_time"":""06:00"",""end_time"":""10:00""},{""weekday"":""Sunday"",""start_time"":""18:00"",""end_time"":""21:00""}]",Alaska|United|Delta,flexible,true,8,20,2026-03-31T09:00:00-07:00,2026-03-31T09:00:00-07:00
 ```
 
 ## 3. `trip_instances.csv`
@@ -97,26 +89,22 @@ Purpose:
 
 - represent concrete future trips generated from recurring rules
 
-One row per concrete trip. A one-way rule generates one-way trips, while a round-trip rule generates outbound/return pairs.
+One row per concrete trip cycle. A one-way rule generates one trip per future week and route pairing.
 
 Suggested columns:
 
 - `trip_instance_id`
 - `program_id`
-- `trip_mode`
 - `origin_airport`
 - `destination_airport`
 - `outbound_date`
-- `return_date`
 - `status`
 - `recommendation_reason`
 - `best_airline`
 - `best_fare_type`
 - `best_price`
 - `best_outbound_summary`
-- `best_return_summary`
 - `outbound_tracker_id`
-- `return_tracker_id`
 - `last_checked_at`
 - `dismissed_until`
 - `booking_id`
@@ -135,32 +123,35 @@ Allowed `status` values:
 Notes:
 
 - `booking_id` is empty until the user records a booking
-- `outbound_tracker_id` and `return_tracker_id` point to segment trackers when they exist
+- `outbound_date` is the primary slot anchor date for that trip cycle
+- `outbound_tracker_id` points to the primary tracker when it exists
 - this table drives the Today and Calendar screens
-- a round-trip recommendation should be computed from the latest safe outbound and return observations
-- a one-way recommendation should be computed from the latest safe outbound observation
-- `return_date`, `best_return_summary`, and `return_tracker_id` can be blank for one-way trips
+- trip-level recommendations should use the best safe signal across all ranked slots for that trip
 
 Example:
 
 ```csv
-trip_instance_id,program_id,trip_mode,origin_airport,destination_airport,outbound_date,return_date,status,recommendation_reason,best_airline,best_fare_type,best_price,best_outbound_summary,best_return_summary,outbound_tracker_id,return_tracker_id,last_checked_at,dismissed_until,booking_id,created_at,updated_at
-trip_001,prog_001,one_way,BUR,SFO,2026-05-12,,book_now,Current fare is near the best observed price for this trip.,Alaska,flexible,186,AS123 07:00-08:35,,trk_001,,2026-04-04T08:05:00-07:00,,,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
+trip_instance_id,program_id,origin_airport,destination_airport,outbound_date,status,recommendation_reason,best_airline,best_fare_type,best_price,best_outbound_summary,outbound_tracker_id,last_checked_at,dismissed_until,booking_id,created_at,updated_at
+trip_001,prog_001,BUR,SFO,2026-05-12,book_now,Current fare is near the best observed price across your ranked slots.,Alaska,flexible,186,AS123 07:00-08:35,trk_001,2026-04-04T08:05:00-07:00,,book_001,2026-03-31T09:00:00-07:00,2026-04-04T08:05:00-07:00
 ```
 
 ## 4. `trackers.csv`
 
 Purpose:
 
-- track Google Flights links and tracker readiness per trip segment
+- track Google Flights links and tracker readiness per ranked slot
 
-One row per outbound or return segment that should be monitored in Google Flights.
+One row per ranked slot that should be monitored in Google Flights.
 
 Suggested columns:
 
 - `tracker_id`
 - `trip_instance_id`
 - `segment_type`
+- `slot_rank`
+- `slot_weekday`
+- `slot_time_start`
+- `slot_time_end`
 - `origin_airport`
 - `destination_airport`
 - `travel_date`
@@ -181,7 +172,6 @@ Allowed `provider` values:
 Allowed `segment_type` values:
 
 - `outbound`
-- `return`
 
 Allowed `link_source` values:
 
@@ -198,8 +188,8 @@ Allowed `tracking_status` values:
 Example:
 
 ```csv
-tracker_id,trip_instance_id,segment_type,origin_airport,destination_airport,travel_date,provider,link_source,tracking_status,google_flights_url,tracking_enabled_at,last_signal_at,latest_observed_price,created_at,updated_at
-trk_001,trip_001,outbound,BUR,SFO,2026-05-12,google_flights,manual,signal_received,https://www.google.com/travel/flights/search?... ,2026-04-01T18:00:00-07:00,2026-04-04T08:02:00-07:00,186,2026-03-31T09:00:00-07:00,2026-04-04T08:02:00-07:00
+tracker_id,trip_instance_id,segment_type,slot_rank,slot_weekday,slot_time_start,slot_time_end,origin_airport,destination_airport,travel_date,provider,link_source,tracking_status,google_flights_url,tracking_enabled_at,last_signal_at,latest_observed_price,created_at,updated_at
+trk_001,trip_001,outbound,1,Monday,06:00,10:00,BUR,SFO,2026-05-12,google_flights,manual,signal_received,https://www.google.com/travel/flights/search?... ,2026-04-01T18:00:00-07:00,2026-04-04T08:02:00-07:00,186,2026-03-31T09:00:00-07:00,2026-04-04T08:02:00-07:00
 ```
 
 ## 5. `bookings.csv`
