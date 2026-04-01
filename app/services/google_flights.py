@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from base64 import b64encode
+from base64 import urlsafe_b64encode
 from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -82,7 +82,7 @@ def _encode_info_message(tracker: Tracker) -> bytes:
 
 
 def build_google_flights_query_url(tracker: Tracker) -> str:
-    tfs = b64encode(_encode_info_message(tracker)).decode("utf-8")
+    tfs = urlsafe_b64encode(_encode_info_message(tracker)).decode("utf-8").rstrip("=")
     params: dict[str, str] = {"tfs": tfs, "hl": GOOGLE_FLIGHTS_LANGUAGE}
     if _departure_hour_window(tracker.start_time, tracker.end_time) != (0, 23):
         params["tfu"] = GOOGLE_FLIGHTS_TIME_FILTER_TFU
