@@ -684,3 +684,79 @@ def test_append_price_records_migrates_legacy_header(repository: Repository) -> 
     assert {item.price_record_id for item in saved_records} == {"price_old", "price_new"}
     legacy = next(item for item in saved_records if item.price_record_id == "price_old")
     assert legacy.observed_date == observed_at.date()
+
+
+def test_load_price_records_backfills_observed_date_from_legacy_rows(repository: Repository) -> None:
+    path = repository.settings.data_dir / "price_records.csv"
+    legacy_fieldnames = [
+        "price_record_id",
+        "fetch_event_id",
+        "observed_at",
+        "source",
+        "fetch_target_id",
+        "tracker_id",
+        "trip_instance_id",
+        "trip_id",
+        "route_option_id",
+        "tracker_definition_signature",
+        "trip_label",
+        "tracker_rank",
+        "search_origin_airports",
+        "search_destination_airports",
+        "search_airlines",
+        "search_day_offset",
+        "search_travel_date",
+        "search_start_time",
+        "search_end_time",
+        "query_origin_airport",
+        "query_destination_airport",
+        "google_flights_url",
+        "airline",
+        "departure_label",
+        "arrival_label",
+        "price",
+        "price_text",
+        "summary",
+        "created_at",
+    ]
+    observed_at = utcnow()
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=legacy_fieldnames)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "price_record_id": "price_old",
+                "fetch_event_id": "fetch_old",
+                "observed_at": observed_at.isoformat(),
+                "source": "background_fetch",
+                "fetch_target_id": "ft_old",
+                "tracker_id": "trk_old",
+                "trip_instance_id": "inst_old",
+                "trip_id": "trip_old",
+                "route_option_id": "opt_old",
+                "tracker_definition_signature": "sig_old",
+                "trip_label": "Legacy trip",
+                "tracker_rank": 1,
+                "search_origin_airports": "BUR",
+                "search_destination_airports": "SFO",
+                "search_airlines": "Alaska",
+                "search_day_offset": 0,
+                "search_travel_date": date(2026, 4, 1).isoformat(),
+                "search_start_time": "06:00",
+                "search_end_time": "10:00",
+                "query_origin_airport": "BUR",
+                "query_destination_airport": "SFO",
+                "google_flights_url": "https://www.google.com/travel/flights/search?tfs=legacy",
+                "airline": "Alaska",
+                "departure_label": "6:00 AM",
+                "arrival_label": "7:30 AM",
+                "price": 199,
+                "price_text": "$199",
+                "summary": "Legacy summary",
+                "created_at": observed_at.isoformat(),
+            }
+        )
+
+    saved_records = repository.load_price_records()
+    assert len(saved_records) == 1
+    assert saved_records[0].observed_date == observed_at.date()

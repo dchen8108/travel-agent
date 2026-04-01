@@ -47,6 +47,20 @@ class PriceRecord(CsvModel):
     record_signature: str = ""
     created_at: datetime = Field(default_factory=utcnow)
 
+    @model_validator(mode="before")
+    @classmethod
+    def backfill_legacy_fields(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        observed_at = normalized.get("observed_at")
+        if not normalized.get("observed_date") and observed_at:
+            try:
+                normalized["observed_date"] = datetime.fromisoformat(str(observed_at)).date().isoformat()
+            except ValueError:
+                pass
+        return normalized
+
     @model_validator(mode="after")
     def fill_derived_defaults(self) -> "PriceRecord":
         if self.observed_date is None:
