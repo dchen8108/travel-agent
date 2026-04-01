@@ -5,6 +5,7 @@
     <p class="eyebrow">Trackers</p>
     <h2>Google Flights coverage, grouped under scheduled trip instances.</h2>
     <p>Each tracker is one ranked route option. Travel Agent checks airport-pair combinations automatically in the background, twice per day, and rolls the best recent price back up to the tracker.</p>
+    <p class="muted">Manual tracker-link and email-import flows are no longer part of the product. Trackers now update automatically in the background.</p>
   </div>
   <div class="hero-actions">
     <form method="post" action="/trackers/queue-refresh">
@@ -73,7 +74,7 @@
             {% endfor %}
           </div>
           {% endif %}
-          {% if tracker.link_source == 'generated' and tracker.latest_observed_price is none %}
+          {% if tracker.latest_observed_price is none %}
           <p class="muted">{{ generated_tracker_seed_summary(tracker) }}</p>
           {% endif %}
         </div>
@@ -81,19 +82,6 @@
           <span class="status-pill {{ monitor.tone if monitor else 'neutral' }}">{{ monitor.label if monitor else 'Auto tracking on' }}</span>
         </div>
       </div>
-      {% if snapshot.app_state.enable_manual_imports %}
-      <details class="legacy-panel">
-        <summary>Legacy manual tracker link</summary>
-        <p class="muted">Only use this if you want to keep pasting an exact tracked Google Flights link for the email-import workflow.</p>
-        {% if tracker.google_flights_url %}
-        <p><a href="{{ tracker.google_flights_url }}" target="_blank" rel="noreferrer">{{ 'Open saved manual link' if tracker.link_source == 'manual' else 'Open primary generated link' }}</a></p>
-        {% endif %}
-        <form method="post" action="/trackers/{{ tracker.tracker_id }}/paste-link" class="inline-form">
-          <input type="url" name="google_flights_url" value="{{ tracker.google_flights_url if tracker.link_source == 'manual' else '' }}" placeholder="Paste exact Google Flights tracked link">
-          <button type="submit" class="button secondary">Save legacy link</button>
-        </form>
-      </details>
-      {% endif %}
       {% endfor %}
     </div>
   </article>

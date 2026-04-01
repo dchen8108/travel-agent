@@ -17,9 +17,6 @@ data/
   price_records.csv
   bookings.csv
   unmatched_bookings.csv
-  email_events.csv
-  fare_observations.csv
-  imported_emails/
 ```
 
 ## Design Goals
@@ -42,10 +39,8 @@ Suggested fields:
 {
   "timezone": "America/Los_Angeles",
   "future_weeks": 12,
-  "email_ingestion_mode": "manual_upload",
   "enable_background_fetcher": true,
-  "enable_manual_imports": true,
-  "version": 3
+  "version": 4
 }
 ```
 
@@ -157,10 +152,7 @@ Suggested columns:
 - `start_time`
 - `end_time`
 - `provider`
-- `link_source`
 - `tracking_status`
-- `google_flights_url`
-- `tracking_enabled_at`
 - `last_signal_at`
 - `latest_observed_price`
 - `latest_fetched_at`
@@ -180,14 +172,12 @@ Allowed `tracking_status` values:
 
 Allowed `latest_signal_source` values:
 
-- `manual_import`
 - `background_fetch`
 
 Notes:
 
 - a tracker is a search envelope, not a single concrete itinerary
 - actual airport-pair fetches belong in `tracker_fetch_targets.csv`
-- email-based historical observations still belong in `fare_observations.csv`
 
 ## `tracker_fetch_targets.csv`
 
@@ -320,11 +310,3 @@ Purpose:
 - hold bookings that could not be attached confidently
 
 One row per unresolved booking.
-
-## `email_events.csv` and `fare_observations.csv`
-
-Purpose:
-
-- preserve the legacy manual-import path
-
-These tables remain in v0 as a fallback path while the in-house Google Flights fetcher proves itself out.

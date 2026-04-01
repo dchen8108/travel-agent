@@ -5,38 +5,9 @@ from datetime import date, timedelta
 
 from app.models.base import RecommendationState, TrackerStatus, TravelState, utcnow
 from app.models.booking import Booking
-from app.models.fare_observation import FareObservation
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
-
-
-def refresh_tracker_projections(
-    trackers: list[Tracker],
-    observations: list[FareObservation],
-) -> list[Tracker]:
-    latest_by_tracker: dict[str, FareObservation] = {}
-    for observation in observations:
-        current = latest_by_tracker.get(observation.tracker_id)
-        if current is None or observation.observed_at > current.observed_at:
-            latest_by_tracker[observation.tracker_id] = observation
-        elif observation.observed_at == current.observed_at and observation.price < current.price:
-            latest_by_tracker[observation.tracker_id] = observation
-
-    for tracker in trackers:
-        latest = latest_by_tracker.get(tracker.tracker_id)
-        if latest is None:
-            continue
-        tracker.latest_observed_price = latest.price
-        tracker.last_signal_at = latest.observed_at
-        tracker.latest_fetched_at = None
-        tracker.latest_winning_origin_airport = ""
-        tracker.latest_winning_destination_airport = ""
-        tracker.latest_match_summary = latest.match_summary
-        tracker.latest_signal_source = "manual_import"
-        tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
-        tracker.updated_at = utcnow()
-    return trackers
 
 
 def apply_fetch_target_rollups(
@@ -119,23 +90,18 @@ def recompute_trip_states(
     trip_instances: list[TripInstance],
     trackers: list[Tracker],
     bookings: list[Booking],
-    observations: list[FareObservation],
 ) -> list[TripInstance]:
     trackers_by_instance: dict[str, list[Tracker]] = defaultdict(list)
-    observations_by_instance: dict[str, list[FareObservation]] = defaultdict(list)
     active_booking_by_instance: dict[str, Booking] = {}
 
     for tracker in trackers:
         trackers_by_instance[tracker.trip_instance_id].append(tracker)
-    for observation in observations:
-        observations_by_instance[observation.trip_instance_id].append(observation)
     for booking in bookings:
         if booking.status == "active":
             active_booking_by_instance[booking.trip_instance_id] = booking
 
     for instance in trip_instances:
         related_trackers = sorted(trackers_by_instance.get(instance.trip_instance_id, []), key=lambda item: item.rank)
-        related_observations = observations_by_instance.get(instance.trip_instance_id, [])
         booking = active_booking_by_instance.get(instance.trip_instance_id)
         best_tracker = best_tracker_for_instance(related_trackers)
         booked_tracker = next(
@@ -195,23 +161,8 @@ def recompute_trip_states(
             instance.updated_at = utcnow()
             continue
 
-        historical_low = min((observation.price for observation in related_observations), default=best_tracker.latest_observed_price)
-        latest_observation = next(
-            (
-                observation
-                for observation in sorted(related_observations, key=lambda item: item.observed_at, reverse=True)
-                if observation.tracker_id == best_tracker.tracker_id
-            ),
-            None,
-        )
-        if latest_observation and (
-            latest_observation.price_direction == "dropped" or best_tracker.latest_observed_price <= historical_low
-        ):
-            instance.recommendation_state = RecommendationState.BOOK_NOW
-            instance.recommendation_reason = f"Best matched price is ${best_tracker.latest_observed_price} and at or near the best observed level."
-        else:
-            instance.recommendation_state = RecommendationState.WAIT
-            instance.recommendation_reason = f"Latest matched price is ${best_tracker.latest_observed_price}; keep monitoring for now."
+        instance.recommendation_state = RecommendationState.WAIT
+        instance.recommendation_reason = f"Latest matched price is ${best_tracker.latest_observed_price}; keep monitoring for now."
         instance.updated_at = utcnow()
 
     trip_instances.sort(key=lambda item: (item.anchor_date, item.display_label))

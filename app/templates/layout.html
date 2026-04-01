@@ -8,7 +8,6 @@
   </head>
   <body>
     {% set resolve_count = snapshot.unmatched_bookings|selectattr('resolution_status', 'equalto', 'open')|list|length if snapshot is defined else 0 %}
-    {% set manual_imports_enabled = snapshot.app_state.enable_manual_imports if snapshot is defined else true %}
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
@@ -21,9 +20,6 @@
           <a href="/trips" class="{{ 'active' if page == 'trips' else '' }}">Trips</a>
           <a href="/bookings" class="{{ 'active' if page == 'bookings' else '' }}">Bookings</a>
           <a href="/trackers" class="{{ 'active' if page == 'trackers' else '' }}">Trackers</a>
-          {% if manual_imports_enabled %}
-          <a href="/imports" class="{{ 'active' if page == 'imports' else '' }}">Imports</a>
-          {% endif %}
           <a href="/resolve" class="{{ 'active' if page == 'resolve' else '' }}">
             Resolve
             {% if resolve_count %}

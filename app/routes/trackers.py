@@ -4,12 +4,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.models.base import TrackerStatus, utcnow
 from app.services.background_fetch import queue_rolling_refresh
-from app.services.google_flights import generated_tracker_seed_summary, normalize_google_flights_url
+from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
     best_tracker,
     fetch_targets_for_tracker,
@@ -140,43 +139,3 @@ def queue_tracker_refresh(
     else:
         message = f"Refresh+queued+for+{queued_count}+airport-pair+searches."
     return RedirectResponse(url=f"/trackers?message={message}", status_code=303)
-
-
-@router.post("/trackers/{tracker_id}/mark-enabled")
-def mark_tracker_enabled(
-    tracker_id: str,
-    repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
-    trackers = repository.load_trackers()
-    tracker = next((item for item in trackers if item.tracker_id == tracker_id), None)
-    if tracker is None:
-        raise HTTPException(status_code=404, detail="Tracker not found")
-    tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
-    if tracker.tracking_enabled_at is None:
-        tracker.tracking_enabled_at = utcnow()
-    tracker.updated_at = utcnow()
-    repository.save_trackers(trackers)
-    sync_and_persist(repository)
-    return RedirectResponse(url="/trackers?message=Background+tracking+enabled", status_code=303)
-
-
-@router.post("/trackers/{tracker_id}/paste-link")
-async def paste_tracker_link(
-    tracker_id: str,
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
-    trackers = repository.load_trackers()
-    tracker = next((item for item in trackers if item.tracker_id == tracker_id), None)
-    if tracker is None:
-        raise HTTPException(status_code=404, detail="Tracker not found")
-    form = await request.form()
-    try:
-        tracker.google_flights_url = normalize_google_flights_url(str(form.get("google_flights_url", "")))
-    except ValueError as exc:
-        return RedirectResponse(url=f"/trackers?message={str(exc).replace(' ', '+')}", status_code=303)
-    tracker.link_source = "manual" if tracker.google_flights_url else "generated"
-    tracker.updated_at = utcnow()
-    repository.save_trackers(trackers)
-    sync_and_persist(repository)
-    return RedirectResponse(url="/trackers?message=Legacy+tracker+link+saved", status_code=303)

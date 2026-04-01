@@ -22,7 +22,6 @@ This version is intentionally local and simple:
 - automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
 - append-only fetched offer history under `data/price_records.csv`
-- manual `.eml` upload kept as a legacy fallback
 - no paid fare APIs
 - no Gmail automation
 - no credits or hotels
@@ -60,12 +59,6 @@ Then open `http://127.0.0.1:8000`.
 6. Run the background fetch job to populate current prices.
 7. Record bookings in the app.
 8. Let the app continue comparing booked prices against tracker prices.
-
-Legacy fallback:
-
-1. Keep using `Imports` only if you still want the Google-tracked-link email flow.
-2. Paste an exact tracked link into a tracker’s `Legacy manual tracker link` section if needed.
-3. Import `.eml` alerts as before.
 
 For travel that already happened:
 

@@ -5,8 +5,6 @@ from pathlib import Path
 
 from app.models.base import AppState
 from app.models.booking import Booking
-from app.models.email_event import EmailEvent
-from app.models.fare_observation import FareObservation
 from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -32,7 +30,6 @@ class Repository:
 
     def ensure_data_dir(self) -> None:
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
-        self.settings.imported_email_dir.mkdir(parents=True, exist_ok=True)
         if not self._path("app.json").exists():
             self.save_app_state(AppState())
         for name, model_type in (
@@ -43,8 +40,6 @@ class Repository:
             ("tracker_fetch_targets.csv", TrackerFetchTarget),
             ("bookings.csv", Booking),
             ("unmatched_bookings.csv", UnmatchedBooking),
-            ("email_events.csv", EmailEvent),
-            ("fare_observations.csv", FareObservation),
             ("price_records.csv", PriceRecord),
         ):
             path = self._path(name)
@@ -105,22 +100,6 @@ class Repository:
             self._path("unmatched_bookings.csv"),
             unmatched_bookings,
             _fieldnames(UnmatchedBooking),
-        )
-
-    def load_email_events(self) -> list[EmailEvent]:
-        return load_csv_models(self._path("email_events.csv"), EmailEvent)
-
-    def save_email_events(self, events: list[EmailEvent]) -> None:
-        save_csv_models(self._path("email_events.csv"), events, _fieldnames(EmailEvent))
-
-    def load_fare_observations(self) -> list[FareObservation]:
-        return load_csv_models(self._path("fare_observations.csv"), FareObservation)
-
-    def save_fare_observations(self, observations: list[FareObservation]) -> None:
-        save_csv_models(
-            self._path("fare_observations.csv"),
-            observations,
-            _fieldnames(FareObservation),
         )
 
     def load_price_records(self) -> list[PriceRecord]:

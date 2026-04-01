@@ -14,7 +14,6 @@ The app should support:
 - one Google Flights link per airport combination
 - automatic booking attachment when confident
 - booking-only resolution when not confident
-- legacy manual `.eml` import as a fallback path
 
 This version intentionally avoids:
 
@@ -29,7 +28,7 @@ This version intentionally avoids:
 v0 consists of six layers:
 
 1. `Web UI`
-   FastAPI server-rendered pages for Today, Trips, Bookings, Imports, Resolve, and Trackers.
+   FastAPI server-rendered pages for Today, Trips, Bookings, Resolve, and Trackers.
 
 2. `Domain services`
    Trip planning, recurring-instance generation, tracker synchronization, booking attachment, and recommendation rollup.
@@ -37,16 +36,13 @@ v0 consists of six layers:
 3. `Fetch orchestration`
    One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, fetches them serially on a staggered 12-hour cadence, and updates tracker rollups.
 
-4. `Legacy ingestion`
-   Google Flights email parsing and safe observation matching remain available behind a feature flag.
-
-5. `Storage`
+4. `Storage`
    CSV and JSON files under `data/`.
 
-6. `Historical price logging`
+5. `Historical price logging`
    Every successful Google Flights fetch appends one row per parsed offer into a standalone `price_records.csv` fact table.
 
-7. `Upstream signal source`
+6. `Upstream signal source`
    Generated Google Flights search links queried conservatively in the background.
 
 ## Stack
@@ -238,17 +234,7 @@ Generation must be idempotent.
 5. The cheapest successful fetch target rolls back onto the tracker as the best known price.
 6. Every successful fetch target request also appends one row per parsed offer into `price_records.csv`.
 
-### 4. Legacy Email Import
-
-1. User uploads a `.eml`.
-2. Raw email is stored under `data/imported_emails/`.
-3. Parser extracts candidate observations.
-4. Matcher attempts to place observations against trackers.
-5. Only confident matches produce `fare_observations`.
-6. Unmatched tracker observations are ignored.
-7. Manual-import observations can still update tracker projections if newer than background fetch results.
-
-### 5. Booking Intake
+### 4. Booking Intake
 
 1. User records a booking.
 2. App attempts to match it to an existing trip instance and tracker.
@@ -294,8 +280,4 @@ The Trackers page should feel like an operational coverage view:
 - rolled-up best price shown on the tracker row
 - last updated and next refresh timestamps shown on the tracker row
 - short airport-pair links shown under the row
-- legacy manual tracked-link paste tucked into an advanced/legacy surface
-
-### Imports
-
-Imports remain in the app for now, but they are no longer the primary path.
+- no manual tracker-link editing surface

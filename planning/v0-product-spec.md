@@ -38,13 +38,11 @@ The product assumes:
 - each tracker can be expanded into one or more concrete airport-pair Google Flights searches
 - Travel Agent should query them conservatively in the background
 - the background fetcher should behave like a light personal-use tool, not a high-frequency scraper
-- manual tracked links and email imports may still exist as fallback paths
 
 The app therefore distinguishes between:
 
 - `high-signal` user commitments, such as bookings
 - `medium-signal` background-fetched Google Flights prices
-- `legacy low-signal` email-derived observations
 
 Only unmatched bookings should require user resolution.
 
@@ -71,11 +69,11 @@ In scope:
 - one generated Google Flights link per airport pair
 - conservative background fetching
 - tracker-level best-price rollup
+- append-only fetched offer history
 - booking capture
 - automatic booking attachment when confident
 - unmatched booking resolution
 - local CSV/JSON storage
-- legacy manual tracked-link paste and `.eml` import retained as fallback
 
 Out of scope:
 
@@ -85,7 +83,6 @@ Out of scope:
 - paid fare APIs
 - Gmail IMAP polling
 - aggressive scraping infrastructure
-- generalized review queue for unmatched tracker imports
 - round-trip trip definitions
 - user-configurable lookahead horizon
 - fare preference controls
@@ -157,7 +154,6 @@ Only unmatched bookings should appear in `Resolve`.
 - Never ask the user to resolve tracker noise.
 - Only ask the user to resolve real travel commitments.
 - Keep recurring-trip management first-class.
-- Keep the legacy manual import path available but visually secondary.
 
 ## Information Architecture
 
@@ -167,8 +163,7 @@ The MVP should include these primary screens:
 2. `Trips`
 3. `Bookings`
 4. `Trackers`
-5. `Imports`
-6. `Resolve`
+5. `Resolve`
 
 ### Trips
 
@@ -200,6 +195,4 @@ The Trackers page should be an operational coverage view:
 - one row per tracker
 - a clear `Best price among selected airports` message
 - one short link per airport pair, such as `LAX to SFO`
-- a visible `Enable background fetch` action when a tracker has not been activated yet
-- a small legacy section for manual tracked-link paste, not a primary surface
-
+- visible refresh timing and price freshness

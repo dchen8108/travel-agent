@@ -65,12 +65,6 @@ class FetchTargetStatus(StrEnum):
     FAILED = "failed"
 
 
-class EmailParsedStatus(StrEnum):
-    PARSED = "parsed"
-    PARSED_WITH_IGNORED_OBSERVATIONS = "parsed_with_ignored_observations"
-    FAILED = "failed"
-
-
 class BookingStatus(StrEnum):
     ACTIVE = "active"
     REBOOKED = "rebooked"
@@ -84,10 +78,8 @@ class UnmatchedBookingStatus(StrEnum):
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
     future_weeks: int = 12
-    email_ingestion_mode: str = "manual_upload"
     enable_background_fetcher: bool = True
-    enable_manual_imports: bool = True
-    version: int = 3
+    version: int = 4
 
 
 def utcnow() -> datetime:

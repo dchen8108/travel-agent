@@ -22,10 +22,7 @@ class Tracker(CsvModel):
     start_time: str
     end_time: str
     provider: str = "google_flights"
-    link_source: str = "generated"
     tracking_status: TrackerStatus = TrackerStatus.TRACKING_ENABLED
-    google_flights_url: str = ""
-    tracking_enabled_at: datetime | None = Field(default_factory=utcnow)
     last_signal_at: datetime | None = None
     latest_observed_price: int | None = None
     latest_fetched_at: datetime | None = None
@@ -61,13 +58,6 @@ class Tracker(CsvModel):
             raise ValueError("Only Google Flights is supported in v0.")
         return value
 
-    @field_validator("link_source")
-    @classmethod
-    def validate_link_source(cls, value: str) -> str:
-        if value not in {"generated", "manual"}:
-            raise ValueError("Unsupported tracker link source.")
-        return value
-
     @field_validator("day_offset")
     @classmethod
     def validate_day_offset(cls, value: int) -> int:
@@ -80,7 +70,7 @@ class Tracker(CsvModel):
     def validate_tracking_status(cls, value: TrackerStatus) -> TrackerStatus:
         return value
 
-    @field_validator("google_flights_url", "definition_signature")
+    @field_validator("definition_signature")
     @classmethod
     def normalize_url(cls, value: str) -> str:
         return value.strip()

@@ -5,7 +5,6 @@ from datetime import date, timedelta
 
 from app.models.base import RecommendationState, TrackerStatus, utcnow
 from app.models.booking import Booking
-from app.models.fare_observation import FareObservation
 from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -219,47 +218,6 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert tracker.latest_winning_origin_airport == "BUR"
     assert tracker.latest_winning_destination_airport == "SFO"
     assert len(result.successful_fetches) == 1
-
-
-def test_fetch_rollup_does_not_override_newer_manual_signal() -> None:
-    tracker = Tracker(
-        tracker_id="trk_1",
-        trip_instance_id="inst_1",
-        route_option_id="opt_1",
-        rank=1,
-        origin_airports="BUR",
-        destination_airports="SFO",
-        airlines="Alaska",
-        day_offset=0,
-        travel_date=date(2026, 4, 10),
-        start_time="06:00",
-        end_time="10:00",
-        tracking_status=TrackerStatus.SIGNAL_RECEIVED,
-        latest_observed_price=189,
-        last_signal_at=utcnow(),
-        latest_signal_source="manual_import",
-    )
-    older_target = TrackerFetchTarget(
-        fetch_target_id="ft_1",
-        tracker_id="trk_1",
-        trip_instance_id="inst_1",
-        origin_airport="BUR",
-        destination_airport="SFO",
-        google_flights_url="https://www.google.com/travel/flights/search?tfs=test",
-        latest_price=141,
-        latest_airline="Alaska",
-        latest_summary="Alaska · $141",
-        latest_fetched_at=tracker.last_signal_at - timedelta(hours=1),
-    )
-
-    apply_fetch_target_rollups([tracker], [older_target])
-
-    assert tracker.latest_observed_price == 189
-    assert tracker.latest_signal_source == "manual_import"
-    assert tracker.latest_winning_origin_airport == ""
-    assert tracker.latest_winning_destination_airport == ""
-
-
 def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> None:
     tracker = Tracker(
         tracker_id="trk_1",
@@ -427,81 +385,6 @@ def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repositor
 
     assert [item.schedule_offset_seconds for item in rebalanced] == [0, 10]
     assert rebalanced[0].next_fetch_not_before != rebalanced[1].next_fetch_not_before
-
-
-def test_trip_edit_invalidates_observations_for_changed_tracker_signature(repository: Repository) -> None:
-    trip = save_trip(
-        repository,
-        trip_id=None,
-        label="Invalidate changed prices",
-        trip_kind="one_time",
-        active=True,
-        anchor_date=date(2026, 4, 10),
-        anchor_weekday="",
-        route_option_payloads=[
-            {
-                "origin_airports": "BUR",
-                "destination_airports": "SFO",
-                "airlines": "Alaska",
-                "day_offset": 0,
-                "start_time": "06:00",
-                "end_time": "10:00",
-            }
-        ],
-    )
-
-    initial = sync_and_persist(repository, today=date(2026, 4, 1))
-    tracker = next(item for item in initial.trackers if item.trip_instance_id == initial.trip_instances[0].trip_instance_id)
-    repository.save_fare_observations(
-        [
-            FareObservation(
-                fare_observation_id=new_id("obs"),
-                email_event_id="email_1",
-                tracker_id=tracker.tracker_id,
-                trip_instance_id=tracker.trip_instance_id,
-                tracker_definition_signature=tracker.definition_signature,
-                observed_at=utcnow(),
-                airline="Alaska",
-                origin_airport="BUR",
-                destination_airport="SFO",
-                travel_date=tracker.travel_date,
-                departure_time="07:00",
-                price=141,
-                match_summary="Original price",
-            )
-        ]
-    )
-
-    updated_route_option = initial.route_options[0]
-    save_trip(
-        repository,
-        trip_id=trip.trip_id,
-        label=trip.label,
-        trip_kind="one_time",
-        active=True,
-        anchor_date=date(2026, 4, 10),
-        anchor_weekday="",
-        route_option_payloads=[
-            {
-                "route_option_id": updated_route_option.route_option_id,
-                "origin_airports": "BUR",
-                "destination_airports": "SFO",
-                "airlines": "Alaska",
-                "day_offset": 0,
-                "start_time": "08:00",
-                "end_time": "11:00",
-            }
-        ],
-    )
-
-    refreshed = sync_and_persist(repository, today=date(2026, 4, 1))
-    refreshed_tracker = next(item for item in refreshed.trackers if item.tracker_id == tracker.tracker_id)
-
-    assert refreshed_tracker.latest_observed_price is None
-    assert refreshed_tracker.last_signal_at is None
-    assert repository.load_fare_observations() == []
-
-
 def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
     trip_instance = TripInstance(
         trip_instance_id="inst_1",
@@ -555,7 +438,7 @@ def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
         record_locator="ABC123",
     )
 
-    recompute_trip_states([trip_instance], [booked_tracker, cheaper_other_tracker], [booking], [])
+    recompute_trip_states([trip_instance], [booked_tracker, cheaper_other_tracker], [booking])
 
     assert trip_instance.recommendation_state == RecommendationState.BOOKED_MONITORING
     assert "Monitoring" in trip_instance.recommendation_reason

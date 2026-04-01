@@ -4,7 +4,7 @@ import argparse
 
 from app.services.background_fetch import run_fetch_batch
 from app.services.price_records import build_price_records
-from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states, refresh_tracker_projections
+from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
 from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository
@@ -30,9 +30,7 @@ def main() -> None:
         sleep_between_requests=not args.no_sleep,
     )
     apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
-    refresh_tracker_projections(snapshot.trackers, snapshot.observations)
-    apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
-    recompute_trip_states(snapshot.trip_instances, snapshot.trackers, snapshot.bookings, snapshot.observations)
+    recompute_trip_states(snapshot.trip_instances, snapshot.trackers, snapshot.bookings)
     price_records = build_price_records(
         trips=snapshot.trips,
         trip_instances=snapshot.trip_instances,

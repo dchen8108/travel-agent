@@ -8,7 +8,6 @@ from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
 from app.route_options import travel_date_for_offset
-from app.services.google_flights import build_google_flights_query_url
 from app.services.ids import stable_id
 
 
@@ -72,22 +71,6 @@ def reconcile_trackers(
                 end_time=option.end_time,
             )
             existing = existing_by_id.get(tracker_id)
-            generated_url = build_google_flights_query_url(
-                Tracker(
-                    tracker_id=tracker_id,
-                    trip_instance_id=instance.trip_instance_id,
-                    route_option_id=option.route_option_id,
-                    rank=option.rank,
-                    origin_airports=option.origin_airports,
-                    destination_airports=option.destination_airports,
-                    airlines=option.airlines,
-                    day_offset=option.day_offset,
-                    travel_date=travel_date,
-                    start_time=option.start_time,
-                    end_time=option.end_time,
-                    definition_signature=definition_signature,
-                )
-            )
             if existing:
                 definition_changed = bool(existing.definition_signature) and existing.definition_signature != definition_signature
                 existing.rank = option.rank
@@ -99,9 +82,6 @@ def reconcile_trackers(
                 existing.start_time = option.start_time
                 existing.end_time = option.end_time
                 existing.definition_signature = definition_signature
-                if existing.link_source != "manual" or not existing.google_flights_url:
-                    existing.google_flights_url = generated_url
-                    existing.link_source = "generated"
                 if definition_changed:
                     existing.last_signal_at = None
                     existing.latest_observed_price = None
@@ -111,8 +91,6 @@ def reconcile_trackers(
                     existing.latest_signal_source = ""
                     existing.latest_match_summary = ""
                     existing.tracking_status = TrackerStatus.TRACKING_ENABLED
-                if existing.tracking_enabled_at is None:
-                    existing.tracking_enabled_at = utcnow()
                 if existing.tracking_status == TrackerStatus.NEEDS_SETUP:
                     existing.tracking_status = TrackerStatus.TRACKING_ENABLED
                 if existing.last_signal_at and (today - existing.last_signal_at.date()).days > 7:
@@ -133,7 +111,6 @@ def reconcile_trackers(
                     travel_date=travel_date,
                     start_time=option.start_time,
                     end_time=option.end_time,
-                    google_flights_url=generated_url,
                     definition_signature=definition_signature,
                 )
             )

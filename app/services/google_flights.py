@@ -3,12 +3,10 @@ from __future__ import annotations
 from base64 import urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import datetime
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import urlencode
 
 from app.models.tracker import Tracker
 
-
-ALLOWED_TRACKER_HOSTS = {"google.com", "www.google.com", "c.gle"}
 GOOGLE_FLIGHTS_LANGUAGE = "en-US"
 GOOGLE_FLIGHTS_TIME_FILTER_TFU = "EgYIABAAGAA"
 GOOGLE_FLIGHTS_FILTER_FLAGS = b"\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"
@@ -155,29 +153,8 @@ def generated_tracker_seed_summary(tracker: Tracker) -> str:
         return f"Generated search opens {route}{airline_text}{departure_text}."
     return (
         f"Generated search opens {route}{airline_text}{departure_text} using the primary airport pair. "
-        "Refine alternate airports in Google Flights, then paste the exact tracked link back here."
+        "Refine alternate airports directly in Google Flights if needed."
     )
-
-
-def normalize_google_flights_url(raw_url: str) -> str:
-    url = raw_url.strip()
-    if not url:
-        return ""
-
-    parsed = urlsplit(url)
-    host = parsed.netloc.lower()
-    if host not in ALLOWED_TRACKER_HOSTS:
-        raise ValueError("Paste a Google Flights link.")
-
-    if host in {"google.com", "www.google.com"} and not parsed.path.startswith("/travel/flights"):
-        raise ValueError("Paste a Google Flights flights page link.")
-
-    if host in {"google.com", "www.google.com"}:
-        params = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key not in {"authuser", "pli"}]
-        cleaned_query = urlencode(params, doseq=True)
-        return urlunsplit((parsed.scheme or "https", host, parsed.path, cleaned_query, parsed.fragment))
-
-    return url
 
 
 def _departure_hour_window(start_time: str, end_time: str) -> tuple[int, int]:

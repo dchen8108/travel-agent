@@ -50,7 +50,6 @@ def build_price_records(
             key=lambda item: (item.price, item.airline, item.departure_label, item.arrival_label),
         )
         request_offer_count = len(ordered_offers)
-        fetch_method = "manual_link" if tracker.link_source == "manual" else "generated_link"
         for index, offer in enumerate(ordered_offers, start=1):
             record_signature = stable_id(
                 "prsig",
@@ -70,7 +69,7 @@ def build_price_records(
                     observed_date=fetch.fetched_at.date(),
                     source="background_fetch",
                     provider=tracker.provider,
-                    fetch_method=fetch_method,
+                    fetch_method="generated_link",
                     fetch_target_id=target.fetch_target_id,
                     tracker_id=tracker.tracker_id,
                     trip_instance_id=trip_instance.trip_instance_id,

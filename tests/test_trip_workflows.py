@@ -4,7 +4,7 @@ from base64 import urlsafe_b64decode
 from datetime import date
 from urllib.parse import parse_qs, urlsplit
 
-from app.services.google_flights import build_google_flights_query_url, normalize_google_flights_url
+from app.services.google_flights import build_google_flights_query_url
 from app.services.dashboard import horizon_instances_for_trip, past_instances_for_trip
 from app.services.trips import save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
@@ -326,12 +326,3 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
     assert any(field == 9 and value == 9 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 10 and value == 0 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 11 and value == 23 for field, wire, value in nested_fields if wire == 0)
-
-
-def test_manual_google_flights_url_rejects_unrelated_hosts() -> None:
-    try:
-        normalize_google_flights_url("https://example.com/flights?q=test")
-    except ValueError as exc:
-        assert "Google Flights" in str(exc)
-    else:
-        raise AssertionError("Expected unrelated host to be rejected.")

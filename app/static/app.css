@@ -573,17 +573,6 @@ textarea {
   background: rgba(216, 235, 230, 0.54);
 }
 
-.legacy-panel {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed rgba(215, 207, 191, 0.9);
-}
-
-.legacy-panel summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-
 .inline-form {
   flex-wrap: wrap;
 }

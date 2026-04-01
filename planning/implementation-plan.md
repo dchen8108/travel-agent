@@ -10,8 +10,8 @@ The first usable version is successful if the user can:
 - manage recurring trips over time
 - maintain ranked route options under each trip
 - see the next 12 weekly instances automatically
-- set up Google Flights trackers for those instances
-- import Google Flights `.eml` alerts safely
+- see Google Flights tracker links for those instances
+- let the app fetch those links conservatively in the background
 - record bookings
 - let easy bookings attach automatically
 - resolve only unmatched bookings
@@ -28,10 +28,9 @@ Included:
 - one-time and weekly trips
 - rolling 12-week recurring generation
 - ranked route options
-- manual Google Flights tracker setup
-- manual Google Flights link paste
-- manual `.eml` import
-- safe observation matching
+- generated Google Flights links
+- conservative background fetching
+- append-only fetched offer history
 - booking capture
 - unmatched booking resolution
 
@@ -66,25 +65,24 @@ Deferred:
 - trip create/edit/delete/pause flows
 - recurring-instance generation
 - tracker synchronization
+- concrete airport-pair fetch-target generation
+- background fetch queueing and rollups
 - booking attachment and unmatched booking creation
 - recommendation rollup
-- observation matching that ignores ambiguous tracker noise
 
 ### 4. UI rebuild
 
 - `Today`
 - `Trips`
-- `Trip Detail`
 - `Bookings`
-- `Imports`
 - `Resolve`
 - `Trackers`
 
 ### 5. Verification
 
-- parser tests
 - generation tests
 - booking matching tests
+- background-fetch tests
 - resolve-flow tests
 - smoke tests for key pages
 
@@ -105,8 +103,8 @@ Before the MVP is considered usable:
 - a weekly trip produces 12 future instances
 - skipping one occurrence persists
 - tracker rows are created from ranked route options
-- known Google Flights sample email imports without crashing
-- ambiguous tracker observations are ignored instead of becoming user work
+- background-fetched prices roll up onto trackers
+- all fetched offers are appended into `price_records.csv`
 - unmatched bookings appear in `Resolve`
 - linking an unmatched booking clears it from `Resolve`
-- a cheaper matched observation can drive a booked instance into `rebook`
+- a cheaper fetched price can drive a booked instance into `rebook`
