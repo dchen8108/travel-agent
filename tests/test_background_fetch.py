@@ -8,7 +8,7 @@ from app.models.fare_observation import FareObservation
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
-from app.services.background_fetch import run_fetch_batch, select_due_fetch_targets
+from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.ids import new_id
 from app.services.google_flights_fetcher import best_google_flights_offer, parse_google_flights_offers
@@ -555,3 +555,47 @@ def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
 
     assert trip_instance.recommendation_state == RecommendationState.BOOKED_MONITORING
     assert "Monitoring" in trip_instance.recommendation_reason
+
+
+def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Manual refresh wave",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR|LAX",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    tracker = next(
+        item
+        for item in snapshot.trackers
+        if item.trip_instance_id in {
+            instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id
+        }
+    )
+    now = utcnow()
+
+    queued_count = queue_rolling_refresh(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        now=now,
+    )
+
+    targets = [item for item in snapshot.tracker_fetch_targets if item.tracker_id == tracker.tracker_id]
+    targets.sort(key=lambda item: item.next_fetch_not_before or now)
+    assert queued_count == 2
+    assert targets[0].next_fetch_not_before == now
+    assert targets[1].next_fetch_not_before == now + timedelta(seconds=10)

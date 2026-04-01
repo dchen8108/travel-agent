@@ -527,6 +527,33 @@ def test_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     assert "LAX to SFO" in trackers_page.text
 
 
+def test_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Refresh queue test",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    queue = client.post("/trackers/queue-refresh", follow_redirects=False)
+    assert queue.status_code == 303
+    assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
+
+
 def test_skipped_trips_do_not_appear_in_past_history_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

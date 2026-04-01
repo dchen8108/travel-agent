@@ -6,6 +6,12 @@
     <h2>Google Flights coverage, grouped under scheduled trip instances.</h2>
     <p>Each tracker is one ranked route option. Travel Agent checks airport-pair combinations automatically in the background, twice per day, and rolls the best recent price back up to the tracker.</p>
   </div>
+  <div class="hero-actions">
+    <form method="post" action="/trackers/queue-refresh">
+      <button type="submit" class="button secondary">Refresh sooner</button>
+    </form>
+    <p class="muted">Moves upcoming checks earlier in the queue. Google Flights requests still run in the background and remain staggered.</p>
+  </div>
 </section>
 
 <div class="stack">

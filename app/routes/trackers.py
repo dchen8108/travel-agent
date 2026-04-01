@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.base import TrackerStatus, utcnow
+from app.services.background_fetch import queue_rolling_refresh
 from app.services.google_flights import generated_tracker_seed_summary, normalize_google_flights_url
 from app.services.dashboard import (
     best_tracker,
@@ -119,6 +120,26 @@ def trackers_index(
             format_tracker_timestamp=_format_tracker_timestamp,
         ),
     )
+
+
+@router.post("/trackers/queue-refresh")
+def queue_tracker_refresh(
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    snapshot = sync_and_persist(repository)
+    queued_count = queue_rolling_refresh(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+    )
+    repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+    if queued_count == 0:
+        message = "Nothing+to+refresh+yet."
+    elif queued_count == 1:
+        message = "Refresh+queued+for+1+airport-pair+search."
+    else:
+        message = f"Refresh+queued+for+{queued_count}+airport-pair+searches."
+    return RedirectResponse(url=f"/trackers?message={message}", status_code=303)
 
 
 @router.post("/trackers/{tracker_id}/mark-enabled")

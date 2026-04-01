@@ -28,6 +28,36 @@ class FetchBatchResult:
     updated_targets: list[TrackerFetchTarget]
 
 
+def queue_rolling_refresh(
+    trackers: list[Tracker],
+    trip_instances: list[TripInstance],
+    fetch_targets: list[TrackerFetchTarget],
+    *,
+    now: datetime | None = None,
+) -> int:
+    now = now or utcnow()
+    tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
+    instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
+    ordered = sorted(
+        fetch_targets,
+        key=lambda item: _selection_sort_key(item, tracker_by_id, instance_by_id, now.date()),
+    )
+    queued_count = 0
+    next_scheduled_at = now
+    for target in ordered:
+        tracker = tracker_by_id.get(target.tracker_id)
+        instance = instance_by_id.get(target.trip_instance_id)
+        if not tracker or not instance:
+            continue
+        if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
+            continue
+        target.next_fetch_not_before = next_scheduled_at
+        target.updated_at = now
+        queued_count += 1
+        next_scheduled_at = next_scheduled_at + timedelta(seconds=FETCH_STAGGER_SECONDS)
+    return queued_count
+
+
 def select_due_fetch_targets(
     trackers: list[Tracker],
     trip_instances: list[TripInstance],
