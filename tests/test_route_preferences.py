@@ -257,10 +257,46 @@ def test_weighted_winner_drives_open_trip_status_reason(repository: Repository) 
     recompute_trip_states(snapshot.trip_instances, trackers, [])
 
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Price available"
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Ready to book"
     reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
     assert "option 2" in reason.lower()
     assert "$50 preference buffer" in reason
+
+
+def test_open_trip_stays_fetching_until_all_route_options_settle(repository: Repository) -> None:
+    snapshot, instance, trackers = _single_instance_snapshot(
+        repository,
+        preference_mode="equal",
+        payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            },
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "United",
+                "day_offset": 0,
+                "start_time": "18:00",
+                "end_time": "22:00",
+            },
+        ],
+    )
+
+    trackers[0].latest_observed_price = 180
+    trackers[1].latest_observed_price = None
+
+    recompute_trip_states(snapshot.trip_instances, trackers, [])
+
+    refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Fetching prices"
+    reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
+    assert "Best current price so far is $180" in reason
+    assert "still checking the remaining options" in reason
 
 
 def test_rebook_stays_tied_to_booked_tracker_when_booking_is_attached(repository: Repository) -> None:

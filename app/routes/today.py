@@ -47,10 +47,10 @@ def today(
         instance for instance in booked_instances if rebook_savings(snapshot, instance.trip_instance_id) is not None
     ]
     priced_open_instances = [
-        instance for instance in open_instances if factual_trip_status_label(snapshot, instance.trip_instance_id) == "Price available"
+        instance for instance in open_instances if factual_trip_status_label(snapshot, instance.trip_instance_id) == "Ready to book"
     ]
     unpriced_open_instances = [
-        instance for instance in open_instances if factual_trip_status_label(snapshot, instance.trip_instance_id) == "No price yet"
+        instance for instance in open_instances if factual_trip_status_label(snapshot, instance.trip_instance_id) != "Ready to book"
     ]
     monitoring_instances = [
         instance for instance in booked_instances if rebook_savings(snapshot, instance.trip_instance_id) is None

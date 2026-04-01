@@ -99,24 +99,39 @@ def fetch_targets_for_tracker(snapshot: AppSnapshot, tracker_id: str) -> list[Tr
     )
 
 
-def tracker_fetch_state(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
-    trackers = trackers_for_instance(snapshot, trip_instance_id)
-    targets = [
-        target
-        for tracker in trackers
-        for target in fetch_targets_for_tracker(snapshot, tracker.tracker_id)
-    ]
+def tracker_option_fetch_state(snapshot: AppSnapshot, tracker: Tracker) -> dict[str, object]:
+    targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
     statuses = {target.last_fetch_status for target in targets}
-    has_live_price = any(tracker.latest_observed_price is not None for tracker in trackers)
+    has_live_price = tracker.latest_observed_price is not None
     all_unavailable = bool(targets) and statuses.issubset(
         {FetchTargetStatus.NO_RESULTS, FetchTargetStatus.NO_WINDOW_MATCH}
     )
     return {
+        "targets": targets,
+        "has_live_price": has_live_price,
+        "all_unavailable": all_unavailable,
+        "has_failure": FetchTargetStatus.FAILED in statuses,
+        "is_resolved": has_live_price or all_unavailable,
+    }
+
+
+def tracker_fetch_state(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    tracker_states = [tracker_option_fetch_state(snapshot, tracker) for tracker in trackers]
+    targets = [target for state in tracker_states for target in state["targets"]]
+    has_live_price = any(bool(state["has_live_price"]) for state in tracker_states)
+    all_unavailable = bool(tracker_states) and all(bool(state["all_unavailable"]) for state in tracker_states)
+    all_trackers_resolved = bool(trackers) and all(bool(state["is_resolved"]) for state in tracker_states)
+    return {
         "has_trackers": bool(trackers),
         "has_targets": bool(targets),
         "has_live_price": has_live_price,
-        "has_failure": FetchTargetStatus.FAILED in statuses,
-        "has_pending": FetchTargetStatus.PENDING in statuses,
+        "all_trackers_resolved": all_trackers_resolved,
+        "has_failure": any(bool(state["has_failure"]) for state in tracker_states),
+        "has_pending": any(
+            target.last_fetch_status == FetchTargetStatus.PENDING
+            for target in targets
+        ) or any(not bool(state["is_resolved"]) for state in tracker_states),
         "all_unavailable": all_unavailable,
     }
 
@@ -157,9 +172,9 @@ def factual_trip_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> s
     if booking_for_instance(snapshot, trip_instance_id):
         return "Lower fare found" if rebook_savings(snapshot, trip_instance_id) is not None else "Booked"
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
-    if fetch_state["has_live_price"]:
-        return "Price available"
-    if fetch_state["all_unavailable"]:
+    if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
+        return "Ready to book"
+    if fetch_state["all_unavailable"] and fetch_state["all_trackers_resolved"]:
         return "No matching flights"
     if fetch_state["has_failure"]:
         return "Retrying fetch"
@@ -179,7 +194,7 @@ def factual_trip_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> st
     if booking_for_instance(snapshot, trip_instance_id):
         return "neutral"
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
-    if fetch_state["has_live_price"]:
+    if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
         return "success"
     if fetch_state["all_unavailable"]:
         return "neutral"
@@ -209,13 +224,18 @@ def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> 
         return f"Booked at ${booking.booked_price}. No current comparison price yet."
     tracker = best_tracker(snapshot, trip_instance_id)
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
-    if tracker is not None and tracker.latest_observed_price is not None:
+    if tracker is not None and tracker.latest_observed_price is not None and fetch_state["all_trackers_resolved"]:
         if tracker.preference_bias_dollars > 0:
             return (
                 f"Best current price is ${tracker.latest_observed_price} on option {tracker.rank}, "
                 f"after applying a ${tracker.preference_bias_dollars} preference buffer."
             )
         return f"Best current price is ${tracker.latest_observed_price}."
+    if tracker is not None and tracker.latest_observed_price is not None:
+        return (
+            f"Best current price so far is ${tracker.latest_observed_price}. "
+            "Travel Agent is still checking the remaining options."
+        )
     if fetch_state["all_unavailable"]:
         return "Google Flights is not returning any matching flights right now."
     if fetch_state["has_failure"]:
