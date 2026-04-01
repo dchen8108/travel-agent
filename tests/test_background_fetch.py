@@ -58,11 +58,11 @@ def test_route_options_reject_more_than_three_airports(repository: Repository) -
         raise AssertionError("Expected route option airport cap to be enforced.")
 
 
-def test_next_refresh_time_uses_six_hour_cadence() -> None:
+def test_next_refresh_time_uses_four_hour_cadence() -> None:
     now = datetime(2026, 3, 31, 7, 12, tzinfo=timezone.utc)
-    assert FETCH_INTERVAL_SECONDS == 6 * 60 * 60
-    assert next_refresh_time(now, 0) == datetime(2026, 3, 31, 12, 0, tzinfo=timezone.utc)
-    assert next_refresh_time(now, 20) == datetime(2026, 3, 31, 12, 0, 20, tzinfo=timezone.utc)
+    assert FETCH_INTERVAL_SECONDS == 4 * 60 * 60
+    assert next_refresh_time(now, 0) == datetime(2026, 3, 31, 8, 0, tzinfo=timezone.utc)
+    assert next_refresh_time(now, 20) == datetime(2026, 3, 31, 8, 0, 20, tzinfo=timezone.utc)
 
 
 def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Repository) -> None:

@@ -34,7 +34,7 @@ v0 consists of six layers:
    Trip planning, recurring-instance generation, tracker synchronization, booking attachment, and recommendation rollup.
 
 3. `Fetch orchestration`
-   One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, adds a small random startup delay, fetches them serially on a 6-hour cadence anchored to the parent trip, and updates tracker rollups.
+   One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, adds a small random startup delay, fetches them serially on a 4-hour cadence anchored to the parent trip, and updates tracker rollups.
 
 4. `Storage`
    CSV and JSON files under `data/`.
@@ -241,8 +241,8 @@ Generation must be idempotent.
 - fetch only from a separate worker CLI
 - in local use, macOS `launchd` is the preferred scheduler for repeatedly invoking that CLI
 - fetch serially, not in parallel
-- refresh each concrete airport-pair target every 6 hours
-- use trip-anchored 6-hour refresh windows; the worker itself remains serial and conservative
+- refresh each concrete airport-pair target every 4 hours
+- use trip-anchored 4-hour refresh windows; the worker itself remains serial and conservative
 - apply short sleeps between requests within a worker run
 - cap a run at a small batch size
 - allow at most one fetch target per tracker per run
