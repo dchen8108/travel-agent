@@ -9,7 +9,7 @@ This MVP is built around a simple idea:
 - each route option corresponds to one Google Flights tracker/search definition
 - the app generates dated `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
-- a background job queries those links conservatively, twice per day on staggered refresh windows, and rolls the best current price back onto the tracker
+- a background job queries those links conservatively every 6 hours on staggered refresh windows and rolls the best current price back onto the tracker
 - the app stores tracker signals, organizes bookings, and tells you what still needs attention
 
 This version is intentionally local and simple:
@@ -89,7 +89,7 @@ That installs a LaunchAgent that:
 
 - runs at login and every 60 seconds after that
 - fetches at most 1 due airport-pair target per run
-- relies on the app's own persisted queue and 12-hour cadence
+- relies on the app's own persisted queue and 6-hour cadence
 - writes logs under `data/logs/`
 
 To remove it later:

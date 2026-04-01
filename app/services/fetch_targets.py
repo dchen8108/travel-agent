@@ -10,7 +10,7 @@ from app.services.google_flights import build_google_flights_query_url_for_searc
 from app.services.ids import stable_id
 
 FETCH_STAGGER_SECONDS = 10
-FETCH_INTERVAL_SECONDS = 12 * 60 * 60
+FETCH_INTERVAL_SECONDS = 6 * 60 * 60
 
 
 def reconcile_fetch_targets(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.models.base import RecommendationState, TrackerStatus, utcnow
 from app.models.booking import Booking
@@ -10,7 +10,7 @@ from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
 from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
-from app.services.fetch_targets import reconcile_fetch_targets
+from app.services.fetch_targets import FETCH_INTERVAL_SECONDS, next_refresh_time, reconcile_fetch_targets
 from app.services.ids import new_id
 from app.services.google_flights_fetcher import best_google_flights_offer, parse_google_flights_offers
 from app.services.price_records import build_price_records
@@ -45,6 +45,13 @@ def test_route_options_reject_more_than_three_airports(repository: Repository) -
         assert "at most three airports" in str(exc)
     else:
         raise AssertionError("Expected route option airport cap to be enforced.")
+
+
+def test_next_refresh_time_uses_six_hour_cadence() -> None:
+    now = datetime(2026, 3, 31, 7, 12, tzinfo=timezone.utc)
+    assert FETCH_INTERVAL_SECONDS == 6 * 60 * 60
+    assert next_refresh_time(now, 0) == datetime(2026, 3, 31, 12, 0, tzinfo=timezone.utc)
+    assert next_refresh_time(now, 20) == datetime(2026, 3, 31, 12, 0, 20, tzinfo=timezone.utc)
 
 
 def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Repository) -> None:
