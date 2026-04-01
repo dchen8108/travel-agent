@@ -2,6 +2,7 @@
   const tripState = window.travelAgentTripForm;
   const bookingState = window.travelAgentBookingForm;
   const pickerRegistry = [];
+  const scheduledSearchDebounceMs = 90;
   let scheduledFilterRequestToken = 0;
   let scheduledFilterAbortController = null;
 
@@ -531,7 +532,7 @@
         window.clearTimeout(debounceTimer);
         debounceTimer = window.setTimeout(() => {
           refreshScheduledPanel(buildQuery());
-        }, 220);
+        }, scheduledSearchDebounceMs);
         return;
       }
       window.clearTimeout(debounceTimer);
