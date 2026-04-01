@@ -9,6 +9,7 @@ from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
+from app.jobs.fetch_google_flights import _non_negative_int
 from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
 from app.services.dashboard import factual_trip_status_label, factual_trip_status_reason
 from app.services.fetch_targets import (
@@ -57,6 +58,15 @@ def test_route_options_reject_more_than_three_airports(repository: Repository) -
         assert "at most three airports" in str(exc)
     else:
         raise AssertionError("Expected route option airport cap to be enforced.")
+
+
+def test_fetch_job_rejects_negative_max_targets() -> None:
+    try:
+        _non_negative_int("-1")
+    except Exception as exc:
+        assert "--max-targets must be >= 0" in str(exc)
+    else:
+        raise AssertionError("Expected negative max-targets to be rejected.")
 
 
 def test_next_refresh_time_uses_four_hour_cadence() -> None:
@@ -322,6 +332,43 @@ def test_select_due_fetch_targets_prioritizes_targets_without_a_price(repository
     assert chosen_instance.trip_id == second_trip.trip_id
 
 
+def test_select_due_fetch_targets_returns_empty_when_max_targets_is_zero(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Zero target selection",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=5),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    now = utcnow()
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now - timedelta(seconds=1)
+
+    due_targets = select_due_fetch_targets(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=0,
+        now=now,
+    )
+
+    assert due_targets == []
+
+
 def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: Repository) -> None:
     save_trip(
         repository,
@@ -454,6 +501,50 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert result.attempts[0].price == 141
     assert result.attempts[0].offer_count == 1
     assert result.attempts[0].matching_offer_count == 1
+
+
+def test_run_fetch_batch_with_zero_max_targets_is_a_no_op(repository: Repository, monkeypatch) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Zero batch selection",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    def should_not_fetch(url: str, *, client=None, timeout=20.0):
+        raise AssertionError("Fetcher should not run when max_targets=0")
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", should_not_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=0,
+        sleep_between_requests=False,
+    )
+
+    assert result.fetched_count == 0
+    assert result.selected_count == 0
+    assert result.attempts == []
+    assert result.successful_fetches == []
 
 
 def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repository, monkeypatch) -> None:

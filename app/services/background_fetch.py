@@ -99,6 +99,8 @@ def select_due_fetch_targets(
     max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
 ) -> list[TrackerFetchTarget]:
     now = now or utcnow()
+    if max_targets <= 0:
+        return []
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
     selected: list[TrackerFetchTarget] = []
@@ -138,6 +140,15 @@ def run_fetch_batch(
     due_targets: list[TrackerFetchTarget] | None = None,
 ) -> FetchBatchResult:
     now = now or utcnow()
+    if max_targets <= 0 and due_targets is None:
+        return FetchBatchResult(
+            fetched_count=0,
+            selected_count=0,
+            startup_jitter_applied_seconds=0.0,
+            updated_targets=fetch_targets,
+            successful_fetches=[],
+            attempts=[],
+        )
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
     if due_targets is None:

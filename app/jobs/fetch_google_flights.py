@@ -19,6 +19,13 @@ from app.storage.repository import Repository
 DEFAULT_STARTUP_JITTER_SECONDS = 8.0
 
 
+def _non_negative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("--max-targets must be >= 0")
+    return parsed
+
+
 def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
     payload = {
         "timestamp": utcnow().isoformat(),
@@ -30,7 +37,7 @@ def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max-targets", type=int, default=3)
+    parser.add_argument("--max-targets", type=_non_negative_int, default=3)
     parser.add_argument("--no-sleep", action="store_true")
     parser.add_argument("--startup-jitter-seconds", type=float, default=DEFAULT_STARTUP_JITTER_SECONDS)
     args = parser.parse_args()
