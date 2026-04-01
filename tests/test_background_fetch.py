@@ -163,6 +163,15 @@ def test_departure_time_filter_supports_minute_precision() -> None:
 
 def test_parse_google_flights_offers_distinguishes_no_results_from_parse_failures() -> None:
     no_results_html = "<html><body><p>No flights match your filters. Try changing your airports or dates.</p></body></html>"
+    google_shell_no_results_html = """
+    <html><body>
+      <title>Burbank to San Francisco | Google Flights</title>
+      <div>Flight search One way Round trip</div>
+      <div>Select multiple airports</div>
+      <div>All filters (3) Nonstop Airlines Times Bags Price Emissions Connecting airports Duration</div>
+      <div>Connecting airports</div>
+    </body></html>
+    """
     broken_html = "<html><body><p>Unexpected shell with no matching offer nodes.</p></body></html>"
 
     try:
@@ -171,6 +180,13 @@ def test_parse_google_flights_offers_distinguishes_no_results_from_parse_failure
         pass
     else:
         raise AssertionError("Expected no-results page to raise GoogleFlightsNoResultsError.")
+
+    try:
+        parse_google_flights_offers(google_shell_no_results_html)
+    except GoogleFlightsNoResultsError:
+        pass
+    else:
+        raise AssertionError("Expected Google search shell with no prices to raise GoogleFlightsNoResultsError.")
 
     try:
         parse_google_flights_offers(broken_html)

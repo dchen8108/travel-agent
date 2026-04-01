@@ -25,6 +25,12 @@ NO_RESULTS_MARKERS = (
     "try changing",
 )
 
+SEARCH_SHELL_MARKERS = (
+    "select multiple airports",
+    "all filters",
+    "connecting airports",
+)
+
 
 @dataclass(frozen=True)
 class GoogleFlightsOffer:
@@ -103,7 +109,9 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
             )
     if not offers:
         lowered_html = html.lower()
-        if any(marker in lowered_html for marker in NO_RESULTS_MARKERS):
+        if any(marker in lowered_html for marker in NO_RESULTS_MARKERS) or _looks_like_google_no_results_page(
+            parser, lowered_html
+        ):
             raise GoogleFlightsNoResultsError("No flight prices found in the Google Flights response.")
         raise GoogleFlightsFetchError("Could not parse flight prices from the Google Flights response.")
     return offers
@@ -160,6 +168,16 @@ def filter_google_flights_offers_by_departure_window(
         for offer in offers
         if time_in_window(start_time, end_time, departure_time_for_offer(offer))
     ]
+
+
+def _looks_like_google_no_results_page(parser: LexborHTMLParser, lowered_html: str) -> bool:
+    if len(parser.css(".YMlIz.FpEdX")) > 0:
+        return False
+    if len(parser.css("ul.Rk10dc li")) > 0:
+        return False
+    if re.search(r"\$\d{2,4}", lowered_html):
+        return False
+    return all(marker in lowered_html for marker in SEARCH_SHELL_MARKERS)
 
 
 def now_utc() -> datetime:
