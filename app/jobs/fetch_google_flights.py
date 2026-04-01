@@ -9,11 +9,14 @@ from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository
 
+DEFAULT_STARTUP_JITTER_SECONDS = 8.0
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-targets", type=int, default=3)
     parser.add_argument("--no-sleep", action="store_true")
+    parser.add_argument("--startup-jitter-seconds", type=float, default=DEFAULT_STARTUP_JITTER_SECONDS)
     args = parser.parse_args()
 
     repository = Repository(get_settings())
@@ -28,6 +31,7 @@ def main() -> None:
         snapshot.tracker_fetch_targets,
         max_targets=args.max_targets,
         sleep_between_requests=not args.no_sleep,
+        startup_jitter_seconds=max(args.startup_jitter_seconds, 0.0),
     )
     apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
     recompute_trip_states(snapshot.trip_instances, snapshot.trackers, snapshot.bookings)

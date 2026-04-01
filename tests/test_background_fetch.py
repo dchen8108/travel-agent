@@ -225,6 +225,73 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert tracker.latest_winning_origin_airport == "BUR"
     assert tracker.latest_winning_destination_airport == "SFO"
     assert len(result.successful_fetches) == 1
+
+
+def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repository, monkeypatch) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Startup jitter test",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    sleep_calls: list[float] = []
+
+    def fake_sleep(value: float) -> None:
+        sleep_calls.append(value)
+
+    def fake_uniform(start: float, end: float) -> float:
+        assert start == 0.0
+        assert end == 8.0
+        return 4.25
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname="IWWDBc">
+              <ul class="Rk10dc">
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+                  <span class="mv1WYe"><div>6:15 AM on Tue, Apr 1</div><div>7:25 AM on Tue, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$141</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.time.sleep", fake_sleep)
+    monkeypatch.setattr("app.services.background_fetch.random.uniform", fake_uniform)
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        sleep_between_requests=False,
+        startup_jitter_seconds=8.0,
+    )
+
+    assert result.fetched_count == 1
+    assert sleep_calls == [4.25]
 def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> None:
     tracker = Tracker(
         tracker_id="trk_1",

@@ -104,6 +104,7 @@ def run_fetch_batch(
     now: datetime | None = None,
     max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
     sleep_between_requests: bool = True,
+    startup_jitter_seconds: float = 0.0,
 ) -> FetchBatchResult:
     now = now or utcnow()
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
@@ -117,6 +118,8 @@ def run_fetch_batch(
     )
     if not due_targets:
         return FetchBatchResult(fetched_count=0, updated_targets=fetch_targets, successful_fetches=[])
+    if startup_jitter_seconds > 0:
+        time.sleep(random.uniform(0.0, startup_jitter_seconds))
 
     client = httpx.Client(timeout=20.0, follow_redirects=True)
     successful_fetches: list[SuccessfulFetchRecord] = []

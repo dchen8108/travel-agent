@@ -34,7 +34,7 @@ v0 consists of six layers:
    Trip planning, recurring-instance generation, tracker synchronization, booking attachment, and recommendation rollup.
 
 3. `Fetch orchestration`
-   One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, fetches them serially on a staggered 6-hour cadence, and updates tracker rollups.
+   One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, adds a small random startup delay, fetches them serially on a staggered 6-hour cadence, and updates tracker rollups.
 
 4. `Storage`
    CSV and JSON files under `data/`.

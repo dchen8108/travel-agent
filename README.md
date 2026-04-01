@@ -71,10 +71,12 @@ Run a conservative Google Flights batch:
 uv run python -m app.jobs.fetch_google_flights --max-targets 3
 ```
 
+By default, each batch also adds a small random startup delay before it makes any Google Flights request.
+
 Useful for quick testing:
 
 ```bash
-uv run python -m app.jobs.fetch_google_flights --max-targets 1 --no-sleep
+uv run python -m app.jobs.fetch_google_flights --max-targets 1 --no-sleep --startup-jitter-seconds 0
 ```
 
 ### macOS launchd setup
@@ -90,6 +92,7 @@ That installs a LaunchAgent that:
 - runs at login and every 60 seconds after that
 - fetches at most 1 due airport-pair target per run
 - relies on the app's own persisted queue and 6-hour cadence
+- adds a small random startup delay before each Google Flights request batch
 - writes logs under `data/logs/`
 
 To remove it later:
