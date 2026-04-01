@@ -95,9 +95,10 @@ uv run python -m app.jobs.install_launchd_fetcher
 That installs a LaunchAgent that:
 
 - runs at login and every 60 seconds after that
-- fetches at most 1 due airport-pair target per run
+- fetches at most 2 due airport-pair targets per run
 - relies on the app's own persisted queue and 4-hour cadence
 - adds a small random startup delay before each Google Flights request batch
+- keeps a small random delay between requests inside a multi-target batch
 - writes structured JSON-line logs under `data/logs/`
 
 The fetcher logs:

@@ -79,6 +79,7 @@ Background fetching:
 - fetch targets refresh on a 4-hour cadence
 - fetches are staggered and jittered
 - one run selects at most one target per tracker and at most `MAX_FETCH_TARGETS_PER_RUN`
+- the installed macOS launchd agent currently runs every 60 seconds with `max_targets=2`
 
 Persistence:
 
@@ -147,6 +148,7 @@ Persistence:
 6. Targets without a first price are prioritized ahead of steady-state refreshes.
 7. Shared route helpers now centralize flash-message redirects and refresh queue orchestration.
 8. `Settings` now rejects unknown fields so stale config drift fails fast.
+9. The installed launchd fetcher now defaults to `max_targets=2` and keeps between-request jitter.
 
 ## Important Verified Facts
 
@@ -179,6 +181,7 @@ Recent cleanup/refactor changes implemented:
 - booking creation/save logic reduced to shared helpers
 - stale ignored `imported_email_dir` test settings removed
 - dead `app/jobs/import_email_file.py` entrypoint removed
+- launchd default fetch batch increased from 1 to 2 while staying serial and jittered
 
 ## Key Files To Read First
 
