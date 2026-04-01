@@ -256,6 +256,139 @@ def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: R
     assert len({item.tracker_id for item in due_targets}) == 2
 
 
+def test_select_due_fetch_targets_prioritizes_targets_without_a_price(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Existing priced tracker",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=3),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    second_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Needs first price",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    for tracker in snapshot.trackers:
+        tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
+    now = utcnow()
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now - timedelta(seconds=1)
+        if target.origin_airport == "BUR":
+            target.latest_price = 141
+            target.latest_fetched_at = now - timedelta(hours=1)
+            target.last_fetch_finished_at = now - timedelta(hours=1)
+        else:
+            target.latest_price = None
+            target.latest_fetched_at = None
+            target.last_fetch_finished_at = now - timedelta(minutes=5)
+
+    due_targets = select_due_fetch_targets(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        now=now,
+    )
+
+    assert len(due_targets) == 1
+    chosen_target = due_targets[0]
+    chosen_instance = next(item for item in snapshot.trip_instances if item.trip_instance_id == chosen_target.trip_instance_id)
+    assert chosen_instance.trip_id == second_trip.trip_id
+
+
+def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Refresh queue priority A",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=3),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Refresh queue priority B",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    now = utcnow()
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now + timedelta(hours=3)
+        if target.origin_airport == "BUR":
+            target.latest_price = 141
+            target.latest_fetched_at = now - timedelta(hours=1)
+            target.last_fetch_finished_at = now - timedelta(hours=1)
+
+    queue_rolling_refresh(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        now=now,
+    )
+
+    queued_targets = sorted(
+        snapshot.tracker_fetch_targets,
+        key=lambda item: item.next_fetch_not_before or now,
+    )
+    assert queued_targets[0].origin_airport == "LAX"
+    assert queued_targets[0].destination_airport == "SEA"
+
+
 def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Repository, monkeypatch) -> None:
     trip = save_trip(
         repository,

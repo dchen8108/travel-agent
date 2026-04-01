@@ -352,13 +352,15 @@ def _selection_sort_key(
     tracker_by_id: dict[str, Tracker],
     instance_by_id: dict[str, TripInstance],
     today: date,
-) -> tuple[date, datetime, int, str, str]:
+) -> tuple[int, date, datetime, int, str, str]:
     instance = instance_by_id.get(target.trip_instance_id)
     tracker = tracker_by_id.get(target.tracker_id)
     travel_date = tracker.travel_date if tracker else (instance.anchor_date if instance else date.max)
     last_finished = target.last_fetch_finished_at or datetime(1970, 1, 1).astimezone()
     rank = tracker.rank if tracker else 999
+    initialization_priority = 0 if target.latest_price is None else 1
     return (
+        initialization_priority,
         travel_date,
         last_finished,
         rank,
