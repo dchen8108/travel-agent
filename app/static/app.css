@@ -736,7 +736,7 @@ textarea {
 .picker-popover {
   position: absolute;
   z-index: 10;
-  top: calc(100% + 4px);
+  top: calc(100% - 1px);
   left: 0;
   right: 0;
   display: grid;
@@ -812,9 +812,12 @@ textarea {
 }
 
 .multi-select {
-  position: relative;
   display: grid;
   gap: 10px;
+}
+
+.multi-select-control {
+  position: relative;
 }
 
 .multi-select-input-row {
@@ -830,7 +833,7 @@ textarea {
 .multi-select-menu {
   position: absolute;
   z-index: 10;
-  top: calc(100% + 4px);
+  top: calc(100% - 1px);
   left: 0;
   right: 0;
   display: grid;

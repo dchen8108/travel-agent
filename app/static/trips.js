@@ -66,20 +66,27 @@
       root.innerHTML = `
         <div class="multi-select">
           <div class="chip-list" data-chip-list></div>
-          <div class="multi-select-input-row">
-            <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
-            ${Number.isFinite(maxSelections) ? '<span class="multi-select-count" data-count></span>' : ""}
-          </div>
           ${helperText ? `<p class="picker-helper">${helperText}</p>` : ""}
-          <div class="multi-select-menu" data-menu hidden></div>
+          <div class="multi-select-control">
+            <div class="multi-select-input-row">
+              <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
+              ${Number.isFinite(maxSelections) ? '<span class="multi-select-count" data-count></span>' : ""}
+            </div>
+            <div class="multi-select-menu" data-menu hidden></div>
+          </div>
         </div>
       `;
       const chipList = root.querySelector("[data-chip-list]");
       const search = root.querySelector("[data-search]");
       const menu = root.querySelector("[data-menu]");
       const count = root.querySelector("[data-count]");
+      let closeMenuTimer = null;
 
       function closeMenu() {
+        if (closeMenuTimer) {
+          window.clearTimeout(closeMenuTimer);
+          closeMenuTimer = null;
+        }
         menu.hidden = true;
       }
 
@@ -162,6 +169,10 @@
       renderChips();
       registerPicker(root, closeMenu);
       search.addEventListener("focus", () => {
+        if (closeMenuTimer) {
+          window.clearTimeout(closeMenuTimer);
+          closeMenuTimer = null;
+        }
         closeOtherPickers(root);
         renderMenu(search.value);
       });
@@ -173,7 +184,7 @@
         }
       });
       search.addEventListener("blur", () => {
-        window.setTimeout(() => {
+        closeMenuTimer = window.setTimeout(() => {
           closeMenu();
         }, 150);
       });
@@ -365,17 +376,24 @@
     root.innerHTML = `
       <div class="multi-select">
         <div class="chip-list" data-chip-list></div>
-        <div class="multi-select-input-row">
-          <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
+        <div class="multi-select-control">
+          <div class="multi-select-input-row">
+            <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="multi-select-menu" data-menu hidden></div>
         </div>
-        <div class="multi-select-menu" data-menu hidden></div>
       </div>
     `;
     const chipList = root.querySelector("[data-chip-list]");
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
+    let closeMenuTimer = null;
 
     function closeMenu() {
+      if (closeMenuTimer) {
+        window.clearTimeout(closeMenuTimer);
+        closeMenuTimer = null;
+      }
       menu.hidden = true;
     }
 
@@ -446,6 +464,10 @@
     renderChip();
     registerPicker(root, closeMenu);
     search.addEventListener("focus", () => {
+      if (closeMenuTimer) {
+        window.clearTimeout(closeMenuTimer);
+        closeMenuTimer = null;
+      }
       closeOtherPickers(root);
       renderMenu(search.value);
     });
@@ -457,7 +479,7 @@
       }
     });
     search.addEventListener("blur", () => {
-      window.setTimeout(() => {
+      closeMenuTimer = window.setTimeout(() => {
         closeMenu();
       }, 150);
     });
