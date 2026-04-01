@@ -511,8 +511,15 @@ label {
   gap: 8px;
 }
 
-label span {
+label span,
+.field > span {
   font-weight: 700;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 input,

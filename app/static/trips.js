@@ -544,12 +544,12 @@
             </div>
           </div>
           <div class="form-grid">
-            <label><span>Origin airports</span><div data-field="origin_airports"></div></label>
-            <label><span>Destination airports</span><div data-field="destination_airports"></div></label>
-            <label><span>Airlines</span><div data-field="airlines"></div></label>
-            <label><span>Relative day</span><select data-field="day_offset"></select></label>
-            <label><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></label>
-            <label><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></label>
+            <div class="field"><span>Origin airports</span><div data-field="origin_airports"></div></div>
+            <div class="field"><span>Destination airports</span><div data-field="destination_airports"></div></div>
+            <div class="field"><span>Airlines</span><div data-field="airlines"></div></div>
+            <div class="field"><span>Relative day</span><select data-field="day_offset"></select></div>
+            <div class="field"><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></div>
+            <div class="field"><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></div>
           </div>
         `;
         const daySelect = card.querySelector('[data-field="day_offset"]');
