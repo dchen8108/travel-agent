@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from datetime import date, datetime, timedelta, timezone
 
-from app.models.base import TrackerStatus, utcnow
+from app.models.base import utcnow
 from app.models.booking import Booking
 from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
@@ -239,8 +239,6 @@ def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: R
     )
 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
-    for tracker in snapshot.trackers:
-        tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
     now = utcnow()
     for target in snapshot.tracker_fetch_targets:
         target.next_fetch_not_before = now - timedelta(seconds=1)
@@ -298,8 +296,6 @@ def test_select_due_fetch_targets_prioritizes_targets_without_a_price(repository
     )
 
     snapshot = sync_and_persist(repository)
-    for tracker in snapshot.trackers:
-        tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
     now = utcnow()
     for target in snapshot.tracker_fetch_targets:
         target.next_fetch_not_before = now - timedelta(seconds=1)
@@ -413,7 +409,6 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
 
     snapshot = sync_and_persist(repository)
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
-    tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
     for target in snapshot.tracker_fetch_targets:
         target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
@@ -610,7 +605,6 @@ def test_run_fetch_batch_filters_winner_by_exact_departure_window_but_still_reco
 
     snapshot = sync_and_persist(repository)
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
-    tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
     for target in snapshot.tracker_fetch_targets:
         target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
@@ -756,7 +750,6 @@ def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> Non
         travel_date=date(2026, 4, 10),
         start_time="06:00",
         end_time="10:00",
-        tracking_status=TrackerStatus.SIGNAL_RECEIVED,
         latest_observed_price=141,
         latest_fetched_at=utcnow(),
         last_signal_at=utcnow(),
@@ -772,7 +765,6 @@ def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> Non
     assert tracker.latest_signal_source == ""
     assert tracker.latest_winning_origin_airport == ""
     assert tracker.latest_winning_destination_airport == ""
-    assert tracker.tracking_status == TrackerStatus.TRACKING_ENABLED
 
 
 def test_fetch_rollup_uses_recent_price_window_instead_of_stale_cheapest_price() -> None:
@@ -788,7 +780,6 @@ def test_fetch_rollup_uses_recent_price_window_instead_of_stale_cheapest_price()
         travel_date=date(2026, 4, 10),
         start_time="06:00",
         end_time="10:00",
-        tracking_status=TrackerStatus.TRACKING_ENABLED,
     )
     now = utcnow()
     stale_cheap = TrackerFetchTarget(
@@ -835,7 +826,6 @@ def test_fetch_rollup_clears_tracker_when_only_stale_fetch_prices_remain() -> No
         travel_date=date(2026, 4, 10),
         start_time="06:00",
         end_time="10:00",
-        tracking_status=TrackerStatus.SIGNAL_RECEIVED,
         latest_observed_price=141,
         latest_fetched_at=utcnow() - timedelta(days=8),
         last_signal_at=utcnow() - timedelta(days=8),

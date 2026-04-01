@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,9 +10,14 @@ from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
+    comparison_tracker,
+    factual_trip_status_label,
+    factual_trip_status_reason,
+    factual_trip_status_tone,
     fetch_targets_for_tracker,
     horizon_instances_for_trip,
     load_snapshot,
+    rebook_savings,
     tracker_detail_url,
     trackers_for_instance,
     trip_focus_url,
@@ -23,6 +29,25 @@ from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates, redirect_with_message
 
 router = APIRouter(tags=["trackers"])
+
+
+@dataclass(frozen=True)
+class TrackerCardView:
+    tracker: object
+    tracker_id: str
+    rank: int
+    search_count: int
+    departure_window_label: str
+    fare_policy_label: str
+    preference_note: str
+    headline: str
+    summary: str
+    last_updated_label: str
+    next_refresh_label: str
+    is_retrying: bool
+    has_diagnostics: bool
+    fetch_targets: list
+    generated_seed_summary: str
 
 
 def _format_tracker_timestamp(value) -> str:
@@ -76,6 +101,60 @@ def _tracker_monitor_state(tracker, fetch_targets) -> dict[str, object]:
     }
 
 
+def _tracker_preference_note(tracker) -> str:
+    if tracker.preference_bias_dollars <= 0:
+        return "Treated equally with the other route options."
+    return f"Needs ${tracker.preference_bias_dollars} more savings to outrank higher options."
+
+
+def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
+    fetch_targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+    monitor = _tracker_monitor_state(tracker, fetch_targets)
+    if tracker.latest_observed_price is not None:
+        headline = f"${tracker.latest_observed_price}"
+        summary_parts = []
+        if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
+            summary_parts.append(
+                f"{tracker.latest_winning_origin_airport} → {tracker.latest_winning_destination_airport}"
+            )
+        if tracker.latest_match_summary:
+            summary_parts.append(tracker.latest_match_summary)
+        summary = " · ".join(summary_parts) or "Lowest current fare for this option."
+    elif monitor["all_no_results"]:
+        headline = "No matching flights"
+        summary = str(monitor["no_results_reason"] or "No matching flights returned right now.")
+    elif monitor["is_retrying"]:
+        headline = "Refreshing again soon"
+        summary = "A recent Google Flights request failed. Travel Agent will retry automatically."
+    elif fetch_targets:
+        headline = "Fetching current fares"
+        summary = "Travel Agent is still collecting the first live price for this option."
+    else:
+        headline = "No searches available"
+        summary = "This option does not currently have any airport-pair searches to check."
+    return TrackerCardView(
+        tracker=tracker,
+        tracker_id=tracker.tracker_id,
+        rank=tracker.rank,
+        search_count=len(fetch_targets),
+        departure_window_label=f"{tracker.travel_date.isoformat()} · {tracker.start_time}–{tracker.end_time} departure",
+        fare_policy_label=(
+            "Includes Basic fares"
+            if tracker.fare_class_policy == "include_basic"
+            else "Excludes Basic fares"
+        ),
+        preference_note=_tracker_preference_note(tracker),
+        headline=headline,
+        summary=summary,
+        last_updated_label=_format_tracker_timestamp(monitor["last_updated_at"]),
+        next_refresh_label=_format_tracker_timestamp(monitor["next_refresh_at"]),
+        is_retrying=bool(monitor["is_retrying"]),
+        has_diagnostics=bool(fetch_targets) or not bool(tracker.latest_observed_price),
+        fetch_targets=fetch_targets,
+        generated_seed_summary=generated_tracker_seed_summary(tracker),
+    )
+
+
 @router.get("/trackers", response_class=HTMLResponse)
 def trackers_index() -> RedirectResponse:
     return RedirectResponse(url="/trips", status_code=303)
@@ -103,15 +182,39 @@ def trackers_detail(
 
     trackers = trackers_for_instance(snapshot, trip_instance_id)
     total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)
-    tracker_monitor_by_id = {
-        tracker.tracker_id: _tracker_monitor_state(tracker, fetch_targets_for_tracker(snapshot, tracker.tracker_id))
-        for tracker in trackers
-    }
+    tracker_cards = [_tracker_card_view(snapshot, tracker) for tracker in trackers]
     sibling_instances = [
         instance
         for instance in horizon_instances_for_trip(snapshot, parent_trip.trip_id, today=date.today())
         if instance.trip_instance_id != trip_instance_id
     ]
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    best_current_tracker = best_tracker(snapshot, trip_instance_id)
+    comparison = comparison_tracker(snapshot, trip_instance_id)
+    status_label = factual_trip_status_label(snapshot, trip_instance_id)
+    status_reason = factual_trip_status_reason(snapshot, trip_instance_id)
+    status_tone = factual_trip_status_tone(snapshot, trip_instance_id)
+    savings = rebook_savings(snapshot, trip_instance_id)
+    current_fare_label = (
+        f"${comparison.latest_observed_price}"
+        if comparison and comparison.latest_observed_price is not None
+        else "None yet"
+    )
+    booked_fare_label = f"${booking.booked_price}" if booking else "Not booked"
+    fare_snapshot_note = ""
+    if booking and savings is not None and comparison and comparison.latest_observed_price is not None:
+        fare_snapshot_note = (
+            f"Travel Agent found a comparable fare at ${comparison.latest_observed_price}, "
+            f"${savings} below what you booked."
+        )
+    elif booking and comparison and comparison.latest_observed_price is not None:
+        fare_snapshot_note = (
+            f"Booked at ${booking.booked_price}. The latest comparable fare is ${comparison.latest_observed_price}."
+        )
+    elif booking:
+        fare_snapshot_note = f"Booked at ${booking.booked_price}. A current comparison fare is not available yet."
+    elif trackers and not (best_current_tracker and best_current_tracker.latest_observed_price is not None):
+        fare_snapshot_note = "Travel Agent is still checking the monitored searches for this date."
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -122,15 +225,18 @@ def trackers_detail(
             snapshot=snapshot,
             trip_instance=trip_instance,
             parent_trip=parent_trip,
-            trackers=trackers,
+            tracker_cards=tracker_cards,
             total_fetch_targets=total_fetch_targets,
             sibling_instances=sibling_instances,
-            booking=booking_for_instance(snapshot, trip_instance_id),
-            best_tracker=best_tracker(snapshot, trip_instance_id),
-            fetch_targets_for_tracker=fetch_targets_for_tracker,
-            generated_tracker_seed_summary=generated_tracker_seed_summary,
-            tracker_monitor_by_id=tracker_monitor_by_id,
-            format_tracker_timestamp=_format_tracker_timestamp,
+            booking=booking,
+            best_tracker=best_current_tracker,
+            comparison_tracker=comparison,
+            current_fare_label=current_fare_label,
+            booked_fare_label=booked_fare_label,
+            fare_snapshot_note=fare_snapshot_note,
+            factual_label=status_label,
+            factual_reason=status_reason,
+            factual_tone=status_tone,
             trip_focus_url=trip_focus_url,
             tracker_detail_url=tracker_detail_url,
         ),

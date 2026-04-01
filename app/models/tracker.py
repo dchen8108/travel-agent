@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import CsvModel, FareClassPolicy, TrackerStatus, utcnow
+from app.models.base import CsvModel, FareClassPolicy, utcnow
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
@@ -24,7 +24,6 @@ class Tracker(CsvModel):
     end_time: str
     fare_class_policy: FareClassPolicy = FareClassPolicy.INCLUDE_BASIC
     provider: str = "google_flights"
-    tracking_status: TrackerStatus = TrackerStatus.TRACKING_ENABLED
     last_signal_at: datetime | None = None
     latest_observed_price: int | None = None
     latest_fetched_at: datetime | None = None
@@ -72,11 +71,6 @@ class Tracker(CsvModel):
     def validate_day_offset(cls, value: int) -> int:
         if value < -1 or value > 1:
             raise ValueError("Choose a supported relative day.")
-        return value
-
-    @field_validator("tracking_status")
-    @classmethod
-    def validate_tracking_status(cls, value: TrackerStatus) -> TrackerStatus:
         return value
 
     @field_validator("fare_class_policy")

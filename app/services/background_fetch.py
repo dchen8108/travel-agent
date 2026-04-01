@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 
 import httpx
 
-from app.models.base import FetchTargetStatus, TrackerStatus, TravelState, utcnow
+from app.models.base import FetchTargetStatus, TravelState, utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance

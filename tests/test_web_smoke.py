@@ -714,7 +714,7 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
     assert "Scheduled trip" in trackers_page.text
-    assert "Tracker board" in trackers_page.text
+    assert "Current options" in trackers_page.text
     assert "Last updated:" in trackers_page.text
     assert "Next refresh:" in trackers_page.text
     assert "BUR to SFO" in trackers_page.text

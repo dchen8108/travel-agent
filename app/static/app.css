@@ -296,6 +296,19 @@ small,
   color: var(--muted);
 }
 
+.inline-back-link {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.inline-back-link:hover {
+  color: var(--ink);
+}
+
+.detail-breadcrumb {
+  margin: 0 0 6px;
+}
+
 .inline-badge-row {
   display: flex;
   gap: 8px;
@@ -385,6 +398,10 @@ small,
 
 .section {
   margin-bottom: 28px;
+}
+
+.section-tight {
+  margin-bottom: 22px;
 }
 
 .top-gap {
@@ -1127,6 +1144,11 @@ textarea {
   color: var(--muted);
 }
 
+.muted-callout {
+  border: 1px solid rgba(95, 102, 86, 0.14);
+  background: rgba(241, 236, 225, 0.72);
+}
+
 .form-section + .form-section {
   margin-top: 28px;
   padding-top: 24px;
@@ -1165,6 +1187,10 @@ textarea {
   gap: 16px;
 }
 
+.is-muted-card {
+  opacity: 0.88;
+}
+
 .tracker-price-copy {
   margin: 0;
   color: var(--ink);
@@ -1177,6 +1203,42 @@ textarea {
 .booking-card .actions,
 .resolve-card .actions {
   justify-content: flex-start;
+}
+
+.detail-hero-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.tracker-option-label {
+  margin-bottom: 6px;
+}
+
+.tracker-headline {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.tracker-summary-copy {
+  margin: 6px 0 0;
+}
+
+.tracker-details {
+  border-top: 1px solid rgba(215, 207, 191, 0.72);
+  padding-top: 12px;
+}
+
+.tracker-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.tracker-details[open] summary {
+  margin-bottom: 10px;
 }
 
 .card h4 {

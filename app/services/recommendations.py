@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from app.models.base import TrackerStatus, TravelState, utcnow
+from app.models.base import TravelState, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -33,7 +33,6 @@ def apply_fetch_target_rollups(
                 tracker.latest_winning_destination_airport = ""
                 tracker.latest_signal_source = ""
                 tracker.latest_match_summary = ""
-                tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
                 tracker.updated_at = utcnow()
             continue
         freshest_candidates = [
@@ -50,7 +49,6 @@ def apply_fetch_target_rollups(
                 tracker.latest_winning_destination_airport = ""
                 tracker.latest_signal_source = ""
                 tracker.latest_match_summary = ""
-                tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
                 tracker.updated_at = utcnow()
             continue
         winner = min(
@@ -74,7 +72,6 @@ def apply_fetch_target_rollups(
             or f"Fetched via {winner.origin_airport} → {winner.destination_airport}"
         )
         tracker.latest_signal_source = "background_fetch"
-        tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
         tracker.updated_at = utcnow()
     return trackers
 

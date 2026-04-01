@@ -53,14 +53,6 @@ class TravelState(StrEnum):
     BOOKED = "booked"
     SKIPPED = "skipped"
 
-
-class TrackerStatus(StrEnum):
-    NEEDS_SETUP = "needs_setup"
-    TRACKING_ENABLED = "tracking_enabled"
-    SIGNAL_RECEIVED = "signal_received"
-    STALE = "stale"
-
-
 class FetchTargetStatus(StrEnum):
     PENDING = "pending"
     SUCCESS = "success"

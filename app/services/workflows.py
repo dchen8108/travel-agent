@@ -8,7 +8,6 @@ from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
-from app.models.base import TrackerStatus
 from app.route_options import join_pipe, split_pipe
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
@@ -33,7 +32,6 @@ def _clear_legacy_manual_signals(trackers: list[Tracker]) -> None:
         tracker.latest_winning_destination_airport = ""
         tracker.latest_signal_source = ""
         tracker.latest_match_summary = ""
-        tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
 
 
 def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
@@ -56,7 +54,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         today=today,
         future_weeks=app_state.future_weeks,
     )
-    trackers = reconcile_trackers(trips, trip_instances, route_options, existing_trackers, today=today)
+    trackers = reconcile_trackers(trips, trip_instances, route_options, existing_trackers)
     _clear_legacy_manual_signals(trackers)
     tracker_fetch_targets = reconcile_fetch_targets(
         trackers,

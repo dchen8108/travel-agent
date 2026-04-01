@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from urllib.parse import urlencode
 
+from app.models.base import FetchTargetStatus
 from app.models.booking import Booking
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -98,6 +99,28 @@ def fetch_targets_for_tracker(snapshot: AppSnapshot, tracker_id: str) -> list[Tr
     )
 
 
+def tracker_fetch_state(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    targets = [
+        target
+        for tracker in trackers
+        for target in fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+    ]
+    statuses = {target.last_fetch_status for target in targets}
+    has_live_price = any(tracker.latest_observed_price is not None for tracker in trackers)
+    all_unavailable = bool(targets) and statuses.issubset(
+        {FetchTargetStatus.NO_RESULTS, FetchTargetStatus.NO_WINDOW_MATCH}
+    )
+    return {
+        "has_trackers": bool(trackers),
+        "has_targets": bool(targets),
+        "has_live_price": has_live_price,
+        "has_failure": FetchTargetStatus.FAILED in statuses,
+        "has_pending": FetchTargetStatus.PENDING in statuses,
+        "all_unavailable": all_unavailable,
+    }
+
+
 def booked_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
     booking = booking_for_instance(snapshot, trip_instance_id)
     if booking is None or not booking.tracker_id:
@@ -133,10 +156,16 @@ def factual_trip_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> s
         return "Skipped"
     if booking_for_instance(snapshot, trip_instance_id):
         return "Lower fare found" if rebook_savings(snapshot, trip_instance_id) is not None else "Booked"
-    tracker = best_tracker(snapshot, trip_instance_id)
-    if tracker is not None and tracker.latest_observed_price is not None:
+    fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
+    if fetch_state["has_live_price"]:
         return "Price available"
-    return "No price yet"
+    if fetch_state["all_unavailable"]:
+        return "No matching flights"
+    if fetch_state["has_failure"]:
+        return "Retrying fetch"
+    if fetch_state["has_trackers"]:
+        return "Fetching prices"
+    return "No trackers"
 
 
 def factual_trip_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> str:
@@ -149,9 +178,11 @@ def factual_trip_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> st
         return "success"
     if booking_for_instance(snapshot, trip_instance_id):
         return "neutral"
-    tracker = best_tracker(snapshot, trip_instance_id)
-    if tracker is not None and tracker.latest_observed_price is not None:
+    fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
+    if fetch_state["has_live_price"]:
         return "success"
+    if fetch_state["all_unavailable"]:
+        return "neutral"
     return "warning"
 
 
@@ -177,6 +208,7 @@ def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> 
             )
         return f"Booked at ${booking.booked_price}. No current comparison price yet."
     tracker = best_tracker(snapshot, trip_instance_id)
+    fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
     if tracker is not None and tracker.latest_observed_price is not None:
         if tracker.preference_bias_dollars > 0:
             return (
@@ -184,8 +216,12 @@ def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> 
                 f"after applying a ${tracker.preference_bias_dollars} preference buffer."
             )
         return f"Best current price is ${tracker.latest_observed_price}."
-    if trackers_for_instance(snapshot, trip_instance_id):
-        return "No current price yet."
+    if fetch_state["all_unavailable"]:
+        return "Google Flights is not returning any matching flights right now."
+    if fetch_state["has_failure"]:
+        return "A recent Google Flights request failed. Travel Agent will retry automatically."
+    if fetch_state["has_trackers"]:
+        return "Travel Agent is still fetching current prices for this date."
     return "No trackers are available for this date."
 
 

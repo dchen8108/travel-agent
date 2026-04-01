@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
 
-from app.models.base import TrackerStatus, TravelState, utcnow
+from app.models.base import TravelState, utcnow
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.trip import Trip
@@ -43,8 +42,6 @@ def reconcile_trackers(
     trip_instances: list[TripInstance],
     route_options: list[RouteOption],
     existing_trackers: list[Tracker],
-    *,
-    today: date,
 ) -> list[Tracker]:
     trip_by_id = {trip.trip_id: trip for trip in trips}
     route_options_by_trip: dict[str, list[RouteOption]] = defaultdict(list)
@@ -105,11 +102,6 @@ def reconcile_trackers(
                     existing.latest_winning_destination_airport = ""
                     existing.latest_signal_source = ""
                     existing.latest_match_summary = ""
-                    existing.tracking_status = TrackerStatus.TRACKING_ENABLED
-                if existing.tracking_status == TrackerStatus.NEEDS_SETUP:
-                    existing.tracking_status = TrackerStatus.TRACKING_ENABLED
-                if existing.last_signal_at and (today - existing.last_signal_at.date()).days > 7:
-                    existing.tracking_status = TrackerStatus.STALE
                 existing.updated_at = utcnow()
                 desired.append(existing)
                 continue
