@@ -28,7 +28,7 @@ Needs setup
 | LA to SF Outbound (2026-04-06)                              |
 | 2 route options | 0/2 trackers enabled                      |
 | Needs tracker setup before recommendations become useful    |
-| [View trip] [Trackers]                                      |
+| [Open in trips] [Trackers]                                  |
 +--------------------------------------------------------------+
 
 Open trips
@@ -36,7 +36,7 @@ Open trips
 | LA to SF Outbound (2026-04-06)                              |
 | Latest signal: $118 on Alaska from BUR -> SFO               |
 | State: wait                                                 |
-| [View details] [Record booking]                             |
+| [Open in trips] [Record booking]                            |
 +--------------------------------------------------------------+
 
 Booked trips
@@ -44,7 +44,7 @@ Booked trips
 | SF to LA Return (2026-04-08)                                |
 | Booked at $129 | Latest matched signal $109                 |
 | State: rebook                                               |
-| [View details] [Update booking]                             |
+| [Open in trips] [Bookings]                                  |
 +--------------------------------------------------------------+
 ```
 
@@ -54,40 +54,19 @@ Booked trips
 +--------------------------------------------------------------+
 | Trips                                            [New trip] |
 +--------------------------------------------------------------+
+| Recurring trips                                              |
 | LA to SF Outbound | weekly | active                         |
 | Route options: 2 | Next instance: 2026-04-06               |
-| [View] [Edit] [Pause] [Delete]                             |
+| [Show scheduled] [Edit] [Pause]                            |
 +--------------------------------------------------------------+
-| Conference Arrival | one_time | active                      |
-| Route options: 1 | Instance: 2026-05-10                    |
-| [View] [Edit] [Delete]                                     |
-+--------------------------------------------------------------+
-```
-
-## 3. Trip Detail
-
-```text
-+--------------------------------------------------------------+
-| LA to SF Outbound                                [Edit trip] |
-| Weekly | Anchor weekday: Monday | Active                    |
-+--------------------------------------------------------------+
-
-Route options
-1. BUR, LAX -> SFO | Alaska, United | Monday (T) | 06:00-10:00
-   [Move up] [Move down] [Delete]
-
-2. BUR -> SFO | Alaska | Sunday (T-1) | 18:00-21:00
-   [Move up] [Move down] [Delete]
-
-Upcoming instances
-+--------------------------------------------------------------+
-| 2026-04-06 | open    | wait                 | [View] [Skip] |
-| 2026-04-13 | booked  | booked_monitoring    | [View]        |
-| 2026-04-20 | skipped | needs_tracker_setup  | [Restore]     |
+| Scheduled trips                                              |
+| Filters: [Search] [Show skipped] [Recurring trip filters]  |
+| Conference Arrival (2026-05-10) | standalone               |
+| [Edit trip] [Record booking] [Skip]                        |
 +--------------------------------------------------------------+
 ```
 
-## 4. Trip Form
+## 3. Trip Form
 
 ```text
 Trip label: [ LA to SF Outbound                        ]
@@ -113,7 +92,7 @@ Route options
 [Save trip]
 ```
 
-## 5. Bookings
+## 4. Bookings
 
 ```text
 +--------------------------------------------------------------+
@@ -122,11 +101,11 @@ Route options
 | LA to SF Outbound (2026-04-06)                              |
 | Alaska | BUR -> SFO | 07:10 -> 08:31 | $129                 |
 | Attached to tracker option 1                                |
-| [View trip]                                                 |
+| [Open in trips]                                             |
 +--------------------------------------------------------------+
 ```
 
-## 6. Resolve
+## 5. Resolve
 
 ```text
 +--------------------------------------------------------------+
@@ -140,7 +119,7 @@ Route options
 +--------------------------------------------------------------+
 ```
 
-## 7. Trackers
+## 6. Trackers
 
 ```text
 +--------------------------------------------------------------+

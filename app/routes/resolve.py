@@ -7,7 +7,7 @@ from app.services.bookings import (
     create_one_time_trip_from_unmatched_booking,
     resolve_unmatched_booking_to_trip_instance,
 )
-from app.services.dashboard import load_snapshot
+from app.services.dashboard import load_snapshot, trip_focus_url
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -58,7 +58,10 @@ async def resolve_link(
     )
     if trip_instance is None:
         return RedirectResponse(url="/resolve?message=Booking+linked", status_code=303)
-    return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Booking+linked", status_code=303)
+    return RedirectResponse(
+        url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance.trip_instance_id),
+        status_code=303,
+    )
 
 
 @router.post("/resolve/{unmatched_booking_id}/create-trip")
@@ -86,4 +89,7 @@ async def resolve_create_trip(
     )
     if trip_instance is None:
         return RedirectResponse(url="/resolve?message=Trip+created+from+booking", status_code=303)
-    return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Trip+created+from+booking", status_code=303)
+    return RedirectResponse(
+        url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance.trip_instance_id),
+        status_code=303,
+    )

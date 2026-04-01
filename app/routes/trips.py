@@ -9,7 +9,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
 from app.models.base import TravelState
-from app.route_options import day_offset_label, route_option_summary
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
@@ -20,6 +19,7 @@ from app.services.dashboard import (
     scheduled_instances,
     trackers_for_instance,
     trip_for_instance,
+    trip_focus_url,
 )
 from app.services.trips import delete_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
@@ -180,6 +180,7 @@ def trips_index(
             best_tracker=best_tracker,
             trackers_for_instance=trackers_for_instance,
             trip_for_instance=trip_for_instance,
+            trip_focus_url=trip_focus_url,
         ),
     )
 
@@ -209,32 +210,13 @@ def new_trip(
 @router.get("/trips/{trip_id}", response_class=HTMLResponse)
 def trip_detail(
     trip_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> RedirectResponse:
     snapshot = load_snapshot(repository)
     trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
-    route_options = route_options_for_trip(snapshot, trip.trip_id)
-    trip_instances = instances_for_trip(snapshot, trip.trip_id)
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="trip_detail.html",
-        context=base_context(
-            request,
-            page="trips",
-            snapshot=snapshot,
-            trip=trip,
-            route_options=route_options,
-            trip_instances=trip_instances,
-            trackers_for_instance=trackers_for_instance,
-            booking_for_instance=booking_for_instance,
-            best_tracker=best_tracker,
-            day_offset_label=day_offset_label,
-            route_option_summary=route_option_summary,
-        ),
-    )
+    return RedirectResponse(url=trip_focus_url(snapshot, trip_id), status_code=303)
 
 
 @router.get("/trips/{trip_id}/edit", response_class=HTMLResponse)
@@ -362,6 +344,7 @@ def delete_trip_action(
 @router.post("/trip-instances/{trip_instance_id}/skip")
 def skip_trip_instance(
     trip_instance_id: str,
+    request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     trip_instances = repository.load_trip_instances()
@@ -380,13 +363,17 @@ def skip_trip_instance(
         raise HTTPException(status_code=404, detail="Trip instance not found")
     trip_instance.travel_state = TravelState.SKIPPED
     repository.save_trip_instances(trip_instances)
-    sync_and_persist(repository)
-    return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Occurrence+skipped", status_code=303)
+    snapshot = sync_and_persist(repository)
+    return _redirect_back(
+        request,
+        fallback_url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance_id, show_skipped=True),
+    )
 
 
 @router.post("/trip-instances/{trip_instance_id}/restore")
 def restore_trip_instance(
     trip_instance_id: str,
+    request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     trip_instances = repository.load_trip_instances()
@@ -395,5 +382,8 @@ def restore_trip_instance(
         raise HTTPException(status_code=404, detail="Trip instance not found")
     trip_instance.travel_state = TravelState.OPEN
     repository.save_trip_instances(trip_instances)
-    sync_and_persist(repository)
-    return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Occurrence+restored", status_code=303)
+    snapshot = sync_and_persist(repository)
+    return _redirect_back(
+        request,
+        fallback_url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance_id, show_skipped=False),
+    )

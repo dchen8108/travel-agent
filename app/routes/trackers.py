@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.base import TrackerStatus, utcnow
-from app.services.dashboard import best_tracker, load_snapshot, trackers_for_instance
+from app.services.dashboard import best_tracker, load_snapshot, trackers_for_instance, trip_focus_url
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -41,6 +41,7 @@ def trackers_index(
             ordered_groups=ordered_groups,
             best_tracker=best_tracker,
             trackers_for_instance=trackers_for_instance,
+            trip_focus_url=trip_focus_url,
         ),
     )
 

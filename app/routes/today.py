@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from app.models.base import RecommendationState, TravelState
-from app.route_options import day_offset_label, route_option_summary
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
@@ -12,6 +11,7 @@ from app.services.dashboard import (
     load_snapshot,
     route_options_for_trip,
     trackers_for_instance,
+    trip_focus_url,
 )
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -60,7 +60,6 @@ def today(
             trackers_for_instance=trackers_for_instance,
             route_options_for_trip=route_options_for_trip,
             instances_for_trip=instances_for_trip,
-            day_offset_label=day_offset_label,
-            route_option_summary=route_option_summary,
+            trip_focus_url=trip_focus_url,
         ),
     )

@@ -16,7 +16,7 @@
         <strong>{{ instance.display_label }}</strong>
         <p class="muted">{{ trackers|length }} tracker{{ '' if trackers|length == 1 else 's' }}</p>
       </div>
-      <a class="button ghost" href="/trips/{{ instance.trip_id }}">View trip</a>
+      <a class="button ghost" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
     </div>
     <div class="tracker-stack">
       {% for tracker in trackers %}

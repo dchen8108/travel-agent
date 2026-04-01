@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
 from app.services.bookings import BookingCandidate, record_booking
-from app.services.dashboard import load_snapshot
+from app.services.dashboard import load_snapshot, trip_focus_url
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -121,7 +121,10 @@ async def save_booking(
         )
         if trip_instance is None:
             return RedirectResponse(url="/bookings?message=Booking+saved", status_code=303)
-        return RedirectResponse(url=f"/trips/{trip_instance.trip_id}?message=Booking+saved", status_code=303)
+        return RedirectResponse(
+            url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance.trip_instance_id),
+            status_code=303,
+        )
     except ValueError as exc:
         snapshot = load_snapshot(repository)
         selected_trip_instance = next(

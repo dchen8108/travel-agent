@@ -275,10 +275,10 @@ For v0, a booked trip instance becomes `rebook` only when the latest matched obs
   Today dashboard.
 
 - `GET /trips`
-  Trip list and trip creation.
+  Trips-first workspace with recurring cards, scheduled-trip filters, and links into creation/editing.
 
 - `GET /trips/{trip_id}`
-  Trip detail with route options and instances.
+  Backward-compatible redirect into the filtered Trips workspace.
 
 - `GET /bookings`
   Booking list and add-booking entry point.
@@ -368,7 +368,7 @@ Only bookings should create user-facing resolution work.
 - searchable multi-select chips for airports and airlines
 - friendly day selector derived from anchor day, such as `Sunday (T-1)`
 - route options are ordered and re-rankable
-- recurring management controls are visible on the trip detail surface
+- recurring management controls live on the Trips workspace instead of a dedicated detail page
 - operational tracker detail is accessible but not the dominant UX
 
 ## Testing Strategy

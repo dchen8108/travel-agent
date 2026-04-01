@@ -33,7 +33,7 @@
     {% set instances = instances_for_trip(snapshot, trip.trip_id) %}
     {% set active_preview_instances = instances|rejectattr('travel_state', 'equalto', 'skipped')|list %}
     {% set next_active_instance = active_preview_instances|first %}
-    <article class="card">
+    <article class="card" id="recurring-{{ trip.trip_id }}">
       <div class="card-header">
         <div>
           <strong>{{ trip.label }}</strong>
@@ -57,7 +57,7 @@
       {% endif %}
       <div class="actions top-gap-small">
         <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
-        <a class="button primary" href="/trips/{{ trip.trip_id }}">View</a>
+        <a class="button primary" href="{{ trip_focus_url(snapshot, trip.trip_id) }}">Show scheduled</a>
         <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
           <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
             <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
@@ -160,10 +160,9 @@
       <div class="actions">
         {% if parent_trip %}
           {% if parent_trip.trip_kind == 'weekly' %}
-          <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}#instance-{{ instance.trip_instance_id }}">Open recurring trip</a>
+          <a class="button secondary" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=instance.trip_instance_id, show_skipped=(instance.travel_state == 'skipped')) }}">Show in scheduled</a>
           {% else %}
           <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
-          <a class="button ghost" href="/trips/{{ parent_trip.trip_id }}">View trip</a>
           {% endif %}
         {% endif %}
         {% if instance.travel_state == 'open' %}

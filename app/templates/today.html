@@ -43,7 +43,7 @@
       </div>
       <div class="actions">
         <a class="button secondary" href="/trackers">Trackers</a>
-        <a class="button primary" href="/trips/{{ instance.trip_id }}">View trip</a>
+        <a class="button primary" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
       </div>
     </article>
     {% else %}
@@ -79,7 +79,7 @@
       </div>
       <div class="actions">
         <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
-        <a class="button primary" href="/trips/{{ instance.trip_id }}">View trip</a>
+        <a class="button primary" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
       </div>
     </article>
     {% else %}
@@ -116,7 +116,7 @@
       </div>
       <div class="actions">
         <a class="button secondary" href="/bookings">Bookings</a>
-        <a class="button primary" href="/trips/{{ instance.trip_id }}">View trip</a>
+        <a class="button primary" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
       </div>
     </article>
     {% else %}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from app.models.booking import Booking
 from app.models.email_event import EmailEvent
@@ -84,6 +85,46 @@ def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | No
     if instance is None:
         return None
     return next((trip for trip in snapshot.trips if trip.trip_id == instance.trip_id), None)
+
+
+def trip_focus_url(
+    snapshot: AppSnapshot,
+    trip_id: str,
+    *,
+    trip_instance_id: str | None = None,
+    show_skipped: bool | None = None,
+) -> str:
+    trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
+    if trip is None:
+        return "/trips"
+
+    trip_instance = (
+        next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+        if trip_instance_id
+        else None
+    )
+    if show_skipped is None and trip_instance is not None:
+        show_skipped = trip_instance.travel_state == "skipped"
+
+    params: list[tuple[str, str]] = []
+    anchor = ""
+    if trip.trip_kind == "weekly":
+        params.append(("recurring_trip_id", trip.trip_id))
+        anchor = f"recurring-{trip.trip_id}"
+    else:
+        params.append(("q", trip.label))
+    if show_skipped:
+        params.append(("show_skipped", "true"))
+    if trip_instance_id:
+        anchor = f"scheduled-{trip_instance_id}"
+
+    query = urlencode(params, doseq=True)
+    url = "/trips"
+    if query:
+        url = f"{url}?{query}"
+    if anchor:
+        url = f"{url}#{anchor}"
+    return url
 
 
 def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:

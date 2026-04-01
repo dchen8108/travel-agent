@@ -169,15 +169,19 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
     assert create.status_code == 303
     trip_location = create.headers["location"]
     trip_id = trip_location.split("/trips/")[1].split("?")[0]
+    trips_page = client.get(f"/trips?q=Doctor+Visit+Flight")
+    assert trips_page.status_code == 200
+    marker = 'id="scheduled-'
+    assert marker in trips_page.text
+    trip_instance_id = trips_page.text.split(marker, 1)[1].split('"', 1)[0]
 
-    detail = client.get(f"/trips/{trip_id}")
-    assert detail.status_code == 200
-    marker = 'id="instance-'
-    assert marker in detail.text
-    trip_instance_id = detail.text.split(marker, 1)[1].split('"', 1)[0]
-
-    skip = client.post(f"/trip-instances/{trip_instance_id}/skip", follow_redirects=False)
+    skip = client.post(
+        f"/trip-instances/{trip_instance_id}/skip",
+        headers={"referer": "http://testserver/trips?q=Doctor+Visit+Flight"},
+        follow_redirects=False,
+    )
     assert skip.status_code == 303
+    assert skip.headers["location"] == "/trips?q=Doctor+Visit+Flight"
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
@@ -189,8 +193,13 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
     assert "Doctor Visit Flight" in skipped_page.text
     assert "Unskip" in skipped_page.text
 
-    restore = client.post(f"/trip-instances/{trip_instance_id}/restore", follow_redirects=False)
+    restore = client.post(
+        f"/trip-instances/{trip_instance_id}/restore",
+        headers={"referer": "http://testserver/trips?show_skipped=true"},
+        follow_redirects=False,
+    )
     assert restore.status_code == 303
+    assert restore.headers["location"] == "/trips?show_skipped=true"
 
     restored_page = client.get("/trips")
     assert restored_page.status_code == 200
@@ -220,20 +229,52 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
     assert create.status_code == 303
     trip_location = create.headers["location"]
     trip_id = trip_location.split("/trips/")[1].split("?")[0]
+    trips_page = client.get(f"/trips?recurring_trip_id={trip_id}")
+    assert trips_page.status_code == 200
+    marker = 'id="scheduled-'
+    assert marker in trips_page.text
+    trip_instance_id = trips_page.text.split(marker, 1)[1].split('"', 1)[0]
 
-    detail = client.get(f"/trips/{trip_id}")
-    assert detail.status_code == 200
-    marker = 'id="instance-'
-    assert marker in detail.text
-    trip_instance_id = detail.text.split(marker, 1)[1].split('"', 1)[0]
-
-    skip = client.post(f"/trip-instances/{trip_instance_id}/skip", follow_redirects=False)
+    skip = client.post(
+        f"/trip-instances/{trip_instance_id}/skip",
+        headers={"referer": f"http://testserver/trips?recurring_trip_id={trip_id}"},
+        follow_redirects=False,
+    )
     assert skip.status_code == 303
+    assert skip.headers["location"] == f"/trips?recurring_trip_id={trip_id}"
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert trips_page.text.count('class="badge horizon-badge') == 12
     assert 'class="badge horizon-badge is-skipped"' in trips_page.text
+
+
+def test_trip_detail_redirects_to_filtered_trips_view(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Redirect Weekly Trip",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+
+    response = client.get(f"/trips/{trip_id}", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/trips?recurring_trip_id={trip_id}#recurring-{trip_id}"
 
 
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
