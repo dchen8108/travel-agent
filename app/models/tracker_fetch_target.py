@@ -12,6 +12,7 @@ class TrackerFetchTarget(CsvModel):
     fetch_target_id: str
     tracker_id: str
     trip_instance_id: str
+    tracker_definition_signature: str = ""
     origin_airport: str
     destination_airport: str
     schedule_offset_seconds: int = 0
@@ -36,7 +37,7 @@ class TrackerFetchTarget(CsvModel):
     def validate_airport(cls, value: str) -> str:
         return normalize_airport_code(value)
 
-    @field_validator("google_flights_url", "last_fetch_error", "latest_airline", "latest_departure_label", "latest_arrival_label", "latest_summary")
+    @field_validator("tracker_definition_signature", "google_flights_url", "last_fetch_error", "latest_airline", "latest_departure_label", "latest_arrival_label", "latest_summary")
     @classmethod
     def normalize_text(cls, value: str) -> str:
         return value.strip()

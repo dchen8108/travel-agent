@@ -66,6 +66,7 @@ def test_next_refresh_time_uses_four_hour_cadence() -> None:
 
 
 def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Repository) -> None:
+    now = datetime(2026, 4, 1, 9, 0, tzinfo=timezone.utc)
     trip = save_trip(
         repository,
         trip_id=None,
@@ -89,12 +90,21 @@ def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Reposito
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
 
-    fetch_targets = [item for item in snapshot.tracker_fetch_targets if item.tracker_id == tracker.tracker_id]
+    fetch_targets = reconcile_fetch_targets(
+        snapshot.trackers,
+        snapshot.trips,
+        snapshot.trip_instances,
+        [],
+        now=now,
+    )
+    fetch_targets = [item for item in fetch_targets if item.tracker_id == tracker.tracker_id]
     assert len(fetch_targets) == 6
     assert {item.origin_airport for item in fetch_targets} == {"BUR", "LAX", "SNA"}
     assert {item.destination_airport for item in fetch_targets} == {"SFO", "OAK"}
     assert {item.schedule_offset_seconds for item in fetch_targets} == {schedule_offset_for_trip(trip.created_at)}
-    assert len({item.next_fetch_not_before for item in fetch_targets}) == 1
+    ordered_refreshes = sorted(item.next_fetch_not_before for item in fetch_targets if item.next_fetch_not_before)
+    assert ordered_refreshes[0] == now
+    assert ordered_refreshes[-1] == now + timedelta(seconds=50)
 
 
 def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
@@ -752,6 +762,7 @@ def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repositor
             fetch_target_id=item.fetch_target_id,
             tracker_id=item.tracker_id,
             trip_instance_id=item.trip_instance_id,
+            tracker_definition_signature=tracker.definition_signature,
             origin_airport=item.origin_airport,
             destination_airport=item.destination_airport,
             schedule_offset_seconds=0,
@@ -766,6 +777,62 @@ def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repositor
 
     assert {item.schedule_offset_seconds for item in rebalanced} == {schedule_offset_for_trip(trip.created_at)}
     assert len({item.next_fetch_not_before for item in rebalanced}) == 1
+
+
+def test_reconcile_fetch_targets_immediately_requeues_definition_changes(repository: Repository) -> None:
+    now = datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc)
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Immediate refresh on edit",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    initial = sync_and_persist(repository, today=date(2026, 4, 1))
+    tracker = next(
+        item
+        for item in initial.trackers
+        if item.trip_instance_id in {
+            instance.trip_instance_id for instance in initial.trip_instances if instance.trip_id == trip.trip_id
+        }
+    )
+    original_target = next(item for item in initial.tracker_fetch_targets if item.tracker_id == tracker.tracker_id)
+    original_target.latest_price = 141
+    original_target.latest_airline = "Alaska"
+    original_target.latest_summary = "Old price"
+    original_target.latest_fetched_at = now - timedelta(hours=1)
+    original_target.last_fetch_finished_at = now - timedelta(hours=1)
+    original_target.next_fetch_not_before = now + timedelta(hours=3)
+
+    tracker.start_time = "06:15"
+    tracker.end_time = "10:15"
+    tracker.definition_signature = "changed-definition"
+
+    refreshed = reconcile_fetch_targets(
+        [tracker],
+        initial.trips,
+        initial.trip_instances,
+        [original_target],
+        now=now,
+    )
+
+    updated_target = refreshed[0]
+    assert updated_target.next_fetch_not_before == now
+    assert updated_target.latest_price is None
+    assert updated_target.last_fetch_status == "pending"
+    assert updated_target.tracker_definition_signature == "changed-definition"
 def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
     trip_instance = TripInstance(
         trip_instance_id="inst_1",

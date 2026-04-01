@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import product
 
 from app.models.base import FetchTargetStatus, utcnow
@@ -20,13 +20,16 @@ def reconcile_fetch_targets(
     trips: list[Trip],
     trip_instances: list[TripInstance],
     existing_targets: list[TrackerFetchTarget],
+    *,
+    now: datetime | None = None,
 ) -> list[TrackerFetchTarget]:
     existing_by_id = {target.fetch_target_id: target for target in existing_targets}
     trip_by_id = {trip.trip_id: trip for trip in trips}
     trip_instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
-    now = utcnow()
+    now = now or utcnow()
     desired: list[TrackerFetchTarget] = []
     reschedule_basis_by_id: dict[str, datetime] = {}
+    immediate_target_ids: set[str] = set()
 
     for tracker in trackers:
         trip_instance = trip_instance_by_id.get(tracker.trip_instance_id)
@@ -47,14 +50,16 @@ def reconcile_fetch_targets(
             existing = existing_by_id.get(fetch_target_id)
             if existing:
                 url_changed = existing.google_flights_url != google_flights_url
+                definition_changed = existing.tracker_definition_signature != tracker.definition_signature
                 offset_changed = existing.schedule_offset_seconds != schedule_offset_seconds
                 existing.trip_instance_id = tracker.trip_instance_id
+                existing.tracker_definition_signature = tracker.definition_signature
                 existing.google_flights_url = google_flights_url
                 existing.updated_at = utcnow()
                 existing.schedule_offset_seconds = schedule_offset_seconds
                 if offset_changed:
                     reschedule_basis_by_id[existing.fetch_target_id] = max(now, existing.last_fetch_finished_at or now)
-                if url_changed:
+                if url_changed or definition_changed:
                     existing.latest_price = None
                     existing.latest_airline = ""
                     existing.latest_departure_label = ""
@@ -66,7 +71,7 @@ def reconcile_fetch_targets(
                     existing.consecutive_failures = 0
                     existing.last_fetch_started_at = None
                     existing.last_fetch_finished_at = None
-                    reschedule_basis_by_id[existing.fetch_target_id] = now
+                    immediate_target_ids.add(existing.fetch_target_id)
                 desired.append(existing)
                 continue
             desired.append(
@@ -74,17 +79,22 @@ def reconcile_fetch_targets(
                     fetch_target_id=fetch_target_id,
                     tracker_id=tracker.tracker_id,
                     trip_instance_id=tracker.trip_instance_id,
+                    tracker_definition_signature=tracker.definition_signature,
                     origin_airport=origin_airport,
                     destination_airport=destination_airport,
                     schedule_offset_seconds=schedule_offset_seconds,
                     google_flights_url=google_flights_url,
                 )
             )
-            reschedule_basis_by_id[fetch_target_id] = now
+            immediate_target_ids.add(fetch_target_id)
 
     desired.sort(key=lambda item: (item.trip_instance_id, item.origin_airport, item.destination_airport))
+    next_immediate_at = now
     for target in desired:
-        if target.next_fetch_not_before is None or target.fetch_target_id in reschedule_basis_by_id:
+        if target.fetch_target_id in immediate_target_ids:
+            target.next_fetch_not_before = next_immediate_at
+            next_immediate_at = next_immediate_at + timedelta(seconds=FETCH_STAGGER_SECONDS)
+        elif target.next_fetch_not_before is None or target.fetch_target_id in reschedule_basis_by_id:
             basis = reschedule_basis_by_id.get(target.fetch_target_id, max(now, target.last_fetch_finished_at or now))
             target.next_fetch_not_before = next_refresh_time(basis, target.schedule_offset_seconds)
     return desired
