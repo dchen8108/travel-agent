@@ -47,9 +47,7 @@
       </div>
       <div class="actions">
         {% if parent_trip %}
-          {% if parent_trip.trip_kind == 'weekly' %}
-          <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit recurring trip</a>
-          {% else %}
+          {% if parent_trip.trip_kind != 'weekly' %}
           <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
           {% endif %}
         {% endif %}
