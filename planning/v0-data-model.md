@@ -124,11 +124,14 @@ Allowed `travel_state` values:
 
 Allowed `recommendation_state` values:
 
-- `needs_tracker_setup`
 - `wait`
 - `book_now`
 - `booked_monitoring`
 - `rebook`
+
+Internal note:
+
+- `needs_tracker_setup` still exists as a backend-only transitional state but is not surfaced in the current MVP UI
 
 ## `trackers.csv`
 

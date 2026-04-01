@@ -25,7 +25,6 @@ This version is intentionally local and simple:
 - no paid fare APIs
 - no Gmail automation
 - no credits or hotels
-- a separate `Log past trip` flow for historical travel records
 
 ## Core Objects
 
@@ -37,8 +36,6 @@ This version is intentionally local and simple:
 - `Price Record`: one append-only fetched offer row captured for analytics history
 - `Booking`: a purchased itinerary attached to a trip instance
 - `Unmatched Booking`: a booking the system could not confidently place
-
-Past logged trips are still modeled as one-time trips internally, but they intentionally skip route-option and tracker setup. They exist to preserve history and give you a clean place to attach a booking after the fact.
 
 ## Run
 
@@ -56,15 +53,9 @@ Then open `http://127.0.0.1:8000`.
 3. Add ranked `Route Options`.
 4. Use `Trips` to manage weekly recurring trips at the parent level and review all dated scheduled trips below them.
 5. Use `Trackers` to review each route option’s airport-pair Google Flights links.
-6. Run the background fetch job to populate current prices.
+6. Let the background fetcher populate current prices automatically.
 7. Record bookings in the app.
 8. Let the app continue comparing booked prices against tracker prices.
-
-For travel that already happened:
-
-1. Use `Log past trip` from the Trips workspace.
-2. Enter a label and past date.
-3. Save it into `Past trips`, with an optional jump directly into `Add booking`.
 
 ## Tests
 

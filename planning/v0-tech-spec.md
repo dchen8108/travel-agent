@@ -206,14 +206,6 @@ This is the only user-facing resolution queue in the MVP.
 7. App generates one tracker per route option per trip instance.
 8. App generates one fetch target per tracker + airport pair.
 
-### 1b. Past Trip Logging
-
-1. User clicks `Log past trip`.
-2. User enters only a label and a past date.
-3. App creates a one-time trip and one dated trip instance.
-4. App does not create route options or trackers for that record.
-5. User can optionally jump straight into booking entry.
-
 ### 2. Weekly Reconciliation
 
 Whenever trips are regenerated:
@@ -269,7 +261,7 @@ uv run python -m app.jobs.fetch_google_flights --max-targets 3
 
 - `Recurring trips` remain the parent-management surface
 - `Scheduled trips` remain the operational surface
-- `Past trips` preserve history
+- past instances remain preserved in storage but hidden from the current UI
 
 ### Trackers
 

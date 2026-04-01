@@ -18,7 +18,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
     )
     client = TestClient(create_app(settings))
 
-    for path in ["/", "/trips", "/trips/new", "/trips/new-past", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
+    for path in ["/", "/trips", "/trips/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
 
@@ -162,6 +162,8 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text
+    assert "Log past trip" not in trips_page.text
+    assert "Past trips" not in trips_page.text
 
 
 def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_path: Path) -> None:
@@ -377,7 +379,7 @@ def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
     assert "Apply filters" in partial.text
 
 
-def test_trips_page_moves_past_trips_into_history_section(tmp_path: Path) -> None:
+def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         imported_email_dir=tmp_path / "data" / "imported_emails",
@@ -412,51 +414,10 @@ def test_trips_page_moves_past_trips_into_history_section(tmp_path: Path) -> Non
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert "Past trips" in trips_page.text
-    assert "Showing 1 scheduled trip and 1 past trip." in trips_page.text
+    assert "Past trips" not in trips_page.text
+    assert "Log past trip" not in trips_page.text
+    assert "Showing 1 scheduled trip." in trips_page.text
     assert 'id="scheduled-' in trips_page.text
-    assert 'id="past-' in trips_page.text
-
-
-def test_log_past_trip_flow_can_redirect_to_history_or_booking(tmp_path: Path) -> None:
-    settings = Settings(
-        data_dir=tmp_path / "data",
-        imported_email_dir=tmp_path / "data" / "imported_emails",
-        templates_dir=Path("app/templates"),
-        static_dir=Path("app/static"),
-    )
-    client = TestClient(create_app(settings))
-    past_date = (date.today() - timedelta(days=7)).isoformat()
-
-    save_only = client.post(
-        "/trips/past",
-        data={
-            "label": "Old commute",
-            "anchor_date": past_date,
-            "redirect_mode": "trips",
-        },
-        follow_redirects=False,
-    )
-    assert save_only.status_code == 303
-    assert "/trips?" in save_only.headers["location"]
-    assert "message=Past+trip+logged" in save_only.headers["location"]
-
-    trips_page = client.get("/trips")
-    assert "Old commute" in trips_page.text
-    assert "Add booking" in trips_page.text
-
-    save_and_add = client.post(
-        "/trips/past",
-        data={
-            "label": "Booked history",
-            "anchor_date": past_date,
-            "redirect_mode": "booking",
-        },
-        follow_redirects=False,
-    )
-    assert save_and_add.status_code == 303
-    assert save_and_add.headers["location"].startswith("/bookings/new?trip_instance_id=")
-    assert "message=Past+trip+logged" in save_and_add.headers["location"]
 def test_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -481,7 +442,8 @@ def test_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
 
     trackers_page = client.get("/trackers")
 
-    assert "Waiting for first price" in trackers_page.text
+    assert "Auto tracking on" not in trackers_page.text
+    assert "Waiting for first price" not in trackers_page.text
     assert "Last updated:" in trackers_page.text
     assert "Next refresh:" in trackers_page.text
     assert "BUR to SFO" in trackers_page.text
@@ -515,7 +477,7 @@ def test_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
 
 
-def test_skipped_trips_do_not_appear_in_past_history_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
+def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         imported_email_dir=tmp_path / "data" / "imported_emails",
@@ -538,16 +500,7 @@ def test_skipped_trips_do_not_appear_in_past_history_even_when_show_skipped_is_e
     )
     assert create.status_code == 303
 
-    trips_page = client.get("/trips?q=Skip+me+later")
-    trip_instance_id = trips_page.text.split('id="past-', 1)[1].split('"', 1)[0]
-
-    skip = client.post(
-        f"/trip-instances/{trip_instance_id}/skip",
-        headers={"referer": "http://testserver/trips?q=Skip+me+later&show_skipped=true"},
-        follow_redirects=False,
-    )
-    assert skip.status_code == 303
-
     trips_page = client.get("/trips?show_skipped=true&q=Skip+me+later")
     assert 'id="past-' not in trips_page.text
-    assert "No past trips yet." in trips_page.text
+    assert "Showing 0 scheduled trips." in trips_page.text
+    assert "No scheduled trips match these filters." in trips_page.text

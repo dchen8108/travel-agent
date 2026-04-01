@@ -141,7 +141,8 @@ def trip_focus_url(
     if show_skipped:
         params.append(("show_skipped", "true"))
     if trip_instance_id:
-        anchor = f"{'past' if trip_instance and is_past_instance(trip_instance) else 'scheduled'}-{trip_instance_id}"
+        if not (trip_instance and is_past_instance(trip_instance)):
+            anchor = f"scheduled-{trip_instance_id}"
 
     query = urlencode(params, doseq=True)
     url = "/trips"

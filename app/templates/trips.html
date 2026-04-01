@@ -4,18 +4,16 @@
   <div>
     <p class="eyebrow">Trips</p>
     <h2>Recurring trips manage the system. Scheduled trips are what you actually fly.</h2>
-    <p>Weekly trips are the parent plans that keep creating dated trips on a rolling horizon. The scheduled trips section below shows every dated trip in the system and lets you filter it down when things get busy.</p>
+    <p>Weekly trips are the parent plans that keep creating dated trips on a rolling horizon. The scheduled trips section below stays focused on upcoming travel and lets you filter it down when things get busy.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/trips/new">New trip</a>
-    <a class="button secondary" href="/trips/new-past">Log past trip</a>
   </div>
 </section>
 
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ recurring_items|length }}</span><small>recurring trips</small></div>
   <div class="summary-pill"><span>{{ total_active_scheduled }}</span><small>scheduled trips</small></div>
-  <div class="summary-pill"><span>{{ total_past }}</span><small>past trips</small></div>
   <div class="summary-pill"><span>{{ snapshot.trip_instances|selectattr('travel_state', 'equalto', 'booked')|list|length }}</span><small>booked</small></div>
 </section>
 

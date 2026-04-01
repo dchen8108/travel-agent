@@ -1,6 +1,6 @@
 <div data-scheduled-results-shell>
   <p class="muted filter-results-copy">
-    Showing {{ scheduled_items|length }} scheduled trip{{ '' if scheduled_items|length == 1 else 's' }} and {{ past_items|length }} past trip{{ '' if past_items|length == 1 else 's' }}.
+    Showing {{ scheduled_items|length }} scheduled trip{{ '' if scheduled_items|length == 1 else 's' }}.
   </p>
 
   <div class="stack top-gap-small" data-scheduled-results>
@@ -62,66 +62,9 @@
     {% else %}
     <article class="empty-state">
       <strong>No scheduled trips match these filters.</strong>
-      <p>Clear recurring trips or turn on skipped trips to widen the list again.</p>
+      <p>Clear a search term or recurring-trip filter to widen the list again.</p>
     </article>
     {% endfor %}
-    </section>
-
-    <section class="stack top-gap">
-      <div class="section-header compact">
-        <div>
-          <p class="eyebrow">Past trips</p>
-          <h3>Completed or expired history</h3>
-          <p class="muted">Past trips stay attached to their booking and tracker history, but they no longer appear in the operational queue.</p>
-        </div>
-        <a class="button secondary" href="/trips/new-past">Log past trip</a>
-      </div>
-      {% for instance in past_items %}
-      {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
-      {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
-      <article class="card scheduled-card past-card" id="past-{{ instance.trip_instance_id }}">
-        <div class="scheduled-card-head">
-          <div class="scheduled-date">
-            <small>{{ instance.anchor_date.strftime('%a') }}</small>
-            <strong>{{ instance.anchor_date.strftime('%b %d') }}</strong>
-          </div>
-          <div class="scheduled-copy">
-            <strong>{{ parent_trip.label if parent_trip else instance.display_label }}</strong>
-            <p class="muted">
-              {% if instance.instance_kind == 'generated' %}
-              From recurring trip{% if parent_trip %}: {{ parent_trip.label }}{% endif %}
-              {% else %}
-              Standalone one-time trip
-              {% endif %}
-            </p>
-            {% if booking %}
-            <p class="muted">Booked at ${{ booking.booked_price }}{% if booking.airline %} on {{ booking.airline }}{% endif %}.</p>
-            {% elif instance.travel_state == 'skipped' %}
-            <p class="muted">Skipped before travel.</p>
-            {% else %}
-            <p class="muted">No booking was attached to this trip.</p>
-            {% endif %}
-          </div>
-          <div class="badge-stack">
-            <span class="badge">{{ instance.instance_kind }}</span>
-            <span class="badge">{{ instance.travel_state }}</span>
-          </div>
-        </div>
-        <div class="actions">
-          {% if not booking %}
-          <a class="button primary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
-          {% endif %}
-        </div>
-      </article>
-      {% else %}
-      <article class="empty-state">
-        <strong>No past trips yet.</strong>
-        <p>Once a trip date passes, it will move here automatically and stay available for reference. You can also log older travel manually.</p>
-        <div class="actions top-gap-small">
-          <a class="button secondary" href="/trips/new-past">Log past trip</a>
-        </div>
-      </article>
-      {% endfor %}
     </section>
   </div>
 </div>

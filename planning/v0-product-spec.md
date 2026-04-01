@@ -121,7 +121,7 @@ One dated occurrence of a trip.
 
 - one-time trips create exactly one instance
 - weekly trips maintain the next 12 future instances
-- in the UI, dated trips move between `Scheduled trips` and `Past trips`
+- past instances are preserved in storage but hidden from the current MVP UI
 
 ### Tracker
 
@@ -171,7 +171,6 @@ The `Trips` screen should be split into:
 
 - `Recurring trips`
 - `Scheduled trips`
-- `Past trips`
 
 `Scheduled trips` should support:
 
@@ -179,13 +178,6 @@ The `Trips` screen should be split into:
 - filtering by one or more recurring trips
 - a pill-style `Show skipped` toggle
 - restoring skipped trips inline when they are visible
-
-`Past trips` should:
-
-- preserve bookings
-- preserve trip history even without a booking
-- exclude skipped trips
-- support manual historical logging through `Log past trip`
 
 ### Trackers
 

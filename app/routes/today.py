@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from app.models.base import RecommendationState, TravelState
+from app.models.base import TravelState
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
@@ -29,19 +29,11 @@ def today(
     snapshot = load_snapshot(repository)
     today = date.today()
     open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
-    setup_instances = [
-        instance
-        for instance in snapshot.trip_instances
-        if instance.anchor_date >= today
-        and instance.travel_state == TravelState.OPEN
-        and instance.recommendation_state == RecommendationState.NEEDS_TRACKER_SETUP
-    ]
     open_instances = [
         instance
         for instance in snapshot.trip_instances
         if instance.anchor_date >= today
-        if instance.travel_state == TravelState.OPEN
-        and instance.recommendation_state in {RecommendationState.WAIT, RecommendationState.BOOK_NOW}
+        and instance.travel_state == TravelState.OPEN
     ]
     booked_instances = [
         instance
@@ -57,7 +49,6 @@ def today(
             page="today",
             snapshot=snapshot,
             open_unmatched=open_unmatched,
-            setup_instances=setup_instances,
             open_instances=open_instances,
             booked_instances=booked_instances,
             booking_for_instance=booking_for_instance,

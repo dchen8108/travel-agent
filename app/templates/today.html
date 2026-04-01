@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">Today</p>
     <h2>Keep your Google Flights trackers and bookings in one place.</h2>
-    <p>Trips are the primary object. Trackers and bookings are attached underneath them, and only unresolved bookings become queue work.</p>
+    <p>Trips are the primary object. Trackers and bookings sit underneath them, and only unmatched bookings need review.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/trips/new">New trip</a>
@@ -12,46 +12,9 @@
 </section>
 
 <section class="summary-strip">
-  <div class="summary-pill"><span>{{ setup_instances|length }}</span><small>need setup</small></div>
   <div class="summary-pill"><span>{{ open_instances|length }}</span><small>open trips</small></div>
   <div class="summary-pill"><span>{{ booked_instances|length }}</span><small>booked</small></div>
   <div class="summary-pill"><span>{{ open_unmatched|length }}</span><small>to resolve</small></div>
-</section>
-
-<section class="section">
-  <div class="section-header">
-    <div>
-      <p class="eyebrow">Needs setup</p>
-      <h3>Trips without enough tracker coverage</h3>
-    </div>
-  </div>
-  <div class="card-grid">
-    {% for instance in setup_instances %}
-    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
-    <article class="card trip-card status-{{ instance.recommendation_state }}">
-      <div class="card-header">
-        <div>
-          <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ instance.recommendation_reason }}</p>
-        </div>
-        <span class="badge">{{ instance.recommendation_state }}</span>
-      </div>
-      <div class="meta-grid">
-        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
-        <div><dt>Latest price</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-      </div>
-      <div class="actions">
-        <a class="button secondary" href="/trackers">Trackers</a>
-        <a class="button primary" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
-      </div>
-    </article>
-    {% else %}
-    <article class="empty-state">
-      <strong>No setup gaps.</strong>
-      <p>All current trip instances have at least one tracker started.</p>
-    </article>
-    {% endfor %}
-  </div>
 </section>
 
 <section class="section">
@@ -84,7 +47,7 @@
     {% else %}
     <article class="empty-state">
       <strong>No open trip instances.</strong>
-      <p>Everything is either booked, skipped, or still waiting for tracker setup.</p>
+      <p>Everything upcoming is either booked or skipped right now.</p>
     </article>
     {% endfor %}
   </div>

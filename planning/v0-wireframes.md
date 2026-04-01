@@ -20,15 +20,7 @@ Trackers are visible, but they should not dominate the information architecture.
 +--------------------------------------------------------------+
 | travel-agent                                Import | Booking |
 +--------------------------------------------------------------+
-| Needs setup: 4 | Open trips: 9 | Booked: 3 | Resolve: 1      |
-+--------------------------------------------------------------+
-
-Needs setup
-+--------------------------------------------------------------+
-| LA to SF Outbound (2026-04-06)                              |
-| 2 route options | 0/2 trackers enabled                      |
-| Needs tracker setup before recommendations become useful    |
-| [Open in trips] [Trackers]                                  |
+| Open trips: 9 | Booked: 3 | Resolve: 1                       |
 +--------------------------------------------------------------+
 
 Open trips
@@ -65,9 +57,6 @@ Booked trips
 | [Show skipped toggle]                         [Clear filters]|
 | Conference Arrival (2026-05-10) | standalone               |
 | [Edit trip] [Record booking] [Skip]                        |
-| Past trips                                                   |
-| LA to SF Outbound (2026-04-01) | booked                     |
-| Booked at $129 on Alaska                                     |
 +--------------------------------------------------------------+
 ```
 
