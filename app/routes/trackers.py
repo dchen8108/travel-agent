@@ -38,14 +38,20 @@ def _tracker_monitor_state(tracker, fetch_targets) -> dict[str, object]:
         default=None,
     )
     failed_targets = [target for target in fetch_targets if target.last_fetch_status == "failed"]
-    no_results_targets = [target for target in fetch_targets if target.last_fetch_status == "no_results"]
+    unavailable_targets = [
+        target
+        for target in fetch_targets
+        if target.last_fetch_status in {"no_results", "no_window_match"}
+    ]
+    no_results_reason = next((target.last_fetch_error for target in unavailable_targets if target.last_fetch_error), "")
     if tracker.latest_observed_price is not None:
         return {
             "last_updated_at": tracker.last_signal_at or last_finished_at,
             "next_refresh_at": next_refresh_at,
             "is_retrying": bool(failed_targets),
             "all_no_results": False,
-            "no_results_count": len(no_results_targets),
+            "no_results_count": len(unavailable_targets),
+            "no_results_reason": "",
         }
     if failed_targets:
         return {
@@ -53,14 +59,16 @@ def _tracker_monitor_state(tracker, fetch_targets) -> dict[str, object]:
             "next_refresh_at": next_refresh_at,
             "is_retrying": True,
             "all_no_results": False,
-            "no_results_count": len(no_results_targets),
+            "no_results_count": len(unavailable_targets),
+            "no_results_reason": no_results_reason,
         }
     return {
         "last_updated_at": last_finished_at,
         "next_refresh_at": next_refresh_at,
         "is_retrying": False,
-        "all_no_results": bool(fetch_targets) and len(no_results_targets) == len(fetch_targets),
-        "no_results_count": len(no_results_targets),
+        "all_no_results": bool(fetch_targets) and len(unavailable_targets) == len(fetch_targets),
+        "no_results_count": len(unavailable_targets),
+        "no_results_reason": no_results_reason,
     }
 
 

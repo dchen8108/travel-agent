@@ -113,6 +113,7 @@ def main() -> None:
                 price=attempt.price,
                 airline=attempt.airline,
                 offer_count=attempt.offer_count,
+                matching_offer_count=attempt.matching_offer_count,
                 next_refresh_at=attempt.next_fetch_not_before.isoformat() if attempt.next_fetch_not_before else "",
                 google_flights_url=target.google_flights_url if target else "",
                 error=attempt.error,

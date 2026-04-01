@@ -15,6 +15,8 @@ from app.services.ids import new_id
 from app.services.google_flights_fetcher import (
     GoogleFlightsNoResultsError,
     best_google_flights_offer,
+    departure_time_from_offer_label,
+    filter_google_flights_offers_by_departure_window,
     parse_google_flights_offers,
 )
 from app.services.price_records import build_price_records
@@ -116,6 +118,41 @@ def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
     assert winner is not None
     assert winner.airline == "Alaska"
     assert winner.price == 241
+
+
+def test_departure_time_filter_supports_minute_precision() -> None:
+    offers = parse_google_flights_offers(
+        """
+        <div jsname="IWWDBc">
+          <ul class="Rk10dc">
+            <li>
+              <div class="sSHqwe tPgKwe ogfYpf"><span>Southwest</span></div>
+              <span class="mv1WYe"><div>2:15 PM on Wed, Apr 1</div><div>3:30 PM on Wed, Apr 1</div></span>
+              <div class="YMlIz FpEdX">$119</div>
+            </li>
+            <li>
+              <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+              <span class="mv1WYe"><div>2:45 PM on Wed, Apr 1</div><div>4:00 PM on Wed, Apr 1</div></span>
+              <div class="YMlIz FpEdX">$129</div>
+            </li>
+            <li>
+              <div class="sSHqwe tPgKwe ogfYpf"><span>United</span></div>
+              <span class="mv1WYe"><div>5:45 PM on Wed, Apr 1</div><div>7:00 PM on Wed, Apr 1</div></span>
+              <div class="YMlIz FpEdX">$109</div>
+            </li>
+          </ul>
+        </div>
+        """
+    )
+
+    assert departure_time_from_offer_label(offers[0].departure_label) == "14:15"
+    matching = filter_google_flights_offers_by_departure_window(
+        offers,
+        start_time="14:30",
+        end_time="17:30",
+    )
+
+    assert [offer.airline for offer in matching] == ["Alaska"]
 
 
 def test_parse_google_flights_offers_distinguishes_no_results_from_parse_failures() -> None:
@@ -255,6 +292,7 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert result.attempts[0].status == "success"
     assert result.attempts[0].price == 141
     assert result.attempts[0].offer_count == 1
+    assert result.attempts[0].matching_offer_count == 1
 
 
 def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repository, monkeypatch) -> None:
@@ -371,12 +409,174 @@ def test_run_fetch_batch_marks_no_results_without_counting_a_failure(repository:
     assert result.fetched_count == 1
     assert len(result.attempts) == 1
     assert result.attempts[0].status == "no_results"
+    assert result.attempts[0].matching_offer_count == 0
     assert target.last_fetch_status == "no_results"
     assert target.consecutive_failures == 0
-    assert target.last_fetch_error == ""
+    assert target.last_fetch_error == "No flight prices found in the Google Flights response."
     assert target.latest_price is None
     assert target.latest_airline == ""
     assert target.latest_summary == ""
+
+
+def test_run_fetch_batch_filters_winner_by_exact_departure_window_but_still_records_all_offers(
+    repository: Repository,
+    monkeypatch,
+) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Precise departure window",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska|Southwest|United",
+                "day_offset": 0,
+                "start_time": "14:30",
+                "end_time": "17:30",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
+    tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname="IWWDBc">
+              <ul class="Rk10dc">
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Southwest</span></div>
+                  <span class="mv1WYe"><div>2:15 PM on Wed, Apr 1</div><div>3:30 PM on Wed, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$119</div>
+                </li>
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+                  <span class="mv1WYe"><div>2:45 PM on Wed, Apr 1</div><div>4:00 PM on Wed, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$129</div>
+                </li>
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>United</span></div>
+                  <span class="mv1WYe"><div>5:45 PM on Wed, Apr 1</div><div>7:00 PM on Wed, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$109</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        sleep_between_requests=False,
+        startup_jitter_seconds=0,
+    )
+
+    assert result.attempts[0].status == "success"
+    assert result.attempts[0].price == 129
+    assert result.attempts[0].offer_count == 3
+    assert result.attempts[0].matching_offer_count == 1
+
+    apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
+    assert tracker.latest_observed_price == 129
+
+    records = build_price_records(
+        trips=snapshot.trips,
+        trip_instances=snapshot.trip_instances,
+        trackers=snapshot.trackers,
+        fetch_targets=snapshot.tracker_fetch_targets,
+        successful_fetches=result.successful_fetches,
+    )
+    assert len(records) == 3
+    assert {record.price for record in records} == {109, 119, 129}
+
+
+def test_run_fetch_batch_marks_no_results_when_broad_query_returns_only_out_of_window_offers(
+    repository: Repository,
+    monkeypatch,
+) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Out of window only",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska|Southwest|United",
+                "day_offset": 0,
+                "start_time": "14:30",
+                "end_time": "17:30",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname="IWWDBc">
+              <ul class="Rk10dc">
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Southwest</span></div>
+                  <span class="mv1WYe"><div>2:15 PM on Wed, Apr 1</div><div>3:30 PM on Wed, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$119</div>
+                </li>
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>United</span></div>
+                  <span class="mv1WYe"><div>5:45 PM on Wed, Apr 1</div><div>7:00 PM on Wed, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$109</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        sleep_between_requests=False,
+        startup_jitter_seconds=0,
+    )
+
+    assert result.attempts[0].status == "no_window_match"
+    assert result.attempts[0].offer_count == 2
+    assert result.attempts[0].matching_offer_count == 0
+    assert "exact departure window" in result.attempts[0].error
+
+    records = build_price_records(
+        trips=snapshot.trips,
+        trip_instances=snapshot.trip_instances,
+        trackers=snapshot.trackers,
+        fetch_targets=snapshot.tracker_fetch_targets,
+        successful_fetches=result.successful_fetches,
+    )
+    assert len(records) == 2
+
+
 def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> None:
     tracker = Tracker(
         tracker_id="trk_1",

@@ -15,8 +15,10 @@ from app.services.fetch_targets import FETCH_STAGGER_SECONDS, next_refresh_time
 from app.services.google_flights_fetcher import (
     GoogleFlightsFetchError,
     GoogleFlightsNoResultsError,
+    GoogleFlightsNoWindowMatchError,
     best_google_flights_offer,
     fetch_google_flights_offers,
+    filter_google_flights_offers_by_departure_window,
 )
 from app.services.price_records import SuccessfulFetchRecord
 
@@ -51,6 +53,7 @@ class FetchAttemptResult:
     price: int | None = None
     airline: str = ""
     offer_count: int = 0
+    matching_offer_count: int = 0
     error: str = ""
 
 
@@ -166,13 +169,11 @@ def run_fetch_batch(
             if not tracker or not instance:
                 continue
             fetch_started_at = utcnow()
+            offers = []
             target.last_fetch_started_at = fetch_started_at
             target.updated_at = fetch_started_at
             try:
                 offers = fetch_google_flights_offers(target.google_flights_url, client=client)
-                winner = best_google_flights_offer(offers)
-                if winner is None:
-                    raise GoogleFlightsFetchError("No usable offers found.")
                 fetched_at = utcnow()
                 successful_fetches.append(
                     SuccessfulFetchRecord(
@@ -181,6 +182,14 @@ def run_fetch_batch(
                         offers=list(offers),
                     )
                 )
+                matching_offers = filter_google_flights_offers_by_departure_window(
+                    offers,
+                    start_time=tracker.start_time,
+                    end_time=tracker.end_time,
+                )
+                winner = best_google_flights_offer(matching_offers)
+                if winner is None:
+                    raise GoogleFlightsNoWindowMatchError("Flights were found, but none matched the exact departure window.")
                 target.latest_price = winner.price
                 target.latest_airline = winner.airline
                 target.latest_departure_label = winner.departure_label
@@ -210,9 +219,10 @@ def run_fetch_batch(
                         price=winner.price,
                         airline=winner.airline,
                         offer_count=len(offers),
+                        matching_offer_count=len(matching_offers),
                     )
                 )
-            except GoogleFlightsNoResultsError:
+            except GoogleFlightsNoResultsError as exc:
                 no_results_at = utcnow()
                 target.latest_price = None
                 target.latest_airline = ""
@@ -222,7 +232,7 @@ def run_fetch_batch(
                 target.latest_fetched_at = None
                 target.last_fetch_finished_at = no_results_at
                 target.last_fetch_status = FetchTargetStatus.NO_RESULTS
-                target.last_fetch_error = ""
+                target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at)
                 target.updated_at = no_results_at
@@ -240,6 +250,42 @@ def run_fetch_batch(
                         fetched_at=no_results_at,
                         next_fetch_not_before=target.next_fetch_not_before,
                         duration_seconds=(no_results_at - fetch_started_at).total_seconds(),
+                        offer_count=len(offers),
+                        matching_offer_count=0,
+                        error=str(exc),
+                    )
+                )
+            except GoogleFlightsNoWindowMatchError as exc:
+                no_window_match_at = utcnow()
+                target.latest_price = None
+                target.latest_airline = ""
+                target.latest_departure_label = ""
+                target.latest_arrival_label = ""
+                target.latest_summary = ""
+                target.latest_fetched_at = None
+                target.last_fetch_finished_at = no_window_match_at
+                target.last_fetch_status = FetchTargetStatus.NO_WINDOW_MATCH
+                target.last_fetch_error = str(exc)
+                target.consecutive_failures = 0
+                target.next_fetch_not_before = success_backoff_for_tracker(target, no_window_match_at)
+                target.updated_at = no_window_match_at
+                attempts.append(
+                    FetchAttemptResult(
+                        fetch_target_id=target.fetch_target_id,
+                        tracker_id=target.tracker_id,
+                        trip_instance_id=target.trip_instance_id,
+                        origin_airport=target.origin_airport,
+                        destination_airport=target.destination_airport,
+                        travel_date=tracker.travel_date,
+                        tracker_rank=tracker.rank,
+                        status=FetchTargetStatus.NO_WINDOW_MATCH,
+                        started_at=fetch_started_at,
+                        fetched_at=no_window_match_at,
+                        next_fetch_not_before=target.next_fetch_not_before,
+                        duration_seconds=(no_window_match_at - fetch_started_at).total_seconds(),
+                        offer_count=len(offers),
+                        matching_offer_count=0,
+                        error=str(exc),
                     )
                 )
             except Exception as exc:
@@ -267,6 +313,7 @@ def run_fetch_batch(
                         fetched_at=failed_at,
                         next_fetch_not_before=target.next_fetch_not_before,
                         duration_seconds=(failed_at - fetch_started_at).total_seconds(),
+                        offer_count=len(offers),
                         error=str(exc),
                     )
                 )

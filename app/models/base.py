@@ -63,6 +63,7 @@ class FetchTargetStatus(StrEnum):
     PENDING = "pending"
     SUCCESS = "success"
     NO_RESULTS = "no_results"
+    NO_WINDOW_MATCH = "no_window_match"
     FAILED = "failed"
 
 

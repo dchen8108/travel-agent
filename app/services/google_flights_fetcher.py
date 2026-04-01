@@ -7,6 +7,8 @@ from datetime import datetime
 import httpx
 from selectolax.lexbor import LexborHTMLParser
 
+from app.route_options import time_in_window
+
 
 GOOGLE_FLIGHTS_HEADERS = {
     "User-Agent": (
@@ -46,6 +48,10 @@ class GoogleFlightsFetchError(RuntimeError):
 
 
 class GoogleFlightsNoResultsError(GoogleFlightsFetchError):
+    pass
+
+
+class GoogleFlightsNoWindowMatchError(GoogleFlightsFetchError):
     pass
 
 
@@ -114,6 +120,46 @@ def best_google_flights_offer(offers: list[GoogleFlightsOffer]) -> GoogleFlights
     if not offers:
         return None
     return min(offers, key=lambda item: (item.price, item.airline, item.departure_label, item.arrival_label))
+
+
+def departure_time_for_offer(offer: GoogleFlightsOffer) -> str | None:
+    return departure_time_from_offer_label(offer.departure_label)
+
+
+def departure_time_from_offer_label(label: str) -> str | None:
+    if not label:
+        return None
+    first_part = label.split(" on ", 1)[0].strip()
+    for time_format in ("%I:%M %p", "%I %p"):
+        try:
+            parsed = datetime.strptime(first_part, time_format)
+            return parsed.strftime("%H:%M")
+        except ValueError:
+            continue
+    match = re.search(r"(\d{1,2}(?::\d{2})?\s*[AP]M)", first_part, flags=re.IGNORECASE)
+    if not match:
+        return None
+    normalized = match.group(1).upper().replace("  ", " ").strip()
+    for time_format in ("%I:%M %p", "%I %p"):
+        try:
+            parsed = datetime.strptime(normalized, time_format)
+            return parsed.strftime("%H:%M")
+        except ValueError:
+            continue
+    return None
+
+
+def filter_google_flights_offers_by_departure_window(
+    offers: list[GoogleFlightsOffer],
+    *,
+    start_time: str,
+    end_time: str,
+) -> list[GoogleFlightsOffer]:
+    return [
+        offer
+        for offer in offers
+        if time_in_window(start_time, end_time, departure_time_for_offer(offer))
+    ]
 
 
 def now_utc() -> datetime:
