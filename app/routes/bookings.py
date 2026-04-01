@@ -10,7 +10,7 @@ from app.services.bookings import BookingCandidate, record_booking
 from app.services.dashboard import load_snapshot, trackers_for_instance, trip_for_instance, trip_instance_by_id
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates
+from app.web import base_context, get_repository, get_templates, redirect_with_message
 
 router = APIRouter(tags=["bookings"])
 
@@ -133,7 +133,7 @@ async def save_booking(
         )
         sync_and_persist(repository)
         if unmatched is not None:
-            return RedirectResponse(url="/resolve?message=Booking+needs+resolution", status_code=303)
+            return redirect_with_message("/resolve", "Booking needs resolution")
         if booking is None:
             raise HTTPException(status_code=500, detail="Booking was not saved.")
         snapshot = load_snapshot(repository)
@@ -142,8 +142,8 @@ async def save_booking(
             None,
         )
         if trip_instance is None:
-            return RedirectResponse(url="/bookings?message=Booking+saved", status_code=303)
-        return RedirectResponse(url=f"/trip-instances/{trip_instance.trip_instance_id}?message=Booking+saved", status_code=303)
+            return redirect_with_message("/bookings", "Booking saved")
+        return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", "Booking saved")
     except ValueError as exc:
         snapshot = load_snapshot(repository)
         selected_trip_instance = next(

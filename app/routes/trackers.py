@@ -5,7 +5,6 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.services.background_fetch import queue_rolling_refresh
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
     best_tracker,
@@ -18,9 +17,10 @@ from app.services.dashboard import (
     trip_focus_url,
     trip_for_instance,
 )
+from app.services.refresh_queue import queued_refresh_message, queue_refresh_for_trip_instance
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates
+from app.web import base_context, get_repository, get_templates, redirect_with_message
 
 router = APIRouter(tags=["trackers"])
 
@@ -147,17 +147,10 @@ def queue_tracker_refresh(
     if trip_instance is None:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
 
-    queued_count = queue_rolling_refresh(
-        snapshot.trackers,
-        snapshot.trip_instances,
-        snapshot.tracker_fetch_targets,
-        trip_instance_ids={trip_instance_id},
-    )
-    repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+    queued_count = queue_refresh_for_trip_instance(snapshot, repository, trip_instance_id=trip_instance_id)
     if queued_count == 0:
-        message = "Nothing+to+refresh+yet."
-    elif queued_count == 1:
-        message = "Refresh+queued+for+1+airport-pair+search."
-    else:
-        message = f"Refresh+queued+for+{queued_count}+airport-pair+searches."
-    return RedirectResponse(url=f"{tracker_detail_url(trip_instance_id)}?message={message}", status_code=303)
+        return redirect_with_message(tracker_detail_url(trip_instance_id), "Nothing to refresh yet.")
+    return redirect_with_message(
+        tracker_detail_url(trip_instance_id),
+        queued_refresh_message("Refresh queued", queued_count),
+    )

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from urllib.parse import parse_qsl, quote_plus, urlencode, urlsplit, urlunsplit
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
 from app.models.base import TravelState
-from app.services.background_fetch import queue_rolling_refresh
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
@@ -24,40 +23,17 @@ from app.services.dashboard import (
     trip_for_instance,
     trip_focus_url,
 )
+from app.services.refresh_queue import (
+    queued_refresh_message,
+    queue_refresh_for_trip,
+    queue_refresh_for_trip_instance,
+)
 from app.services.trips import delete_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates
+from app.web import base_context, get_repository, get_templates, redirect_back
 
 router = APIRouter(tags=["trips"])
-
-
-def _redirect_back(request: Request, *, fallback_url: str, message: str | None = None) -> RedirectResponse:
-    referer = request.headers.get("referer", "")
-    if referer:
-        parsed = urlsplit(referer)
-        same_origin = (
-            (not parsed.scheme and not parsed.netloc)
-            or (
-                parsed.scheme == request.url.scheme
-                and parsed.netloc == request.url.netloc
-            )
-        )
-        if same_origin and parsed.path.startswith("/"):
-            target = parsed.path
-            if parsed.query:
-                target = f"{target}?{parsed.query}"
-            if message:
-                target = _with_message(target, message)
-            return RedirectResponse(url=target, status_code=303)
-    return RedirectResponse(url=_with_message(fallback_url, message) if message else fallback_url, status_code=303)
-
-
-def _with_message(url: str, message: str) -> str:
-    parsed = urlsplit(url)
-    params = parse_qsl(parsed.query, keep_blank_values=True)
-    params.append(("message", message))
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(params, doseq=True), parsed.fragment))
 
 
 def _trip_form_state(trip, route_options):
@@ -248,43 +224,33 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     }
 
 
-def _queued_refresh_message(base_message: str, queued_count: int) -> str:
-    if queued_count == 1:
-        return f"{base_message}. Refresh queued for 1 airport-pair search."
-    if queued_count > 1:
-        return f"{base_message}. Refresh queued for {queued_count} airport-pair searches."
-    return base_message
-
-
-def _queue_trip_refreshes(snapshot, repository: Repository, *, trip_id: str) -> int:
-    trip_instance_ids = {
-        instance.trip_instance_id
-        for instance in horizon_instances_for_trip(snapshot, trip_id, today=date.today())
-        if instance.travel_state != TravelState.SKIPPED
-    }
-    if not trip_instance_ids:
-        return 0
-    queued_count = queue_rolling_refresh(
-        snapshot.trackers,
-        snapshot.trip_instances,
-        snapshot.tracker_fetch_targets,
-        trip_instance_ids=trip_instance_ids,
+def _render_trip_form(
+    request: Request,
+    *,
+    snapshot,
+    trip,
+    route_options,
+    trip_form_state,
+    route_option_state,
+    error_message: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="trip_form.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            trip=trip,
+            route_options=route_options,
+            error_message=error_message or "",
+            trip_form_state=trip_form_state,
+            route_option_state=route_option_state,
+            catalogs_json=catalogs_json(),
+        ),
+        status_code=status_code,
     )
-    if queued_count:
-        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
-    return queued_count
-
-
-def _queue_trip_instance_refresh(snapshot, repository: Repository, *, trip_instance_id: str) -> int:
-    queued_count = queue_rolling_refresh(
-        snapshot.trackers,
-        snapshot.trip_instances,
-        snapshot.tracker_fetch_targets,
-        trip_instance_ids={trip_instance_id},
-    )
-    if queued_count:
-        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
-    return queued_count
 
 
 @router.get("/trips", response_class=HTMLResponse)
@@ -328,19 +294,13 @@ def new_trip(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="trip_form.html",
-        context=base_context(
-            request,
-            page="trips",
-            snapshot=snapshot,
-            trip=None,
-            route_options=[],
-            trip_form_state=_trip_form_state(None, []),
-            route_option_state=_route_option_state([]),
-            catalogs_json=catalogs_json(),
-        ),
+    return _render_trip_form(
+        request,
+        snapshot=snapshot,
+        trip=None,
+        route_options=[],
+        trip_form_state=_trip_form_state(None, []),
+        route_option_state=_route_option_state([]),
     )
 
 
@@ -379,19 +339,13 @@ def edit_trip(
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
     route_options = route_options_for_trip(snapshot, trip.trip_id)
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="trip_form.html",
-        context=base_context(
-            request,
-            page="trips",
-            snapshot=snapshot,
-            trip=trip,
-            route_options=route_options,
-            trip_form_state=_trip_form_state(trip, route_options),
-            route_option_state=_route_option_state(route_options),
-            catalogs_json=catalogs_json(),
-        ),
+    return _render_trip_form(
+        request,
+        snapshot=snapshot,
+        trip=trip,
+        route_options=route_options,
+        trip_form_state=_trip_form_state(trip, route_options),
+        route_option_state=_route_option_state(route_options),
     )
 
 
@@ -427,32 +381,26 @@ async def save_trip_action(
             route_option_payloads=route_options,
         )
         snapshot = sync_and_persist(repository)
-        queued_count = _queue_trip_refreshes(snapshot, repository, trip_id=trip.trip_id)
-        message = _queued_refresh_message("Trip saved", queued_count)
+        queued_count = queue_refresh_for_trip(snapshot, repository, trip_id=trip.trip_id)
+        message = queued_refresh_message("Trip saved", queued_count)
         return RedirectResponse(url=f"/trips/{trip.trip_id}?message={quote_plus(message)}", status_code=303)
     except ValueError as exc:
         snapshot = load_snapshot(repository)
-        return get_templates(request).TemplateResponse(
-            request=request,
-            name="trip_form.html",
-            context=base_context(
-                request,
-                page="trips",
-                snapshot=snapshot,
-                trip=None,
-                route_options=[],
-                error_message=str(exc),
+        return _render_trip_form(
+            request,
+            snapshot=snapshot,
+            trip=existing_trip,
+            route_options=[],
+            error_message=str(exc),
             trip_form_state={
-                    "trip_id": trip_id or "",
-                    "label": str(form.get("label", "")).strip(),
-                    "trip_kind": trip_kind,
-                    "preference_mode": preference_mode,
-                    "anchor_date": anchor_date_value,
-                    "anchor_weekday": anchor_weekday or "Monday",
-                },
-                route_option_state=_route_option_state_from_payloads(raw_route_option_state),
-                catalogs_json=catalogs_json(),
-            ),
+                "trip_id": trip_id or "",
+                "label": str(form.get("label", "")).strip(),
+                "trip_kind": trip_kind,
+                "preference_mode": preference_mode,
+                "anchor_date": anchor_date_value,
+                "anchor_weekday": anchor_weekday or "Monday",
+            },
+            route_option_state=_route_option_state_from_payloads(raw_route_option_state),
             status_code=400,
         )
 
@@ -468,7 +416,7 @@ def pause_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sync_and_persist(repository)
-    return _redirect_back(request, fallback_url="/trips", message="Trip paused")
+    return redirect_back(request, fallback_url="/trips", message="Trip paused")
 
 
 @router.post("/trips/{trip_id}/activate")
@@ -482,11 +430,11 @@ def activate_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = sync_and_persist(repository)
-    queued_count = _queue_trip_refreshes(snapshot, repository, trip_id=trip_id)
-    return _redirect_back(
+    queued_count = queue_refresh_for_trip(snapshot, repository, trip_id=trip_id)
+    return redirect_back(
         request,
         fallback_url="/trips",
-        message=_queued_refresh_message("Trip activated", queued_count),
+        message=queued_refresh_message("Trip activated", queued_count),
     )
 
 
@@ -523,7 +471,7 @@ def skip_trip_instance(
     trip_instance.travel_state = TravelState.SKIPPED
     repository.save_trip_instances(trip_instances)
     sync_and_persist(repository)
-    return _redirect_back(
+    return redirect_back(
         request,
         fallback_url=f"/trip-instances/{trip_instance_id}",
         message="Trip skipped",
@@ -543,9 +491,9 @@ def restore_trip_instance(
     trip_instance.travel_state = TravelState.OPEN
     repository.save_trip_instances(trip_instances)
     snapshot = sync_and_persist(repository)
-    queued_count = _queue_trip_instance_refresh(snapshot, repository, trip_instance_id=trip_instance_id)
-    return _redirect_back(
+    queued_count = queue_refresh_for_trip_instance(snapshot, repository, trip_instance_id=trip_instance_id)
+    return redirect_back(
         request,
         fallback_url=f"/trip-instances/{trip_instance_id}",
-        message=_queued_refresh_message("Trip restored", queued_count),
+        message=queued_refresh_message("Trip restored", queued_count),
     )

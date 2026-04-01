@@ -1,36 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
 
 from app.models.booking import Booking
-from app.models.base import TrackerStatus
-from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
-from app.models.unmatched_booking import UnmatchedBooking
+from app.models.base import TrackerStatus
 from app.route_options import join_pipe, split_pipe
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
+from app.services.snapshots import AppSnapshot
 from app.services.trackers import reconcile_trackers
 from app.services.trip_instances import reconcile_trip_instances
 from app.storage.repository import Repository
-
-
-@dataclass
-class WorkflowSnapshot:
-    trips: list[Trip]
-    route_options: list[RouteOption]
-    trip_instances: list[TripInstance]
-    trackers: list[Tracker]
-    tracker_fetch_targets: list[TrackerFetchTarget]
-    bookings: list[Booking]
-    unmatched_bookings: list[UnmatchedBooking]
-    price_records: list[PriceRecord]
-    app_state: object
 
 
 def _filter_candidate_trip_ids(value: str, valid_ids: set[str]) -> str:
@@ -51,7 +36,7 @@ def _clear_legacy_manual_signals(trackers: list[Tracker]) -> None:
         tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
 
 
-def sync_and_persist(repository: Repository, *, today: date | None = None) -> WorkflowSnapshot:
+def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
     repository.ensure_data_dir()
     today = today or date.today()
 
@@ -106,7 +91,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Wo
     repository.save_bookings(bookings)
     repository.save_unmatched_bookings(unmatched_bookings)
 
-    return WorkflowSnapshot(
+    return AppSnapshot(
         trips=trips,
         route_options=route_options,
         trip_instances=trip_instances,

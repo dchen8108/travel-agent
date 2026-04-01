@@ -10,7 +10,7 @@ from app.services.bookings import (
 from app.services.dashboard import is_past_instance, load_snapshot
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates
+from app.web import base_context, get_repository, get_templates, redirect_with_message
 
 router = APIRouter(tags=["resolve"])
 
@@ -66,8 +66,8 @@ async def resolve_link(
         None,
     )
     if trip_instance is None:
-        return RedirectResponse(url="/resolve?message=Booking+linked", status_code=303)
-    return RedirectResponse(url=f"/trip-instances/{trip_instance.trip_instance_id}?message=Booking+linked", status_code=303)
+        return redirect_with_message("/resolve", "Booking linked")
+    return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", "Booking linked")
 
 
 @router.post("/resolve/{unmatched_booking_id}/create-trip")
@@ -87,12 +87,12 @@ async def resolve_create_trip(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError:
-        return RedirectResponse(url="/resolve?message=Could+not+create+trip", status_code=303)
+        return redirect_with_message("/resolve", "Could not create trip")
     snapshot = sync_and_persist(repository)
     trip_instance = next(
         (item for item in snapshot.trip_instances if item.trip_instance_id == booking.trip_instance_id),
         None,
     )
     if trip_instance is None:
-        return RedirectResponse(url="/resolve?message=Trip+created+from+booking", status_code=303)
-    return RedirectResponse(url=f"/trip-instances/{trip_instance.trip_instance_id}?message=Trip+created+from+booking", status_code=303)
+        return redirect_with_message("/resolve", "Trip created from booking")
+    return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", "Trip created from booking")

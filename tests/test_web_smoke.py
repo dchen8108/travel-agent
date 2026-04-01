@@ -151,6 +151,62 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
     assert "cheaper by at least your configured amount" in detail.text
 
 
+def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    first = client.post(
+        "/trips",
+        data={
+            "label": "Original Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    second = client.post(
+        "/trips",
+        data={
+            "label": "Conflict Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-07",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert first.status_code == 303
+    assert second.status_code == 303
+
+    trip_id = first.headers["location"].split("/trips/")[1].split("?")[0]
+    response = client.post(
+        "/trips",
+        data={
+            "trip_id": trip_id,
+            "label": "Conflict Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "preference_mode": "equal",
+            "route_options_json": '[{"route_option_id":"opt_existing","origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Trip not saved." in response.text
+    assert "Trip labels must be unique." in response.text
+    assert "<p class=\"eyebrow\">Edit trip</p>" in response.text
+    assert f'name=\"trip_id\" value=\"{trip_id}\"' in response.text
+
+
 def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
