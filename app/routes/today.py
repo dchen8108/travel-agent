@@ -5,11 +5,13 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from app.models.base import RecommendationState, TravelState
+from app.models.base import TravelState
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
+    factual_trip_status_label,
     load_snapshot,
+    rebook_savings,
     trip_for_instance,
     trip_focus_url,
 )
@@ -41,21 +43,20 @@ def today(
     open_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))
     booked_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))
 
-    action_open_instances = [
-        instance for instance in open_instances if instance.recommendation_state == RecommendationState.BOOK_NOW
-    ]
     action_booked_instances = [
-        instance for instance in booked_instances if instance.recommendation_state == RecommendationState.REBOOK
+        instance for instance in booked_instances if rebook_savings(snapshot, instance.trip_instance_id) is not None
     ]
-    watching_instances = [
-        instance for instance in open_instances if instance.recommendation_state != RecommendationState.BOOK_NOW
+    priced_open_instances = [
+        instance for instance in open_instances if factual_trip_status_label(snapshot, instance.trip_instance_id) == "Price available"
+    ]
+    unpriced_open_instances = [
+        instance for instance in open_instances if factual_trip_status_label(snapshot, instance.trip_instance_id) == "No price yet"
     ]
     monitoring_instances = [
-        instance for instance in booked_instances if instance.recommendation_state != RecommendationState.REBOOK
+        instance for instance in booked_instances if rebook_savings(snapshot, instance.trip_instance_id) is None
     ]
-    action_count = len(open_unmatched) + len(action_open_instances) + len(action_booked_instances)
-    total_booked_monitoring = len(booked_instances)
-    watching_preview = watching_instances[:8]
+    action_count = len(open_unmatched) + len(action_booked_instances)
+    open_preview = open_instances[:8]
     monitoring_preview = monitoring_instances[:6]
 
     return get_templates(request).TemplateResponse(
@@ -66,14 +67,15 @@ def today(
             page="today",
             snapshot=snapshot,
             open_unmatched=open_unmatched,
-            action_open_instances=action_open_instances,
             action_booked_instances=action_booked_instances,
-            watching_instances=watching_instances,
-            watching_preview=watching_preview,
+            open_instances=open_instances,
+            open_preview=open_preview,
+            priced_open_instances=priced_open_instances,
+            unpriced_open_instances=unpriced_open_instances,
             monitoring_instances=monitoring_instances,
             monitoring_preview=monitoring_preview,
             action_count=action_count,
-            total_booked_monitoring=total_booked_monitoring,
+            total_booked_monitoring=len(booked_instances),
             booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
             trip_for_instance=trip_for_instance,

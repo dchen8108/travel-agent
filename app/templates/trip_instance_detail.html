@@ -41,7 +41,7 @@
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ trip_instance.anchor_date.strftime('%b %d') }}</span><small>travel date</small></div>
   <div class="summary-pill"><span>{{ trip_instance.travel_state|replace('_', ' ') }}</span><small>travel state</small></div>
-  <div class="summary-pill"><span>{{ trip_instance.recommendation_state|replace('_', ' ') }}</span><small>recommendation</small></div>
+  <div class="summary-pill"><span>{{ factual_trip_status_label(snapshot, trip_instance.trip_instance_id) }}</span><small>status</small></div>
   <div class="summary-pill"><span>{{ '$%s'|format(best_tracker.latest_observed_price) if best_tracker and best_tracker.latest_observed_price is not none else 'None' }}</span><small>best matched</small></div>
   <div class="summary-pill"><span>{{ '$%s'|format(booking.booked_price) if booking else 'Open' }}</span><small>{{ 'booked' if booking else 'booking' }}</small></div>
 </section>

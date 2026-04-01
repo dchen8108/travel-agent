@@ -8,6 +8,12 @@ from fastapi.templating import Jinja2Templates
 
 from app.catalog import airline_display, airline_label, airport_display, airport_label
 from app.route_options import day_offset_label, route_option_summary
+from app.services.dashboard import (
+    factual_trip_status_label,
+    factual_trip_status_reason,
+    factual_trip_status_tone,
+    rebook_savings,
+)
 from app.settings import Settings, get_settings
 from app.storage.repository import Repository
 
@@ -87,6 +93,10 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "airline_display": airline_display,
         "day_offset_label": day_offset_label,
         "route_option_summary": route_option_summary,
+        "factual_trip_status_label": factual_trip_status_label,
+        "factual_trip_status_reason": factual_trip_status_reason,
+        "factual_trip_status_tone": factual_trip_status_tone,
+        "rebook_savings": rebook_savings,
     }
     context.update(extra)
     return context

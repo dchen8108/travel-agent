@@ -114,6 +114,7 @@ Persistence:
 - one-time trips create one standalone instance
 - weekly trips generate the next 12 future instances
 - past instances are preserved
+- the UI now treats `travel_state` as the primary scheduled-trip lifecycle state
 
 `Tracker`
 
@@ -155,6 +156,7 @@ Persistence:
 8. `Settings` now rejects unknown fields so stale config drift fails fast.
 9. The installed launchd fetcher now defaults to `max_targets=2` and keeps between-request jitter.
 10. Route options now explicitly choose whether Google Flights should include or exclude Basic economy fares.
+11. The UI no longer treats `recommendation_state` as the main source of truth; list and detail views now derive factual copy from bookings, prices, and `travel_state`.
 
 ## Important Verified Facts
 

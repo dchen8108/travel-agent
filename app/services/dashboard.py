@@ -98,6 +98,97 @@ def fetch_targets_for_tracker(snapshot: AppSnapshot, tracker_id: str) -> list[Tr
     )
 
 
+def booked_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    if booking is None or not booking.tracker_id:
+        return None
+    return next((tracker for tracker in snapshot.trackers if tracker.tracker_id == booking.tracker_id), None)
+
+
+def comparison_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
+    tracker = booked_tracker(snapshot, trip_instance_id)
+    if tracker is not None and tracker.latest_observed_price is not None:
+        return tracker
+    return best_tracker(snapshot, trip_instance_id)
+
+
+def rebook_savings(snapshot: AppSnapshot, trip_instance_id: str) -> int | None:
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    if (
+        booking is None
+        or tracker is None
+        or tracker.latest_observed_price is None
+        or tracker.latest_observed_price >= booking.booked_price
+    ):
+        return None
+    return booking.booked_price - tracker.latest_observed_price
+
+
+def factual_trip_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return "Unknown"
+    if instance.travel_state == "skipped":
+        return "Skipped"
+    if booking_for_instance(snapshot, trip_instance_id):
+        return "Lower fare found" if rebook_savings(snapshot, trip_instance_id) is not None else "Booked"
+    tracker = best_tracker(snapshot, trip_instance_id)
+    if tracker is not None and tracker.latest_observed_price is not None:
+        return "Price available"
+    return "No price yet"
+
+
+def factual_trip_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return "neutral"
+    if instance.travel_state == "skipped":
+        return "neutral"
+    if rebook_savings(snapshot, trip_instance_id) is not None:
+        return "success"
+    if booking_for_instance(snapshot, trip_instance_id):
+        return "neutral"
+    tracker = best_tracker(snapshot, trip_instance_id)
+    if tracker is not None and tracker.latest_observed_price is not None:
+        return "success"
+    return "warning"
+
+
+def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return ""
+    if instance.travel_state == "skipped":
+        return "Skipped. Restore it to resume price checks."
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    if booking is not None:
+        savings = rebook_savings(snapshot, trip_instance_id)
+        if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
+            return (
+                f"Current comparable price is ${tracker.latest_observed_price}, "
+                f"${savings} below your booked price of ${booking.booked_price}."
+            )
+        if tracker is not None and tracker.latest_observed_price is not None:
+            return (
+                f"Booked at ${booking.booked_price}. Current comparable price is "
+                f"${tracker.latest_observed_price}."
+            )
+        return f"Booked at ${booking.booked_price}. No current comparison price yet."
+    tracker = best_tracker(snapshot, trip_instance_id)
+    if tracker is not None and tracker.latest_observed_price is not None:
+        if tracker.preference_bias_dollars > 0:
+            return (
+                f"Best current price is ${tracker.latest_observed_price} on option {tracker.rank}, "
+                f"after applying a ${tracker.preference_bias_dollars} preference buffer."
+            )
+        return f"Best current price is ${tracker.latest_observed_price}."
+    if trackers_for_instance(snapshot, trip_instance_id):
+        return "No current price yet."
+    return "No trackers are available for this date."
+
+
 def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
