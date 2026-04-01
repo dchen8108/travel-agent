@@ -280,7 +280,6 @@ def test_save_past_trip_creates_historical_instance_without_trackers(repository:
     assert trip_instances[0].display_label == "Old conference hop"
     assert trip_instances[0].instance_kind == "standalone"
     assert trip_instances[0].anchor_date == date(2026, 3, 10)
-    assert trip_instances[0].recommendation_state == "wait"
     assert len(trackers) == 0
 
 

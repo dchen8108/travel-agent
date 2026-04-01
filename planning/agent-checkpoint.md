@@ -156,7 +156,7 @@ Persistence:
 8. `Settings` now rejects unknown fields so stale config drift fails fast.
 9. The installed launchd fetcher now defaults to `max_targets=2` and keeps between-request jitter.
 10. Route options now explicitly choose whether Google Flights should include or exclude Basic economy fares.
-11. The UI no longer treats `recommendation_state` as the main source of truth; list and detail views now derive factual copy from bookings, prices, and `travel_state`.
+11. `recommendation_state` and `recommendation_reason` have been removed from the data model; list and detail views now derive factual copy from bookings, prices, and `travel_state`.
 
 ## Important Verified Facts
 

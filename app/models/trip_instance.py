@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from app.models.base import CsvModel, RecommendationState, TravelState, TripInstanceKind, utcnow
+from app.models.base import CsvModel, TravelState, TripInstanceKind, utcnow
 
 
 class TripInstance(CsvModel):
@@ -14,8 +14,6 @@ class TripInstance(CsvModel):
     anchor_date: date
     instance_kind: TripInstanceKind = TripInstanceKind.STANDALONE
     travel_state: TravelState = TravelState.OPEN
-    recommendation_state: RecommendationState = RecommendationState.NEEDS_TRACKER_SETUP
-    recommendation_reason: str = ""
     booking_id: str = ""
     last_signal_at: datetime | None = None
     created_at: datetime = Field(default_factory=utcnow)

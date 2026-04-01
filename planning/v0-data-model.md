@@ -109,8 +109,6 @@ Suggested columns:
 - `anchor_date`
 - `instance_kind`
 - `travel_state`
-- `recommendation_state`
-- `recommendation_reason`
 - `booking_id`
 - `last_signal_at`
 - `created_at`
@@ -122,7 +120,6 @@ Allowed `travel_state` values:
 - `booked`
 - `skipped`
 
-Allowed `recommendation_state` values:
 
 - `wait`
 - `book_now`

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from app.models.base import RecommendationState, TrackerStatus, TravelState, utcnow
+from app.models.base import TrackerStatus, TravelState, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -110,11 +110,6 @@ def recompute_trip_states(
     for instance in trip_instances:
         related_trackers = sorted(trackers_by_instance.get(instance.trip_instance_id, []), key=lambda item: item.rank)
         booking = active_booking_by_instance.get(instance.trip_instance_id)
-        best_tracker = best_tracker_for_instance(related_trackers)
-        booked_tracker = next(
-            (tracker for tracker in related_trackers if booking and booking.tracker_id and tracker.tracker_id == booking.tracker_id),
-            None,
-        )
         is_past = instance.anchor_date < date.today()
         instance.last_signal_at = max(
             (tracker.last_signal_at for tracker in related_trackers if tracker.last_signal_at),
@@ -129,55 +124,17 @@ def recompute_trip_states(
             instance.booking_id = ""
 
         if instance.travel_state == TravelState.SKIPPED:
-            instance.recommendation_state = RecommendationState.WAIT
-            instance.recommendation_reason = "Occurrence skipped."
             instance.updated_at = utcnow()
             continue
 
         if booking:
-            comparison_tracker = booked_tracker if booked_tracker else best_tracker
-            if booked_tracker and booked_tracker.latest_observed_price is None:
-                instance.recommendation_state = RecommendationState.BOOKED_MONITORING
-                instance.recommendation_reason = "Monitoring for a refreshed price on the booked route option."
-            elif comparison_tracker and comparison_tracker.latest_observed_price is not None and comparison_tracker.latest_observed_price < booking.booked_price:
-                instance.recommendation_state = RecommendationState.REBOOK
-                instance.recommendation_reason = (
-                    f"Latest matched price ${comparison_tracker.latest_observed_price} is below your booked price ${booking.booked_price}."
-                )
-            else:
-                instance.recommendation_state = RecommendationState.BOOKED_MONITORING
-                instance.recommendation_reason = "Monitoring for a lower matched price."
             instance.updated_at = utcnow()
             continue
 
         if is_past:
-            instance.recommendation_state = RecommendationState.WAIT
-            instance.recommendation_reason = "Past trip. Tracker setup is no longer needed."
             instance.updated_at = utcnow()
             continue
 
-        if not related_trackers or all(tracker.tracking_status == TrackerStatus.NEEDS_SETUP for tracker in related_trackers):
-            instance.recommendation_state = RecommendationState.NEEDS_TRACKER_SETUP
-            instance.recommendation_reason = "Set up at least one Google Flights tracker for this trip."
-            instance.updated_at = utcnow()
-            continue
-
-        if best_tracker is None or best_tracker.latest_observed_price is None:
-            instance.recommendation_state = RecommendationState.WAIT
-            instance.recommendation_reason = "Tracking is enabled, but there is no usable price signal yet."
-            instance.updated_at = utcnow()
-            continue
-
-        instance.recommendation_state = RecommendationState.WAIT
-        if best_tracker.preference_bias_dollars > 0:
-            instance.recommendation_reason = (
-                f"Latest matched price is ${best_tracker.latest_observed_price} on option {best_tracker.rank}, "
-                f"after applying a ${best_tracker.preference_bias_dollars} preference buffer."
-            )
-        else:
-            instance.recommendation_reason = (
-                f"Latest matched price is ${best_tracker.latest_observed_price}; keep monitoring for now."
-            )
         instance.updated_at = utcnow()
 
     trip_instances.sort(key=lambda item: (item.anchor_date, item.display_label))

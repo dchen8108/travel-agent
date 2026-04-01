@@ -3,8 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.models.booking import Booking
-from app.models.base import RecommendationState
-from app.services.dashboard import trackers_for_instance
+from app.services.dashboard import factual_trip_status_label, factual_trip_status_reason, trackers_for_instance
 from app.services.recommendations import best_tracker_for_instance, recompute_trip_states
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -227,7 +226,7 @@ def test_missing_top_option_price_does_not_block_lower_ranked_winner(repository:
     assert winner.rank == 2
 
 
-def test_weighted_winner_drives_open_trip_recommendation_reason(repository: Repository) -> None:
+def test_weighted_winner_drives_open_trip_status_reason(repository: Repository) -> None:
     snapshot, instance, trackers = _single_instance_snapshot(
         repository,
         preference_mode="ranked_bias",
@@ -258,9 +257,10 @@ def test_weighted_winner_drives_open_trip_recommendation_reason(repository: Repo
     recompute_trip_states(snapshot.trip_instances, trackers, [])
 
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert refreshed.recommendation_state == RecommendationState.WAIT
-    assert "option 2" in refreshed.recommendation_reason.lower()
-    assert "$50 preference buffer" in refreshed.recommendation_reason
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Price available"
+    reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
+    assert "option 2" in reason.lower()
+    assert "$50 preference buffer" in reason
 
 
 def test_rebook_stays_tied_to_booked_tracker_when_booking_is_attached(repository: Repository) -> None:
@@ -304,10 +304,11 @@ def test_rebook_stays_tied_to_booked_tracker_when_booking_is_attached(repository
     trackers[0].latest_observed_price = 180
     trackers[1].latest_observed_price = 130
     recompute_trip_states(snapshot.trip_instances, trackers, [booking])
+    snapshot.bookings = [booking]
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert refreshed.recommendation_state == RecommendationState.BOOKED_MONITORING
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Booked"
 
     trackers[0].latest_observed_price = 150
     recompute_trip_states(snapshot.trip_instances, trackers, [booking])
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert refreshed.recommendation_state == RecommendationState.REBOOK
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Lower fare found"

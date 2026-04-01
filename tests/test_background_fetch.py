@@ -3,13 +3,14 @@ from __future__ import annotations
 import csv
 from datetime import date, datetime, timedelta, timezone
 
-from app.models.base import RecommendationState, TrackerStatus, utcnow
+from app.models.base import TrackerStatus, utcnow
 from app.models.booking import Booking
 from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
 from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
+from app.services.dashboard import factual_trip_status_label, factual_trip_status_reason
 from app.services.fetch_targets import (
     FETCH_INTERVAL_SECONDS,
     next_refresh_time,
@@ -1021,8 +1022,17 @@ def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
 
     recompute_trip_states([trip_instance], [booked_tracker, cheaper_other_tracker], [booking])
 
-    assert trip_instance.recommendation_state == RecommendationState.BOOKED_MONITORING
-    assert "Monitoring" in trip_instance.recommendation_reason
+    snapshot = type(
+        "Snapshot",
+        (),
+        {
+            "trip_instances": [trip_instance],
+            "trackers": [booked_tracker, cheaper_other_tracker],
+            "bookings": [booking],
+        },
+    )()
+    assert factual_trip_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"
+    assert "Booked at $150" in factual_trip_status_reason(snapshot, trip_instance.trip_instance_id)
 
 
 def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(repository: Repository) -> None:

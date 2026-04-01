@@ -113,7 +113,6 @@ Key fields:
 - `anchor_date`
 - `display_label`
 - `travel_state`
-- `recommendation_state`
 - `booking_id`
 
 ### Tracker

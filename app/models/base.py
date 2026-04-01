@@ -54,14 +54,6 @@ class TravelState(StrEnum):
     SKIPPED = "skipped"
 
 
-class RecommendationState(StrEnum):
-    NEEDS_TRACKER_SETUP = "needs_tracker_setup"
-    WAIT = "wait"
-    BOOK_NOW = "book_now"
-    BOOKED_MONITORING = "booked_monitoring"
-    REBOOK = "rebook"
-
-
 class TrackerStatus(StrEnum):
     NEEDS_SETUP = "needs_setup"
     TRACKING_ENABLED = "tracking_enabled"
