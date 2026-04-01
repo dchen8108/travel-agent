@@ -28,7 +28,7 @@ This version is intentionally local and simple:
 - no Gmail automation
 - no credits or hotels
 
-Legacy CSV/JSON files are imported automatically the first time the app boots on SQLite, then kept only as local backup artifacts.
+Legacy CSV/JSON files are imported automatically the first time the app boots on SQLite. After migration, they can be moved out of `data/` and kept only as manual backup artifacts if you still want them.
 
 ## Core Objects
 
@@ -142,6 +142,11 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 ## Storage
 
 The app now stores its runtime state in `data/travel_agent.sqlite3`.
+
+The `data/` directory is still required at runtime because it holds:
+
+- the live SQLite database
+- launchd/background fetch logs under `data/logs/`
 
 The main logical tables are:
 
