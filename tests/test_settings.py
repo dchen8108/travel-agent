@@ -13,5 +13,5 @@ def test_settings_reject_unknown_fields(tmp_path: Path) -> None:
             data_dir=tmp_path / "data",
             templates_dir=Path("app/templates"),
             static_dir=Path("app/static"),
-            imported_email_dir=tmp_path / "data" / "imported_emails",
+            unknown_field=tmp_path / "data" / "unused",
         )

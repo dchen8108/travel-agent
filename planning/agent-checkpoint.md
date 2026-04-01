@@ -191,7 +191,7 @@ Recent cleanup/refactor changes implemented:
 - a unified snapshot type across dashboard/workflow services
 - repository CSV bootstrap/save plumbing reduced to shared helpers
 - booking creation/save logic reduced to shared helpers
-- stale ignored `imported_email_dir` test settings removed
+- stale imported-email path references removed
 - dead `app/jobs/import_email_file.py` entrypoint removed
 - launchd default fetch batch increased from 1 to 2 while staying serial and jittered
 
