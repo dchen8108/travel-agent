@@ -176,11 +176,11 @@ def resolve_unmatched_booking_to_trip_instance(
         tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         notes="Resolved from unmatched booking",
     )
-    _save_booking(repository, booking)
-
-    unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
-    unmatched.updated_at = utcnow()
-    repository.save_unmatched_bookings(unmatched_bookings)
+    with repository.transaction():
+        _save_booking(repository, booking)
+        unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
+        unmatched.updated_at = utcnow()
+        repository.save_unmatched_bookings(unmatched_bookings)
     return booking
 
 

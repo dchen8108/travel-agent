@@ -1153,8 +1153,10 @@ def test_successful_fetch_builds_price_records_for_all_offers(repository: Reposi
     assert saved_records[0].record_signature != saved_records[1].record_signature
 
 
-def test_append_price_records_migrates_legacy_header(repository: Repository) -> None:
+def test_append_price_records_migrates_legacy_header(settings) -> None:
+    repository = Repository(settings)
     path = repository.settings.data_dir / "price_records.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
     legacy_fieldnames = [
         "price_record_id",
         "fetch_event_id",
@@ -1224,6 +1226,7 @@ def test_append_price_records_migrates_legacy_header(repository: Repository) -> 
             }
         )
 
+    repository.ensure_data_dir()
     repository.append_price_records(
         [
             PriceRecord(
@@ -1267,8 +1270,10 @@ def test_append_price_records_migrates_legacy_header(repository: Repository) -> 
     assert legacy.observed_date == observed_at.date()
 
 
-def test_load_price_records_backfills_observed_date_from_legacy_rows(repository: Repository) -> None:
+def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -> None:
+    repository = Repository(settings)
     path = repository.settings.data_dir / "price_records.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
     legacy_fieldnames = [
         "price_record_id",
         "fetch_event_id",
@@ -1338,6 +1343,7 @@ def test_load_price_records_backfills_observed_date_from_legacy_rows(repository:
             }
         )
 
+    repository.ensure_data_dir()
     saved_records = repository.load_price_records()
     assert len(saved_records) == 1
     assert saved_records[0].observed_date == observed_at.date()

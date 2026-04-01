@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
+import sqlite3
+from typing import Any, Iterator
 
 from app.models.base import AppState
 from app.models.booking import Booking
@@ -13,15 +16,21 @@ from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
-from app.storage.csv_store import append_csv_models, load_csv_models, save_csv_models
-from app.storage.json_store import load_json_model, save_json_model
+from app.storage.csv_store import load_csv_models
+from app.storage.json_store import load_json_model
+from app.storage.sqlite_store import (
+    append_rows,
+    connect,
+    fetch_all,
+    immediate_transaction,
+    initialize_schema,
+    replace_rows,
+    table_has_rows,
+    upsert_singleton_row,
+)
 
 
-def _fieldnames(model_type: type) -> list[str]:
-    return list(model_type.model_fields.keys())
-
-
-CSV_MODELS: tuple[tuple[str, type], ...] = (
+LEGACY_CSV_MODELS: tuple[tuple[str, type], ...] = (
     ("trips.csv", Trip),
     ("route_options.csv", RouteOption),
     ("trip_instances.csv", TripInstance),
@@ -36,79 +45,280 @@ CSV_MODELS: tuple[tuple[str, type], ...] = (
 @dataclass
 class Repository:
     settings: Settings
+    _initialized: bool = field(default=False, init=False, repr=False)
+    _transaction_connection: sqlite3.Connection | None = field(default=None, init=False, repr=False)
 
-    def _path(self, name: str) -> Path:
-        return self.settings.data_dir / name
+    @property
+    def db_path(self) -> Path:
+        return self.settings.data_dir / "travel_agent.sqlite3"
 
     def ensure_data_dir(self) -> None:
+        if self._initialized:
+            return
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
-        if not self._path("app.json").exists():
-            self.save_app_state(AppState())
-        for name, model_type in CSV_MODELS:
-            path = self._path(name)
-            if not path.exists():
-                save_csv_models(path, [], _fieldnames(model_type))
+        db_exists = self.db_path.exists()
+        connection = connect(self.db_path)
+        try:
+            initialize_schema(connection)
+            has_app_state = table_has_rows(connection, "app_state")
+        finally:
+            connection.close()
 
-    def _load_csv(self, filename: str, model_type: type):
-        return load_csv_models(self._path(filename), model_type)
+        self._initialized = True
+        try:
+            if not db_exists and self._legacy_storage_exists():
+                self._import_legacy_storage()
+            elif not has_app_state:
+                self.save_app_state(AppState())
+        except Exception:
+            self._initialized = False
+            raise
 
-    def _save_csv(self, filename: str, rows: list, model_type: type) -> None:
-        save_csv_models(self._path(filename), rows, _fieldnames(model_type))
+    @contextmanager
+    def transaction(self) -> Iterator[Repository]:
+        self.ensure_data_dir()
+        if self._transaction_connection is not None:
+            yield self
+            return
+        connection = connect(self.db_path)
+        self._transaction_connection = connection
+        try:
+            with immediate_transaction(connection):
+                yield self
+        finally:
+            self._transaction_connection = None
+            connection.close()
 
     def load_app_state(self) -> AppState:
-        return load_json_model(self._path("app.json"), AppState, AppState())
+        self.ensure_data_dir()
+        rows = self._fetch_rows(
+            "SELECT timezone, future_weeks, enable_background_fetcher, version FROM app_state WHERE id = 1"
+        )
+        if not rows:
+            return AppState()
+        return AppState.model_validate(rows[0])
 
     def save_app_state(self, app_state: AppState) -> None:
-        save_json_model(self._path("app.json"), app_state)
+        self.ensure_data_dir()
+        row = {"id": 1, **app_state.model_dump(mode="json")}
+        self._write_singleton("app_state", row)
 
     def load_trips(self) -> list[Trip]:
-        return self._load_csv("trips.csv", Trip)
+        return self._load_models("SELECT * FROM trips ORDER BY rowid", Trip)
 
     def save_trips(self, trips: list[Trip]) -> None:
-        self._save_csv("trips.csv", trips, Trip)
+        self._replace_table("trips", [item.model_dump(mode="json") for item in trips])
 
     def load_route_options(self) -> list[RouteOption]:
-        return self._load_csv("route_options.csv", RouteOption)
+        return self._load_models("SELECT * FROM route_options ORDER BY rowid", RouteOption)
 
     def save_route_options(self, route_options: list[RouteOption]) -> None:
-        self._save_csv("route_options.csv", route_options, RouteOption)
+        self._replace_table("route_options", [item.model_dump(mode="json") for item in route_options])
 
     def load_trip_instances(self) -> list[TripInstance]:
-        return self._load_csv("trip_instances.csv", TripInstance)
+        return self._load_models("SELECT * FROM trip_instances ORDER BY rowid", TripInstance)
 
     def save_trip_instances(self, trip_instances: list[TripInstance]) -> None:
-        self._save_csv("trip_instances.csv", trip_instances, TripInstance)
+        self._replace_table("trip_instances", [item.model_dump(mode="json") for item in trip_instances])
 
     def load_trackers(self) -> list[Tracker]:
-        return self._load_csv("trackers.csv", Tracker)
+        return self._load_models("SELECT * FROM trackers ORDER BY rowid", Tracker)
 
     def save_trackers(self, trackers: list[Tracker]) -> None:
-        self._save_csv("trackers.csv", trackers, Tracker)
+        self._replace_table("trackers", [item.model_dump(mode="json") for item in trackers])
 
     def load_tracker_fetch_targets(self) -> list[TrackerFetchTarget]:
-        return self._load_csv("tracker_fetch_targets.csv", TrackerFetchTarget)
+        return self._load_models(
+            "SELECT * FROM tracker_fetch_targets ORDER BY rowid",
+            TrackerFetchTarget,
+        )
 
     def save_tracker_fetch_targets(self, targets: list[TrackerFetchTarget]) -> None:
-        self._save_csv("tracker_fetch_targets.csv", targets, TrackerFetchTarget)
+        self._replace_table(
+            "tracker_fetch_targets",
+            [item.model_dump(mode="json") for item in targets],
+        )
 
     def load_bookings(self) -> list[Booking]:
-        return self._load_csv("bookings.csv", Booking)
+        query = """
+            SELECT
+                booking_id,
+                COALESCE(trip_instance_id, '') AS trip_instance_id,
+                COALESCE(tracker_id, '') AS tracker_id,
+                airline,
+                origin_airport,
+                destination_airport,
+                departure_date,
+                departure_time,
+                arrival_time,
+                booked_price,
+                record_locator,
+                booked_at,
+                booking_status AS status,
+                notes,
+                created_at,
+                updated_at
+            FROM bookings
+            WHERE match_status = 'matched'
+            ORDER BY rowid
+        """
+        return self._load_models(query, Booking)
 
     def save_bookings(self, bookings: list[Booking]) -> None:
-        self._save_csv("bookings.csv", bookings, Booking)
+        rows = []
+        for booking in bookings:
+            rows.append(
+                {
+                    "booking_id": booking.booking_id,
+                    "source": "manual",
+                    "trip_instance_id": booking.trip_instance_id,
+                    "tracker_id": booking.tracker_id or None,
+                    "airline": booking.airline,
+                    "origin_airport": booking.origin_airport,
+                    "destination_airport": booking.destination_airport,
+                    "departure_date": booking.departure_date.isoformat(),
+                    "departure_time": booking.departure_time,
+                    "arrival_time": booking.arrival_time,
+                    "booked_price": booking.booked_price,
+                    "record_locator": booking.record_locator,
+                    "booked_at": booking.booked_at.isoformat(),
+                    "booking_status": booking.status,
+                    "match_status": "matched",
+                    "raw_summary": "",
+                    "candidate_trip_instance_ids": "",
+                    "resolution_status": "resolved",
+                    "notes": booking.notes,
+                    "created_at": booking.created_at.isoformat(),
+                    "updated_at": booking.updated_at.isoformat(),
+                }
+            )
+        self._replace_table("bookings", rows, where_sql="match_status = 'matched'")
 
     def load_unmatched_bookings(self) -> list[UnmatchedBooking]:
-        return self._load_csv("unmatched_bookings.csv", UnmatchedBooking)
+        query = """
+            SELECT
+                booking_id AS unmatched_booking_id,
+                source,
+                airline,
+                origin_airport,
+                destination_airport,
+                departure_date,
+                departure_time,
+                arrival_time,
+                booked_price,
+                record_locator,
+                raw_summary,
+                candidate_trip_instance_ids,
+                resolution_status,
+                created_at,
+                updated_at
+            FROM bookings
+            WHERE match_status = 'unmatched'
+            ORDER BY rowid
+        """
+        return self._load_models(query, UnmatchedBooking)
 
     def save_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
-        self._save_csv("unmatched_bookings.csv", unmatched_bookings, UnmatchedBooking)
+        rows = []
+        for unmatched in unmatched_bookings:
+            rows.append(
+                {
+                    "booking_id": unmatched.unmatched_booking_id,
+                    "source": unmatched.source,
+                    "trip_instance_id": None,
+                    "tracker_id": None,
+                    "airline": unmatched.airline,
+                    "origin_airport": unmatched.origin_airport,
+                    "destination_airport": unmatched.destination_airport,
+                    "departure_date": unmatched.departure_date.isoformat(),
+                    "departure_time": unmatched.departure_time,
+                    "arrival_time": unmatched.arrival_time,
+                    "booked_price": unmatched.booked_price,
+                    "record_locator": unmatched.record_locator,
+                    "booked_at": unmatched.created_at.isoformat(),
+                    "booking_status": "active",
+                    "match_status": "unmatched",
+                    "raw_summary": unmatched.raw_summary,
+                    "candidate_trip_instance_ids": unmatched.candidate_trip_instance_ids,
+                    "resolution_status": unmatched.resolution_status,
+                    "notes": "",
+                    "created_at": unmatched.created_at.isoformat(),
+                    "updated_at": unmatched.updated_at.isoformat(),
+                }
+            )
+        self._replace_table("bookings", rows, where_sql="match_status = 'unmatched'")
 
     def load_price_records(self) -> list[PriceRecord]:
-        return self._load_csv("price_records.csv", PriceRecord)
+        return self._load_models("SELECT * FROM price_records ORDER BY rowid", PriceRecord)
 
     def append_price_records(self, records: list[PriceRecord]) -> None:
-        append_csv_models(
-            self._path("price_records.csv"),
-            records,
-            _fieldnames(PriceRecord),
-        )
+        if not records:
+            return
+        self.ensure_data_dir()
+        rows = [item.model_dump(mode="json") for item in records]
+        with self._borrow_connection() as (connection, own_connection):
+            append_rows(connection, "price_records", rows)
+            if own_connection:
+                connection.commit()
+
+    def _replace_table(
+        self,
+        table: str,
+        rows: list[dict[str, Any]],
+        *,
+        where_sql: str | None = None,
+    ) -> None:
+        self.ensure_data_dir()
+        with self._borrow_connection() as (connection, own_connection):
+            replace_rows(connection, table, rows, where_sql=where_sql)
+            if own_connection:
+                connection.commit()
+
+    def _write_singleton(self, table: str, row: dict[str, Any]) -> None:
+        with self._borrow_connection() as (connection, own_connection):
+            upsert_singleton_row(connection, table, row)
+            if own_connection:
+                connection.commit()
+
+    def _load_models(self, query: str, model_type: type, params: tuple[Any, ...] = ()) -> list:
+        self.ensure_data_dir()
+        rows = self._fetch_rows(query, params)
+        return [model_type.model_validate(row) for row in rows]
+
+    def _fetch_rows(self, query: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+        self.ensure_data_dir()
+        with self._borrow_connection() as (connection, _):
+            return fetch_all(connection, query, params)
+
+    @contextmanager
+    def _borrow_connection(self) -> Iterator[tuple[sqlite3.Connection, bool]]:
+        if self._transaction_connection is not None:
+            yield self._transaction_connection, False
+            return
+        connection = connect(self.db_path)
+        try:
+            yield connection, True
+        finally:
+            connection.close()
+
+    def _legacy_storage_exists(self) -> bool:
+        if (self.settings.data_dir / "app.json").exists():
+            return True
+        return any((self.settings.data_dir / name).exists() for name, _ in LEGACY_CSV_MODELS)
+
+    def _import_legacy_storage(self) -> None:
+        app_state = load_json_model(self.settings.data_dir / "app.json", AppState, AppState())
+        legacy_rows: dict[str, list[Any]] = {
+            name: load_csv_models(self.settings.data_dir / name, model_type)
+            for name, model_type in LEGACY_CSV_MODELS
+        }
+        with self.transaction():
+            self.save_app_state(app_state)
+            self.save_trips(legacy_rows["trips.csv"])
+            self.save_route_options(legacy_rows["route_options.csv"])
+            self.save_trip_instances(legacy_rows["trip_instances.csv"])
+            self.save_trackers(legacy_rows["trackers.csv"])
+            self.save_tracker_fetch_targets(legacy_rows["tracker_fetch_targets.csv"])
+            self.save_bookings(legacy_rows["bookings.csv"])
+            self.save_unmatched_bookings(legacy_rows["unmatched_bookings.csv"])
+            self.append_price_records(legacy_rows["price_records.csv"])

@@ -17,16 +17,18 @@ This MVP is built around a simple idea:
 This version is intentionally local and simple:
 
 - one user
-- local CSV/JSON storage under `data/`
+- local SQLite storage under `data/travel_agent.sqlite3`
 - one-time or weekly trips
 - a rolling 12-week horizon for weekly trips
 - in-house Google Flights background fetching
 - automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
-- append-only fetched offer history under `data/price_records.csv`
+- append-only fetched offer history in the `price_records` SQLite table
 - no paid fare APIs
 - no Gmail automation
 - no credits or hotels
+
+Legacy CSV/JSON files are imported automatically the first time the app boots on SQLite, then kept only as local backup artifacts.
 
 ## Core Objects
 
@@ -137,9 +139,28 @@ To remove it later:
 uv run python -m app.jobs.uninstall_launchd_fetcher
 ```
 
+## Storage
+
+The app now stores its runtime state in `data/travel_agent.sqlite3`.
+
+The main logical tables are:
+
+- `trips`
+- `route_options`
+- `trip_instances`
+- `trackers`
+- `tracker_fetch_targets`
+- `bookings`
+- `price_records`
+- `app_state`
+
+There is still a narrow unresolved-booking view in the product, but it is backed by rows in `bookings` rather than a separate database.
+
+For a more detailed schema map, see [planning/sqlite-storage.md](/Users/davidchen/code/travel-agent/planning/sqlite-storage.md).
+
 ## Historical Price Records
 
-Every successful background Google Flights request now appends rows to `data/price_records.csv`.
+Every successful background Google Flights request now appends rows to the `price_records` table in SQLite.
 
 Important behavior:
 

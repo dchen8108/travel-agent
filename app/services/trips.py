@@ -132,8 +132,9 @@ def save_trip(
         existing_route_options=existing_route_options,
     )
 
-    repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
-    repository.save_route_options([item for item in route_options if item.trip_id != trip.trip_id] + built_route_options)
+    with repository.transaction():
+        repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
+        repository.save_route_options([item for item in route_options if item.trip_id != trip.trip_id] + built_route_options)
     return trip
 
 
@@ -161,7 +162,8 @@ def save_past_trip(
         trip.created_at = existing_trip.created_at
         trip.updated_at = utcnow()
 
-    repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
+    with repository.transaction():
+        repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
     return trip
 
 
@@ -177,5 +179,6 @@ def set_trip_active(repository: Repository, trip_id: str, active: bool) -> Trip:
 
 
 def delete_trip(repository: Repository, trip_id: str) -> None:
-    repository.save_trips([trip for trip in repository.load_trips() if trip.trip_id != trip_id])
-    repository.save_route_options([option for option in repository.load_route_options() if option.trip_id != trip_id])
+    with repository.transaction():
+        repository.save_trips([trip for trip in repository.load_trips() if trip.trip_id != trip_id])
+        repository.save_route_options([option for option in repository.load_route_options() if option.trip_id != trip_id])

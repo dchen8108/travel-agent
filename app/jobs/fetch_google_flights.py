@@ -130,10 +130,11 @@ def main() -> None:
             successful_fetches=result.successful_fetches,
         )
 
-        repository.append_price_records(price_records)
-        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
-        repository.save_trackers(snapshot.trackers)
-        repository.save_trip_instances(snapshot.trip_instances)
+        with repository.transaction():
+            repository.append_price_records(price_records)
+            repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+            repository.save_trackers(snapshot.trackers)
+            repository.save_trip_instances(snapshot.trip_instances)
         status_counts: dict[str, int] = {}
         for attempt in result.attempts:
             key = str(attempt.status)

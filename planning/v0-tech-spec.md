@@ -19,7 +19,6 @@ This version intentionally avoids:
 
 - paid fare APIs
 - Gmail polling
-- a database
 - aggressive or synchronous fetching in request paths
 - parallel scraping or proxy rotation
 
@@ -37,10 +36,10 @@ v0 consists of six layers:
    One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, adds a small random startup delay, fetches them serially on a 4-hour cadence anchored to the parent trip, and updates tracker rollups.
 
 4. `Storage`
-   CSV and JSON files under `data/`.
+   A local SQLite database under `data/travel_agent.sqlite3`, with automatic one-time import from legacy CSV/JSON files when present.
 
 5. `Historical price logging`
-   Every successful Google Flights fetch appends one row per parsed offer into a standalone `price_records.csv` fact table.
+   Every successful Google Flights fetch appends one row per parsed offer into the append-only `price_records` fact table.
 
 6. `Upstream signal source`
    Generated Google Flights search links queried conservatively in the background.

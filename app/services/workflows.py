@@ -83,11 +83,12 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     apply_fetch_target_rollups(trackers, tracker_fetch_targets)
     recompute_trip_states(trip_instances, trackers, bookings)
 
-    repository.save_trip_instances(trip_instances)
-    repository.save_trackers(trackers)
-    repository.save_tracker_fetch_targets(tracker_fetch_targets)
-    repository.save_bookings(bookings)
-    repository.save_unmatched_bookings(unmatched_bookings)
+    with repository.transaction():
+        repository.save_trip_instances(trip_instances)
+        repository.save_trackers(trackers)
+        repository.save_tracker_fetch_targets(tracker_fetch_targets)
+        repository.save_bookings(bookings)
+        repository.save_unmatched_bookings(unmatched_bookings)
 
     return AppSnapshot(
         trips=trips,

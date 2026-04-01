@@ -1,5 +1,7 @@
 # travel-agent v0 Data Model
 
+This document describes the original local-file storage design. The runtime app now uses SQLite at `data/travel_agent.sqlite3` with a near-mirror schema. See [sqlite-storage.md](/Users/davidchen/code/travel-agent/planning/sqlite-storage.md) for the current storage layout.
+
 ## Storage Strategy
 
 Use local files only.
