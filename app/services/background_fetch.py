@@ -27,8 +27,31 @@ SLEEP_RANGE_SECONDS = (FETCH_STAGGER_SECONDS, FETCH_STAGGER_SECONDS + 3.0)
 @dataclass(frozen=True)
 class FetchBatchResult:
     fetched_count: int
+    selected_count: int
+    startup_jitter_applied_seconds: float
     updated_targets: list[TrackerFetchTarget]
     successful_fetches: list[SuccessfulFetchRecord]
+    attempts: list["FetchAttemptResult"]
+
+
+@dataclass(frozen=True)
+class FetchAttemptResult:
+    fetch_target_id: str
+    tracker_id: str
+    trip_instance_id: str
+    origin_airport: str
+    destination_airport: str
+    travel_date: date | None
+    tracker_rank: int | None
+    status: str
+    started_at: datetime
+    fetched_at: datetime
+    next_fetch_not_before: datetime | None
+    duration_seconds: float
+    price: int | None = None
+    airline: str = ""
+    offer_count: int = 0
+    error: str = ""
 
 
 def queue_rolling_refresh(
@@ -106,24 +129,36 @@ def run_fetch_batch(
     max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
     sleep_between_requests: bool = True,
     startup_jitter_seconds: float = 0.0,
+    due_targets: list[TrackerFetchTarget] | None = None,
 ) -> FetchBatchResult:
     now = now or utcnow()
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
-    due_targets = select_due_fetch_targets(
-        trackers,
-        trip_instances,
-        fetch_targets,
-        now=now,
-        max_targets=max_targets,
-    )
+    if due_targets is None:
+        due_targets = select_due_fetch_targets(
+            trackers,
+            trip_instances,
+            fetch_targets,
+            now=now,
+            max_targets=max_targets,
+        )
     if not due_targets:
-        return FetchBatchResult(fetched_count=0, updated_targets=fetch_targets, successful_fetches=[])
+        return FetchBatchResult(
+            fetched_count=0,
+            selected_count=0,
+            startup_jitter_applied_seconds=0.0,
+            updated_targets=fetch_targets,
+            successful_fetches=[],
+            attempts=[],
+        )
+    startup_jitter_applied_seconds = 0.0
     if startup_jitter_seconds > 0:
-        time.sleep(random.uniform(0.0, startup_jitter_seconds))
+        startup_jitter_applied_seconds = random.uniform(0.0, startup_jitter_seconds)
+        time.sleep(startup_jitter_applied_seconds)
 
     client = httpx.Client(timeout=20.0, follow_redirects=True)
     successful_fetches: list[SuccessfulFetchRecord] = []
+    attempts: list[FetchAttemptResult] = []
     try:
         for index, target in enumerate(due_targets):
             tracker = tracker_by_id.get(target.tracker_id)
@@ -158,6 +193,25 @@ def run_fetch_batch(
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at)
                 target.updated_at = fetched_at
+                attempts.append(
+                    FetchAttemptResult(
+                        fetch_target_id=target.fetch_target_id,
+                        tracker_id=target.tracker_id,
+                        trip_instance_id=target.trip_instance_id,
+                        origin_airport=target.origin_airport,
+                        destination_airport=target.destination_airport,
+                        travel_date=tracker.travel_date,
+                        tracker_rank=tracker.rank,
+                        status=FetchTargetStatus.SUCCESS,
+                        started_at=fetch_started_at,
+                        fetched_at=fetched_at,
+                        next_fetch_not_before=target.next_fetch_not_before,
+                        duration_seconds=(fetched_at - fetch_started_at).total_seconds(),
+                        price=winner.price,
+                        airline=winner.airline,
+                        offer_count=len(offers),
+                    )
+                )
             except GoogleFlightsNoResultsError:
                 no_results_at = utcnow()
                 target.latest_price = None
@@ -172,6 +226,22 @@ def run_fetch_batch(
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at)
                 target.updated_at = no_results_at
+                attempts.append(
+                    FetchAttemptResult(
+                        fetch_target_id=target.fetch_target_id,
+                        tracker_id=target.tracker_id,
+                        trip_instance_id=target.trip_instance_id,
+                        origin_airport=target.origin_airport,
+                        destination_airport=target.destination_airport,
+                        travel_date=tracker.travel_date,
+                        tracker_rank=tracker.rank,
+                        status=FetchTargetStatus.NO_RESULTS,
+                        started_at=fetch_started_at,
+                        fetched_at=no_results_at,
+                        next_fetch_not_before=target.next_fetch_not_before,
+                        duration_seconds=(no_results_at - fetch_started_at).total_seconds(),
+                    )
+                )
             except Exception as exc:
                 failed_at = utcnow()
                 target.last_fetch_finished_at = failed_at
@@ -183,6 +253,23 @@ def run_fetch_batch(
                     failed_at + failure_backoff(target.consecutive_failures),
                 )
                 target.updated_at = failed_at
+                attempts.append(
+                    FetchAttemptResult(
+                        fetch_target_id=target.fetch_target_id,
+                        tracker_id=target.tracker_id,
+                        trip_instance_id=target.trip_instance_id,
+                        origin_airport=target.origin_airport,
+                        destination_airport=target.destination_airport,
+                        travel_date=tracker.travel_date,
+                        tracker_rank=tracker.rank,
+                        status=FetchTargetStatus.FAILED,
+                        started_at=fetch_started_at,
+                        fetched_at=failed_at,
+                        next_fetch_not_before=target.next_fetch_not_before,
+                        duration_seconds=(failed_at - fetch_started_at).total_seconds(),
+                        error=str(exc),
+                    )
+                )
             if sleep_between_requests and index < len(due_targets) - 1:
                 time.sleep(random.uniform(*SLEEP_RANGE_SECONDS))
     finally:
@@ -190,8 +277,11 @@ def run_fetch_batch(
 
     return FetchBatchResult(
         fetched_count=len(due_targets),
+        selected_count=len(due_targets),
+        startup_jitter_applied_seconds=startup_jitter_applied_seconds,
         updated_targets=fetch_targets,
         successful_fetches=successful_fetches,
+        attempts=attempts,
     )
 
 

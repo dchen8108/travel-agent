@@ -244,12 +244,17 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
 
     assert result.fetched_count == 1
+    assert result.selected_count == 1
     assert sum(target.latest_price is not None for target in snapshot.tracker_fetch_targets) == 1
     assert tracker.latest_observed_price == 141
     assert tracker.latest_signal_source == "background_fetch"
     assert tracker.latest_winning_origin_airport == "BUR"
     assert tracker.latest_winning_destination_airport == "SFO"
     assert len(result.successful_fetches) == 1
+    assert len(result.attempts) == 1
+    assert result.attempts[0].status == "success"
+    assert result.attempts[0].price == 141
+    assert result.attempts[0].offer_count == 1
 
 
 def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repository, monkeypatch) -> None:
@@ -316,6 +321,7 @@ def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repos
     )
 
     assert result.fetched_count == 1
+    assert result.startup_jitter_applied_seconds == 4.25
     assert sleep_calls == [4.25]
 
 
@@ -363,6 +369,8 @@ def test_run_fetch_batch_marks_no_results_without_counting_a_failure(repository:
     )
 
     assert result.fetched_count == 1
+    assert len(result.attempts) == 1
+    assert result.attempts[0].status == "no_results"
     assert target.last_fetch_status == "no_results"
     assert target.consecutive_failures == 0
     assert target.last_fetch_error == ""
