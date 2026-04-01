@@ -60,7 +60,9 @@ Booked trips
 | [Show scheduled] [Edit] [Pause]                            |
 +--------------------------------------------------------------+
 | Scheduled trips                                              |
-| Filters: [Search] [Show skipped] [Recurring trip filters]  |
+| Search trips: [ LA to SF                       ]            |
+| Recurring trips: [ Weekly commute x ] [ search ... ]       |
+| [Show skipped toggle]                         [Clear filters]|
 | Conference Arrival (2026-05-10) | standalone               |
 | [Edit trip] [Record booking] [Skip]                        |
 +--------------------------------------------------------------+

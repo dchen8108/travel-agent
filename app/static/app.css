@@ -229,65 +229,55 @@ small,
   gap: 12px;
 }
 
-.filter-form {
+.filter-toolbar {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+  grid-template-columns: minmax(220px, 1.25fr) minmax(280px, 1.4fr) auto;
+  align-items: end;
 }
 
 .filter-field,
-.filter-toggle {
+.filter-toggle-field {
   display: grid;
   gap: 8px;
 }
 
-.filter-toggle {
-  align-items: center;
-  grid-auto-flow: column;
-  justify-content: start;
+.filter-toggle-field {
+  min-width: 220px;
 }
 
-.filter-toggle input {
-  width: auto;
+.filter-toolbar .multi-select {
+  min-height: 100%;
 }
 
-.filter-dropdown {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 253, 249, 0.92);
-  padding: 12px 14px;
-}
-
-.filter-dropdown summary {
-  cursor: pointer;
-  font-weight: 700;
+.filter-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.filter-summary-count {
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.filter-checkbox-grid {
-  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  grid-column: 1 / -1;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
 }
 
-.check-chip {
+.filter-meta .button.ghost {
+  padding: 9px 14px;
+}
+
+.filter-submit-fallback {
+  display: none;
+}
+
+.filter-fallback-check {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(31, 92, 82, 0.16);
-  background: rgba(216, 235, 230, 0.35);
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 249, 0.92);
 }
 
-.check-chip input {
+.filter-fallback-check input {
   width: auto;
   margin: 0;
 }
@@ -442,6 +432,11 @@ button.danger {
   transform: translateX(18px);
 }
 
+.toggle-switch.filter-toggle {
+  justify-content: space-between;
+  min-width: 200px;
+}
+
 button:disabled,
 .button[disabled] {
   opacity: 0.45;
@@ -530,6 +525,10 @@ textarea {
   position: relative;
   display: grid;
   gap: 10px;
+}
+
+.multi-select.filter-picker {
+  gap: 8px;
 }
 
 .chip-list {
@@ -664,6 +663,14 @@ code {
 
   .two-column {
     grid-template-columns: 1fr;
+  }
+
+  .filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-toggle-field {
+    min-width: 0;
   }
 
   .scheduled-card-head {

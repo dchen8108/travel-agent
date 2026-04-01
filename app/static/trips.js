@@ -2,8 +2,29 @@
   const tripState = window.travelAgentTripForm;
   const bookingState = window.travelAgentBookingForm;
   const pickerRegistry = [];
+  let scheduledFilterRequestToken = 0;
+  let scheduledFilterAbortController = null;
+
+  function pruneDetachedPickers() {
+    for (let index = pickerRegistry.length - 1; index >= 0; index -= 1) {
+      if (!pickerRegistry[index].root.isConnected) {
+        pickerRegistry.splice(index, 1);
+      }
+    }
+  }
+
+  function registerPicker(root, close) {
+    pruneDetachedPickers();
+    for (let index = pickerRegistry.length - 1; index >= 0; index -= 1) {
+      if (pickerRegistry[index].root === root) {
+        pickerRegistry.splice(index, 1);
+      }
+    }
+    pickerRegistry.push({ root, close });
+  }
 
   function closeOtherPickers(currentRoot = null) {
+    pruneDetachedPickers();
     pickerRegistry.forEach((picker) => {
       if (!currentRoot || picker.root !== currentRoot) {
         picker.close();
@@ -12,6 +33,7 @@
   }
 
   document.addEventListener("pointerdown", (event) => {
+    pruneDetachedPickers();
     pickerRegistry.forEach((picker) => {
       if (!picker.root.contains(event.target)) {
         picker.close();
@@ -27,7 +49,7 @@
     return option.label ? `${option.value} · ${option.label}` : option.value;
   }
 
-  function createMultiPicker({ root, options, values, placeholder, onChange }) {
+  function createMultiPicker({ root, options, values, placeholder, emptyText = "No selections", onChange }) {
     const state = { values: Array.from(values || []) };
     root.innerHTML = `
       <div class="multi-select">
@@ -65,7 +87,7 @@
       if (!state.values.length) {
         const empty = document.createElement("span");
         empty.className = "chip-empty";
-        empty.textContent = "No selections";
+        empty.textContent = emptyText;
         chipList.appendChild(empty);
       }
     }
@@ -101,7 +123,7 @@
 
     renderChips();
 
-    pickerRegistry.push({ root, close: closeMenu });
+    registerPicker(root, closeMenu);
 
     search.addEventListener("focus", () => {
       closeOtherPickers(root);
@@ -193,7 +215,7 @@
     }
 
     renderChip();
-    pickerRegistry.push({ root, close: closeMenu });
+    registerPicker(root, closeMenu);
 
     search.addEventListener("focus", () => {
       closeOtherPickers(root);
@@ -409,4 +431,141 @@
       createSinglePicker({ field, options });
     });
   }
+
+  const scheduledFiltersState = window.travelAgentTripsFilters;
+
+  function initScheduledFilters(scope = document) {
+    const panel = scope.querySelector("[data-scheduled-panel]");
+    const form = scope.querySelector("[data-scheduled-filter-form]");
+    if (!panel || !form || !scheduledFiltersState || form.dataset.bound === "true") {
+      return;
+    }
+    form.dataset.bound = "true";
+
+    const searchInput = form.querySelector("[data-filter-search]");
+    const recurringRoot = form.querySelector("[data-recurring-filter-root]");
+    const hiddenInputsRoot = form.querySelector("[data-recurring-hidden-inputs]");
+    const skippedToggle = form.querySelector("[data-skipped-toggle]");
+    const skippedInput = form.querySelector("[data-skipped-input]");
+    const clearLink = form.querySelector("[data-clear-filters]");
+    let debounceTimer = null;
+
+    function selectedRecurringTripIds() {
+      return Array.from(hiddenInputsRoot.querySelectorAll('input[name="recurring_trip_id"]'))
+        .map((input) => input.value)
+        .filter(Boolean);
+    }
+
+    function setSelectedRecurringTripIds(values) {
+      hiddenInputsRoot.innerHTML = "";
+      values.forEach((value) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "recurring_trip_id";
+        input.value = value;
+        hiddenInputsRoot.appendChild(input);
+      });
+    }
+
+    function setSkippedState(enabled) {
+      skippedInput.value = enabled ? "true" : "";
+      skippedToggle.classList.toggle("is-on", enabled);
+      skippedToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
+    }
+
+    function buildQuery() {
+      const params = new URLSearchParams();
+      const query = (searchInput.value || "").trim();
+      if (query) {
+        params.set("q", query);
+      }
+      if (skippedInput.value) {
+        params.set("show_skipped", "true");
+      }
+      selectedRecurringTripIds().forEach((value) => {
+        params.append("recurring_trip_id", value);
+      });
+      return params;
+    }
+
+    async function refreshScheduledPanel(params) {
+      const pageQuery = params.toString();
+      const pageUrl = `/trips${pageQuery ? `?${pageQuery}` : ""}`;
+      const partialParams = new URLSearchParams(params);
+      partialParams.set("partial", "scheduled");
+      const partialUrl = `/trips?${partialParams.toString()}`;
+      const requestToken = scheduledFilterRequestToken + 1;
+      scheduledFilterRequestToken = requestToken;
+      scheduledFilterAbortController?.abort();
+      scheduledFilterAbortController = new AbortController();
+
+      try {
+        const response = await fetch(partialUrl, {
+          headers: { "X-Requested-With": "fetch" },
+          signal: scheduledFilterAbortController.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Unexpected response ${response.status}`);
+        }
+        if (requestToken !== scheduledFilterRequestToken) {
+          return;
+        }
+        panel.outerHTML = await response.text();
+        window.history.replaceState({}, "", pageUrl);
+        initScheduledFilters(document);
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          return;
+        }
+        window.location.assign(pageUrl);
+      }
+    }
+
+    function submitFilters({ debounce = false } = {}) {
+      if (debounce) {
+        window.clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(() => {
+          refreshScheduledPanel(buildQuery());
+        }, 220);
+        return;
+      }
+      window.clearTimeout(debounceTimer);
+      refreshScheduledPanel(buildQuery());
+    }
+
+    createMultiPicker({
+      root: recurringRoot,
+      options: scheduledFiltersState.recurringOptions || [],
+      values: selectedRecurringTripIds(),
+      placeholder: "Type to find a recurring trip",
+      emptyText: "All recurring trips",
+      onChange(values) {
+        setSelectedRecurringTripIds(values);
+        submitFilters();
+      }
+    });
+    recurringRoot.querySelector(".multi-select")?.classList.add("filter-picker");
+
+    searchInput.addEventListener("input", () => submitFilters({ debounce: true }));
+    searchInput.addEventListener("search", () => submitFilters());
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitFilters();
+      }
+    });
+
+    skippedToggle.addEventListener("click", () => {
+      setSkippedState(!skippedInput.value);
+      submitFilters();
+    });
+
+    clearLink?.addEventListener("click", (event) => {
+      event.preventDefault();
+      window.clearTimeout(debounceTimer);
+      window.location.assign("/trips");
+    });
+  }
+
+  initScheduledFilters();
 })();

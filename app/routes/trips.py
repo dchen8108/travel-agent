@@ -124,26 +124,22 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
     return route_options
 
 
-@router.get("/trips", response_class=HTMLResponse)
-def trips_index(
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     recurring_items = recurring_trips(snapshot)
     recurring_ids = {trip.trip_id for trip in recurring_items}
-    selected_recurring_trip_ids = {
-        value
-        for value in request.query_params.getlist("recurring_trip_id")
-        if value in recurring_ids
-    }
+    selected_recurring_trip_ids = [
+        trip.trip_id
+        for trip in recurring_items
+        if trip.trip_id in request.query_params.getlist("recurring_trip_id") and trip.trip_id in recurring_ids
+    ]
+    selected_recurring_trip_id_set = set(selected_recurring_trip_ids)
     show_skipped = str(request.query_params.get("show_skipped", "")).lower() in {"1", "true", "on", "yes"}
     search_query = str(request.query_params.get("q", "")).strip()
 
     scheduled_items = scheduled_instances(
         snapshot,
         include_skipped=show_skipped,
-        recurring_trip_ids=selected_recurring_trip_ids or None,
+        recurring_trip_ids=selected_recurring_trip_id_set or None,
     )
     if search_query:
         lowered = search_query.lower()
@@ -159,29 +155,45 @@ def trips_index(
 
     total_active_scheduled = len(scheduled_instances(snapshot))
     total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True)) - total_active_scheduled
+    recurring_filter_options = [{"value": trip.trip_id, "label": trip.label} for trip in recurring_items]
 
+    return {
+        "recurring_items": recurring_items,
+        "scheduled_items": scheduled_items,
+        "selected_recurring_trip_ids": selected_recurring_trip_ids,
+        "show_skipped": show_skipped,
+        "search_query": search_query,
+        "total_active_scheduled": total_active_scheduled,
+        "total_skipped_scheduled": total_skipped_scheduled,
+        "recurring_filter_options": recurring_filter_options,
+    }
+
+
+@router.get("/trips", response_class=HTMLResponse)
+def trips_index(
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> HTMLResponse:
+    snapshot = load_snapshot(repository)
+    scheduled_view = _scheduled_view_state(snapshot, request)
+    context = base_context(
+        request,
+        page="trips",
+        snapshot=snapshot,
+        instances_for_trip=instances_for_trip,
+        route_options_for_trip=route_options_for_trip,
+        booking_for_instance=booking_for_instance,
+        best_tracker=best_tracker,
+        trackers_for_instance=trackers_for_instance,
+        trip_for_instance=trip_for_instance,
+        trip_focus_url=trip_focus_url,
+        **scheduled_view,
+    )
+    template_name = "partials/scheduled_trips_section.html" if request.query_params.get("partial") == "scheduled" else "trips.html"
     return get_templates(request).TemplateResponse(
         request=request,
-        name="trips.html",
-        context=base_context(
-            request,
-            page="trips",
-            snapshot=snapshot,
-            recurring_items=recurring_items,
-            scheduled_items=scheduled_items,
-            selected_recurring_trip_ids=selected_recurring_trip_ids,
-            show_skipped=show_skipped,
-            search_query=search_query,
-            total_active_scheduled=total_active_scheduled,
-            total_skipped_scheduled=total_skipped_scheduled,
-            instances_for_trip=instances_for_trip,
-            route_options_for_trip=route_options_for_trip,
-            booking_for_instance=booking_for_instance,
-            best_tracker=best_tracker,
-            trackers_for_instance=trackers_for_instance,
-            trip_for_instance=trip_for_instance,
-            trip_focus_url=trip_focus_url,
-        ),
+        name=template_name,
+        context=context,
     )
 
 

@@ -144,6 +144,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     assert "Scheduled trips" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
+    assert "Show in scheduled" not in trips_page.text
 
 
 def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_path: Path) -> None:
@@ -186,7 +187,7 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert "Unskip" not in trips_page.text
-    assert "No scheduled trips match the current filters." in trips_page.text
+    assert "No scheduled trips match these filters." in trips_page.text
 
     skipped_page = client.get("/trips?show_skipped=true")
     assert skipped_page.status_code == 200
@@ -329,3 +330,31 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert filtered_page.status_code == 200
     assert "Weekly Commute A" in filtered_page.text
     assert "One-off Flight" not in filtered_page.text
+
+
+def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    client.post(
+        "/trips",
+        data={
+            "label": "Weekly Commute Filter Test",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    partial = client.get("/trips?partial=scheduled&show_skipped=true")
+    assert partial.status_code == 200
+    assert 'data-scheduled-filter-form' in partial.text
+    assert "Show skipped" in partial.text
+    assert "Apply filters" in partial.text
