@@ -1,25 +1,29 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import date
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.background_fetch import queue_rolling_refresh
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
     best_tracker,
+    booking_for_instance,
     fetch_targets_for_tracker,
+    horizon_instances_for_trip,
     load_snapshot,
+    tracker_detail_url,
     trackers_for_instance,
     trip_focus_url,
+    trip_for_instance,
 )
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(tags=["trackers"])
+
 
 def _format_tracker_timestamp(value) -> str:
     if value is None:
@@ -73,61 +77,80 @@ def _tracker_monitor_state(tracker, fetch_targets) -> dict[str, object]:
 
 
 @router.get("/trackers", response_class=HTMLResponse)
-def trackers_index(
+def trackers_index() -> RedirectResponse:
+    return RedirectResponse(url="/trips", status_code=303)
+
+
+@router.post("/trackers/queue-refresh")
+def queue_tracker_refresh_legacy() -> RedirectResponse:
+    return RedirectResponse(url="/trips?message=Open+a+trip+and+use+View+trackers+to+refresh+its+searches.", status_code=303)
+
+
+@router.get("/trip-instances/{trip_instance_id}/trackers", response_class=HTMLResponse)
+def trackers_detail(
+    trip_instance_id: str,
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    today = date.today()
-    grouped: dict[str, list] = defaultdict(list)
-    trip_instances_by_id = {item.trip_instance_id: item for item in snapshot.trip_instances}
-    for tracker in snapshot.trackers:
-        trip_instance = trip_instances_by_id.get(tracker.trip_instance_id)
-        if trip_instance is None or trip_instance.anchor_date < today:
-            continue
-        grouped[tracker.trip_instance_id].append(tracker)
-    ordered_groups = [
-        (trip_instances_by_id[trip_instance_id], sorted(trackers, key=lambda item: item.rank))
-        for trip_instance_id, trackers in sorted(
-            grouped.items(),
-            key=lambda item: (trip_instances_by_id[item[0]].anchor_date, trip_instances_by_id[item[0]].display_label),
-        )
+    trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if trip_instance is None:
+        raise HTTPException(status_code=404, detail="Scheduled trip not found")
+    parent_trip = trip_for_instance(snapshot, trip_instance_id)
+    if parent_trip is None:
+        raise HTTPException(status_code=404, detail="Parent trip not found")
+
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)
+    tracker_monitor_by_id = {
+        tracker.tracker_id: _tracker_monitor_state(tracker, fetch_targets_for_tracker(snapshot, tracker.tracker_id))
+        for tracker in trackers
+    }
+    sibling_instances = [
+        instance
+        for instance in horizon_instances_for_trip(snapshot, parent_trip.trip_id, today=date.today())
+        if instance.trip_instance_id != trip_instance_id
     ]
-    tracker_monitor_by_id = {}
-    for _, trackers in ordered_groups:
-        for tracker in trackers:
-            tracker_monitor_by_id[tracker.tracker_id] = _tracker_monitor_state(
-                tracker,
-                fetch_targets_for_tracker(snapshot, tracker.tracker_id),
-            )
+
     return get_templates(request).TemplateResponse(
         request=request,
-        name="trackers.html",
+        name="trip_trackers.html",
         context=base_context(
             request,
-            page="trackers",
+            page="trips",
             snapshot=snapshot,
-            ordered_groups=ordered_groups,
-            best_tracker=best_tracker,
+            trip_instance=trip_instance,
+            parent_trip=parent_trip,
+            trackers=trackers,
+            total_fetch_targets=total_fetch_targets,
+            sibling_instances=sibling_instances,
+            booking=booking_for_instance(snapshot, trip_instance_id),
+            best_tracker=best_tracker(snapshot, trip_instance_id),
             fetch_targets_for_tracker=fetch_targets_for_tracker,
-            trackers_for_instance=trackers_for_instance,
-            trip_focus_url=trip_focus_url,
             generated_tracker_seed_summary=generated_tracker_seed_summary,
             tracker_monitor_by_id=tracker_monitor_by_id,
             format_tracker_timestamp=_format_tracker_timestamp,
+            trip_focus_url=trip_focus_url,
+            tracker_detail_url=tracker_detail_url,
         ),
     )
 
 
-@router.post("/trackers/queue-refresh")
+@router.post("/trip-instances/{trip_instance_id}/trackers/queue-refresh")
 def queue_tracker_refresh(
+    trip_instance_id: str,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     snapshot = sync_and_persist(repository)
+    trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if trip_instance is None:
+        raise HTTPException(status_code=404, detail="Scheduled trip not found")
+
     queued_count = queue_rolling_refresh(
         snapshot.trackers,
         snapshot.trip_instances,
         snapshot.tracker_fetch_targets,
+        trip_instance_ids={trip_instance_id},
     )
     repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
     if queued_count == 0:
@@ -136,4 +159,4 @@ def queue_tracker_refresh(
         message = "Refresh+queued+for+1+airport-pair+search."
     else:
         message = f"Refresh+queued+for+{queued_count}+airport-pair+searches."
-    return RedirectResponse(url=f"/trackers?message={message}", status_code=303)
+    return RedirectResponse(url=f"{tracker_detail_url(trip_instance_id)}?message={message}", status_code=303)

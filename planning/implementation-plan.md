@@ -76,7 +76,7 @@ Deferred:
 - `Trips`
 - `Bookings`
 - `Resolve`
-- `Trackers`
+- trip-specific tracker detail pages under `Scheduled trips`
 
 ### 5. Verification
 

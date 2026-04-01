@@ -28,7 +28,7 @@ This version intentionally avoids:
 v0 consists of six layers:
 
 1. `Web UI`
-   FastAPI server-rendered pages for Today, Trips, Bookings, Resolve, and Trackers.
+   FastAPI server-rendered pages for Today, Trips, Bookings, Resolve, plus trip-specific tracker detail views linked from scheduled trips.
 
 2. `Domain services`
    Trip planning, recurring-instance generation, tracker synchronization, booking attachment, and recommendation rollup.
@@ -266,11 +266,13 @@ uv run python -m app.jobs.fetch_google_flights --max-targets 3
 
 ### Trackers
 
-The Trackers page should feel like an operational coverage view:
+Trackers should live under a scheduled trip, not as a top-level workspace:
 
-- one card per trip instance
-- one row per tracker / route option
+- open from `View trackers` on a scheduled trip row
+- one detail page per scheduled trip instance
+- one row/card per tracker / route option
 - rolled-up best price shown on the tracker row
 - last updated and next refresh timestamps shown on the tracker row
 - short airport-pair links shown under the row
+- optional sibling-date switcher for recurring trips
 - no manual tracker-link editing surface

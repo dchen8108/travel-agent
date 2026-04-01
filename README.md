@@ -52,7 +52,7 @@ Then open `http://127.0.0.1:8000`.
 2. Choose whether it is `one_time` or `weekly`.
 3. Add ranked `Route Options`.
 4. Use `Trips` to manage weekly recurring trips at the parent level and review all dated scheduled trips below them.
-5. Use `Trackers` to review each route option’s airport-pair Google Flights links.
+5. Use `View trackers` from a scheduled trip to review that trip’s route options and airport-pair Google Flights links.
 6. Let the background fetcher populate current prices automatically.
 7. Record bookings in the app.
 8. Let the app continue comparing booked prices against tracker prices.

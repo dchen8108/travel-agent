@@ -63,6 +63,7 @@ def queue_rolling_refresh(
     fetch_targets: list[TrackerFetchTarget],
     *,
     now: datetime | None = None,
+    trip_instance_ids: set[str] | None = None,
 ) -> int:
     now = now or utcnow()
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
@@ -77,6 +78,8 @@ def queue_rolling_refresh(
         tracker = tracker_by_id.get(target.tracker_id)
         instance = instance_by_id.get(target.trip_instance_id)
         if not tracker or not instance:
+            continue
+        if trip_instance_ids and target.trip_instance_id not in trip_instance_ids:
             continue
         if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
             continue

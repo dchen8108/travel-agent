@@ -113,19 +113,23 @@ Route options
 +--------------------------------------------------------------+
 ```
 
-## 6. Trackers
+## 6. Trip Trackers
 
 ```text
 +--------------------------------------------------------------+
-| Trackers                                                     |
+| LA to SF Outbound (2026-04-06) · Trackers                   |
 +--------------------------------------------------------------+
-| LA to SF Outbound (2026-04-06)                              |
+| [Back to trips] [Refresh sooner] [Record booking] [Skip]    |
+|                                                              |
+| Other dates: [Apr 06] [Apr 13] [Apr 20]                     |
+|                                                              |
 | Option 1 | BUR,LAX -> SFO | Monday (T) | 06:00-10:00        |
-| Status: signal_received | Latest: $118                      |
-| [Open Google Flights] [Paste link] [Mark enabled]           |
+| Best current price: $118 via LAX -> SFO                     |
+| Last updated: Apr 01, 8:00 AM | Next refresh: Apr 01, 12 PM |
+| [BUR to SFO] [LAX to SFO]                                   |
 |                                                              |
 | Option 2 | BUR -> SFO | Sunday (T-1) | 18:00-21:00          |
-| Status: needs_setup                                          |
-| [Open Google Flights] [Paste link] [Mark enabled]           |
+| No price available yet                                      |
+| [BUR to SFO]                                                |
 +--------------------------------------------------------------+
 ```

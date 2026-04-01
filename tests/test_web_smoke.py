@@ -23,6 +23,9 @@ def test_core_pages_render(tmp_path: Path) -> None:
     for path in ["/", "/trips", "/trips/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
+    trackers_redirect = client.get("/trackers", follow_redirects=False)
+    assert trackers_redirect.status_code == 303
+    assert trackers_redirect.headers["location"] == "/trips"
 
 
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
@@ -420,7 +423,7 @@ def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
     assert "Log past trip" not in trips_page.text
     assert "Showing 1 scheduled trip." in trips_page.text
     assert 'id="scheduled-' in trips_page.text
-def test_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
+def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         imported_email_dir=tmp_path / "data" / "imported_emails",
@@ -442,17 +445,18 @@ def test_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     )
     assert create.status_code == 303
 
-    trackers_page = client.get("/trackers")
+    trips_page = client.get("/trips?q=Tracker+metadata")
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('/trackers"', 1)[0]
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
-    assert "Auto tracking on" not in trackers_page.text
-    assert "Waiting for first price" not in trackers_page.text
+    assert "Trip trackers" in trackers_page.text
     assert "Last updated:" in trackers_page.text
     assert "Next refresh:" in trackers_page.text
     assert "BUR to SFO" in trackers_page.text
     assert "LAX to SFO" in trackers_page.text
 
 
-def test_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
+def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         imported_email_dir=tmp_path / "data" / "imported_emails",
@@ -474,12 +478,14 @@ def test_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     )
     assert create.status_code == 303
 
-    queue = client.post("/trackers/queue-refresh", follow_redirects=False)
+    trips_page = client.get("/trips?q=Refresh+queue+test")
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('/trackers"', 1)[0]
+    queue = client.post(f"/trip-instances/{trip_instance_id}/trackers/queue-refresh", follow_redirects=False)
     assert queue.status_code == 303
     assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
 
 
-def test_trackers_page_shows_no_results_state_without_failure_copy(tmp_path: Path) -> None:
+def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         imported_email_dir=tmp_path / "data" / "imported_emails",
@@ -505,11 +511,13 @@ def test_trackers_page_shows_no_results_state_without_failure_copy(tmp_path: Pat
     fetch_targets = repository.load_tracker_fetch_targets()
     fetch_targets[0].last_fetch_status = FetchTargetStatus.NO_RESULTS
     fetch_targets[0].last_fetch_finished_at = utcnow()
-    fetch_targets[0].next_fetch_not_before = utcnow() + timedelta(hours=6)
+    fetch_targets[0].next_fetch_not_before = utcnow() + timedelta(hours=4)
     fetch_targets[0].latest_price = None
     repository.save_tracker_fetch_targets(fetch_targets)
 
-    trackers_page = client.get("/trackers")
+    trips_page = client.get("/trips?q=No+results+tracker")
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('/trackers"', 1)[0]
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
     assert "No matching flights returned right now." in trackers_page.text
     assert "A recent Google Flights request failed. Travel Agent will retry automatically." not in trackers_page.text

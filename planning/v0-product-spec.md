@@ -162,8 +162,7 @@ The MVP should include these primary screens:
 1. `Today`
 2. `Trips`
 3. `Bookings`
-4. `Trackers`
-5. `Resolve`
+4. `Resolve`
 
 ### Trips
 
@@ -181,10 +180,11 @@ The `Trips` screen should be split into:
 
 ### Trackers
 
-The Trackers page should be an operational coverage view:
+Trackers should be accessed from a scheduled trip, not from a global page:
 
-- one card per trip instance
+- `View trackers` on a scheduled trip opens a trip-specific tracker detail page
 - one row per tracker
 - a clear `Best price among selected airports` message
 - one short link per airport pair, such as `LAX to SFO`
 - visible refresh timing and price freshness
+- a trip-specific `Refresh sooner` action

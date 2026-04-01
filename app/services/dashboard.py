@@ -153,6 +153,10 @@ def trip_focus_url(
     return url
 
 
+def tracker_detail_url(trip_instance_id: str) -> str:
+    return f"/trip-instances/{trip_instance_id}/trackers"
+
+
 def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
     return sorted(
         [trip for trip in snapshot.trips if trip.trip_kind == "weekly"],

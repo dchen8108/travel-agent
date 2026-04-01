@@ -51,6 +51,7 @@
           <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
           {% endif %}
         {% endif %}
+        <a class="button secondary" href="/trip-instances/{{ instance.trip_instance_id }}/trackers">View trackers</a>
         {% if instance.travel_state == 'open' %}
         <a class="button primary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip"><button class="button danger" type="submit">Skip</button></form>
