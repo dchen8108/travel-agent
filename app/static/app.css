@@ -913,6 +913,47 @@ textarea {
   min-height: 48px;
 }
 
+.filter-field-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.filter-picker-shell .picker-trigger.is-empty {
+  color: var(--muted);
+}
+
+.picker-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.picker-option-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(31, 92, 82, 0.22);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.picker-option.is-selected .picker-option-check {
+  border-color: rgba(31, 92, 82, 0.26);
+  background: rgba(216, 235, 230, 0.92);
+}
+
+.picker-option-label {
+  min-width: 0;
+}
+
 .multi-select {
   display: grid;
   gap: 10px;

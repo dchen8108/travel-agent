@@ -58,6 +58,8 @@
     emptyText = "No selections",
     maxSelections = Number.POSITIVE_INFINITY,
     compact = false,
+    checkable = false,
+    summaryFormatter = null,
     onChange
   }) {
     const state = { values: Array.from(values || []) };
@@ -204,20 +206,22 @@
 
     function renderTrigger() {
       if (compact) {
-        if (!state.values.length) {
+        if (summaryFormatter) {
+          trigger.textContent = summaryFormatter(Array.from(state.values), options, emptyText);
+        } else if (!state.values.length) {
           trigger.textContent = emptyText;
-          trigger.classList.remove("has-value");
-          return;
-        }
-        const selectedLabels = state.values
-          .map((value) => options.find((item) => item.value === value)?.label || value)
-          .filter(Boolean);
-        if (selectedLabels.length <= 2) {
-          trigger.textContent = selectedLabels.join(", ");
         } else {
-          trigger.textContent = `${selectedLabels.slice(0, 2).join(", ")} +${selectedLabels.length - 2}`;
+          const selectedLabels = state.values
+            .map((value) => options.find((item) => item.value === value)?.label || value)
+            .filter(Boolean);
+          if (selectedLabels.length <= 2) {
+            trigger.textContent = selectedLabels.join(", ");
+          } else {
+            trigger.textContent = `${selectedLabels.slice(0, 2).join(", ")} +${selectedLabels.length - 2}`;
+          }
         }
-        trigger.classList.add("has-value");
+        trigger.classList.toggle("has-value", state.values.length > 0);
+        trigger.classList.toggle("is-empty", state.values.length === 0);
         return;
       }
       trigger.textContent = state.values.length >= maxSelections
@@ -318,7 +322,15 @@
         button.className = "picker-option";
         const alreadySelected = state.values.includes(option.value);
         button.classList.toggle("is-selected", alreadySelected);
-        button.textContent = formatOption(option);
+        button.setAttribute("aria-pressed", alreadySelected ? "true" : "false");
+        if (checkable) {
+          button.innerHTML = `
+            <span class="picker-option-check" aria-hidden="true">${alreadySelected ? "✓" : ""}</span>
+            <span class="picker-option-label">${formatOption(option)}</span>
+          `;
+        } else {
+          button.textContent = formatOption(option);
+        }
         button.addEventListener("click", (event) => {
           event.preventDefault();
           if (alreadySelected && compact) {
@@ -830,6 +842,16 @@
       placeholder: "Search recurring trips",
       emptyText: "All recurring trips",
       compact: true,
+      checkable: true,
+      summaryFormatter(values, options, emptyText) {
+        if (!values.length) {
+          return emptyText;
+        }
+        if (values.length === 1) {
+          return options.find((option) => option.value === values[0])?.label || values[0];
+        }
+        return `${values.length} recurring trips selected`;
+      },
       onChange(values) {
         setSelectedRecurringTripIds(values);
         submitFilters();
