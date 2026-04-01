@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.services.dashboard import horizon_instances_for_trip, past_instances_for_trip
-from app.services.trips import save_trip, set_trip_active
+from app.services.trips import save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 
@@ -220,3 +220,23 @@ def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repos
     assert len(trip_instances) == 13
     assert len(horizon_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 12
     assert len(past_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 1
+
+
+def test_save_past_trip_creates_historical_instance_without_trackers(repository: Repository) -> None:
+    trip = save_past_trip(
+        repository,
+        trip_id=None,
+        label="Old conference hop",
+        anchor_date=date(2026, 3, 10),
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
+    trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
+    trackers = [item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in trip_instances}]
+
+    assert len(trip_instances) == 1
+    assert trip_instances[0].display_label == "Old conference hop"
+    assert trip_instances[0].instance_kind == "standalone"
+    assert trip_instances[0].anchor_date == date(2026, 3, 10)
+    assert trip_instances[0].recommendation_state == "wait"
+    assert len(trackers) == 0

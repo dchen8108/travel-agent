@@ -126,6 +126,33 @@ def save_trip(
     return trip
 
 
+def save_past_trip(
+    repository: Repository,
+    *,
+    trip_id: str | None,
+    label: str,
+    anchor_date: date,
+) -> Trip:
+    trips = repository.load_trips()
+    ensure_unique_trip_label(trips, label, existing_trip_id=trip_id)
+
+    existing_trip = next((trip for trip in trips if trip.trip_id == trip_id), None) if trip_id else None
+    trip = build_trip(
+        trip_id=trip_id,
+        label=label,
+        trip_kind=TripKind.ONE_TIME,
+        active=True,
+        anchor_date=anchor_date,
+        anchor_weekday="",
+    )
+    if existing_trip:
+        trip.created_at = existing_trip.created_at
+        trip.updated_at = utcnow()
+
+    repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
+    return trip
+
+
 def set_trip_active(repository: Repository, trip_id: str, active: bool) -> Trip:
     trips = repository.load_trips()
     trip = next((item for item in trips if item.trip_id == trip_id), None)

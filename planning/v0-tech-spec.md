@@ -217,6 +217,14 @@ This is the only user-facing resolution queue in the MVP.
 6. App generates trip instances.
 7. App generates trackers.
 
+### 1b. Past Trip Logging
+
+1. User clicks `Log past trip` from the Trips workspace.
+2. User enters only a label and a past date.
+3. App creates a one-time trip and one dated trip instance.
+4. App does not create route options or trackers for that record.
+5. User can optionally jump straight into `Add booking` with that past trip instance preselected.
+
 ### 2. Weekly Reconciliation
 
 Whenever trips are regenerated:
@@ -277,6 +285,9 @@ For v0, a booked trip instance becomes `rebook` only when the latest matched obs
 - `GET /trips`
   Trips-first workspace with recurring cards, scheduled-trip filters, and links into creation/editing.
 
+- `GET /trips/new-past`
+  Lightweight historical logging form.
+
 - `GET /trips/{trip_id}`
   Backward-compatible redirect into the filtered Trips workspace.
 
@@ -296,6 +307,9 @@ For v0, a booked trip instance becomes `rebook` only when the latest matched obs
 
 - `POST /trips`
   Create or update a trip and regenerate dependent instances and trackers.
+
+- `POST /trips/past`
+  Create a historical one-time trip without route options or trackers.
 
 - `POST /trips/{trip_id}/pause`
   Pause a recurring trip.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -24,7 +24,7 @@ from app.services.dashboard import (
     trip_for_instance,
     trip_focus_url,
 )
-from app.services.trips import delete_trip, save_trip, set_trip_active
+from app.services.trips import delete_trip, save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -32,7 +32,7 @@ from app.web import base_context, get_repository, get_templates
 router = APIRouter(tags=["trips"])
 
 
-def _redirect_back(request: Request, *, fallback_url: str) -> RedirectResponse:
+def _redirect_back(request: Request, *, fallback_url: str, message: str | None = None) -> RedirectResponse:
     referer = request.headers.get("referer", "")
     if referer:
         parsed = urlsplit(referer)
@@ -47,8 +47,17 @@ def _redirect_back(request: Request, *, fallback_url: str) -> RedirectResponse:
             target = parsed.path
             if parsed.query:
                 target = f"{target}?{parsed.query}"
+            if message:
+                target = _with_message(target, message)
             return RedirectResponse(url=target, status_code=303)
-    return RedirectResponse(url=fallback_url, status_code=303)
+    return RedirectResponse(url=_with_message(fallback_url, message) if message else fallback_url, status_code=303)
+
+
+def _with_message(url: str, message: str) -> str:
+    parsed = urlsplit(url)
+    params = parse_qsl(parsed.query, keep_blank_values=True)
+    params.append(("message", message))
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(params, doseq=True), parsed.fragment))
 
 
 def _trip_form_state(trip, route_options):
@@ -148,7 +157,7 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     )
     past_items = past_instances(
         snapshot,
-        include_skipped=show_skipped,
+        include_skipped=False,
         recurring_trip_ids=selected_recurring_trip_id_set or None,
         today=today,
     )
@@ -175,7 +184,7 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
 
     total_active_scheduled = len(scheduled_instances(snapshot, today=today))
     total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True, today=today)) - total_active_scheduled
-    total_past = len(past_instances(snapshot, include_skipped=True, today=today))
+    total_past = len(past_instances(snapshot, include_skipped=False, today=today))
     recurring_filter_options = [{"value": trip.trip_id, "label": trip.label} for trip in recurring_items]
 
     return {
@@ -247,6 +256,27 @@ def new_trip(
             trip_form_state=_trip_form_state(None, []),
             route_option_state=_route_option_state([]),
             catalogs_json=catalogs_json(),
+        ),
+    )
+
+
+@router.get("/trips/new-past", response_class=HTMLResponse)
+def new_past_trip(
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> HTMLResponse:
+    snapshot = load_snapshot(repository)
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="past_trip_form.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            past_trip_form_state={
+                "label": "",
+                "anchor_date": "",
+            },
         ),
     )
 
@@ -347,6 +377,67 @@ async def save_trip_action(
         )
 
 
+@router.post("/trips/past")
+async def save_past_trip_action(
+    request: Request,
+    repository: Repository = Depends(get_repository),
+):
+    form = await request.form()
+    label = str(form.get("label", "")).strip()
+    anchor_date_value = str(form.get("anchor_date", "")).strip()
+    redirect_mode = str(form.get("redirect_mode", "trips")).strip()
+    try:
+        if not anchor_date_value:
+            raise ValueError("Past trips require a date.")
+        anchor_date = date.fromisoformat(anchor_date_value)
+        if anchor_date >= date.today():
+            raise ValueError("Past trips must use a date before today.")
+        trip = save_past_trip(
+            repository,
+            trip_id=None,
+            label=label,
+            anchor_date=anchor_date,
+        )
+        snapshot = sync_and_persist(repository)
+        trip_instance = next(
+            (
+                item
+                for item in snapshot.trip_instances
+                if item.trip_id == trip.trip_id and item.anchor_date == anchor_date
+            ),
+            None,
+        )
+        if trip_instance is None:
+            raise HTTPException(status_code=500, detail="Past trip instance was not created.")
+        focus_url = trip_focus_url(snapshot, trip.trip_id, trip_instance_id=trip_instance.trip_instance_id)
+        if redirect_mode == "booking":
+            return RedirectResponse(
+                url=_with_message(f"/bookings/new?trip_instance_id={trip_instance.trip_instance_id}", "Past trip logged"),
+                status_code=303,
+            )
+        return RedirectResponse(
+            url=_with_message(focus_url, "Past trip logged"),
+            status_code=303,
+        )
+    except ValueError as exc:
+        snapshot = load_snapshot(repository)
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name="past_trip_form.html",
+            context=base_context(
+                request,
+                page="trips",
+                snapshot=snapshot,
+                error_message=str(exc),
+                past_trip_form_state={
+                    "label": label,
+                    "anchor_date": anchor_date_value,
+                },
+            ),
+            status_code=400,
+        )
+
+
 @router.post("/trips/{trip_id}/pause")
 def pause_trip_action(
     trip_id: str,
@@ -358,7 +449,7 @@ def pause_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sync_and_persist(repository)
-    return _redirect_back(request, fallback_url="/trips?message=Trip+paused")
+    return _redirect_back(request, fallback_url="/trips", message="Trip paused")
 
 
 @router.post("/trips/{trip_id}/activate")
@@ -372,7 +463,7 @@ def activate_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sync_and_persist(repository)
-    return _redirect_back(request, fallback_url="/trips?message=Trip+activated")
+    return _redirect_back(request, fallback_url="/trips", message="Trip activated")
 
 
 @router.post("/trips/{trip_id}/delete")
@@ -411,6 +502,7 @@ def skip_trip_instance(
     return _redirect_back(
         request,
         fallback_url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance_id, show_skipped=True),
+        message="Trip skipped",
     )
 
 
@@ -430,4 +522,5 @@ def restore_trip_instance(
     return _redirect_back(
         request,
         fallback_url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance_id, show_skipped=False),
+        message="Trip restored",
     )

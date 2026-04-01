@@ -233,6 +233,8 @@ The `Trips` screen should be split into:
   - preserve bookings and tracker history
   - stay out of the operational queue
   - remain filterable through the same trip filters
+  - exclude skipped trips even if scheduled filters are widened
+  - support manual historical logging through a dedicated `Log past trip` flow
 
 Optional operational surface:
 
@@ -338,3 +340,13 @@ The MVP is successful if the user can:
 - auto-link easy bookings
 - resolve only unmatched bookings
 - view open, booked, skipped, and rebook-worthy trip instances in one place
+- provide both forward-looking trip planning and historical trip logging without mixing the two authoring paths
+
+Required capabilities:
+
+- create a future-facing trip with ranked route options
+- manage weekly recurring parents
+- view scheduled trip instances with live filters
+- view past trip history through the same filter workspace
+- log a past trip with only a label and date
+- jump directly from a logged past trip into booking attachment

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 
 from app.models.base import RecommendationState, TrackerStatus, TravelState, utcnow
 from app.models.booking import Booking
@@ -63,6 +64,7 @@ def recompute_trip_states(
         related_observations = observations_by_instance.get(instance.trip_instance_id, [])
         booking = active_booking_by_instance.get(instance.trip_instance_id)
         best_tracker = best_tracker_for_instance(related_trackers)
+        is_past = instance.anchor_date < date.today()
         instance.last_signal_at = max(
             (tracker.last_signal_at for tracker in related_trackers if tracker.last_signal_at),
             default=None,
@@ -90,6 +92,12 @@ def recompute_trip_states(
             else:
                 instance.recommendation_state = RecommendationState.BOOKED_MONITORING
                 instance.recommendation_reason = "Monitoring for a lower matched price."
+            instance.updated_at = utcnow()
+            continue
+
+        if is_past:
+            instance.recommendation_state = RecommendationState.WAIT
+            instance.recommendation_reason = "Past trip. Tracker setup is no longer needed."
             instance.updated_at = utcnow()
             continue
 

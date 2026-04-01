@@ -76,11 +76,12 @@
           <h3>Completed or expired history</h3>
           <p class="muted">Past trips stay attached to their booking and tracker history, but they no longer appear in the operational queue.</p>
         </div>
+        <a class="button secondary" href="/trips/new-past">Log past trip</a>
       </div>
       {% for instance in past_items %}
       {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
       {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
-      <article class="card scheduled-card past-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}" id="past-{{ instance.trip_instance_id }}">
+      <article class="card scheduled-card past-card" id="past-{{ instance.trip_instance_id }}">
         <div class="scheduled-card-head">
           <div class="scheduled-date">
             <small>{{ instance.anchor_date.strftime('%a') }}</small>
@@ -108,11 +109,19 @@
             <span class="badge">{{ instance.travel_state }}</span>
           </div>
         </div>
+        <div class="actions">
+          {% if not booking %}
+          <a class="button primary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
+          {% endif %}
+        </div>
       </article>
       {% else %}
       <article class="empty-state">
         <strong>No past trips yet.</strong>
-        <p>Once a trip date passes, it will move here automatically and stay available for reference.</p>
+        <p>Once a trip date passes, it will move here automatically and stay available for reference. You can also log older travel manually.</p>
+        <div class="actions top-gap-small">
+          <a class="button secondary" href="/trips/new-past">Log past trip</a>
+        </div>
       </article>
       {% endfor %}
     </section>
