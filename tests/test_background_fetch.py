@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import csv
 from datetime import date, timedelta
 
 from app.models.base import RecommendationState, TrackerStatus, utcnow
 from app.models.booking import Booking
 from app.models.fare_observation import FareObservation
+from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
@@ -12,6 +14,7 @@ from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.ids import new_id
 from app.services.google_flights_fetcher import best_google_flights_offer, parse_google_flights_offers
+from app.services.price_records import build_price_records
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -215,6 +218,7 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert tracker.latest_signal_source == "background_fetch"
     assert tracker.latest_winning_origin_airport == "BUR"
     assert tracker.latest_winning_destination_airport == "SFO"
+    assert len(result.successful_fetches) == 1
 
 
 def test_fetch_rollup_does_not_override_newer_manual_signal() -> None:
@@ -599,3 +603,201 @@ def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(reposi
     assert queued_count == 2
     assert targets[0].next_fetch_not_before == now
     assert targets[1].next_fetch_not_before == now + timedelta(seconds=10)
+
+
+def test_successful_fetch_builds_price_records_for_all_offers(repository: Repository, monkeypatch) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Price history build",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska|Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname=\"IWWDBc\">
+              <ul class=\"Rk10dc\">
+                <li>
+                  <div class=\"sSHqwe tPgKwe ogfYpf\"><span>Southwest</span></div>
+                  <span class=\"mv1WYe\"><div>6:10 PM on Wed, Apr 1</div><div>7:20 PM on Wed, Apr 1</div></span>
+                  <div class=\"YMlIz FpEdX\">$267</div>
+                </li>
+                <li>
+                  <div class=\"sSHqwe tPgKwe ogfYpf\"><span>Alaska</span></div>
+                  <span class=\"mv1WYe\"><div>5:55 PM on Wed, Apr 1</div><div>7:05 PM on Wed, Apr 1</div></span>
+                  <div class=\"YMlIz FpEdX\">$241</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        sleep_between_requests=False,
+    )
+    records = build_price_records(
+        trips=snapshot.trips,
+        trip_instances=snapshot.trip_instances,
+        trackers=snapshot.trackers,
+        fetch_targets=snapshot.tracker_fetch_targets,
+        successful_fetches=result.successful_fetches,
+    )
+    repository.append_price_records(records)
+
+    saved_records = repository.load_price_records()
+    assert len(saved_records) == 2
+    assert {item.price for item in saved_records} == {241, 267}
+    assert all(item.fetch_target_id == snapshot.tracker_fetch_targets[0].fetch_target_id for item in saved_records)
+    assert all(item.trip_label == trip.label for item in saved_records)
+    assert all(item.search_origin_airports == "BUR" for item in saved_records)
+    assert all(item.query_origin_airport == "BUR" for item in saved_records)
+    assert all(item.query_destination_airport == "SFO" for item in saved_records)
+    assert saved_records[0].fetch_event_id == saved_records[1].fetch_event_id
+    assert all(item.provider == "google_flights" for item in saved_records)
+    assert all(item.fetch_method == "generated_link" for item in saved_records)
+    assert all(item.observed_date == item.observed_at.date() for item in saved_records)
+    assert saved_records[0].request_offer_count == 2
+    assert saved_records[1].request_offer_count == 2
+    assert saved_records[0].offer_rank == 1
+    assert saved_records[1].offer_rank == 2
+    assert saved_records[0].is_request_cheapest is True
+    assert saved_records[1].is_request_cheapest is False
+    assert saved_records[0].record_signature != saved_records[1].record_signature
+
+
+def test_append_price_records_migrates_legacy_header(repository: Repository) -> None:
+    path = repository.settings.data_dir / "price_records.csv"
+    legacy_fieldnames = [
+        "price_record_id",
+        "fetch_event_id",
+        "observed_at",
+        "source",
+        "fetch_target_id",
+        "tracker_id",
+        "trip_instance_id",
+        "trip_id",
+        "route_option_id",
+        "tracker_definition_signature",
+        "trip_label",
+        "tracker_rank",
+        "search_origin_airports",
+        "search_destination_airports",
+        "search_airlines",
+        "search_day_offset",
+        "search_travel_date",
+        "search_start_time",
+        "search_end_time",
+        "query_origin_airport",
+        "query_destination_airport",
+        "google_flights_url",
+        "airline",
+        "departure_label",
+        "arrival_label",
+        "price",
+        "price_text",
+        "summary",
+        "created_at",
+    ]
+    observed_at = utcnow()
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=legacy_fieldnames)
+        writer.writeheader()
+        writer.writerow(
+            {
+                "price_record_id": "price_old",
+                "fetch_event_id": "fetch_old",
+                "observed_at": observed_at.isoformat(),
+                "source": "background_fetch",
+                "fetch_target_id": "ft_old",
+                "tracker_id": "trk_old",
+                "trip_instance_id": "inst_old",
+                "trip_id": "trip_old",
+                "route_option_id": "opt_old",
+                "tracker_definition_signature": "sig_old",
+                "trip_label": "Legacy trip",
+                "tracker_rank": 1,
+                "search_origin_airports": "BUR",
+                "search_destination_airports": "SFO",
+                "search_airlines": "Alaska",
+                "search_day_offset": 0,
+                "search_travel_date": date(2026, 4, 1).isoformat(),
+                "search_start_time": "06:00",
+                "search_end_time": "10:00",
+                "query_origin_airport": "BUR",
+                "query_destination_airport": "SFO",
+                "google_flights_url": "https://www.google.com/travel/flights/search?tfs=legacy",
+                "airline": "Alaska",
+                "departure_label": "6:00 AM",
+                "arrival_label": "7:30 AM",
+                "price": 199,
+                "price_text": "$199",
+                "summary": "Legacy summary",
+                "created_at": observed_at.isoformat(),
+            }
+        )
+
+    repository.append_price_records(
+        [
+            PriceRecord(
+                price_record_id="price_new",
+                fetch_event_id="fetch_new",
+                observed_at=observed_at,
+                source="background_fetch",
+                fetch_target_id="ft_new",
+                tracker_id="trk_new",
+                trip_instance_id="inst_new",
+                trip_id="trip_new",
+                route_option_id="opt_new",
+                tracker_definition_signature="sig_new",
+                trip_label="New trip",
+                tracker_rank=1,
+                search_origin_airports="LAX",
+                search_destination_airports="SFO",
+                search_airlines="United",
+                search_day_offset=0,
+                search_travel_date=date(2026, 4, 2),
+                search_start_time="07:00",
+                search_end_time="11:00",
+                query_origin_airport="LAX",
+                query_destination_airport="SFO",
+                google_flights_url="https://www.google.com/travel/flights/search?tfs=new",
+                airline="United",
+                departure_label="7:05 AM",
+                arrival_label="8:35 AM",
+                price=209,
+                price_text="$209",
+                summary="New summary",
+                record_signature="sig_record_new",
+            )
+        ]
+    )
+
+    saved_records = repository.load_price_records()
+    assert len(saved_records) == 2
+    assert {item.price_record_id for item in saved_records} == {"price_old", "price_new"}
+    legacy = next(item for item in saved_records if item.price_record_id == "price_old")
+    assert legacy.observed_date == observed_at.date()

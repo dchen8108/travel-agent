@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from app.models.booking import Booking
 from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
+from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -28,6 +29,7 @@ class AppSnapshot:
     bookings: list[Booking]
     unmatched_bookings: list[UnmatchedBooking]
     observations: list[FareObservation]
+    price_records: list[PriceRecord]
     email_events: list[EmailEvent]
     app_state: object
 
@@ -45,6 +47,7 @@ def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnaps
         bookings=repository.load_bookings(),
         unmatched_bookings=repository.load_unmatched_bookings(),
         observations=repository.load_fare_observations(),
+        price_records=repository.load_price_records(),
         email_events=repository.load_email_events(),
         app_state=repository.load_app_state(),
     )

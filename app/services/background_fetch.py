@@ -17,6 +17,7 @@ from app.services.google_flights_fetcher import (
     best_google_flights_offer,
     fetch_google_flights_offers,
 )
+from app.services.price_records import SuccessfulFetchRecord
 
 MAX_FETCH_TARGETS_PER_RUN = 3
 SLEEP_RANGE_SECONDS = (FETCH_STAGGER_SECONDS, FETCH_STAGGER_SECONDS + 3.0)
@@ -26,6 +27,7 @@ SLEEP_RANGE_SECONDS = (FETCH_STAGGER_SECONDS, FETCH_STAGGER_SECONDS + 3.0)
 class FetchBatchResult:
     fetched_count: int
     updated_targets: list[TrackerFetchTarget]
+    successful_fetches: list[SuccessfulFetchRecord]
 
 
 def queue_rolling_refresh(
@@ -114,9 +116,10 @@ def run_fetch_batch(
         max_targets=max_targets,
     )
     if not due_targets:
-        return FetchBatchResult(fetched_count=0, updated_targets=fetch_targets)
+        return FetchBatchResult(fetched_count=0, updated_targets=fetch_targets, successful_fetches=[])
 
     client = httpx.Client(timeout=20.0, follow_redirects=True)
+    successful_fetches: list[SuccessfulFetchRecord] = []
     try:
         for index, target in enumerate(due_targets):
             tracker = tracker_by_id.get(target.tracker_id)
@@ -132,6 +135,13 @@ def run_fetch_batch(
                 if winner is None:
                     raise GoogleFlightsFetchError("No usable offers found.")
                 fetched_at = utcnow()
+                successful_fetches.append(
+                    SuccessfulFetchRecord(
+                        fetch_target_id=target.fetch_target_id,
+                        fetched_at=fetched_at,
+                        offers=list(offers),
+                    )
+                )
                 target.latest_price = winner.price
                 target.latest_airline = winner.airline
                 target.latest_departure_label = winner.departure_label
@@ -160,7 +170,11 @@ def run_fetch_batch(
     finally:
         client.close()
 
-    return FetchBatchResult(fetched_count=len(due_targets), updated_targets=fetch_targets)
+    return FetchBatchResult(
+        fetched_count=len(due_targets),
+        updated_targets=fetch_targets,
+        successful_fetches=successful_fetches,
+    )
 
 
 def success_backoff_for_tracker(target: TrackerFetchTarget, fetched_at: datetime) -> datetime:

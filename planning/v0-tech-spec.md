@@ -43,7 +43,10 @@ v0 consists of six layers:
 5. `Storage`
    CSV and JSON files under `data/`.
 
-6. `Upstream signal source`
+6. `Historical price logging`
+   Every successful Google Flights fetch appends one row per parsed offer into a standalone `price_records.csv` fact table.
+
+7. `Upstream signal source`
    Generated Google Flights search links queried conservatively in the background.
 
 ## Stack
@@ -151,6 +154,39 @@ Key fields:
 
 Each tracker can fan out to at most 9 fetch targets.
 
+### Price Record
+
+Append-only historical fact row produced by a successful fetch target request.
+
+Key fields:
+
+- `price_record_id`
+- `fetch_event_id`
+- `observed_at`
+- `observed_date`
+- `provider`
+- `fetch_method`
+- `fetch_target_id`
+- `tracker_id`
+- `trip_instance_id`
+- `trip_id`
+- `route_option_id`
+- `tracker_definition_signature`
+- search-envelope snapshot fields
+- concrete airport-pair query fields
+- parsed offer fields such as airline, departure label, arrival label, and price
+- `offer_rank`
+- `request_offer_count`
+- `is_request_cheapest`
+- `record_signature`
+
+Notes:
+
+- one successful fetch can create many price records
+- the table is append-only
+- current tracker state is still derived separately from the latest fetch-target rollups
+- tracker edits can invalidate current price state without deleting old historical records
+
 ### Booking
 
 Attached booking linked to a trip instance and, ideally, to a tracker.
@@ -200,6 +236,7 @@ Generation must be idempotent.
 3. Background fetch is enabled automatically for every tracker.
 4. The worker queries a small number of fetch targets serially.
 5. The cheapest successful fetch target rolls back onto the tracker as the best known price.
+6. Every successful fetch target request also appends one row per parsed offer into `price_records.csv`.
 
 ### 4. Legacy Email Import
 

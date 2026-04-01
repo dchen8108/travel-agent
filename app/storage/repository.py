@@ -7,6 +7,7 @@ from app.models.base import AppState
 from app.models.booking import Booking
 from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
+from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -14,7 +15,7 @@ from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
-from app.storage.csv_store import load_csv_models, save_csv_models
+from app.storage.csv_store import append_csv_models, load_csv_models, save_csv_models
 from app.storage.json_store import load_json_model, save_json_model
 
 
@@ -44,6 +45,7 @@ class Repository:
             ("unmatched_bookings.csv", UnmatchedBooking),
             ("email_events.csv", EmailEvent),
             ("fare_observations.csv", FareObservation),
+            ("price_records.csv", PriceRecord),
         ):
             path = self._path(name)
             if not path.exists():
@@ -119,4 +121,14 @@ class Repository:
             self._path("fare_observations.csv"),
             observations,
             _fieldnames(FareObservation),
+        )
+
+    def load_price_records(self) -> list[PriceRecord]:
+        return load_csv_models(self._path("price_records.csv"), PriceRecord)
+
+    def append_price_records(self, records: list[PriceRecord]) -> None:
+        append_csv_models(
+            self._path("price_records.csv"),
+            records,
+            _fieldnames(PriceRecord),
         )

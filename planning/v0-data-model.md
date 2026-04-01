@@ -14,6 +14,7 @@ data/
   trip_instances.csv
   trackers.csv
   tracker_fetch_targets.csv
+  price_records.csv
   bookings.csv
   unmatched_bookings.csv
   email_events.csv
@@ -27,6 +28,7 @@ data/
 - easy to reset during development
 - enough structure to support recurring generation and booking linkage
 - isolate Google Flights specifics to trackers, fetch targets, email events, and observations
+- keep an append-only fetched-offer history table for future analytics
 
 ## `app.json`
 
@@ -229,6 +231,60 @@ Notes:
 - one tracker can fan out to at most 9 fetch targets
 - fetch targets are the background polling unit
 - the tracker keeps the rolled-up best known price
+
+## `price_records.csv`
+
+Purpose:
+
+- store append-only historical fetched offers for analytics and future insights
+
+One row per parsed offer from one successful fetch target request.
+
+Suggested columns:
+
+- `price_record_id`
+- `fetch_event_id`
+- `observed_at`
+- `observed_date`
+- `source`
+- `provider`
+- `fetch_method`
+- `fetch_target_id`
+- `tracker_id`
+- `trip_instance_id`
+- `trip_id`
+- `route_option_id`
+- `tracker_definition_signature`
+- `trip_label`
+- `tracker_rank`
+- `search_origin_airports`
+- `search_destination_airports`
+- `search_airlines`
+- `search_day_offset`
+- `search_travel_date`
+- `search_start_time`
+- `search_end_time`
+- `query_origin_airport`
+- `query_destination_airport`
+- `google_flights_url`
+- `airline`
+- `departure_label`
+- `arrival_label`
+- `price`
+- `price_text`
+- `summary`
+- `offer_rank`
+- `request_offer_count`
+- `is_request_cheapest`
+- `record_signature`
+- `created_at`
+
+Notes:
+
+- this table is append-only
+- one fetch request can create many rows
+- current tracker price state is still stored separately on `trackers.csv` and `tracker_fetch_targets.csv`
+- tracker-definition changes can invalidate live prices without touching historical price records
 
 ## `bookings.csv`
 

@@ -21,6 +21,7 @@ This version is intentionally local and simple:
 - in-house Google Flights background fetching
 - automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
+- append-only fetched offer history under `data/price_records.csv`
 - manual `.eml` upload kept as a legacy fallback
 - no paid fare APIs
 - no Gmail automation
@@ -34,6 +35,7 @@ This version is intentionally local and simple:
 - `Trip Instance`: one dated scheduled trip, either standalone or generated from a weekly trip
 - `Tracker`: one Google Flights tracker/search envelope for a route option on a trip instance
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
+- `Price Record`: one append-only fetched offer row captured for analytics history
 - `Booking`: a purchased itinerary attached to a trip instance
 - `Unmatched Booking`: a booking the system could not confidently place
 
@@ -111,3 +113,16 @@ To remove it later:
 ```bash
 uv run python -m app.jobs.uninstall_launchd_fetcher
 ```
+
+## Historical Price Records
+
+Every successful background Google Flights request now appends rows to `data/price_records.csv`.
+
+Important behavior:
+
+- one fetch target request can create many price records
+- each row represents one parsed itinerary/price, not just the cheapest result
+- current tracker state still stores only the latest best rollup
+- price history is append-only and survives tracker-definition edits
+
+This gives the app a long-term local fact table for analytics without changing the live tracker UI yet.
