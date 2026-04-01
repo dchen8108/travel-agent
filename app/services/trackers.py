@@ -22,6 +22,7 @@ def tracker_definition_signature(
     travel_date,
     start_time: str,
     end_time: str,
+    fare_class_policy: str,
 ) -> str:
     return stable_id(
         "trkdef",
@@ -33,6 +34,7 @@ def tracker_definition_signature(
         travel_date.isoformat(),
         start_time,
         end_time,
+        fare_class_policy,
     )
 
 
@@ -79,6 +81,7 @@ def reconcile_trackers(
                 travel_date=travel_date,
                 start_time=option.start_time,
                 end_time=option.end_time,
+                fare_class_policy=option.fare_class_policy,
             )
             existing = existing_by_id.get(tracker_id)
             if existing:
@@ -92,6 +95,7 @@ def reconcile_trackers(
                 existing.travel_date = travel_date
                 existing.start_time = option.start_time
                 existing.end_time = option.end_time
+                existing.fare_class_policy = option.fare_class_policy
                 existing.definition_signature = definition_signature
                 if definition_changed:
                     existing.last_signal_at = None
@@ -123,6 +127,7 @@ def reconcile_trackers(
                     travel_date=travel_date,
                     start_time=option.start_time,
                     end_time=option.end_time,
+                    fare_class_policy=option.fare_class_policy,
                     definition_signature=definition_signature,
                 )
             )

@@ -326,3 +326,69 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
     assert any(field == 9 and value == 9 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 10 and value == 0 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 11 and value == 23 for field, wire, value in nested_fields if wire == 0)
+
+
+def test_route_option_fare_class_policy_persists_to_trackers(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Fare Policy Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 13),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Alaska|Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "exclude_basic",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    route_option = next(item for item in snapshot.route_options if item.trip_id == trip.trip_id)
+    trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
+
+    assert route_option.fare_class_policy == "exclude_basic"
+    assert tracker.fare_class_policy == "exclude_basic"
+
+
+def test_generated_google_flights_url_can_exclude_basic_economy(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Exclude Basic Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 13),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Alaska|Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "exclude_basic",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
+
+    url = build_google_flights_query_url(tracker)
+    query = parse_qs(urlsplit(url).query)
+    top_fields = _decode_tfs(url)
+
+    assert query["hl"] == ["en-US"]
+    assert query["tfu"] == ["EgYIABAAGAA"]
+    assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0)

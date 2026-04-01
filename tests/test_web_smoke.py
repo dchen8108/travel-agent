@@ -147,6 +147,43 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
     assert "cheaper by at least your configured amount" in detail.text
 
 
+def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Exclude Basic UI Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-13",
+            "anchor_weekday": "",
+            "route_options_json": (
+                '[{"origin_airports":["LAX"],"destination_airports":["SFO"],"airlines":["Alaska","Southwest"],'
+                '"day_offset":0,"start_time":"06:00","end_time":"08:00","fare_class_policy":"exclude_basic"}]'
+            ),
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+
+    repository = Repository(settings)
+    route_option = repository.load_route_options()[0]
+    tracker = repository.load_trackers()[0]
+
+    assert route_option.fare_class_policy == "exclude_basic"
+    assert tracker.fare_class_policy == "exclude_basic"
+
+    detail = client.get(response.headers["location"])
+    assert detail.status_code == 200
+    assert "Excludes Basic fares" in detail.text
+
+
 def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

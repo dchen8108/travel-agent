@@ -547,7 +547,7 @@
     const weekdays = catalogs.weekdays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     let routeOptions = Array.isArray(tripState.routeOptions) && tripState.routeOptions.length
       ? tripState.routeOptions
-      : [{
+        : [{
           route_option_id: "",
           savings_needed_vs_previous: 0,
           origin_airports: [],
@@ -555,7 +555,8 @@
           airlines: [],
           day_offset: 0,
           start_time: "",
-          end_time: ""
+          end_time: "",
+          fare_class_policy: "include_basic"
         }];
 
     function currentPreferenceMode() {
@@ -589,7 +590,8 @@
         airlines: option.airlines,
         day_offset: Number(option.day_offset),
         start_time: option.start_time,
-        end_time: option.end_time
+        end_time: option.end_time,
+        fare_class_policy: option.fare_class_policy || "include_basic"
       })));
     }
 
@@ -628,6 +630,25 @@
             <div class="field"><span>Relative day</span><select data-field="day_offset"></select></div>
             <div class="field"><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></div>
             <div class="field"><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></div>
+            <div class="field full-width fare-policy-field">
+              <span>Fare policy</span>
+              <div class="fare-policy-grid" data-field="fare_class_policy">
+                <label class="choice-card compact">
+                  <input type="radio" name="fare_class_policy_${index}" value="include_basic" ${(!option.fare_class_policy || option.fare_class_policy === "include_basic") ? "checked" : ""}>
+                  <span>
+                    <strong>Include Basic</strong>
+                    <small>Track the cheapest economy result even if it is a more restrictive basic fare.</small>
+                  </span>
+                </label>
+                <label class="choice-card compact">
+                  <input type="radio" name="fare_class_policy_${index}" value="exclude_basic" ${option.fare_class_policy === "exclude_basic" ? "checked" : ""}>
+                  <span>
+                    <strong>Exclude Basic</strong>
+                    <small>Only compare standard-or-better economy fares.</small>
+                  </span>
+                </label>
+              </div>
+            </div>
             ${biasEnabled ? `
               <div class="field preference-threshold-field ${index === 0 ? "is-readonly" : ""}">
                 <span>${index === 0 ? "Preference buffer" : `Savings needed vs option ${index}`}</span>
@@ -660,6 +681,15 @@
         card.querySelector('[data-field="end_time"]').addEventListener("input", (event) => {
           option.end_time = event.target.value;
           serialize();
+        });
+        card.querySelectorAll(`input[name="fare_class_policy_${index}"]`).forEach((input) => {
+          input.addEventListener("change", () => {
+            if (!input.checked) {
+              return;
+            }
+            option.fare_class_policy = input.value;
+            serialize();
+          });
         });
         const biasInput = card.querySelector('[data-field="savings_needed_vs_previous"]');
         if (biasInput) {
@@ -716,7 +746,8 @@
               airlines: [],
               day_offset: 0,
               start_time: "",
-              end_time: ""
+              end_time: "",
+              fare_class_policy: "include_basic"
             }];
           }
           render();
@@ -745,7 +776,8 @@
         airlines: [],
         day_offset: 0,
         start_time: "",
-        end_time: ""
+        end_time: "",
+        fare_class_policy: "include_basic"
       });
       render();
     });

@@ -737,9 +737,23 @@ textarea {
   line-height: 1.4;
 }
 
+.choice-card.compact {
+  min-height: 100%;
+}
+
 .choice-card:has(input:checked) {
   border-color: rgba(31, 92, 82, 0.28);
   background: rgba(216, 235, 230, 0.44);
+}
+
+.fare-policy-field {
+  gap: 10px;
+}
+
+.fare-policy-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .preference-threshold-field {

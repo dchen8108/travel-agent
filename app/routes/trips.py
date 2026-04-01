@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
-from app.models.base import TravelState
+from app.models.base import FareClassPolicy, TravelState
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
@@ -67,6 +67,7 @@ def _route_option_state(route_options):
             "day_offset": option.day_offset,
             "start_time": option.start_time,
             "end_time": option.end_time,
+            "fare_class_policy": option.fare_class_policy,
         }
         for option in route_options
     ]
@@ -88,6 +89,7 @@ def _route_option_state_from_payloads(payloads: list[dict[str, object]]):
             "day_offset": int(item.get("day_offset", 0)),
             "start_time": str(item.get("start_time", "") or ""),
             "end_time": str(item.get("end_time", "") or ""),
+            "fare_class_policy": str(item.get("fare_class_policy", FareClassPolicy.INCLUDE_BASIC) or FareClassPolicy.INCLUDE_BASIC),
         }
         for item in payloads
     ]
@@ -111,6 +113,7 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
                 "day_offset": int(item.get("day_offset", 0)),
                 "start_time": str(item.get("start_time", "") or ""),
                 "end_time": str(item.get("end_time", "") or ""),
+                "fare_class_policy": str(item.get("fare_class_policy", FareClassPolicy.INCLUDE_BASIC) or FareClassPolicy.INCLUDE_BASIC),
             }
         )
     return route_options

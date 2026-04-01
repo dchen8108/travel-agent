@@ -6,7 +6,7 @@ This MVP is built around a simple idea:
 
 - you organize travel into named `Trips`
 - each trip owns one or more ranked `Route Options`
-- each route option corresponds to one Google Flights tracker/search definition
+- each route option corresponds to one Google Flights tracker/search definition, including whether Basic economy should be included or excluded
 - trips can treat route options equally or require lower-ranked options to clear user-defined savings thresholds
 - the app generates dated `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
@@ -54,13 +54,14 @@ Then open `http://127.0.0.1:8000`.
 2. Choose whether it is `one_time` or `weekly`.
 3. Choose whether route options should be treated equally or in ranked order.
 4. Add ranked `Route Options`.
-5. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
-6. Use `Trips` to manage recurring plans and browse the dated scheduled trips they create.
-7. Open a recurring trip for parent-level details, route options, and scheduled dates.
-8. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, and booking state.
-9. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
-10. Record bookings in the app.
-11. Let the app continue comparing booked prices against tracker prices.
+5. For each route option, choose whether Google Flights should include or exclude Basic economy fares.
+6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
+7. Use `Trips` to manage recurring plans and browse the dated scheduled trips they create.
+8. Open a recurring trip for parent-level details, route options, and scheduled dates.
+9. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, fare-policy labels, and booking state.
+10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
+11. Record bookings in the app.
+12. Let the app continue comparing booked prices against tracker prices.
 
 ## Tests
 
@@ -146,5 +147,6 @@ Important behavior:
 - each row represents one parsed itinerary/price, not just the cheapest result
 - current tracker state still stores only the latest best rollup
 - price history is append-only and survives tracker-definition edits
+- each row also records whether the originating tracker allowed or excluded Basic economy fares
 
 This gives the app a long-term local fact table for analytics without changing the live tracker UI yet.

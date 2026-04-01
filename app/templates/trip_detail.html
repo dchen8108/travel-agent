@@ -87,6 +87,9 @@
             {{ day_offset_label(trip.effective_anchor_weekday, option.day_offset) }} ·
             {{ option.start_time }}–{{ option.end_time }} departure
           </p>
+          <p class="muted">
+            {{ 'Includes Basic fares' if option.fare_class_policy == 'include_basic' else 'Excludes Basic fares' }}
+          </p>
           <p class="muted">{{ option_view.preference_note }}</p>
         </div>
       </div>

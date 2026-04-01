@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pydantic import Field, field_validator, model_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import CsvModel, utcnow
+from app.models.base import CsvModel, FareClassPolicy, utcnow
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
@@ -32,6 +32,7 @@ class PriceRecord(CsvModel):
     search_travel_date: date
     search_start_time: str
     search_end_time: str
+    search_fare_class_policy: FareClassPolicy = FareClassPolicy.INCLUDE_BASIC
     query_origin_airport: str
     query_destination_airport: str
     google_flights_url: str = ""
@@ -113,6 +114,11 @@ class PriceRecord(CsvModel):
     def validate_day_offset(cls, value: int) -> int:
         if value < -1 or value > 1:
             raise ValueError("Choose a supported relative day.")
+        return value
+
+    @field_validator("search_fare_class_policy")
+    @classmethod
+    def validate_search_fare_class_policy(cls, value: FareClassPolicy) -> FareClassPolicy:
         return value
 
     @field_validator("search_end_time")

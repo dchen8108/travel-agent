@@ -103,6 +103,9 @@ Persistence:
 - ranked search definition under a trip
 - can include multiple origin airports, destination airports, and airlines
 - has one day offset and one departure window
+- carries a fare-class policy:
+  - `include_basic`
+  - `exclude_basic`
 - lower-ranked options can require savings thresholds when preference mode is `ranked_bias`
 
 `TripInstance`
@@ -116,6 +119,7 @@ Persistence:
 
 - one per route option per trip instance
 - represents a search envelope
+- inherits the route option fare-class policy
 - stores rolled-up best current signal
 
 `TrackerFetchTarget`
@@ -127,6 +131,7 @@ Persistence:
 
 - append-only historical fetched-offer record
 - one successful fetch can append multiple rows
+- stores the fare-class policy used to generate the Google Flights query
 
 `Booking`
 
@@ -149,6 +154,7 @@ Persistence:
 7. Shared route helpers now centralize flash-message redirects and refresh queue orchestration.
 8. `Settings` now rejects unknown fields so stale config drift fails fast.
 9. The installed launchd fetcher now defaults to `max_targets=2` and keeps between-request jitter.
+10. Route options now explicitly choose whether Google Flights should include or exclude Basic economy fares.
 
 ## Important Verified Facts
 
@@ -229,6 +235,10 @@ Google Flights specifics:
 - [app/services/google_flights.py](/Users/davidchen/code/travel-agent/app/services/google_flights.py)
 - [app/services/google_flights_fetcher.py](/Users/davidchen/code/travel-agent/app/services/google_flights_fetcher.py)
 - [app/services/price_records.py](/Users/davidchen/code/travel-agent/app/services/price_records.py)
+- generated Google Flights `tfs` URLs now support a route-option fare policy:
+  - `include_basic` remains the default
+  - `exclude_basic` is encoded directly into the `tfs` payload
+  - no browser automation is required just to switch between those two modes
 
 Persistence:
 
@@ -260,6 +270,7 @@ Tests:
 - recurring trips act as parent plans
 - scheduled trip instances have dedicated detail pages
 - route options can express ranked preference buffers
+- route options can independently include or exclude Basic economy fares
 - background fetch targets are generated per airport pair
 - background fetch parsing can extract offer rows from Google Flights HTML samples
 - tracker rollups choose the best fresh fetched target

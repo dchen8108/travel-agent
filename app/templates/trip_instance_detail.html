@@ -86,6 +86,9 @@
           <p class="muted">
             {{ tracker.travel_date.isoformat() }} · {{ tracker.start_time }}–{{ tracker.end_time }} departure
           </p>
+          <p class="muted">
+            {{ 'Includes Basic fares' if tracker.fare_class_policy == 'include_basic' else 'Excludes Basic fares' }}
+          </p>
           {% if tracker.preference_bias_dollars > 0 %}
           <p class="muted">Needs at least ${{ tracker.preference_bias_dollars }} total savings to beat option 1.</p>
           {% endif %}

@@ -38,6 +38,11 @@ class RoutePreferenceMode(StrEnum):
     RANKED_BIAS = "ranked_bias"
 
 
+class FareClassPolicy(StrEnum):
+    INCLUDE_BASIC = "include_basic"
+    EXCLUDE_BASIC = "exclude_basic"
+
+
 class TripInstanceKind(StrEnum):
     STANDALONE = "standalone"
     GENERATED = "generated"

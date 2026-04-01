@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from app.catalog import WEEKDAYS
+from app.models.base import FareClassPolicy
 
 
 def split_pipe(value: str) -> list[str]:
@@ -87,11 +88,13 @@ def route_option_summary(
     day_label: str,
     start_time: str,
     end_time: str,
+    fare_class_policy: str = FareClassPolicy.INCLUDE_BASIC,
 ) -> str:
     origins = ", ".join(origin_airports)
     destinations = ", ".join(destination_airports)
     airline_label = ", ".join(airlines)
-    return f"{origins} → {destinations} · {day_label} · {start_time}-{end_time} · {airline_label}"
+    fare_label = "Basic allowed" if fare_class_policy == FareClassPolicy.INCLUDE_BASIC else "Basic excluded"
+    return f"{origins} → {destinations} · {day_label} · {start_time}-{end_time} · {airline_label} · {fare_label}"
 
 
 def cumulative_route_option_bias(savings_needed_vs_previous: list[int], index: int) -> int:

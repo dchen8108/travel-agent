@@ -4,7 +4,7 @@ from datetime import date
 
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
-from app.models.base import RoutePreferenceMode, TripKind, utcnow
+from app.models.base import FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
 from app.services.ids import new_id
 from app.storage.repository import Repository
 
@@ -58,7 +58,7 @@ def build_route_options(
 ) -> list[RouteOption]:
     existing_by_id = {option.route_option_id: option for option in existing_route_options or []}
     built: list[RouteOption] = []
-    seen_signatures: set[tuple[str, str, str, int, str, str]] = set()
+    seen_signatures: set[tuple[str, str, str, int, str, str, str]] = set()
     for index, payload in enumerate(payloads, start=1):
         route_option_id = str(payload.get("route_option_id") or "").strip() or new_id("opt")
         original = existing_by_id.get(route_option_id)
@@ -73,6 +73,7 @@ def build_route_options(
             day_offset=int(payload.get("day_offset", 0)),
             start_time=str(payload.get("start_time", "")),
             end_time=str(payload.get("end_time", "")),
+            fare_class_policy=FareClassPolicy(str(payload.get("fare_class_policy", FareClassPolicy.INCLUDE_BASIC))),
             created_at=original.created_at if original else utcnow(),
             updated_at=utcnow(),
         )
@@ -83,6 +84,7 @@ def build_route_options(
             option.day_offset,
             option.start_time,
             option.end_time,
+            option.fare_class_policy,
         )
         if signature in seen_signatures:
             raise ValueError("Duplicate route options are not allowed.")
