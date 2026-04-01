@@ -24,6 +24,7 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
     context: dict[str, object] = {
         "request": request,
         "message": request.query_params.get("message", ""),
+        "message_kind": request.query_params.get("message_kind", "success"),
         "page": extra.pop("page", ""),
     }
     context.update(extra)

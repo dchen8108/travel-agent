@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>travel-agent</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+    <script src="{{ url_for('static', path='/app.js') }}" defer></script>
   </head>
   <body>
     {% set resolve_count = snapshot.unmatched_bookings|selectattr('resolution_status', 'equalto', 'open')|list|length if snapshot is defined else 0 %}
@@ -29,7 +30,12 @@
       </aside>
       <main class="content">
         {% if message %}
-        <div class="flash">{{ message }}</div>
+        <div class="toast-stack">
+          <div class="flash is-{{ message_kind }}" data-toast role="status" aria-live="polite">
+            <span>{{ message }}</span>
+            <button type="button" class="flash-close" data-toast-close aria-label="Dismiss message">×</button>
+          </div>
+        </div>
         {% endif %}
         {% block content %}{% endblock %}
       </main>

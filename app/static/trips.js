@@ -57,102 +57,186 @@
     placeholder,
     emptyText = "No selections",
     maxSelections = Number.POSITIVE_INFINITY,
+    helperText = "",
+    compact = false,
     onChange
   }) {
     const state = { values: Array.from(values || []) };
     root.innerHTML = `
-      <div class="multi-select">
-        <div class="chip-list" data-chip-list></div>
-        <div class="multi-select-input-row">
-          <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
+      <div class="picker ${compact ? "is-compact" : ""}">
+        ${compact ? "" : '<div class="picker-selection" data-selection></div>'}
+        <button type="button" class="picker-trigger" data-trigger aria-expanded="false"></button>
+        <div class="picker-popover" data-popover hidden>
+          <div class="picker-popover-header">
+            <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
+            ${Number.isFinite(maxSelections) ? '<span class="picker-count" data-count></span>' : ""}
+          </div>
+          ${helperText ? `<p class="picker-helper">${helperText}</p>` : ""}
+          <div class="picker-menu" data-menu></div>
         </div>
-        <div class="multi-select-menu" data-menu hidden></div>
       </div>
     `;
-    const chipList = root.querySelector("[data-chip-list]");
+    const selection = root.querySelector("[data-selection]");
+    const trigger = root.querySelector("[data-trigger]");
+    const popover = root.querySelector("[data-popover]");
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
+    const count = root.querySelector("[data-count]");
 
-    function closeMenu() {
-      menu.hidden = true;
+    function renderTrigger() {
+      if (compact) {
+        if (!state.values.length) {
+          trigger.textContent = emptyText;
+          trigger.classList.remove("has-value");
+          return;
+        }
+        const selectedLabels = state.values
+          .map((value) => options.find((item) => item.value === value)?.label || value)
+          .filter(Boolean);
+        if (selectedLabels.length <= 2) {
+          trigger.textContent = selectedLabels.join(", ");
+        } else {
+          trigger.textContent = `${selectedLabels.slice(0, 2).join(", ")} +${selectedLabels.length - 2}`;
+        }
+        trigger.classList.add("has-value");
+        return;
+      }
+      trigger.textContent = state.values.length >= maxSelections
+        ? `Maximum selected (${state.values.length}/${maxSelections})`
+        : placeholder;
+      trigger.classList.toggle("has-value", state.values.length > 0);
     }
 
-    function renderChips() {
-      chipList.innerHTML = "";
+    function closeMenu() {
+      popover.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+    }
+
+    function openMenu() {
+      closeOtherPickers(root);
+      popover.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      search.focus();
+      renderMenu(search.value);
+    }
+
+    function renderSelection() {
+      if (!selection) {
+        return;
+      }
+      selection.innerHTML = "";
       state.values.forEach((value, index) => {
         const option = options.find((item) => item.value === value);
         if (!option) return;
-        const chip = document.createElement("button");
-        chip.type = "button";
+        const chip = document.createElement("span");
         chip.className = "chip";
-        chip.innerHTML = `<span>${formatOption(option)}</span><span class="chip-remove" aria-hidden="true">×</span>`;
-        chip.addEventListener("click", () => {
+        const text = document.createElement("span");
+        text.textContent = formatOption(option);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "chip-remove-button";
+        remove.setAttribute("aria-label", `Remove ${formatOption(option)}`);
+        remove.textContent = "×";
+        remove.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
           state.values = state.values.filter((_, itemIndex) => itemIndex !== index);
-          renderChips();
-          onChange(state.values);
+          renderSelection();
+          renderTrigger();
+          renderMenu(search.value);
+          onChange(Array.from(state.values));
         });
-        chipList.appendChild(chip);
+        chip.append(text, remove);
+        selection.appendChild(chip);
       });
       if (!state.values.length) {
         const empty = document.createElement("span");
         empty.className = "chip-empty";
         empty.textContent = emptyText;
-        chipList.appendChild(empty);
+        selection.appendChild(empty);
       }
     }
 
     function renderMenu(query = "") {
-      if (state.values.length >= maxSelections) {
-        closeMenu();
+      const normalized = query.trim().toLowerCase();
+      if (!compact && state.values.length >= maxSelections) {
+        menu.innerHTML = "";
+        if (count) {
+          count.textContent = `${state.values.length}/${maxSelections}`;
+        }
+        const empty = document.createElement("p");
+        empty.className = "picker-empty-state";
+        empty.textContent = `Maximum reached (${maxSelections}). Remove one to add another.`;
+        menu.appendChild(empty);
         return;
       }
-      const normalized = query.trim().toLowerCase();
       const matches = options
-        .filter((option) => !state.values.includes(option.value))
+        .filter((option) => compact || !state.values.includes(option.value))
         .filter((option) => !normalized || buildSearchText(option).includes(normalized))
+        .sort((left, right) => {
+          if (!compact) return 0;
+          return Number(state.values.includes(right.value)) - Number(state.values.includes(left.value));
+        })
         .slice(0, 10);
       menu.innerHTML = "";
+      if (count) {
+        count.textContent = Number.isFinite(maxSelections)
+          ? `${state.values.length}/${maxSelections}`
+          : `${state.values.length}`;
+      }
       if (!matches.length) {
-        closeMenu();
+        const empty = document.createElement("p");
+        empty.className = "picker-empty-state";
+        empty.textContent = state.values.length >= maxSelections
+          ? `Maximum reached (${maxSelections}). Remove one to add another.`
+          : "No matching options.";
+        menu.appendChild(empty);
         return;
       }
       matches.forEach((option) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "multi-select-option";
+        button.className = "picker-option";
+        const alreadySelected = state.values.includes(option.value);
+        button.classList.toggle("is-selected", alreadySelected);
         button.textContent = formatOption(option);
-        button.addEventListener("mousedown", (event) => {
+        button.addEventListener("click", (event) => {
           event.preventDefault();
-          state.values = [...state.values, option.value];
-          renderChips();
-          onChange(state.values);
-          search.value = "";
-          renderMenu("");
+          if (alreadySelected && compact) {
+            state.values = state.values.filter((value) => value !== option.value);
+          } else if (!alreadySelected && state.values.length < maxSelections) {
+            state.values = [...state.values, option.value];
+          }
+          renderSelection();
+          renderTrigger();
+          renderMenu(search.value);
+          onChange(Array.from(state.values));
+          if (!compact) {
+            search.value = "";
+            renderMenu("");
+          }
         });
         menu.appendChild(button);
       });
-      menu.hidden = false;
     }
 
-    renderChips();
+    renderSelection();
+    renderTrigger();
 
     registerPicker(root, closeMenu);
-
-    search.addEventListener("focus", () => {
-      closeOtherPickers(root);
-      renderMenu(search.value);
+    trigger.addEventListener("click", () => {
+      if (!popover.hidden) {
+        closeMenu();
+        return;
+      }
+      openMenu();
     });
     search.addEventListener("input", () => renderMenu(search.value));
     search.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeMenu();
-        search.blur();
+        trigger.focus();
       }
-    });
-    search.addEventListener("blur", () => {
-      window.setTimeout(() => {
-        closeMenu();
-      }, 150);
     });
   }
 
@@ -161,42 +245,67 @@
     const root = field.querySelector("[data-picker-root]");
     const state = { value: hidden.value || "" };
     root.innerHTML = `
-      <div class="multi-select">
-        <div class="chip-list" data-chip-list></div>
-        <div class="multi-select-input-row">
-          <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
+      <div class="picker">
+        <div class="picker-selection" data-selection></div>
+        <button type="button" class="picker-trigger" data-trigger aria-expanded="false">Search supported options</button>
+        <div class="picker-popover" data-popover hidden>
+          <div class="picker-popover-header">
+            <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="picker-menu" data-menu></div>
         </div>
-        <div class="multi-select-menu" data-menu hidden></div>
       </div>
     `;
-    const chipList = root.querySelector("[data-chip-list]");
+    const selection = root.querySelector("[data-selection]");
+    const trigger = root.querySelector("[data-trigger]");
+    const popover = root.querySelector("[data-popover]");
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
 
     function closeMenu() {
-      menu.hidden = true;
+      popover.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+    }
+
+    function openMenu() {
+      closeOtherPickers(root);
+      popover.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      search.focus();
+      renderMenu(search.value);
     }
 
     function renderChip() {
-      chipList.innerHTML = "";
+      selection.innerHTML = "";
       const option = options.find((item) => item.value === state.value);
       if (!option) {
         const empty = document.createElement("span");
         empty.className = "chip-empty";
         empty.textContent = "No selection";
-        chipList.appendChild(empty);
+        selection.appendChild(empty);
+        trigger.classList.remove("has-value");
         return;
       }
-      const chip = document.createElement("button");
-      chip.type = "button";
+      trigger.classList.add("has-value");
+      const chip = document.createElement("span");
       chip.className = "chip";
-      chip.innerHTML = `<span>${formatOption(option)}</span><span class="chip-remove" aria-hidden="true">×</span>`;
-      chip.addEventListener("click", () => {
+      const text = document.createElement("span");
+      text.textContent = formatOption(option);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "chip-remove-button";
+      remove.setAttribute("aria-label", `Remove ${formatOption(option)}`);
+      remove.textContent = "×";
+      remove.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         state.value = "";
         hidden.value = "";
         renderChip();
+        renderMenu(search.value);
       });
-      chipList.appendChild(chip);
+      chip.append(text, remove);
+      selection.appendChild(chip);
     }
 
     function renderMenu(query = "") {
@@ -206,45 +315,45 @@
         .slice(0, 10);
       menu.innerHTML = "";
       if (!matches.length) {
-        closeMenu();
+        const empty = document.createElement("p");
+        empty.className = "picker-empty-state";
+        empty.textContent = "No matching options.";
+        menu.appendChild(empty);
         return;
       }
       matches.forEach((option) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "multi-select-option";
+        button.className = "picker-option";
+        button.classList.toggle("is-selected", option.value === state.value);
         button.textContent = formatOption(option);
-        button.addEventListener("mousedown", (event) => {
+        button.addEventListener("click", (event) => {
           event.preventDefault();
           state.value = option.value;
           hidden.value = option.value;
           search.value = "";
           renderChip();
-          renderMenu("");
+          closeMenu();
         });
         menu.appendChild(button);
       });
-      menu.hidden = false;
     }
 
     renderChip();
     registerPicker(root, closeMenu);
-
-    search.addEventListener("focus", () => {
-      closeOtherPickers(root);
-      renderMenu(search.value);
+    trigger.addEventListener("click", () => {
+      if (!popover.hidden) {
+        closeMenu();
+        return;
+      }
+      openMenu();
     });
     search.addEventListener("input", () => renderMenu(search.value));
     search.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeMenu();
-        search.blur();
+        trigger.focus();
       }
-    });
-    search.addEventListener("blur", () => {
-      window.setTimeout(() => {
-        closeMenu();
-      }, 150);
     });
   }
 
@@ -363,6 +472,7 @@
           values: option.origin_airports,
           placeholder: "Search origins",
           maxSelections: 3,
+          helperText: "Choose up to 3 supported origin airports.",
           onChange(values) {
             option.origin_airports = values;
             serialize();
@@ -374,6 +484,7 @@
           values: option.destination_airports,
           placeholder: "Search destinations",
           maxSelections: 3,
+          helperText: "Choose up to 3 supported destination airports.",
           onChange(values) {
             option.destination_airports = values;
             serialize();
@@ -384,6 +495,7 @@
           options: airlines,
           values: option.airlines,
           placeholder: "Search airlines",
+          helperText: "Choose one or more supported airlines.",
           onChange(values) {
             option.airlines = values;
             serialize();
@@ -505,6 +617,7 @@
     }
 
     async function refreshScheduledPanel(params) {
+      closeOtherPickers();
       if (!resultsShell) {
         window.location.assign(`/trips${params.toString() ? `?${params.toString()}` : ""}`);
         return;
@@ -557,14 +670,15 @@
       root: recurringRoot,
       options: scheduledFiltersState.recurringOptions || [],
       values: selectedRecurringTripIds(),
-      placeholder: "Type to find a recurring trip",
+      placeholder: "Search recurring trips",
       emptyText: "All recurring trips",
+      helperText: "Select one or more recurring trips to narrow the scheduled list.",
+      compact: true,
       onChange(values) {
         setSelectedRecurringTripIds(values);
         submitFilters();
       }
     });
-    recurringRoot.querySelector(".multi-select")?.classList.add("filter-picker");
 
     searchInput.addEventListener("input", () => submitFilters({ debounce: true }));
     searchInput.addEventListener("search", () => submitFilters());
@@ -583,7 +697,10 @@
     clearLink?.addEventListener("click", (event) => {
       event.preventDefault();
       window.clearTimeout(debounceTimer);
-      window.location.assign("/trips");
+      searchInput.value = "";
+      setSelectedRecurringTripIds([]);
+      setSkippedState(false);
+      submitFilters();
     });
   }
 
