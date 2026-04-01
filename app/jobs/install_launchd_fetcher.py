@@ -28,7 +28,7 @@ def _bootout_if_loaded(plist_path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--interval-seconds", type=int, default=60)
-    parser.add_argument("--max-targets", type=int, default=1)
+    parser.add_argument("--max-targets", type=int, default=2)
     args = parser.parse_args()
 
     settings = get_settings()

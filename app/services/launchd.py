@@ -20,7 +20,7 @@ def build_launch_agent_plist(
     stdout_log_path: Path,
     stderr_log_path: Path,
     start_interval_seconds: int = 60,
-    max_targets: int = 1,
+    max_targets: int = 2,
 ) -> bytes:
     plist = {
         "Label": LAUNCH_AGENT_LABEL,
@@ -32,7 +32,6 @@ def build_launch_agent_plist(
             "app.jobs.fetch_google_flights",
             "--max-targets",
             str(max_targets),
-            "--no-sleep",
         ],
         "WorkingDirectory": str(project_root),
         "RunAtLoad": True,

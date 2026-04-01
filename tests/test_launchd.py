@@ -13,7 +13,7 @@ def test_launch_agent_plist_contains_expected_program_arguments() -> None:
         stdout_log_path=Path("/Users/example/code/travel-agent/data/logs/fetch.stdout.log"),
         stderr_log_path=Path("/Users/example/code/travel-agent/data/logs/fetch.stderr.log"),
         start_interval_seconds=60,
-        max_targets=1,
+        max_targets=2,
     )
 
     plist = plistlib.loads(payload)
@@ -26,8 +26,7 @@ def test_launch_agent_plist_contains_expected_program_arguments() -> None:
         "-m",
         "app.jobs.fetch_google_flights",
         "--max-targets",
-        "1",
-        "--no-sleep",
+        "2",
     ]
     assert plist["WorkingDirectory"] == "/Users/example/code/travel-agent"
     assert plist["RunAtLoad"] is True
