@@ -4,23 +4,24 @@
   <div>
     <p class="eyebrow">Resolve</p>
     <h2>Only unmatched bookings should land here.</h2>
-    <p>Tracker noise is ignored. This queue is reserved for real travel commitments that could not be placed confidently.</p>
+    <p>This queue is intentionally narrow: a real booking could not be placed confidently, so you resolve it once and move on.</p>
   </div>
 </section>
 
 <div class="stack">
   {% for unmatched in open_unmatched %}
-  <article class="card">
+  <article class="card resolve-card">
     <div class="card-header">
       <div>
         <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
-        <p class="muted">{{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }} · {{ unmatched.airline }}</p>
+        <p class="muted">{{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }} · {{ airline_label(unmatched.airline) }}</p>
       </div>
       <span class="badge">${{ unmatched.booked_price }}</span>
     </div>
     <div class="two-column top-gap-small">
       <form method="post" action="/resolve/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
-        <h4>Link to existing trip instance</h4>
+        <h4>Link to an existing scheduled trip</h4>
+        <p class="muted">Use this when the trip already exists and you just want the booking attached to it.</p>
         <label>
           <span>Trip instance</span>
           <select name="trip_instance_id" required>
@@ -34,7 +35,8 @@
       </form>
 
       <form method="post" action="/resolve/{{ unmatched.unmatched_booking_id }}/create-trip" class="subcard">
-        <h4>Create one-time trip</h4>
+        <h4>Create a new one-time trip</h4>
+        <p class="muted">Use this when the booking represents travel that is not already in the system.</p>
         <label>
           <span>New trip label</span>
           <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
@@ -46,7 +48,7 @@
   {% else %}
   <article class="empty-state">
     <strong>No unmatched bookings.</strong>
-    <p>This queue stays empty unless the app cannot place a booking confidently.</p>
+    <p>Everything booked has either been placed successfully or has not been recorded yet.</p>
   </article>
   {% endfor %}
 </div>

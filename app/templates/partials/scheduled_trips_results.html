@@ -8,7 +8,7 @@
       <div class="section-header compact">
         <div>
           <p class="eyebrow">Scheduled trips</p>
-          <h3>Operational trips still in play</h3>
+          <h3>Operational dates still in play</h3>
         </div>
       </div>
     {% for instance in scheduled_items %}
@@ -25,7 +25,7 @@
           <strong>{{ parent_trip.label if parent_trip else instance.display_label }}</strong>
           <p class="muted">
             {% if instance.instance_kind == 'generated' %}
-            From recurring trip{% if parent_trip %}: {{ parent_trip.label }}{% endif %}
+            Generated from <a href="/trips/{{ parent_trip.trip_id }}">{{ parent_trip.label }}</a>
             {% else %}
             Standalone one-time trip
             {% endif %}
@@ -35,9 +35,8 @@
           {% endif %}
         </div>
         <div class="badge-stack">
-          <span class="badge">{{ instance.instance_kind }}</span>
-          <span class="badge">{{ instance.travel_state }}</span>
-          <span class="badge">{{ instance.recommendation_state }}</span>
+          <span class="badge">{{ instance.anchor_date.isoformat() }}</span>
+          <span class="badge">{{ instance.recommendation_state|replace('_', ' ') }}</span>
         </div>
       </div>
       <div class="meta-grid">
@@ -46,17 +45,12 @@
         <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
       </div>
       <div class="actions">
-        {% if parent_trip %}
-          {% if parent_trip.trip_kind != 'weekly' %}
-          <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
-          {% endif %}
-        {% endif %}
-        <a class="button secondary" href="/trip-instances/{{ instance.trip_instance_id }}/trackers">View trackers</a>
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
         {% if instance.travel_state == 'open' %}
-        <a class="button primary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
+        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip"><button class="button danger" type="submit">Skip</button></form>
         {% elif instance.travel_state == 'skipped' %}
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore"><button class="button primary" type="submit">Unskip</button></form>
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore"><button class="button secondary" type="submit">Unskip</button></form>
         {% endif %}
       </div>
     </article>

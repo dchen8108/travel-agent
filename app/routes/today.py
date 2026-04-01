@@ -5,14 +5,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from app.models.base import TravelState
+from app.models.base import RecommendationState, TravelState
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
-    instances_for_trip,
     load_snapshot,
-    route_options_for_trip,
-    trackers_for_instance,
+    trip_for_instance,
     trip_focus_url,
 )
 from app.storage.repository import Repository
@@ -40,6 +38,25 @@ def today(
         for instance in snapshot.trip_instances
         if instance.anchor_date >= today and instance.travel_state == TravelState.BOOKED
     ]
+    open_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))
+    booked_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))
+
+    action_open_instances = [
+        instance for instance in open_instances if instance.recommendation_state == RecommendationState.BOOK_NOW
+    ]
+    action_booked_instances = [
+        instance for instance in booked_instances if instance.recommendation_state == RecommendationState.REBOOK
+    ]
+    watching_instances = [
+        instance for instance in open_instances if instance.recommendation_state != RecommendationState.BOOK_NOW
+    ]
+    monitoring_instances = [
+        instance for instance in booked_instances if instance.recommendation_state != RecommendationState.REBOOK
+    ]
+    action_count = len(open_unmatched) + len(action_open_instances) + len(action_booked_instances)
+    total_booked_monitoring = len(booked_instances)
+    watching_preview = watching_instances[:8]
+    monitoring_preview = monitoring_instances[:6]
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -49,13 +66,17 @@ def today(
             page="today",
             snapshot=snapshot,
             open_unmatched=open_unmatched,
-            open_instances=open_instances,
-            booked_instances=booked_instances,
+            action_open_instances=action_open_instances,
+            action_booked_instances=action_booked_instances,
+            watching_instances=watching_instances,
+            watching_preview=watching_preview,
+            monitoring_instances=monitoring_instances,
+            monitoring_preview=monitoring_preview,
+            action_count=action_count,
+            total_booked_monitoring=total_booked_monitoring,
             booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
-            trackers_for_instance=trackers_for_instance,
-            route_options_for_trip=route_options_for_trip,
-            instances_for_trip=instances_for_trip,
+            trip_for_instance=trip_for_instance,
             trip_focus_url=trip_focus_url,
         ),
     )

@@ -58,6 +58,14 @@ def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Bookin
     )
 
 
+def trip_by_id(snapshot: AppSnapshot, trip_id: str) -> Trip | None:
+    return next((trip for trip in snapshot.trips if trip.trip_id == trip_id), None)
+
+
+def trip_instance_by_id(snapshot: AppSnapshot, trip_instance_id: str) -> TripInstance | None:
+    return next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+
+
 def route_options_for_trip(snapshot: AppSnapshot, trip_id: str) -> list[RouteOption]:
     return sorted(
         [option for option in snapshot.route_options if option.trip_id == trip_id],
@@ -106,10 +114,10 @@ def fetch_targets_for_tracker(snapshot: AppSnapshot, tracker_id: str) -> list[Tr
 
 
 def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:
-    instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
         return None
-    return next((trip for trip in snapshot.trips if trip.trip_id == instance.trip_id), None)
+    return trip_by_id(snapshot, instance.trip_id)
 
 
 def trip_focus_url(
@@ -154,12 +162,19 @@ def trip_focus_url(
 
 
 def tracker_detail_url(trip_instance_id: str) -> str:
-    return f"/trip-instances/{trip_instance_id}/trackers"
+    return f"/trip-instances/{trip_instance_id}"
 
 
 def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
     return sorted(
         [trip for trip in snapshot.trips if trip.trip_kind == "weekly"],
+        key=lambda item: item.label.lower(),
+    )
+
+
+def standalone_trips(snapshot: AppSnapshot) -> list[Trip]:
+    return sorted(
+        [trip for trip in snapshot.trips if trip.trip_kind != "weekly"],
         key=lambda item: item.label.lower(),
     )
 

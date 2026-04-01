@@ -210,6 +210,7 @@ a {
 .hero p {
   max-width: 720px;
   color: var(--muted);
+  line-height: 1.5;
 }
 
 .hero-actions,
@@ -241,6 +242,7 @@ a {
   display: block;
   font-size: 1.5rem;
   font-weight: 700;
+  text-transform: capitalize;
 }
 
 .card,
@@ -269,6 +271,13 @@ a {
   gap: 14px;
   justify-content: space-between;
   align-items: start;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .muted,
@@ -438,6 +447,13 @@ button.danger {
   background: var(--danger-soft);
   color: var(--danger);
   border: 1px solid rgba(139, 64, 54, 0.16);
+}
+
+.button.danger-outline,
+button.danger-outline {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(139, 64, 54, 0.24);
 }
 
 .toggle-switch {
@@ -875,10 +891,12 @@ textarea {
 .scheduled-card {
   display: grid;
   gap: 16px;
+  overflow: hidden;
 }
 
 .scheduled-card.is-skipped {
   border-style: dashed;
+  background: rgba(247, 243, 236, 0.86);
 }
 
 .past-card {
@@ -922,6 +940,97 @@ textarea {
 
 .scheduled-copy p {
   margin: 4px 0 0;
+}
+
+.action-card {
+  border-color: rgba(31, 92, 82, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.94), rgba(248, 244, 236, 0.96)),
+    var(--panel);
+}
+
+.action-card.status-rebook {
+  border-color: rgba(145, 95, 18, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(248, 234, 212, 0.66)),
+    var(--panel);
+}
+
+.action-card.status-book_now {
+  border-color: rgba(31, 92, 82, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(216, 235, 230, 0.56)),
+    var(--panel);
+}
+
+.callout-card {
+  margin-bottom: 22px;
+}
+
+.callout-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.form-section + .form-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(215, 207, 191, 0.7);
+}
+
+.travel-overview-card {
+  padding-top: 4px;
+}
+
+.route-summary-card {
+  display: grid;
+  gap: 16px;
+}
+
+.route-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.route-summary-grid dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.route-summary-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 4px;
+}
+
+.tracker-card {
+  display: grid;
+  gap: 16px;
+}
+
+.tracker-price-copy {
+  margin: 0;
+  color: var(--ink);
+}
+
+.tracker-price-copy strong {
+  font-size: 1.25rem;
+}
+
+.booking-card .actions,
+.resolve-card .actions {
+  justify-content: flex-start;
+}
+
+.card h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.subcard p {
+  margin: 0;
 }
 
 code {

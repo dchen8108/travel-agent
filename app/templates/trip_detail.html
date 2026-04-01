@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <p class="eyebrow">{{ 'Recurring trip' if trip.trip_kind == 'weekly' else 'One-time trip' }}</p>
+    <h2>{{ trip.label }}</h2>
+    <p>
+      {% if trip.trip_kind == 'weekly' %}
+      This trip owns a rolling 12-week set of scheduled travel instances.
+      {% else %}
+      This trip creates one scheduled trip instance and tracks its ranked route options.
+      {% endif %}
+    </p>
+  </div>
+  <div class="hero-actions">
+    <a class="button ghost" href="/trips">Back to trips</a>
+    <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit trip</a>
+    <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
+      <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
+        <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
+        <span class="toggle-switch-track" aria-hidden="true">
+          <span class="toggle-switch-thumb"></span>
+        </span>
+      </button>
+    </form>
+    <form method="post" action="/trips/{{ trip.trip_id }}/delete" onsubmit="return confirm('Delete this trip and its future operational state?');">
+      <button class="button ghost danger-outline" type="submit">Delete</button>
+    </form>
+  </div>
+</section>
+
+<section class="summary-strip">
+  <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
+  <div class="summary-pill"><span>{{ route_options|length }}</span><small>route option{{ '' if route_options|length == 1 else 's' }}</small></div>
+  <div class="summary-pill"><span>{{ future_instances|length }}</span><small>upcoming dates</small></div>
+  <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Trip summary</p>
+      <h3>How this trip is anchored</h3>
+      <p class="muted">
+        {% if trip.trip_kind == 'weekly' %}
+        Anchor weekday: {{ trip.anchor_weekday }} · Future generation {{ 'active' if trip.active else 'paused' }}.
+        {% else %}
+        Scheduled around {{ trip.anchor_date.isoformat() }}.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="card travel-overview-card">
+    <div class="meta-grid">
+      <div><dt>Next active date</dt><dd>{{ next_open_instance.anchor_date.isoformat() if next_open_instance else 'None' }}</dd></div>
+      <div><dt>Open</dt><dd>{{ open_count }}</dd></div>
+      <div><dt>Booked</dt><dd>{{ booked_count }}</dd></div>
+      <div><dt>Skipped</dt><dd>{{ skipped_count }}</dd></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Route options</p>
+      <h3>Ranked tracker definitions</h3>
+      <p class="muted">These are the search envelopes Travel Agent checks for each scheduled date this trip produces.</p>
+    </div>
+  </div>
+  <div class="stack">
+    {% for option in route_options %}
+    <article class="card route-summary-card">
+      <div class="card-header">
+        <div>
+          <strong>Option {{ option.rank }}</strong>
+          <p class="muted">
+            {{ day_offset_label(trip.effective_anchor_weekday, option.day_offset) }} ·
+            {{ option.start_time }}–{{ option.end_time }} departure
+          </p>
+        </div>
+      </div>
+      <div class="route-summary-grid">
+        <div>
+          <dt>Origins</dt>
+          <div class="inline-badge-row top-gap-small">
+            {% for code in option.origin_codes %}
+            <span class="badge">{{ airport_display(code) }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <dt>Destinations</dt>
+          <div class="inline-badge-row top-gap-small">
+            {% for code in option.destination_codes %}
+            <span class="badge">{{ airport_display(code) }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <dt>Airlines</dt>
+          <div class="inline-badge-row top-gap-small">
+            {% for code in option.airline_codes %}
+            <span class="badge">{{ airline_display(code) }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No route options.</strong>
+      <p>Edit the trip to add at least one ranked route option.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Scheduled trips</p>
+      <h3>Operational dates created by this trip</h3>
+      <p class="muted">
+        {% if trip.trip_kind == 'weekly' %}
+        These are the dated trips this recurring plan is currently managing.
+        {% else %}
+        This trip currently owns one dated trip instance.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="stack">
+    {% for instance in future_instances %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}">
+      <div class="scheduled-card-head">
+        <div class="scheduled-date">
+          <small>{{ instance.anchor_date.strftime('%a') }}</small>
+          <strong>{{ instance.anchor_date.strftime('%b %d') }}</strong>
+        </div>
+        <div class="scheduled-copy">
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ instance.recommendation_reason or 'Travel Agent is monitoring this date.' }}</p>
+        </div>
+        <div class="badge-stack">
+          <span class="badge">{{ instance.travel_state }}</span>
+          <span class="badge">{{ instance.recommendation_state|replace('_', ' ') }}</span>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Booking</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Open' }}</dd></div>
+        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
+        {% if instance.travel_state == 'open' %}
+        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip">
+          <button class="button danger" type="submit">Skip</button>
+        </form>
+        {% elif instance.travel_state == 'skipped' %}
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore">
+          <button class="button secondary" type="submit">Unskip</button>
+        </form>
+        {% endif %}
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No upcoming scheduled trips.</strong>
+      <p>{{ 'Pause is on or the rolling horizon has not generated anything yet.' if trip.trip_kind == 'weekly' else 'This trip does not currently have a live scheduled instance.' }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

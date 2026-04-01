@@ -3,10 +3,17 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Add booking</p>
-    <h2>Record a purchased flight and let the app attach it if it can.</h2>
-    <p>If the app cannot place it confidently, it becomes an unmatched booking in Resolve.</p>
+    <h2>Record a purchased flight and let Travel Agent place it if it can.</h2>
+    <p>If the booking cannot be attached confidently, it moves into Resolve where you can link it once.</p>
   </div>
 </section>
+
+{% if selected_trip_instance %}
+<section class="card callout-card">
+  <strong>Preselected trip</strong>
+  <p>{{ selected_parent_trip.label if selected_parent_trip else selected_trip_instance.display_label }} · {{ selected_trip_instance.anchor_date.isoformat() }}</p>
+</section>
+{% endif %}
 
 <section class="form-card booking-form-page">
   {% if error_message %}
@@ -16,56 +23,86 @@
   </section>
   {% endif %}
   <form method="post" action="/bookings" id="booking-form">
-    <div class="form-grid">
-      <label>
-        <span>Link to a trip instance now</span>
-        <select name="trip_instance_id">
-          <option value="">Auto-match if possible</option>
-          {% for trip_instance in trip_instances %}
-          <option value="{{ trip_instance.trip_instance_id }}" {{ 'selected' if booking_form_state.trip_instance_id == trip_instance.trip_instance_id else '' }}>{{ trip_instance.display_label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label data-single-picker-field data-picker-type="airline">
-        <span>Airline</span>
-        <input type="hidden" name="airline" value="{{ booking_form_state.airline }}">
-        <div data-picker-root></div>
-      </label>
-      <label data-single-picker-field data-picker-type="airport">
-        <span>Origin airport</span>
-        <input type="hidden" name="origin_airport" value="{{ booking_form_state.origin_airport }}">
-        <div data-picker-root></div>
-      </label>
-      <label data-single-picker-field data-picker-type="airport">
-        <span>Destination airport</span>
-        <input type="hidden" name="destination_airport" value="{{ booking_form_state.destination_airport }}">
-        <div data-picker-root></div>
-      </label>
-      <label>
-        <span>Departure date</span>
-        <input type="date" name="departure_date" value="{{ booking_form_state.departure_date }}" required>
-      </label>
-      <label>
-        <span>Departure time</span>
-        <input type="time" name="departure_time" value="{{ booking_form_state.departure_time }}" required>
-      </label>
-      <label>
-        <span>Arrival time</span>
-        <input type="time" name="arrival_time" value="{{ booking_form_state.arrival_time }}">
-      </label>
-      <label>
-        <span>Booked price</span>
-        <input type="number" name="booked_price" min="0" value="{{ booking_form_state.booked_price }}" required>
-      </label>
-      <label>
-        <span>Record locator</span>
-        <input type="text" name="record_locator" value="{{ booking_form_state.record_locator }}">
-      </label>
-      <label class="full-width">
-        <span>Notes</span>
-        <textarea name="notes" rows="3">{{ booking_form_state.notes }}</textarea>
-      </label>
-    </div>
+    <section class="form-section">
+      <div class="section-header compact">
+        <div>
+          <p class="eyebrow">Placement</p>
+          <h3>Link it now or let the app auto-match it</h3>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label class="full-width">
+          <span>Trip instance</span>
+          <select name="trip_instance_id">
+            <option value="">Auto-match if possible</option>
+            {% for trip_instance in trip_instances %}
+            <option value="{{ trip_instance.trip_instance_id }}" {{ 'selected' if booking_form_state.trip_instance_id == trip_instance.trip_instance_id else '' }}>{{ trip_instance.display_label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="section-header compact">
+        <div>
+          <p class="eyebrow">Flight</p>
+          <h3>Enter the actual booked itinerary</h3>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label data-single-picker-field data-picker-type="airline">
+          <span>Airline</span>
+          <input type="hidden" name="airline" value="{{ booking_form_state.airline }}">
+          <div data-picker-root></div>
+        </label>
+        <label data-single-picker-field data-picker-type="airport">
+          <span>Origin airport</span>
+          <input type="hidden" name="origin_airport" value="{{ booking_form_state.origin_airport }}">
+          <div data-picker-root></div>
+        </label>
+        <label data-single-picker-field data-picker-type="airport">
+          <span>Destination airport</span>
+          <input type="hidden" name="destination_airport" value="{{ booking_form_state.destination_airport }}">
+          <div data-picker-root></div>
+        </label>
+        <label>
+          <span>Departure date</span>
+          <input type="date" name="departure_date" value="{{ booking_form_state.departure_date }}" required>
+        </label>
+        <label>
+          <span>Departure time</span>
+          <input type="time" name="departure_time" value="{{ booking_form_state.departure_time }}" required>
+        </label>
+        <label>
+          <span>Arrival time</span>
+          <input type="time" name="arrival_time" value="{{ booking_form_state.arrival_time }}">
+        </label>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="section-header compact">
+        <div>
+          <p class="eyebrow">Purchase</p>
+          <h3>Save the booking details you care about later</h3>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label>
+          <span>Booked price</span>
+          <input type="number" name="booked_price" min="0" value="{{ booking_form_state.booked_price }}" required>
+        </label>
+        <label>
+          <span>Record locator</span>
+          <input type="text" name="record_locator" value="{{ booking_form_state.record_locator }}">
+        </label>
+        <label class="full-width">
+          <span>Notes</span>
+          <textarea name="notes" rows="3">{{ booking_form_state.notes }}</textarea>
+        </label>
+      </div>
+    </section>
 
     <div class="actions top-gap">
       <a class="button ghost" href="/bookings">Cancel</a>

@@ -56,6 +56,8 @@ SUPPORTED_AIRLINES = [
 
 AIRPORT_CODES = {item["code"] for item in SUPPORTED_AIRPORTS}
 AIRLINE_CODES = {item["code"] for item in SUPPORTED_AIRLINES}
+AIRPORT_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRPORTS}
+AIRLINE_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRLINES}
 AIRLINE_ALIASES = {
     "alaska": "Alaska",
     "alaska airlines": "Alaska",
@@ -117,6 +119,25 @@ def normalize_airline_code(value: str) -> str:
     if alias not in AIRLINE_CODES:
         raise ValueError("Choose a supported airline.")
     return alias
+
+
+def airport_label(code: str) -> str:
+    normalized = normalize_airport_code(code)
+    return AIRPORT_LABELS[normalized]
+
+
+def airline_label(code: str) -> str:
+    normalized = normalize_airline_code(code)
+    return AIRLINE_LABELS[normalized]
+
+
+def airport_display(code: str) -> str:
+    return f"{normalize_airport_code(code)} · {airport_label(code)}"
+
+
+def airline_display(code: str) -> str:
+    normalized = normalize_airline_code(code)
+    return f"{normalized} · {airline_label(normalized)}"
 
 
 def catalogs_json() -> str:

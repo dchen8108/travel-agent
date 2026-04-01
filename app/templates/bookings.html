@@ -3,42 +3,63 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Bookings</p>
-    <h2>Record flights and keep them attached to the right trip.</h2>
-    <p>Bookings are the only high-signal item that should create manual resolution work when the app cannot place them confidently.</p>
+    <h2>Keep purchased flights tied to the right trip.</h2>
+    <p>Bookings are the highest-signal records in the system. If Travel Agent cannot place one confidently, it goes to Resolve exactly once.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/bookings/new">Add booking</a>
   </div>
 </section>
 
+<section class="summary-strip">
+  <div class="summary-pill"><span>{{ booking_views|length }}</span><small>active bookings</small></div>
+  <div class="summary-pill"><span>{{ open_unmatched|length }}</span><small>need resolution</small></div>
+</section>
+
 {% if open_unmatched %}
 <section class="card warning-card">
   <strong>{{ open_unmatched|length }} booking{{ '' if open_unmatched|length == 1 else 's' }} need resolution.</strong>
-  <p>Only unresolved bookings appear in the queue. Unmatched tracker noise is ignored.</p>
+  <p>Resolve them once and they will drop back into the normal booking ledger.</p>
   <a class="button secondary" href="/resolve">Open resolve</a>
 </section>
 {% endif %}
 
 <div class="stack">
-  {% for booking in active_bookings %}
-  <article class="card">
+  {% for card in booking_views %}
+  {% set booking = card.booking %}
+  {% set trip_instance = card.trip_instance %}
+  {% set parent_trip = card.parent_trip %}
+  {% set tracker = card.tracker %}
+  <article class="card booking-card">
     <div class="card-header">
       <div>
-        <strong>{{ booking.origin_airport }} → {{ booking.destination_airport }}</strong>
-        <p class="muted">{{ booking.departure_date.isoformat() }} · {{ booking.departure_time }} · {{ booking.airline }}</p>
+        <strong>{{ parent_trip.label if parent_trip else booking.origin_airport ~ ' → ' ~ booking.destination_airport }}</strong>
+        <p class="muted">
+          {{ booking.departure_date.isoformat() }} · {{ booking.origin_airport }} → {{ booking.destination_airport }} ·
+          {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
+          {{ airline_label(booking.airline) }}
+        </p>
       </div>
       <span class="badge">${{ booking.booked_price }}</span>
     </div>
     <div class="meta-grid">
+      <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>
       <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
-      <div><dt>Linked trip instance</dt><dd>{{ booking.trip_instance_id }}</dd></div>
-      <div><dt>Tracker</dt><dd>{{ booking.tracker_id or 'Unspecified' }}</dd></div>
+      <div><dt>Tracker option</dt><dd>{{ 'Option %s'|format(tracker.rank) if tracker else 'Auto-matched trip only' }}</dd></div>
+      <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
+    </div>
+    <div class="actions">
+      {% if trip_instance %}
+      <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
+      {% else %}
+      <a class="button primary" href="/resolve">Resolve</a>
+      {% endif %}
     </div>
   </article>
   {% else %}
   <article class="empty-state">
     <strong>No bookings saved.</strong>
-    <p>Add a booking after purchase and the app will start comparing it against tracker signals.</p>
+    <p>Add a booking after purchase and Travel Agent will keep comparing it against live tracker prices.</p>
   </article>
   {% endfor %}
 </div>

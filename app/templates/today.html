@@ -3,8 +3,8 @@
 <section class="hero">
   <div>
     <p class="eyebrow">Today</p>
-    <h2>Keep your Google Flights trackers and bookings in one place.</h2>
-    <p>Trips are the primary object. Trackers and bookings sit underneath them, and only unmatched bookings need review.</p>
+    <h2>Work the travel that needs attention, then let the rest run quietly.</h2>
+    <p>Travel Agent keeps recurring trip plans, dated trips, trackers, and bookings tied together. This page is the inbox for what matters right now.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/trips/new">New trip</a>
@@ -12,42 +12,126 @@
 </section>
 
 <section class="summary-strip">
-  <div class="summary-pill"><span>{{ open_instances|length }}</span><small>open trips</small></div>
-  <div class="summary-pill"><span>{{ booked_instances|length }}</span><small>booked</small></div>
-  <div class="summary-pill"><span>{{ open_unmatched|length }}</span><small>to resolve</small></div>
+  <div class="summary-pill"><span>{{ action_count }}</span><small>need action</small></div>
+  <div class="summary-pill"><span>{{ watching_instances|length }}</span><small>watching</small></div>
+  <div class="summary-pill"><span>{{ total_booked_monitoring }}</span><small>booked monitoring</small></div>
 </section>
 
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Open trips</p>
-      <h3>Upcoming one-way instances still in play</h3>
+      <p class="eyebrow">Needs action</p>
+      <h3>Things that deserve your attention now</h3>
     </div>
   </div>
-  <div class="card-grid">
-    {% for instance in open_instances %}
+  <div class="stack">
+    {% for unmatched in open_unmatched %}
+    <article class="card action-card status-rebook">
+      <div class="card-header">
+        <div>
+          <strong>Resolve booking · {{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
+          <p class="muted">{{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }} · {{ airline_label(unmatched.airline) }}</p>
+        </div>
+        <span class="badge">${{ unmatched.booked_price }}</span>
+      </div>
+      <p class="muted">Travel Agent could not place this booking confidently. Resolve it once so it can be monitored normally.</p>
+      <div class="actions">
+        <a class="button primary" href="/resolve">Resolve booking</a>
+      </div>
+    </article>
+    {% endfor %}
+
+    {% for instance in action_open_instances %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    <article class="card action-card status-book_now">
+      <div class="card-header">
+        <div>
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ trip.label if trip else 'Upcoming trip' }} · {{ instance.anchor_date.isoformat() }}</p>
+        </div>
+        <span class="badge">book now</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Why now</dt><dd>{{ instance.recommendation_reason or 'A current price signal looks actionable.' }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
+        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
+      </div>
+    </article>
+    {% endfor %}
+
+    {% for instance in action_booked_instances %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    <article class="card action-card status-rebook">
+      <div class="card-header">
+        <div>
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">{{ trip.label if trip else 'Booked trip' }} · {{ instance.anchor_date.isoformat() }}</p>
+        </div>
+        <span class="badge">rebook</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Booked at</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Unknown' }}</dd></div>
+        <div><dt>Current best</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
+        <a class="button secondary" href="/bookings">Open bookings</a>
+      </div>
+    </article>
+    {% endfor %}
+
+    {% if not open_unmatched and not action_open_instances and not action_booked_instances %}
+    <article class="empty-state">
+      <strong>Nothing urgent right now.</strong>
+      <p>All upcoming travel is either quietly monitoring or already booked without a rebook opportunity.</p>
+    </article>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Watching</p>
+      <h3>Open trips being monitored in the background</h3>
+    </div>
+    {% if watching_instances|length > watching_preview|length %}
+    <div class="section-actions">
+      <p class="muted">{{ watching_instances|length - watching_preview|length }} more in Trips</p>
+      <a class="button ghost" href="/trips">Open Trips</a>
+    </div>
+    {% endif %}
+  </div>
+  <div class="card-grid">
+    {% for instance in watching_preview %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card trip-card status-{{ instance.recommendation_state }}">
       <div class="card-header">
         <div>
           <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ instance.recommendation_reason }}</p>
+          <p class="muted">{{ trip.label if trip else 'Open trip' }}</p>
         </div>
-        <span class="badge">{{ instance.recommendation_state }}</span>
+        <span class="badge">{{ instance.recommendation_state|replace('_', ' ') }}</span>
       </div>
       <div class="meta-grid">
         <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Last signal</dt><dd>{{ instance.last_signal_at.strftime('%Y-%m-%d %H:%M') if instance.last_signal_at else 'No signal yet' }}</dd></div>
       </div>
       <div class="actions">
-        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
-        <a class="button primary" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
       </div>
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No open trip instances.</strong>
-      <p>Everything upcoming is either booked or skipped right now.</p>
+      <strong>No open trips being watched.</strong>
+      <p>Create a new trip and Travel Agent will start checking it in the background.</p>
     </article>
     {% endfor %}
   </div>
@@ -56,35 +140,41 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Booked trips</p>
-      <h3>Lower-price checks for booked travel</h3>
+      <p class="eyebrow">Booked monitoring</p>
+      <h3>Booked trips that are still being watched for lower prices</h3>
     </div>
+    {% if monitoring_instances|length > monitoring_preview|length %}
+    <div class="section-actions">
+      <p class="muted">{{ monitoring_instances|length - monitoring_preview|length }} more still monitoring</p>
+      <a class="button ghost" href="/bookings">Open Bookings</a>
+    </div>
+    {% endif %}
   </div>
   <div class="card-grid">
-    {% for instance in booked_instances %}
+    {% for instance in monitoring_preview %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card trip-card status-{{ instance.recommendation_state }}">
       <div class="card-header">
         <div>
           <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ instance.recommendation_reason }}</p>
+          <p class="muted">{{ trip.label if trip else 'Booked trip' }}</p>
         </div>
-        <span class="badge">{{ instance.recommendation_state }}</span>
+        <span class="badge">monitoring</span>
       </div>
       <div class="meta-grid">
         <div><dt>Booked at</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Unknown' }}</dd></div>
-        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Current best</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
       </div>
       <div class="actions">
-        <a class="button secondary" href="/bookings">Bookings</a>
-        <a class="button primary" href="{{ trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id) }}">Open in trips</a>
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
       </div>
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No booked trips yet.</strong>
-      <p>Record bookings after purchase and the app will keep watching them.</p>
+      <strong>No booked trips are being monitored yet.</strong>
+      <p>Record a booking and it will show up here until the travel date passes.</p>
     </article>
     {% endfor %}
   </div>

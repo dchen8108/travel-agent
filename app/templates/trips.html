@@ -3,8 +3,8 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Trips</p>
-    <h2>Recurring trips manage the system. Scheduled trips are what you actually fly.</h2>
-    <p>Weekly trips are the parent plans that keep creating dated trips on a rolling horizon. The scheduled trips section below stays focused on upcoming travel and lets you filter it down when things get busy.</p>
+    <h2>Build recurring travel plans, then work from the dated trips they create.</h2>
+    <p>Recurring trips are the planning layer. Scheduled trips are the dated instances you actually book, skip, refresh, and monitor.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/trips/new">New trip</a>
@@ -14,7 +14,7 @@
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ recurring_items|length }}</span><small>recurring trips</small></div>
   <div class="summary-pill"><span>{{ total_active_scheduled }}</span><small>scheduled trips</small></div>
-  <div class="summary-pill"><span>{{ snapshot.trip_instances|selectattr('travel_state', 'equalto', 'booked')|list|length }}</span><small>booked</small></div>
+  <div class="summary-pill"><span>{{ total_booked_scheduled }}</span><small>booked</small></div>
 </section>
 
 <section class="section">
@@ -55,8 +55,8 @@
       </div>
       {% endif %}
       <div class="actions top-gap-small">
+        <a class="button primary" href="/trips/{{ trip.trip_id }}">View trip</a>
         <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
-        <a class="button primary" href="{{ trip_focus_url(snapshot, trip.trip_id) }}">Show scheduled</a>
         <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
           <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
             <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>

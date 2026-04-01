@@ -362,13 +362,15 @@
   function createSinglePicker({ field, options }) {
     const hidden = field.querySelector('input[type="hidden"]');
     const root = field.querySelector("[data-picker-root]");
+    const pickerType = field.dataset.pickerType;
+    const placeholder = pickerType === "airline" ? "Search airlines" : "Search airports";
     const state = { value: hidden.value || "" };
     root.innerHTML = `
       <div class="multi-select">
         <div class="chip-list" data-chip-list></div>
         <div class="multi-select-control">
           <div class="multi-select-input-row">
-            <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
+            <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
           </div>
           <div class="multi-select-menu" data-menu hidden></div>
         </div>
@@ -444,7 +446,7 @@
           hidden.value = option.value;
           search.value = "";
           renderChip();
-          renderMenu("");
+          closeMenu();
         });
         menu.appendChild(button);
       });

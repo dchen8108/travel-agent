@@ -23,5 +23,6 @@ Current docs:
 - `v0-wireframes.md`: low-fidelity page structure and key interaction patterns
 - `v0-data-model.md`: local-file schema for trips, route options, instances, trackers, bookings, and historical price records
 - `v0-tech-spec.md`: stack, architecture, routes, services, and implementation boundaries
+- `v1-ui-pass.md`: the current UI/UX consolidation pass for turning the MVP into a cleaner v1 product
 - `google-flights-poc.md`: what has been verified about Google Flights and what assumptions remain
 - `implementation-plan.md`: concrete implementation order and quality gates

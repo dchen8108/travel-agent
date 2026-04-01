@@ -18,6 +18,7 @@ from app.services.dashboard import (
     recurring_trips,
     route_options_for_trip,
     scheduled_instances,
+    trip_by_id,
     trackers_for_instance,
     trip_for_instance,
     trip_focus_url,
@@ -167,6 +168,13 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
 
     total_active_scheduled = len(scheduled_instances(snapshot, today=today))
     total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True, today=today)) - total_active_scheduled
+    total_booked_scheduled = len(
+        [
+            instance
+            for instance in snapshot.trip_instances
+            if instance.anchor_date >= today and instance.travel_state == TravelState.BOOKED
+        ]
+    )
     recurring_filter_options = [{"value": trip.trip_id, "label": trip.label} for trip in recurring_items]
 
     return {
@@ -177,7 +185,34 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
         "search_query": search_query,
         "total_active_scheduled": total_active_scheduled,
         "total_skipped_scheduled": total_skipped_scheduled,
+        "total_booked_scheduled": total_booked_scheduled,
         "recurring_filter_options": recurring_filter_options,
+        "today": today,
+    }
+
+
+def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> dict[str, object]:
+    today = today or date.today()
+    trip = trip_by_id(snapshot, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    route_options = route_options_for_trip(snapshot, trip.trip_id)
+    future_instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
+    booked_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.BOOKED)
+    skipped_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.SKIPPED)
+    open_count = len(future_instances) - booked_count - skipped_count
+    next_open_instance = next(
+        (instance for instance in future_instances if instance.travel_state != TravelState.SKIPPED),
+        None,
+    )
+    return {
+        "trip": trip,
+        "route_options": route_options,
+        "future_instances": future_instances,
+        "open_count": open_count,
+        "booked_count": booked_count,
+        "skipped_count": skipped_count,
+        "next_open_instance": next_open_instance,
         "today": today,
     }
 
@@ -242,13 +277,25 @@ def new_trip(
 @router.get("/trips/{trip_id}", response_class=HTMLResponse)
 def trip_detail(
     trip_id: str,
+    request: Request,
     repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
+) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
-    if trip is None:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    return RedirectResponse(url=trip_focus_url(snapshot, trip_id), status_code=303)
+    detail_view = _trip_detail_view(snapshot, trip_id)
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="trip_detail.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            best_tracker=best_tracker,
+            booking_for_instance=booking_for_instance,
+            trackers_for_instance=trackers_for_instance,
+            trip_focus_url=trip_focus_url,
+            **detail_view,
+        ),
+    )
 
 
 @router.get("/trips/{trip_id}/edit", response_class=HTMLResponse)
@@ -395,10 +442,10 @@ def skip_trip_instance(
         raise HTTPException(status_code=404, detail="Trip instance not found")
     trip_instance.travel_state = TravelState.SKIPPED
     repository.save_trip_instances(trip_instances)
-    snapshot = sync_and_persist(repository)
+    sync_and_persist(repository)
     return _redirect_back(
         request,
-        fallback_url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance_id, show_skipped=True),
+        fallback_url=f"/trip-instances/{trip_instance_id}",
         message="Trip skipped",
     )
 
@@ -415,9 +462,9 @@ def restore_trip_instance(
         raise HTTPException(status_code=404, detail="Trip instance not found")
     trip_instance.travel_state = TravelState.OPEN
     repository.save_trip_instances(trip_instances)
-    snapshot = sync_and_persist(repository)
+    sync_and_persist(repository)
     return _redirect_back(
         request,
-        fallback_url=trip_focus_url(snapshot, trip_instance.trip_id, trip_instance_id=trip_instance_id, show_skipped=False),
+        fallback_url=f"/trip-instances/{trip_instance_id}",
         message="Trip restored",
     )

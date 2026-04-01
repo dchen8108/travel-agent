@@ -3,6 +3,8 @@ from __future__ import annotations
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
+from app.catalog import airline_display, airline_label, airport_display, airport_label
+from app.route_options import day_offset_label, route_option_summary
 from app.settings import Settings, get_settings
 from app.storage.repository import Repository
 
@@ -27,6 +29,12 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "message_kind": request.query_params.get("message_kind", "success"),
         "asset_version": getattr(request.app.state, "asset_version", "1"),
         "page": extra.pop("page", ""),
+        "airport_label": airport_label,
+        "airport_display": airport_display,
+        "airline_label": airline_label,
+        "airline_display": airline_display,
+        "day_offset_label": day_offset_label,
+        "route_option_summary": route_option_summary,
     }
     context.update(extra)
     return context

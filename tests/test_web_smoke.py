@@ -79,6 +79,54 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert "ABC123" in bookings_page.text
 
 
+def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Booking Redirect Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    booking_response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "tracker_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "BOOK01",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert booking_response.status_code == 303
+    assert booking_response.headers["location"].startswith("/trip-instances/")
+
+    detail = client.get(booking_response.headers["location"])
+    assert detail.status_code == 200
+    assert "Scheduled trip" in detail.text
+    assert "View plan" in detail.text
+
+
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -274,7 +322,7 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
     assert 'class="badge horizon-badge is-skipped"' in trips_page.text
 
 
-def test_trip_detail_redirects_to_filtered_trips_view(tmp_path: Path) -> None:
+def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         imported_email_dir=tmp_path / "data" / "imported_emails",
@@ -298,8 +346,10 @@ def test_trip_detail_redirects_to_filtered_trips_view(tmp_path: Path) -> None:
     trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
 
     response = client.get(f"/trips/{trip_id}", follow_redirects=False)
-    assert response.status_code == 303
-    assert response.headers["location"] == f"/trips?recurring_trip_id={trip_id}#recurring-{trip_id}"
+    assert response.status_code == 200
+    assert "Redirect Weekly Trip" in response.text
+    assert "Route options" in response.text
+    assert "Scheduled trips" in response.text
 
 
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
@@ -423,6 +473,8 @@ def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
     assert "Log past trip" not in trips_page.text
     assert "Showing 1 scheduled trip." in trips_page.text
     assert 'id="scheduled-' in trips_page.text
+
+
 def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -446,10 +498,11 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     assert create.status_code == 303
 
     trips_page = client.get("/trips?q=Tracker+metadata")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('/trackers"', 1)[0]
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
-    assert "Trip trackers" in trackers_page.text
+    assert "Scheduled trip" in trackers_page.text
+    assert "Tracker board" in trackers_page.text
     assert "Last updated:" in trackers_page.text
     assert "Next refresh:" in trackers_page.text
     assert "BUR to SFO" in trackers_page.text
@@ -479,7 +532,7 @@ def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     assert create.status_code == 303
 
     trips_page = client.get("/trips?q=Refresh+queue+test")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('/trackers"', 1)[0]
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
     queue = client.post(f"/trip-instances/{trip_instance_id}/trackers/queue-refresh", follow_redirects=False)
     assert queue.status_code == 303
     assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
@@ -516,12 +569,68 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     repository.save_tracker_fetch_targets(fetch_targets)
 
     trips_page = client.get("/trips?q=No+results+tracker")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('/trackers"', 1)[0]
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
     assert "No matching flights returned right now." in trackers_page.text
     assert "A recent Google Flights request failed. Travel Agent will retry automatically." not in trackers_page.text
     assert "is-unavailable" in trackers_page.text
+
+
+def test_resolve_flow_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Resolve Redirect Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    booking_response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "tracker_id": "",
+            "airline": "United",
+            "origin_airport": "LAX",
+            "destination_airport": "SEA",
+            "departure_date": "2026-04-20",
+            "departure_time": "09:10",
+            "arrival_time": "11:35",
+            "booked_price": "199",
+            "record_locator": "UNMATCH1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert booking_response.status_code == 303
+    assert booking_response.headers["location"] == "/resolve?message=Booking+needs+resolution"
+
+    resolve_page = client.get("/resolve")
+    unmatched_id = resolve_page.text.split('/resolve/', 1)[1].split('/link', 1)[0]
+
+    trips_page = client.get("/trips?q=Resolve+Redirect+Trip")
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
+    resolve_response = client.post(
+        f"/resolve/{unmatched_id}/link",
+        data={"trip_instance_id": trip_instance_id},
+        follow_redirects=False,
+    )
+    assert resolve_response.status_code == 303
+    assert resolve_response.headers["location"].startswith("/trip-instances/")
 
 
 def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
