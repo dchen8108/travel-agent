@@ -21,6 +21,18 @@ def _fieldnames(model_type: type) -> list[str]:
     return list(model_type.model_fields.keys())
 
 
+CSV_MODELS: tuple[tuple[str, type], ...] = (
+    ("trips.csv", Trip),
+    ("route_options.csv", RouteOption),
+    ("trip_instances.csv", TripInstance),
+    ("trackers.csv", Tracker),
+    ("tracker_fetch_targets.csv", TrackerFetchTarget),
+    ("bookings.csv", Booking),
+    ("unmatched_bookings.csv", UnmatchedBooking),
+    ("price_records.csv", PriceRecord),
+)
+
+
 @dataclass
 class Repository:
     settings: Settings
@@ -32,19 +44,16 @@ class Repository:
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         if not self._path("app.json").exists():
             self.save_app_state(AppState())
-        for name, model_type in (
-            ("trips.csv", Trip),
-            ("route_options.csv", RouteOption),
-            ("trip_instances.csv", TripInstance),
-            ("trackers.csv", Tracker),
-            ("tracker_fetch_targets.csv", TrackerFetchTarget),
-            ("bookings.csv", Booking),
-            ("unmatched_bookings.csv", UnmatchedBooking),
-            ("price_records.csv", PriceRecord),
-        ):
+        for name, model_type in CSV_MODELS:
             path = self._path(name)
             if not path.exists():
                 save_csv_models(path, [], _fieldnames(model_type))
+
+    def _load_csv(self, filename: str, model_type: type):
+        return load_csv_models(self._path(filename), model_type)
+
+    def _save_csv(self, filename: str, rows: list, model_type: type) -> None:
+        save_csv_models(self._path(filename), rows, _fieldnames(model_type))
 
     def load_app_state(self) -> AppState:
         return load_json_model(self._path("app.json"), AppState, AppState())
@@ -53,57 +62,49 @@ class Repository:
         save_json_model(self._path("app.json"), app_state)
 
     def load_trips(self) -> list[Trip]:
-        return load_csv_models(self._path("trips.csv"), Trip)
+        return self._load_csv("trips.csv", Trip)
 
     def save_trips(self, trips: list[Trip]) -> None:
-        save_csv_models(self._path("trips.csv"), trips, _fieldnames(Trip))
+        self._save_csv("trips.csv", trips, Trip)
 
     def load_route_options(self) -> list[RouteOption]:
-        return load_csv_models(self._path("route_options.csv"), RouteOption)
+        return self._load_csv("route_options.csv", RouteOption)
 
     def save_route_options(self, route_options: list[RouteOption]) -> None:
-        save_csv_models(self._path("route_options.csv"), route_options, _fieldnames(RouteOption))
+        self._save_csv("route_options.csv", route_options, RouteOption)
 
     def load_trip_instances(self) -> list[TripInstance]:
-        return load_csv_models(self._path("trip_instances.csv"), TripInstance)
+        return self._load_csv("trip_instances.csv", TripInstance)
 
     def save_trip_instances(self, trip_instances: list[TripInstance]) -> None:
-        save_csv_models(self._path("trip_instances.csv"), trip_instances, _fieldnames(TripInstance))
+        self._save_csv("trip_instances.csv", trip_instances, TripInstance)
 
     def load_trackers(self) -> list[Tracker]:
-        return load_csv_models(self._path("trackers.csv"), Tracker)
+        return self._load_csv("trackers.csv", Tracker)
 
     def save_trackers(self, trackers: list[Tracker]) -> None:
-        save_csv_models(self._path("trackers.csv"), trackers, _fieldnames(Tracker))
+        self._save_csv("trackers.csv", trackers, Tracker)
 
     def load_tracker_fetch_targets(self) -> list[TrackerFetchTarget]:
-        return load_csv_models(self._path("tracker_fetch_targets.csv"), TrackerFetchTarget)
+        return self._load_csv("tracker_fetch_targets.csv", TrackerFetchTarget)
 
     def save_tracker_fetch_targets(self, targets: list[TrackerFetchTarget]) -> None:
-        save_csv_models(
-            self._path("tracker_fetch_targets.csv"),
-            targets,
-            _fieldnames(TrackerFetchTarget),
-        )
+        self._save_csv("tracker_fetch_targets.csv", targets, TrackerFetchTarget)
 
     def load_bookings(self) -> list[Booking]:
-        return load_csv_models(self._path("bookings.csv"), Booking)
+        return self._load_csv("bookings.csv", Booking)
 
     def save_bookings(self, bookings: list[Booking]) -> None:
-        save_csv_models(self._path("bookings.csv"), bookings, _fieldnames(Booking))
+        self._save_csv("bookings.csv", bookings, Booking)
 
     def load_unmatched_bookings(self) -> list[UnmatchedBooking]:
-        return load_csv_models(self._path("unmatched_bookings.csv"), UnmatchedBooking)
+        return self._load_csv("unmatched_bookings.csv", UnmatchedBooking)
 
     def save_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
-        save_csv_models(
-            self._path("unmatched_bookings.csv"),
-            unmatched_bookings,
-            _fieldnames(UnmatchedBooking),
-        )
+        self._save_csv("unmatched_bookings.csv", unmatched_bookings, UnmatchedBooking)
 
     def load_price_records(self) -> list[PriceRecord]:
-        return load_csv_models(self._path("price_records.csv"), PriceRecord)
+        return self._load_csv("price_records.csv", PriceRecord)
 
     def append_price_records(self, records: list[PriceRecord]) -> None:
         append_csv_models(

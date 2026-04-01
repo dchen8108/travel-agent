@@ -146,6 +146,7 @@ Persistence:
 5. Saving, re-activating, or restoring trips now explicitly queues affected fetch targets to refresh sooner.
 6. Targets without a first price are prioritized ahead of steady-state refreshes.
 7. Shared route helpers now centralize flash-message redirects and refresh queue orchestration.
+8. `Settings` now rejects unknown fields so stale config drift fails fast.
 
 ## Important Verified Facts
 
@@ -154,7 +155,7 @@ Verified on this machine:
 - repo-local virtualenv exists at `.venv`
 - full test suite currently passes:
   - `/.venv/bin/python -m pytest -q`
-  - result at last refresh: `63 passed in 6.41s`
+  - result at last refresh: `64 passed in 6.14s`
 - browser-style in-process sanity pass against live repo data also succeeded via `TestClient`:
   - `/`
   - `/trips`
@@ -163,27 +164,21 @@ Verified on this machine:
   - one scheduled-trip detail page under `/trip-instances/{trip_instance_id}`
 - `/.venv/bin/python -m compileall app tests` also succeeds
 
-Current uncommitted changes at last refresh:
+Working tree state at last refresh:
 
-- [app/routes/bookings.py](/Users/davidchen/code/travel-agent/app/routes/bookings.py)
-- [app/routes/resolve.py](/Users/davidchen/code/travel-agent/app/routes/resolve.py)
-- [app/routes/trackers.py](/Users/davidchen/code/travel-agent/app/routes/trackers.py)
-- [app/routes/trips.py](/Users/davidchen/code/travel-agent/app/routes/trips.py)
-- [app/services/dashboard.py](/Users/davidchen/code/travel-agent/app/services/dashboard.py)
-- [app/services/workflows.py](/Users/davidchen/code/travel-agent/app/services/workflows.py)
-- [app/web.py](/Users/davidchen/code/travel-agent/app/web.py)
-- [tests/test_background_fetch.py](/Users/davidchen/code/travel-agent/tests/test_background_fetch.py)
-- [tests/test_web_smoke.py](/Users/davidchen/code/travel-agent/tests/test_web_smoke.py)
-- [app/services/refresh_queue.py](/Users/davidchen/code/travel-agent/app/services/refresh_queue.py)
-- [app/services/snapshots.py](/Users/davidchen/code/travel-agent/app/services/snapshots.py)
+- clean
 
-These changes implement and document:
+Recent cleanup/refactor changes implemented:
 
 - shared refresh-queue orchestration across trip and tracker routes
 - shared redirect/message helpers across routes
 - first-price fetch priority ahead of steady-state refreshes
 - trip-edit validation preserving edit context
 - a unified snapshot type across dashboard/workflow services
+- repository CSV bootstrap/save plumbing reduced to shared helpers
+- booking creation/save logic reduced to shared helpers
+- stale ignored `imported_email_dir` test settings removed
+- dead `app/jobs/import_email_file.py` entrypoint removed
 
 ## Key Files To Read First
 
@@ -267,6 +262,7 @@ Tests:
 - trip save/activate/restore now queues affected fetch targets for earlier refresh
 - no-price fetch targets are prioritized over already-initialized refresh targets
 - trip edit validation errors keep the user in edit mode rather than dropping back to a blank create form
+- stale settings fields fail fast instead of being silently ignored
 
 ## Things To Be Careful About
 

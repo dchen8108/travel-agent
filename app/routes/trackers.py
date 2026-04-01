@@ -83,7 +83,7 @@ def trackers_index() -> RedirectResponse:
 
 @router.post("/trackers/queue-refresh")
 def queue_tracker_refresh_legacy() -> RedirectResponse:
-    return RedirectResponse(url="/trips?message=Open+a+trip+and+use+View+trackers+to+refresh+its+searches.", status_code=303)
+    return redirect_with_message("/trips", "Open a trip and use View trackers to refresh its searches.")
 
 
 @router.get("/trip-instances/{trip_instance_id}", response_class=HTMLResponse)

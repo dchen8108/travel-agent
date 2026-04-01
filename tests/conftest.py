@@ -14,7 +14,6 @@ from app.storage.repository import Repository
 def settings(tmp_path: Path) -> Settings:
     return Settings(
         data_dir=tmp_path / "data",
-        imported_email_dir=tmp_path / "data" / "imported_emails",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )

@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from app.models.base import UnmatchedBookingStatus, utcnow
 from app.models.booking import Booking
-from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
-from app.models.trip import Trip
-from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
-from app.route_options import parse_time, time_in_window
+from app.route_options import time_in_window
 from app.services.ids import new_id
 from app.services.trips import save_trip
 from app.storage.repository import Repository
@@ -27,6 +24,36 @@ class BookingCandidate:
     booked_price: int
     record_locator: str
     notes: str = ""
+
+
+def _build_booking(
+    candidate: BookingCandidate,
+    *,
+    trip_instance_id: str,
+    tracker_id: str = "",
+    notes: str | None = None,
+) -> Booking:
+    return Booking(
+        booking_id=new_id("book"),
+        trip_instance_id=trip_instance_id,
+        tracker_id=tracker_id,
+        airline=candidate.airline,
+        origin_airport=candidate.origin_airport,
+        destination_airport=candidate.destination_airport,
+        departure_date=candidate.departure_date,
+        departure_time=candidate.departure_time,
+        arrival_time=candidate.arrival_time,
+        booked_price=candidate.booked_price,
+        record_locator=candidate.record_locator,
+        notes=candidate.notes if notes is None else notes,
+    )
+
+
+def _save_booking(repository: Repository, booking: Booking) -> Booking:
+    bookings = repository.load_bookings()
+    bookings.append(booking)
+    repository.save_bookings(bookings)
+    return booking
 
 
 def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[Tracker]) -> list[Tracker]:
@@ -63,24 +90,12 @@ def record_booking(
         raise ValueError("Selected tracker does not belong to the chosen trip instance.")
 
     if selected_tracker:
-        booking = Booking(
-            booking_id=new_id("book"),
+        booking = _build_booking(
+            candidate,
             trip_instance_id=selected_tracker.trip_instance_id,
             tracker_id=selected_tracker.tracker_id,
-            airline=candidate.airline,
-            origin_airport=candidate.origin_airport,
-            destination_airport=candidate.destination_airport,
-            departure_date=candidate.departure_date,
-            departure_time=candidate.departure_time,
-            arrival_time=candidate.arrival_time,
-            booked_price=candidate.booked_price,
-            record_locator=candidate.record_locator,
-            notes=candidate.notes,
         )
-        bookings = repository.load_bookings()
-        bookings.append(booking)
-        repository.save_bookings(bookings)
-        return booking, None
+        return _save_booking(repository, booking), None
 
     if selected_trip:
         candidate_trackers = [
@@ -90,46 +105,22 @@ def record_booking(
             and tracker.travel_date == candidate.departure_date
         ]
         matching_trackers = _matching_trackers_for_booking(candidate, candidate_trackers)
-        booking = Booking(
-            booking_id=new_id("book"),
+        booking = _build_booking(
+            candidate,
             trip_instance_id=selected_trip.trip_instance_id,
             tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
-            airline=candidate.airline,
-            origin_airport=candidate.origin_airport,
-            destination_airport=candidate.destination_airport,
-            departure_date=candidate.departure_date,
-            departure_time=candidate.departure_time,
-            arrival_time=candidate.arrival_time,
-            booked_price=candidate.booked_price,
-            record_locator=candidate.record_locator,
-            notes=candidate.notes,
         )
-        bookings = repository.load_bookings()
-        bookings.append(booking)
-        repository.save_bookings(bookings)
-        return booking, None
+        return _save_booking(repository, booking), None
 
     matching_trackers = _matching_trackers_for_booking(candidate, trackers)
     if len(matching_trackers) == 1:
         matched = matching_trackers[0]
-        booking = Booking(
-            booking_id=new_id("book"),
+        booking = _build_booking(
+            candidate,
             trip_instance_id=matched.trip_instance_id,
             tracker_id=matched.tracker_id,
-            airline=candidate.airline,
-            origin_airport=candidate.origin_airport,
-            destination_airport=candidate.destination_airport,
-            departure_date=candidate.departure_date,
-            departure_time=candidate.departure_time,
-            arrival_time=candidate.arrival_time,
-            booked_price=candidate.booked_price,
-            record_locator=candidate.record_locator,
-            notes=candidate.notes,
         )
-        bookings = repository.load_bookings()
-        bookings.append(booking)
-        repository.save_bookings(bookings)
-        return booking, None
+        return _save_booking(repository, booking), None
 
     unmatched = UnmatchedBooking(
         unmatched_booking_id=new_id("ub"),
@@ -179,24 +170,13 @@ def resolve_unmatched_booking_to_trip_instance(
         [tracker for tracker in trackers if tracker.trip_instance_id == trip_instance_id],
     )
 
-    booking = Booking(
-        booking_id=new_id("book"),
+    booking = _build_booking(
+        candidate,
         trip_instance_id=trip_instance_id,
         tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
-        airline=unmatched.airline,
-        origin_airport=unmatched.origin_airport,
-        destination_airport=unmatched.destination_airport,
-        departure_date=unmatched.departure_date,
-        departure_time=unmatched.departure_time,
-        arrival_time=unmatched.arrival_time,
-        booked_price=unmatched.booked_price,
-        record_locator=unmatched.record_locator,
         notes="Resolved from unmatched booking",
     )
-
-    bookings = repository.load_bookings()
-    bookings.append(booking)
-    repository.save_bookings(bookings)
+    _save_booking(repository, booking)
 
     unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
     unmatched.updated_at = utcnow()

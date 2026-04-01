@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -31,7 +30,7 @@ from app.services.refresh_queue import (
 from app.services.trips import delete_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_back
+from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["trips"])
 
@@ -383,7 +382,7 @@ async def save_trip_action(
         snapshot = sync_and_persist(repository)
         queued_count = queue_refresh_for_trip(snapshot, repository, trip_id=trip.trip_id)
         message = queued_refresh_message("Trip saved", queued_count)
-        return RedirectResponse(url=f"/trips/{trip.trip_id}?message={quote_plus(message)}", status_code=303)
+        return redirect_with_message(f"/trips/{trip.trip_id}", message)
     except ValueError as exc:
         snapshot = load_snapshot(repository)
         return _render_trip_form(
@@ -445,7 +444,7 @@ def delete_trip_action(
 ) -> RedirectResponse:
     delete_trip(repository, trip_id)
     sync_and_persist(repository)
-    return RedirectResponse(url="/trips?message=Trip+deleted", status_code=303)
+    return redirect_with_message("/trips", "Trip deleted")
 
 
 @router.post("/trip-instances/{trip_instance_id}/skip")
