@@ -12,7 +12,11 @@ from app.models.trip_instance import TripInstance
 from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
 from app.services.fetch_targets import FETCH_INTERVAL_SECONDS, next_refresh_time, reconcile_fetch_targets
 from app.services.ids import new_id
-from app.services.google_flights_fetcher import best_google_flights_offer, parse_google_flights_offers
+from app.services.google_flights_fetcher import (
+    GoogleFlightsNoResultsError,
+    best_google_flights_offer,
+    parse_google_flights_offers,
+)
 from app.services.price_records import build_price_records
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
 from app.services.trips import save_trip
@@ -112,6 +116,27 @@ def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
     assert winner is not None
     assert winner.airline == "Alaska"
     assert winner.price == 241
+
+
+def test_parse_google_flights_offers_distinguishes_no_results_from_parse_failures() -> None:
+    no_results_html = "<html><body><p>No flights match your filters. Try changing your airports or dates.</p></body></html>"
+    broken_html = "<html><body><p>Unexpected shell with no matching offer nodes.</p></body></html>"
+
+    try:
+        parse_google_flights_offers(no_results_html)
+    except GoogleFlightsNoResultsError:
+        pass
+    else:
+        raise AssertionError("Expected no-results page to raise GoogleFlightsNoResultsError.")
+
+    try:
+        parse_google_flights_offers(broken_html)
+    except GoogleFlightsNoResultsError as exc:
+        raise AssertionError("Unexpectedly classified parser breakage as no-results.") from exc
+    except Exception:
+        pass
+    else:
+        raise AssertionError("Expected broken parser input to raise an error.")
 
 
 def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: Repository) -> None:
@@ -292,6 +317,58 @@ def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repos
 
     assert result.fetched_count == 1
     assert sleep_calls == [4.25]
+
+
+def test_run_fetch_batch_marks_no_results_without_counting_a_failure(repository: Repository, monkeypatch) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="No results test",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    target = snapshot.tracker_fetch_targets[0]
+    target.latest_price = 141
+    target.latest_airline = "Alaska"
+    target.latest_summary = "Old price"
+    target.latest_fetched_at = utcnow() - timedelta(hours=1)
+    target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        raise GoogleFlightsNoResultsError("No flight prices found in the Google Flights response.")
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        sleep_between_requests=False,
+        startup_jitter_seconds=0,
+    )
+
+    assert result.fetched_count == 1
+    assert target.last_fetch_status == "no_results"
+    assert target.consecutive_failures == 0
+    assert target.last_fetch_error == ""
+    assert target.latest_price is None
+    assert target.latest_airline == ""
+    assert target.latest_summary == ""
 def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> None:
     tracker = Tracker(
         tracker_id="trk_1",

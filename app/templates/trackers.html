@@ -46,7 +46,11 @@
           </p>
           {% else %}
           <p class="muted">
+            {% if monitor and monitor.all_no_results %}
+            No matching flights returned right now.
+            {% else %}
             No price available yet.
+            {% endif %}
           </p>
           {% endif %}
           {% if monitor %}
@@ -62,15 +66,17 @@
           <div class="link-chip-list">
             {% for target in fetch_targets %}
             <a
-              class="link-chip {% if tracker.latest_winning_origin_airport == target.origin_airport and tracker.latest_winning_destination_airport == target.destination_airport %}is-best{% endif %}"
+              class="link-chip {% if tracker.latest_winning_origin_airport == target.origin_airport and tracker.latest_winning_destination_airport == target.destination_airport %}is-best{% endif %}{% if target.last_fetch_status == 'no_results' %} is-unavailable{% endif %}"
               href="{{ target.google_flights_url }}"
               target="_blank"
               rel="noreferrer"
-              title="{{ target.origin_airport }} to {{ target.destination_airport }}{% if target.last_fetch_finished_at %} · Last checked {{ format_tracker_timestamp(target.last_fetch_finished_at) }}{% endif %}{% if target.next_fetch_not_before %} · Next refresh {{ format_tracker_timestamp(target.next_fetch_not_before) }}{% endif %}"
+              title="{{ target.origin_airport }} to {{ target.destination_airport }}{% if target.last_fetch_status == 'no_results' %} · No matching flights returned{% endif %}{% if target.last_fetch_finished_at %} · Last checked {{ format_tracker_timestamp(target.last_fetch_finished_at) }}{% endif %}{% if target.next_fetch_not_before %} · Next refresh {{ format_tracker_timestamp(target.next_fetch_not_before) }}{% endif %}"
             >
               {{ target.origin_airport }} to {{ target.destination_airport }}
               {% if target.latest_price is not none %}
               · ${{ target.latest_price }}
+              {% elif target.last_fetch_status == 'no_results' %}
+              · none
               {% endif %}
             </a>
             {% endfor %}

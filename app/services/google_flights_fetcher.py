@@ -16,6 +16,13 @@ GOOGLE_FLIGHTS_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
+NO_RESULTS_MARKERS = (
+    "no flights",
+    "no matching flights",
+    "no trips match",
+    "try changing",
+)
+
 
 @dataclass(frozen=True)
 class GoogleFlightsOffer:
@@ -35,6 +42,10 @@ class GoogleFlightsOffer:
 
 
 class GoogleFlightsFetchError(RuntimeError):
+    pass
+
+
+class GoogleFlightsNoResultsError(GoogleFlightsFetchError):
     pass
 
 
@@ -85,7 +96,10 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
                 )
             )
     if not offers:
-        raise GoogleFlightsFetchError("No flight prices found in the Google Flights response.")
+        lowered_html = html.lower()
+        if any(marker in lowered_html for marker in NO_RESULTS_MARKERS):
+            raise GoogleFlightsNoResultsError("No flight prices found in the Google Flights response.")
+        raise GoogleFlightsFetchError("Could not parse flight prices from the Google Flights response.")
     return offers
 
 

@@ -14,6 +14,7 @@ from app.models.trip_instance import TripInstance
 from app.services.fetch_targets import FETCH_STAGGER_SECONDS, next_refresh_time
 from app.services.google_flights_fetcher import (
     GoogleFlightsFetchError,
+    GoogleFlightsNoResultsError,
     best_google_flights_offer,
     fetch_google_flights_offers,
 )
@@ -157,6 +158,20 @@ def run_fetch_batch(
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at)
                 target.updated_at = fetched_at
+            except GoogleFlightsNoResultsError:
+                no_results_at = utcnow()
+                target.latest_price = None
+                target.latest_airline = ""
+                target.latest_departure_label = ""
+                target.latest_arrival_label = ""
+                target.latest_summary = ""
+                target.latest_fetched_at = None
+                target.last_fetch_finished_at = no_results_at
+                target.last_fetch_status = FetchTargetStatus.NO_RESULTS
+                target.last_fetch_error = ""
+                target.consecutive_failures = 0
+                target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at)
+                target.updated_at = no_results_at
             except Exception as exc:
                 failed_at = utcnow()
                 target.last_fetch_finished_at = failed_at

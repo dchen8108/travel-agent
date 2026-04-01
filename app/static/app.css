@@ -573,6 +573,12 @@ textarea {
   background: rgba(216, 235, 230, 0.54);
 }
 
+.link-chip.is-unavailable {
+  opacity: 0.66;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
 .inline-form {
   flex-wrap: wrap;
 }

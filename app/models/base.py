@@ -62,6 +62,7 @@ class TrackerStatus(StrEnum):
 class FetchTargetStatus(StrEnum):
     PENDING = "pending"
     SUCCESS = "success"
+    NO_RESULTS = "no_results"
     FAILED = "failed"
 
 

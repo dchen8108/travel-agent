@@ -6,7 +6,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from app.models.base import FetchTargetStatus, utcnow
 from app.settings import Settings
+from app.storage.repository import Repository
 
 
 def test_core_pages_render(tmp_path: Path) -> None:
@@ -475,6 +477,43 @@ def test_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     queue = client.post("/trackers/queue-refresh", follow_redirects=False)
     assert queue.status_code == 303
     assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
+
+
+def test_trackers_page_shows_no_results_state_without_failure_copy(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "No results tracker",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    repository = Repository(settings)
+    fetch_targets = repository.load_tracker_fetch_targets()
+    fetch_targets[0].last_fetch_status = FetchTargetStatus.NO_RESULTS
+    fetch_targets[0].last_fetch_finished_at = utcnow()
+    fetch_targets[0].next_fetch_not_before = utcnow() + timedelta(hours=6)
+    fetch_targets[0].latest_price = None
+    repository.save_tracker_fetch_targets(fetch_targets)
+
+    trackers_page = client.get("/trackers")
+
+    assert "No matching flights returned right now." in trackers_page.text
+    assert "A recent Google Flights request failed. Travel Agent will retry automatically." not in trackers_page.text
+    assert "is-unavailable" in trackers_page.text
 
 
 def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
