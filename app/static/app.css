@@ -675,6 +675,8 @@ textarea {
 }
 
 .chip-remove-button {
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -701,6 +703,8 @@ textarea {
 }
 
 .picker-trigger {
+  appearance: none;
+  -webkit-appearance: none;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -753,6 +757,12 @@ textarea {
   flex: 1 1 auto;
 }
 
+.multi-select-count {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .picker-count {
   white-space: nowrap;
   color: var(--muted);
@@ -772,10 +782,13 @@ textarea {
 }
 
 .picker-option {
+  appearance: none;
+  -webkit-appearance: none;
   padding: 10px 12px;
   border-radius: 12px;
   background: transparent;
   text-align: left;
+  width: 100%;
 }
 
 .picker-option:hover {
@@ -789,6 +802,57 @@ textarea {
 
 .filter-picker-shell .picker-trigger {
   min-height: 48px;
+}
+
+.multi-select {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.multi-select-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.multi-select-input-row input {
+  flex: 1 1 auto;
+}
+
+.multi-select-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 252, 246, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.multi-select-menu[hidden] {
+  display: none;
+}
+
+.multi-select-option {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+}
+
+.multi-select-option:hover {
+  background: var(--accent-soft);
 }
 
 .subcard {

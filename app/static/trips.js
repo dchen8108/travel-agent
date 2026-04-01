@@ -62,6 +62,124 @@
     onChange
   }) {
     const state = { values: Array.from(values || []) };
+    if (!compact) {
+      root.innerHTML = `
+        <div class="multi-select">
+          <div class="chip-list" data-chip-list></div>
+          <div class="multi-select-input-row">
+            <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
+            ${Number.isFinite(maxSelections) ? '<span class="multi-select-count" data-count></span>' : ""}
+          </div>
+          ${helperText ? `<p class="picker-helper">${helperText}</p>` : ""}
+          <div class="multi-select-menu" data-menu hidden></div>
+        </div>
+      `;
+      const chipList = root.querySelector("[data-chip-list]");
+      const search = root.querySelector("[data-search]");
+      const menu = root.querySelector("[data-menu]");
+      const count = root.querySelector("[data-count]");
+
+      function closeMenu() {
+        menu.hidden = true;
+      }
+
+      function renderChips() {
+        chipList.innerHTML = "";
+        state.values.forEach((value, index) => {
+          const option = options.find((item) => item.value === value);
+          if (!option) return;
+          const chip = document.createElement("span");
+          chip.className = "chip";
+          const text = document.createElement("span");
+          text.textContent = formatOption(option);
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "chip-remove-button";
+          remove.setAttribute("aria-label", `Remove ${formatOption(option)}`);
+          remove.textContent = "×";
+          remove.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            state.values = state.values.filter((_, itemIndex) => itemIndex !== index);
+            renderChips();
+            renderMenu(search.value);
+            onChange(Array.from(state.values));
+            search.focus();
+          });
+          chip.append(text, remove);
+          chipList.appendChild(chip);
+        });
+        if (!state.values.length) {
+          const empty = document.createElement("span");
+          empty.className = "chip-empty";
+          empty.textContent = emptyText;
+          chipList.appendChild(empty);
+        }
+        if (count) {
+          count.textContent = Number.isFinite(maxSelections)
+            ? `${state.values.length}/${maxSelections}`
+            : `${state.values.length}`;
+        }
+      }
+
+      function renderMenu(query = "") {
+        const normalized = query.trim().toLowerCase();
+        menu.innerHTML = "";
+        if (state.values.length >= maxSelections) {
+          const empty = document.createElement("p");
+          empty.className = "picker-empty-state";
+          empty.textContent = `Maximum reached (${maxSelections}). Remove one to add another.`;
+          menu.appendChild(empty);
+          menu.hidden = false;
+          return;
+        }
+        const matches = options
+          .filter((option) => !state.values.includes(option.value))
+          .filter((option) => !normalized || buildSearchText(option).includes(normalized))
+          .slice(0, 10);
+        if (!matches.length) {
+          closeMenu();
+          return;
+        }
+        matches.forEach((option) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "multi-select-option";
+          button.textContent = formatOption(option);
+          button.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            state.values = [...state.values, option.value];
+            renderChips();
+            onChange(Array.from(state.values));
+            search.value = "";
+            renderMenu("");
+          });
+          menu.appendChild(button);
+        });
+        menu.hidden = false;
+      }
+
+      renderChips();
+      registerPicker(root, closeMenu);
+      search.addEventListener("focus", () => {
+        closeOtherPickers(root);
+        renderMenu(search.value);
+      });
+      search.addEventListener("input", () => renderMenu(search.value));
+      search.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeMenu();
+          search.blur();
+        }
+      });
+      search.addEventListener("blur", () => {
+        window.setTimeout(() => {
+          closeMenu();
+        }, 150);
+      });
+      return;
+    }
+
     root.innerHTML = `
       <div class="picker ${compact ? "is-compact" : ""}">
         ${compact ? "" : '<div class="picker-selection" data-selection></div>'}
@@ -245,48 +363,32 @@
     const root = field.querySelector("[data-picker-root]");
     const state = { value: hidden.value || "" };
     root.innerHTML = `
-      <div class="picker">
-        <div class="picker-selection" data-selection></div>
-        <button type="button" class="picker-trigger" data-trigger aria-expanded="false">Search supported options</button>
-        <div class="picker-popover" data-popover hidden>
-          <div class="picker-popover-header">
-            <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
-          </div>
-          <div class="picker-menu" data-menu></div>
+      <div class="multi-select">
+        <div class="chip-list" data-chip-list></div>
+        <div class="multi-select-input-row">
+          <input type="text" data-search placeholder="Search supported options" autocomplete="off" spellcheck="false">
         </div>
+        <div class="multi-select-menu" data-menu hidden></div>
       </div>
     `;
-    const selection = root.querySelector("[data-selection]");
-    const trigger = root.querySelector("[data-trigger]");
-    const popover = root.querySelector("[data-popover]");
+    const chipList = root.querySelector("[data-chip-list]");
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
 
     function closeMenu() {
-      popover.hidden = true;
-      trigger.setAttribute("aria-expanded", "false");
-    }
-
-    function openMenu() {
-      closeOtherPickers(root);
-      popover.hidden = false;
-      trigger.setAttribute("aria-expanded", "true");
-      search.focus();
-      renderMenu(search.value);
+      menu.hidden = true;
     }
 
     function renderChip() {
-      selection.innerHTML = "";
+      chipList.innerHTML = "";
       const option = options.find((item) => item.value === state.value);
       if (!option) {
         const empty = document.createElement("span");
         empty.className = "chip-empty";
         empty.textContent = "No selection";
-        selection.appendChild(empty);
-        trigger.classList.remove("has-value");
+        chipList.appendChild(empty);
         return;
       }
-      trigger.classList.add("has-value");
       const chip = document.createElement("span");
       chip.className = "chip";
       const text = document.createElement("span");
@@ -302,10 +404,11 @@
         state.value = "";
         hidden.value = "";
         renderChip();
-        renderMenu(search.value);
+        renderMenu(search.value || "");
+        search.focus();
       });
       chip.append(text, remove);
-      selection.appendChild(chip);
+      chipList.appendChild(chip);
     }
 
     function renderMenu(query = "") {
@@ -319,41 +422,44 @@
         empty.className = "picker-empty-state";
         empty.textContent = "No matching options.";
         menu.appendChild(empty);
+        menu.hidden = false;
         return;
       }
       matches.forEach((option) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "picker-option";
-        button.classList.toggle("is-selected", option.value === state.value);
+        button.className = "multi-select-option";
         button.textContent = formatOption(option);
-        button.addEventListener("click", (event) => {
+        button.addEventListener("mousedown", (event) => {
           event.preventDefault();
           state.value = option.value;
           hidden.value = option.value;
           search.value = "";
           renderChip();
-          closeMenu();
+          renderMenu("");
         });
         menu.appendChild(button);
       });
+      menu.hidden = false;
     }
 
     renderChip();
     registerPicker(root, closeMenu);
-    trigger.addEventListener("click", () => {
-      if (!popover.hidden) {
-        closeMenu();
-        return;
-      }
-      openMenu();
+    search.addEventListener("focus", () => {
+      closeOtherPickers(root);
+      renderMenu(search.value);
     });
     search.addEventListener("input", () => renderMenu(search.value));
     search.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         closeMenu();
-        trigger.focus();
+        search.blur();
       }
+    });
+    search.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        closeMenu();
+      }, 150);
     });
   }
 
