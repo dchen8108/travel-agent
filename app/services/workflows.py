@@ -73,7 +73,12 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Wo
     )
     trackers = reconcile_trackers(trip_instances, route_options, existing_trackers, today=today)
     _clear_legacy_manual_signals(trackers)
-    tracker_fetch_targets = reconcile_fetch_targets(trackers, existing_fetch_targets)
+    tracker_fetch_targets = reconcile_fetch_targets(
+        trackers,
+        trips,
+        trip_instances,
+        existing_fetch_targets,
+    )
 
     valid_trip_instance_ids = {item.trip_instance_id for item in trip_instances}
     valid_tracker_ids = {item.tracker_id for item in trackers}

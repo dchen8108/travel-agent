@@ -10,7 +10,12 @@ from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
 from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
-from app.services.fetch_targets import FETCH_INTERVAL_SECONDS, next_refresh_time, reconcile_fetch_targets
+from app.services.fetch_targets import (
+    FETCH_INTERVAL_SECONDS,
+    next_refresh_time,
+    reconcile_fetch_targets,
+    schedule_offset_for_trip,
+)
 from app.services.ids import new_id
 from app.services.google_flights_fetcher import (
     GoogleFlightsNoResultsError,
@@ -88,7 +93,8 @@ def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Reposito
     assert len(fetch_targets) == 6
     assert {item.origin_airport for item in fetch_targets} == {"BUR", "LAX", "SNA"}
     assert {item.destination_airport for item in fetch_targets} == {"SFO", "OAK"}
-    assert [item.schedule_offset_seconds for item in fetch_targets] == [0, 10, 20, 30, 40, 50]
+    assert {item.schedule_offset_seconds for item in fetch_targets} == {schedule_offset_for_trip(trip.created_at)}
+    assert len({item.next_fetch_not_before for item in fetch_targets}) == 1
 
 
 def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
@@ -740,10 +746,10 @@ def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repositor
         if item.tracker_id == tracker.tracker_id
     ]
 
-    rebalanced = reconcile_fetch_targets([tracker], legacy_targets)
+    rebalanced = reconcile_fetch_targets([tracker], initial.trips, initial.trip_instances, legacy_targets)
 
-    assert [item.schedule_offset_seconds for item in rebalanced] == [0, 10]
-    assert rebalanced[0].next_fetch_not_before != rebalanced[1].next_fetch_not_before
+    assert {item.schedule_offset_seconds for item in rebalanced} == {schedule_offset_for_trip(trip.created_at)}
+    assert len({item.next_fetch_not_before for item in rebalanced}) == 1
 def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
     trip_instance = TripInstance(
         trip_instance_id="inst_1",
