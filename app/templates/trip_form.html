@@ -46,13 +46,38 @@
     </div>
     <p class="muted">New trips start active automatically. You can pause them later from the Trips page.</p>
 
+    <section class="preference-card top-gap-small">
+      <div class="section-header compact">
+        <div>
+          <p class="eyebrow">Preference</p>
+          <h3>How Travel Agent should choose between options</h3>
+        </div>
+      </div>
+      <div class="preference-mode-grid">
+        <label class="choice-card">
+          <input type="radio" name="preference_mode" value="equal" {{ 'checked' if trip_form_state.preference_mode != 'ranked_bias' else '' }}>
+          <span>
+            <strong>Treat all options equally</strong>
+            <small>Cheapest matching option wins, regardless of rank.</small>
+          </span>
+        </label>
+        <label class="choice-card">
+          <input type="radio" name="preference_mode" value="ranked_bias" {{ 'checked' if trip_form_state.preference_mode == 'ranked_bias' else '' }}>
+          <span>
+            <strong>Prefer option order</strong>
+            <small>Option 1 is preferred, but lower options can win if they are cheaper by enough.</small>
+          </span>
+        </label>
+      </div>
+    </section>
+
     <section class="route-editor">
       <div class="section-header">
         <div>
           <p class="eyebrow">Route options</p>
           <h3>Ranked tracker definitions</h3>
           <p class="muted">A route option can include multiple airports and airlines, but only one day and one departure window.</p>
-          <p class="muted">The time window refers to departure time, not total flight duration.</p>
+          <p class="muted">Departure range refers to takeoff time, not total flight duration.</p>
         </div>
         <button type="button" class="button secondary" data-add-route-option>Add route option</button>
       </div>

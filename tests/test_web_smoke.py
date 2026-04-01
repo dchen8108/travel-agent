@@ -79,6 +79,48 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert "ABC123" in bookings_page.text
 
 
+def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Preference Weighted Trip",
+            "trip_kind": "one_time",
+            "preference_mode": "ranked_bias",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": (
+                '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],'
+                '"day_offset":0,"start_time":"06:00","end_time":"10:00","savings_needed_vs_previous":0},'
+                '{"origin_airports":["LAX"],"destination_airports":["SFO"],"airlines":["United"],'
+                '"day_offset":0,"start_time":"18:00","end_time":"22:00","savings_needed_vs_previous":50}]'
+            ),
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    repository = Repository(settings)
+    trip = repository.load_trips()[0]
+    route_options = sorted(repository.load_route_options(), key=lambda item: item.rank)
+
+    assert trip.preference_mode == "ranked_bias"
+    assert route_options[0].savings_needed_vs_previous == 0
+    assert route_options[1].savings_needed_vs_previous == 50
+
+    detail = client.get(response.headers["location"])
+    assert detail.status_code == 200
+    assert "Respect option order" not in detail.text
+    assert "cheaper by at least your configured amount" in detail.text
+
+
 def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

@@ -7,6 +7,7 @@ This MVP is built around a simple idea:
 - you organize travel into named `Trips`
 - each trip owns one or more ranked `Route Options`
 - each route option corresponds to one Google Flights tracker/search definition
+- trips can treat route options equally or require lower-ranked options to clear user-defined savings thresholds
 - the app generates dated `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
 - a background job queries those links conservatively every 4 hours on trip-anchored refresh windows and rolls the best current price back onto the tracker
@@ -50,13 +51,15 @@ Then open `http://127.0.0.1:8000`.
 
 1. Create a `Trip`.
 2. Choose whether it is `one_time` or `weekly`.
-3. Add ranked `Route Options`.
-4. Use `Trips` to manage recurring plans and browse the dated scheduled trips they create.
-5. Open a recurring trip for parent-level details, route options, and scheduled dates.
-6. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, and booking state.
-7. Let the background fetcher populate current prices automatically.
-8. Record bookings in the app.
-9. Let the app continue comparing booked prices against tracker prices.
+3. Choose whether route options should be treated equally or in ranked order.
+4. Add ranked `Route Options`.
+5. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
+6. Use `Trips` to manage recurring plans and browse the dated scheduled trips they create.
+7. Open a recurring trip for parent-level details, route options, and scheduled dates.
+8. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, and booking state.
+9. Let the background fetcher populate current prices automatically.
+10. Record bookings in the app.
+11. Let the app continue comparing booked prices against tracker prices.
 
 ## Tests
 

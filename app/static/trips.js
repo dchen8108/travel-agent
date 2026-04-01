@@ -482,6 +482,7 @@
     const root = form?.querySelector("[data-route-options]");
     const hidden = form?.querySelector('input[name="route_options_json"]');
     const tripKindSelect = form?.querySelector("[data-trip-kind]");
+    const preferenceModeInputs = Array.from(form?.querySelectorAll('input[name="preference_mode"]') || []);
     const anchorWeekdaySelect = form?.querySelector("[data-anchor-weekday]");
     const anchorDateField = form?.querySelector("[data-anchor-date-field]");
     const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
@@ -494,6 +495,7 @@
       ? tripState.routeOptions
       : [{
           route_option_id: "",
+          savings_needed_vs_previous: 0,
           origin_airports: [],
           destination_airports: [],
           airlines: [],
@@ -501,6 +503,10 @@
           start_time: "",
           end_time: ""
         }];
+
+    function currentPreferenceMode() {
+      return preferenceModeInputs.find((input) => input.checked)?.value || tripState.trip?.preference_mode || "equal";
+    }
 
     function currentAnchorWeekday() {
       if (tripKindSelect.value === "weekly") {
@@ -523,6 +529,7 @@
     function serialize() {
       hidden.value = JSON.stringify(routeOptions.map((option) => ({
         route_option_id: option.route_option_id || "",
+        savings_needed_vs_previous: Number(option.savings_needed_vs_previous || 0),
         origin_airports: option.origin_airports,
         destination_airports: option.destination_airports,
         airlines: option.airlines,
@@ -542,7 +549,10 @@
     function render() {
       root.innerHTML = "";
       const anchorWeekday = currentAnchorWeekday();
+      const preferenceMode = currentPreferenceMode();
+      const biasEnabled = preferenceMode === "ranked_bias";
       routeOptions.forEach((option, index) => {
+        const pairwiseBias = index === 0 ? 0 : Number(option.savings_needed_vs_previous || 0);
         const card = document.createElement("article");
         card.className = "route-option-card";
         card.innerHTML = `
@@ -564,6 +574,17 @@
             <div class="field"><span>Relative day</span><select data-field="day_offset"></select></div>
             <div class="field"><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></div>
             <div class="field"><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></div>
+            ${biasEnabled ? `
+              <div class="field preference-threshold-field ${index === 0 ? "is-readonly" : ""}">
+                <span>${index === 0 ? "Preference buffer" : `Savings needed vs option ${index}`}</span>
+                ${
+                  index === 0
+                    ? '<p class="muted">Top preference. Lower-ranked options need savings to beat it.</p>'
+                    : `<input type="number" min="0" step="1" data-field="savings_needed_vs_previous" value="${pairwiseBias}">
+                       <small class="muted">Must be at least $${pairwiseBias} cheaper than option ${index}.</small>`
+                }
+              </div>
+            ` : ""}
           </div>
         `;
         const daySelect = card.querySelector('[data-field="day_offset"]');
@@ -586,6 +607,18 @@
           option.end_time = event.target.value;
           serialize();
         });
+        const biasInput = card.querySelector('[data-field="savings_needed_vs_previous"]');
+        if (biasInput) {
+          biasInput.addEventListener("change", (event) => {
+            const nextValue = Math.max(0, Number.parseInt(event.target.value || "0", 10) || 0);
+            option.savings_needed_vs_previous = nextValue;
+            event.target.value = String(nextValue);
+            serialize();
+            render();
+          });
+        } else {
+          option.savings_needed_vs_previous = 0;
+        }
         createMultiPicker({
           root: card.querySelector('[data-field="origin_airports"]'),
           options: airports,
@@ -623,6 +656,7 @@
           if (!routeOptions.length) {
             routeOptions = [{
               route_option_id: "",
+              savings_needed_vs_previous: 0,
               origin_airports: [],
               destination_airports: [],
               airlines: [],
@@ -651,6 +685,7 @@
     document.querySelector("[data-add-route-option]").addEventListener("click", () => {
       routeOptions.push({
         route_option_id: "",
+        savings_needed_vs_previous: 0,
         origin_airports: [],
         destination_airports: [],
         airlines: [],
@@ -662,6 +697,11 @@
     });
 
     tripKindSelect.addEventListener("change", syncKindVisibility);
+    preferenceModeInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        render();
+      });
+    });
     form.querySelector('input[name="anchor_date"]').addEventListener("change", render);
     anchorWeekdaySelect.addEventListener("change", render);
     syncKindVisibility();

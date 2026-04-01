@@ -4,13 +4,17 @@ from datetime import date
 
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
-from app.models.base import TripKind, utcnow
+from app.models.base import RoutePreferenceMode, TripKind, utcnow
 from app.services.ids import new_id
 from app.storage.repository import Repository
 
 
 def parse_trip_kind(raw: str) -> TripKind:
     return TripKind(raw)
+
+
+def parse_preference_mode(raw: str) -> RoutePreferenceMode:
+    return RoutePreferenceMode(raw)
 
 
 def ensure_unique_trip_label(trips: list[Trip], label: str, *, existing_trip_id: str | None = None) -> None:
@@ -30,12 +34,14 @@ def build_trip(
     active: bool,
     anchor_date: date | None,
     anchor_weekday: str,
+    preference_mode: str = RoutePreferenceMode.EQUAL,
 ) -> Trip:
     now = utcnow()
     return Trip(
         trip_id=trip_id or new_id("trip"),
         label=label,
         trip_kind=parse_trip_kind(trip_kind),
+        preference_mode=parse_preference_mode(preference_mode),
         active=active,
         anchor_date=anchor_date,
         anchor_weekday=anchor_weekday,
@@ -60,6 +66,7 @@ def build_route_options(
             route_option_id=route_option_id,
             trip_id=trip_id,
             rank=index,
+            savings_needed_vs_previous=0 if index == 1 else int(payload.get("savings_needed_vs_previous", 0)),
             origin_airports=str(payload.get("origin_airports", "")),
             destination_airports=str(payload.get("destination_airports", "")),
             airlines=str(payload.get("airlines", "")),
@@ -96,6 +103,7 @@ def save_trip(
     anchor_date: date | None,
     anchor_weekday: str,
     route_option_payloads: list[dict[str, object]],
+    preference_mode: str = RoutePreferenceMode.EQUAL,
 ) -> Trip:
     trips = repository.load_trips()
     route_options = repository.load_route_options()
@@ -106,6 +114,7 @@ def save_trip(
         trip_id=trip_id,
         label=label,
         trip_kind=trip_kind,
+        preference_mode=preference_mode,
         active=active,
         anchor_date=anchor_date,
         anchor_weekday=anchor_weekday,
@@ -141,6 +150,7 @@ def save_past_trip(
         trip_id=trip_id,
         label=label,
         trip_kind=TripKind.ONE_TIME,
+        preference_mode=RoutePreferenceMode.EQUAL,
         active=True,
         anchor_date=anchor_date,
         anchor_weekday="",

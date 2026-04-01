@@ -14,6 +14,7 @@ class Tracker(CsvModel):
     trip_instance_id: str
     route_option_id: str
     rank: int
+    preference_bias_dollars: int = 0
     origin_airports: str
     destination_airports: str
     airlines: str
@@ -49,6 +50,13 @@ class Tracker(CsvModel):
     def validate_rank(cls, value: int) -> int:
         if value < 1:
             raise ValueError("Tracker rank must be positive.")
+        return value
+
+    @field_validator("preference_bias_dollars")
+    @classmethod
+    def validate_preference_bias_dollars(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("Tracker preference bias cannot be negative.")
         return value
 
     @field_validator("provider")

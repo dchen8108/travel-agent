@@ -30,6 +30,8 @@
 - Parent trip page should show:
   - trip summary and controls
   - ranked route options
+  - whether route options are treated equally or in ranked order
+  - any configured savings thresholds that lower-ranked options must clear
   - dated trip instances generated from the trip
 
 #### Scheduled trip detail
@@ -60,6 +62,9 @@
 ### UX cleanups
 - Flash feedback should remain transient toast-based.
 - Reuse the improved route-option picker; avoid adding new picker variants unless they clearly help.
+- Keep route-option preference controls simple:
+  - equal treatment by default
+  - optional ranked-order mode with dollar savings thresholds
 - Prefer denser but calmer cards over large repetitive status badges.
 - Use one primary action per card and demote secondary actions where possible.
 

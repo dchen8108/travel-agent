@@ -5,13 +5,14 @@ from datetime import date, datetime
 from pydantic import Field, field_validator, model_validator
 
 from app.catalog import WEEKDAYS
-from app.models.base import CsvModel, TripKind, utcnow
+from app.models.base import CsvModel, RoutePreferenceMode, TripKind, utcnow
 
 
 class Trip(CsvModel):
     trip_id: str
     label: str
     trip_kind: TripKind
+    preference_mode: RoutePreferenceMode = RoutePreferenceMode.EQUAL
     active: bool = True
     anchor_date: date | None = None
     anchor_weekday: str = ""
@@ -33,6 +34,11 @@ class Trip(CsvModel):
         if normalized and normalized not in WEEKDAYS:
             raise ValueError("Choose a supported weekday.")
         return normalized
+
+    @field_validator("preference_mode")
+    @classmethod
+    def validate_preference_mode(cls, value: RoutePreferenceMode) -> RoutePreferenceMode:
+        return value
 
     @model_validator(mode="after")
     def validate_schedule(self) -> "Trip":

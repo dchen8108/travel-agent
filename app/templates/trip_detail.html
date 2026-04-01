@@ -31,6 +31,7 @@
 
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
+  <div class="summary-pill"><span>{{ 'equal' if trip.preference_mode == 'equal' else 'preferred order' }}</span><small>preference</small></div>
   <div class="summary-pill"><span>{{ route_options|length }}</span><small>route option{{ '' if route_options|length == 1 else 's' }}</small></div>
   <div class="summary-pill"><span>{{ future_instances|length }}</span><small>upcoming dates</small></div>
   <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
@@ -46,6 +47,13 @@
         Anchor weekday: {{ trip.anchor_weekday }} · Future generation {{ 'active' if trip.active else 'paused' }}.
         {% else %}
         Scheduled around {{ trip.anchor_date.isoformat() }}.
+        {% endif %}
+      </p>
+      <p class="muted">
+        {% if trip.preference_mode == 'ranked_bias' %}
+        Option 1 is preferred, but lower options can still win if they are cheaper by at least your configured amount.
+        {% else %}
+        Route options are treated equally; the cheapest matching option wins.
         {% endif %}
       </p>
     </div>
@@ -69,7 +77,8 @@
     </div>
   </div>
   <div class="stack">
-    {% for option in route_options %}
+    {% for option_view in route_option_views %}
+    {% set option = option_view.option %}
     <article class="card route-summary-card">
       <div class="card-header">
         <div>
@@ -78,6 +87,7 @@
             {{ day_offset_label(trip.effective_anchor_weekday, option.day_offset) }} ·
             {{ option.start_time }}–{{ option.end_time }} departure
           </p>
+          <p class="muted">{{ option_view.preference_note }}</p>
         </div>
       </div>
       <div class="route-summary-grid">

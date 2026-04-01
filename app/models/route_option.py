@@ -13,6 +13,7 @@ class RouteOption(CsvModel):
     route_option_id: str
     trip_id: str
     rank: int
+    savings_needed_vs_previous: int = 0
     origin_airports: str
     destination_airports: str
     airlines: str
@@ -27,6 +28,13 @@ class RouteOption(CsvModel):
     def validate_rank(cls, value: int) -> int:
         if value < 1:
             raise ValueError("Route option rank must be positive.")
+        return value
+
+    @field_validator("savings_needed_vs_previous")
+    @classmethod
+    def validate_savings_needed_vs_previous(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("Savings threshold must be zero or greater.")
         return value
 
     @field_validator("origin_airports", "destination_airports")

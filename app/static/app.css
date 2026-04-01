@@ -674,6 +674,66 @@ textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
+.preference-card {
+  padding: 20px;
+  border: 1px solid rgba(215, 207, 191, 0.88);
+  background: rgba(255, 252, 246, 0.9);
+  border-radius: 20px;
+}
+
+.preference-mode-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.choice-card {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 253, 249, 0.9);
+  cursor: pointer;
+}
+
+.choice-card input {
+  width: auto;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.choice-card span {
+  display: grid;
+  gap: 4px;
+}
+
+.choice-card small {
+  line-height: 1.4;
+}
+
+.choice-card:has(input:checked) {
+  border-color: rgba(31, 92, 82, 0.28);
+  background: rgba(216, 235, 230, 0.44);
+}
+
+.preference-threshold-field {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(215, 207, 191, 0.88);
+  background: rgba(247, 243, 234, 0.75);
+}
+
+.preference-threshold-field.is-readonly {
+  justify-content: center;
+}
+
+.preference-threshold-field small {
+  display: block;
+  line-height: 1.4;
+}
+
 .picker-selection {
   display: flex;
   gap: 8px;

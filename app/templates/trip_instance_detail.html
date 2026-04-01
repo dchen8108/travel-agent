@@ -12,8 +12,11 @@
       · standalone one-time trip
       {% endif %}
     </p>
-    <p class="muted">This is the dated trip you actually act on. Its trackers are the ranked route options being checked for this date.</p>
-  </div>
+      <p class="muted">This is the dated trip you actually act on. Its trackers are the ranked route options being checked for this date.</p>
+      {% if parent_trip.preference_mode == 'ranked_bias' %}
+      <p class="muted">Lower-ranked options only win when they beat your configured savings buffers.</p>
+      {% endif %}
+    </div>
   <div class="hero-actions">
     <a class="button ghost" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id, show_skipped=trip_instance.travel_state == 'skipped') }}">Back to trips</a>
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}">View plan</a>
@@ -83,6 +86,9 @@
           <p class="muted">
             {{ tracker.travel_date.isoformat() }} · {{ tracker.start_time }}–{{ tracker.end_time }} departure
           </p>
+          {% if tracker.preference_bias_dollars > 0 %}
+          <p class="muted">Needs at least ${{ tracker.preference_bias_dollars }} total savings to beat option 1.</p>
+          {% endif %}
         </div>
         <span class="badge">{{ fetch_targets|length }} search{{ '' if fetch_targets|length == 1 else 'es' }}</span>
       </div>

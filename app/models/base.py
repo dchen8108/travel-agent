@@ -33,6 +33,11 @@ class TripKind(StrEnum):
     WEEKLY = "weekly"
 
 
+class RoutePreferenceMode(StrEnum):
+    EQUAL = "equal"
+    RANKED_BIAS = "ranked_bias"
+
+
 class TripInstanceKind(StrEnum):
     STANDALONE = "standalone"
     GENERATED = "generated"

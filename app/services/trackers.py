@@ -6,8 +6,9 @@ from datetime import date
 from app.models.base import TrackerStatus, TravelState, utcnow
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
+from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
-from app.route_options import travel_date_for_offset
+from app.route_options import cumulative_route_option_bias, travel_date_for_offset
 from app.services.ids import stable_id
 
 
@@ -36,12 +37,14 @@ def tracker_definition_signature(
 
 
 def reconcile_trackers(
+    trips: list[Trip],
     trip_instances: list[TripInstance],
     route_options: list[RouteOption],
     existing_trackers: list[Tracker],
     *,
     today: date,
 ) -> list[Tracker]:
+    trip_by_id = {trip.trip_id: trip for trip in trips}
     route_options_by_trip: dict[str, list[RouteOption]] = defaultdict(list)
     for option in route_options:
         route_options_by_trip[option.trip_id].append(option)
@@ -56,10 +59,17 @@ def reconcile_trackers(
         if instance.travel_state == TravelState.SKIPPED:
             continue
         options = route_options_by_trip.get(instance.trip_id, [])
+        trip = trip_by_id.get(instance.trip_id)
+        pairwise_biases = [option.savings_needed_vs_previous for option in options]
         for option in options:
             tracker_id = stable_id("trk", instance.trip_instance_id, option.route_option_id)
             desired_ids.add(tracker_id)
             travel_date = travel_date_for_offset(instance.anchor_date, option.day_offset)
+            preference_bias_dollars = (
+                cumulative_route_option_bias(pairwise_biases, option.rank - 1)
+                if trip and trip.preference_mode == "ranked_bias"
+                else 0
+            )
             definition_signature = tracker_definition_signature(
                 rank=option.rank,
                 origin_airports=option.origin_airports,
@@ -74,6 +84,7 @@ def reconcile_trackers(
             if existing:
                 definition_changed = bool(existing.definition_signature) and existing.definition_signature != definition_signature
                 existing.rank = option.rank
+                existing.preference_bias_dollars = preference_bias_dollars
                 existing.origin_airports = option.origin_airports
                 existing.destination_airports = option.destination_airports
                 existing.airlines = option.airlines
@@ -104,6 +115,7 @@ def reconcile_trackers(
                     trip_instance_id=instance.trip_instance_id,
                     route_option_id=option.route_option_id,
                     rank=option.rank,
+                    preference_bias_dollars=preference_bias_dollars,
                     origin_airports=option.origin_airports,
                     destination_airports=option.destination_airports,
                     airlines=option.airlines,

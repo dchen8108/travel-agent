@@ -83,7 +83,14 @@ def best_tracker_for_instance(trackers: list[Tracker]) -> Tracker | None:
     with_prices = [tracker for tracker in trackers if tracker.latest_observed_price is not None]
     if not with_prices:
         return None
-    return min(with_prices, key=lambda item: (item.latest_observed_price or 10**9, item.rank))
+    return min(
+        with_prices,
+        key=lambda item: (
+            (item.latest_observed_price or 10**9) + item.preference_bias_dollars,
+            item.latest_observed_price or 10**9,
+            item.rank,
+        ),
+    )
 
 
 def recompute_trip_states(
@@ -162,7 +169,15 @@ def recompute_trip_states(
             continue
 
         instance.recommendation_state = RecommendationState.WAIT
-        instance.recommendation_reason = f"Latest matched price is ${best_tracker.latest_observed_price}; keep monitoring for now."
+        if best_tracker.preference_bias_dollars > 0:
+            instance.recommendation_reason = (
+                f"Latest matched price is ${best_tracker.latest_observed_price} on option {best_tracker.rank}, "
+                f"after applying a ${best_tracker.preference_bias_dollars} preference buffer."
+            )
+        else:
+            instance.recommendation_reason = (
+                f"Latest matched price is ${best_tracker.latest_observed_price}; keep monitoring for now."
+            )
         instance.updated_at = utcnow()
 
     trip_instances.sort(key=lambda item: (item.anchor_date, item.display_label))

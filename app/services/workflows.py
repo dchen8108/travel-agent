@@ -71,7 +71,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Wo
         today=today,
         future_weeks=app_state.future_weeks,
     )
-    trackers = reconcile_trackers(trip_instances, route_options, existing_trackers, today=today)
+    trackers = reconcile_trackers(trips, trip_instances, route_options, existing_trackers, today=today)
     _clear_legacy_manual_signals(trackers)
     tracker_fetch_targets = reconcile_fetch_targets(
         trackers,

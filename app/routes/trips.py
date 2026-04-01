@@ -65,6 +65,7 @@ def _trip_form_state(trip, route_options):
             "trip_id": "",
             "label": "",
             "trip_kind": "weekly",
+            "preference_mode": "equal",
             "anchor_date": "",
             "anchor_weekday": "Monday",
         }
@@ -72,6 +73,7 @@ def _trip_form_state(trip, route_options):
         "trip_id": trip.trip_id,
         "label": trip.label,
         "trip_kind": trip.trip_kind,
+        "preference_mode": trip.preference_mode,
         "anchor_date": trip.anchor_date.isoformat() if trip.anchor_date else "",
         "anchor_weekday": trip.anchor_weekday or "Monday",
         "created_at": trip.created_at.isoformat(),
@@ -82,6 +84,7 @@ def _route_option_state(route_options):
     return [
         {
             "route_option_id": option.route_option_id,
+            "savings_needed_vs_previous": option.savings_needed_vs_previous,
             "origin_airports": option.origin_codes,
             "destination_airports": option.destination_codes,
             "airlines": option.airline_codes,
@@ -102,6 +105,7 @@ def _route_option_state_from_payloads(payloads: list[dict[str, object]]):
     return [
         {
             "route_option_id": str(item.get("route_option_id", "") or ""),
+            "savings_needed_vs_previous": int(item.get("savings_needed_vs_previous", 0) or 0),
             "origin_airports": _as_list(item.get("origin_airports")),
             "destination_airports": _as_list(item.get("destination_airports")),
             "airlines": _as_list(item.get("airlines")),
@@ -124,6 +128,7 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
         route_options.append(
             {
                 "route_option_id": str(item.get("route_option_id", "") or ""),
+                "savings_needed_vs_previous": int(item.get("savings_needed_vs_previous", 0) or 0),
                 "origin_airports": "|".join(item.get("origin_airports", []) or []),
                 "destination_airports": "|".join(item.get("destination_airports", []) or []),
                 "airlines": "|".join(item.get("airlines", []) or []),
@@ -133,6 +138,30 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
             }
         )
     return route_options
+
+
+def _route_option_views(trip, route_options):
+    cumulative_bias = 0
+    views = []
+    bias_enabled = getattr(trip, "preference_mode", "equal") == "ranked_bias"
+    for option in route_options:
+        pairwise_bias = option.savings_needed_vs_previous if bias_enabled else 0
+        cumulative_bias += pairwise_bias
+        if not bias_enabled:
+            preference_note = "Treated equally with the other route options."
+        elif option.rank == 1:
+            preference_note = "Highest preference. Lower options need extra savings to outrank it."
+        else:
+            preference_note = f"Needs at least ${pairwise_bias} savings versus option {option.rank - 1}."
+        views.append(
+            {
+                "option": option,
+                "pairwise_bias": pairwise_bias,
+                "cumulative_bias": cumulative_bias if bias_enabled else 0,
+                "preference_note": preference_note,
+            }
+        )
+    return views
 
 
 def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
@@ -208,6 +237,7 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     return {
         "trip": trip,
         "route_options": route_options,
+        "route_option_views": _route_option_views(trip, route_options),
         "future_instances": future_instances,
         "open_count": open_count,
         "booked_count": booked_count,
@@ -334,6 +364,7 @@ async def save_trip_action(
     trip_id = str(form.get("trip_id", "")).strip() or None
     existing_trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None) if trip_id else None
     trip_kind = str(form.get("trip_kind", "weekly"))
+    preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
     route_options_json = str(form.get("route_options_json", "[]"))
@@ -349,6 +380,7 @@ async def save_trip_action(
             trip_id=trip_id,
             label=str(form.get("label", "")).strip(),
             trip_kind=trip_kind,
+            preference_mode=preference_mode,
             active=existing_trip.active if existing_trip else True,
             anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
             anchor_weekday=anchor_weekday,
@@ -368,10 +400,11 @@ async def save_trip_action(
                 trip=None,
                 route_options=[],
                 error_message=str(exc),
-                trip_form_state={
+            trip_form_state={
                     "trip_id": trip_id or "",
                     "label": str(form.get("label", "")).strip(),
                     "trip_kind": trip_kind,
+                    "preference_mode": preference_mode,
                     "anchor_date": anchor_date_value,
                     "anchor_weekday": anchor_weekday or "Monday",
                 },

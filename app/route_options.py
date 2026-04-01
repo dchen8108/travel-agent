@@ -92,3 +92,9 @@ def route_option_summary(
     destinations = ", ".join(destination_airports)
     airline_label = ", ".join(airlines)
     return f"{origins} → {destinations} · {day_label} · {start_time}-{end_time} · {airline_label}"
+
+
+def cumulative_route_option_bias(savings_needed_vs_previous: list[int], index: int) -> int:
+    if index <= 0:
+        return 0
+    return sum(max(0, int(value)) for value in savings_needed_vs_previous[: index + 1])
