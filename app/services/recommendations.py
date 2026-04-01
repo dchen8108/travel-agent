@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from app.models.base import RecommendationState, TrackerStatus, TravelState, utcnow
 from app.models.booking import Booking
 from app.models.fare_observation import FareObservation
 from app.models.tracker import Tracker
+from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
 
 
@@ -28,7 +29,84 @@ def refresh_tracker_projections(
             continue
         tracker.latest_observed_price = latest.price
         tracker.last_signal_at = latest.observed_at
+        tracker.latest_fetched_at = None
+        tracker.latest_winning_origin_airport = ""
+        tracker.latest_winning_destination_airport = ""
         tracker.latest_match_summary = latest.match_summary
+        tracker.latest_signal_source = "manual_import"
+        tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
+        tracker.updated_at = utcnow()
+    return trackers
+
+
+def apply_fetch_target_rollups(
+    trackers: list[Tracker],
+    fetch_targets: list[TrackerFetchTarget],
+) -> list[Tracker]:
+    fresh_window = timedelta(hours=72)
+    freshness_cutoff = utcnow() - fresh_window
+    by_tracker: dict[str, list[TrackerFetchTarget]] = defaultdict(list)
+    for target in fetch_targets:
+        if target.latest_price is None or target.latest_fetched_at is None:
+            continue
+        by_tracker[target.tracker_id].append(target)
+
+    for tracker in trackers:
+        candidates = by_tracker.get(tracker.tracker_id, [])
+        if not candidates:
+            if tracker.latest_signal_source == "background_fetch":
+                tracker.latest_observed_price = None
+                tracker.last_signal_at = None
+                tracker.latest_fetched_at = None
+                tracker.latest_winning_origin_airport = ""
+                tracker.latest_winning_destination_airport = ""
+                tracker.latest_signal_source = ""
+                tracker.latest_match_summary = ""
+                tracker.tracking_status = (
+                    TrackerStatus.TRACKING_ENABLED if tracker.tracking_enabled_at else TrackerStatus.NEEDS_SETUP
+                )
+                tracker.updated_at = utcnow()
+            continue
+        freshest_candidates = [
+            target
+            for target in candidates
+            if target.latest_fetched_at is not None and target.latest_fetched_at >= freshness_cutoff
+        ]
+        if not freshest_candidates:
+            if tracker.latest_signal_source == "background_fetch":
+                tracker.latest_observed_price = None
+                tracker.last_signal_at = None
+                tracker.latest_fetched_at = None
+                tracker.latest_winning_origin_airport = ""
+                tracker.latest_winning_destination_airport = ""
+                tracker.latest_signal_source = ""
+                tracker.latest_match_summary = ""
+                tracker.tracking_status = (
+                    TrackerStatus.TRACKING_ENABLED if tracker.tracking_enabled_at else TrackerStatus.NEEDS_SETUP
+                )
+                tracker.updated_at = utcnow()
+            continue
+        winner = min(
+            freshest_candidates,
+            key=lambda item: (
+                item.latest_price or 10**9,
+                item.origin_airport,
+                item.destination_airport,
+                item.latest_airline,
+            ),
+        )
+        if tracker.last_signal_at and winner.latest_fetched_at and tracker.last_signal_at > winner.latest_fetched_at:
+            continue
+        tracker.latest_observed_price = winner.latest_price
+        tracker.last_signal_at = winner.latest_fetched_at
+        tracker.latest_fetched_at = winner.latest_fetched_at
+        tracker.latest_winning_origin_airport = winner.origin_airport
+        tracker.latest_winning_destination_airport = winner.destination_airport
+        tracker.latest_match_summary = (
+            winner.latest_summary
+            or f"Fetched via {winner.origin_airport} → {winner.destination_airport}"
+        )
+        tracker.latest_signal_source = "background_fetch"
         tracker.tracking_status = TrackerStatus.SIGNAL_RECEIVED
         tracker.updated_at = utcnow()
     return trackers

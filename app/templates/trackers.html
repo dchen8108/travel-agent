@@ -3,8 +3,8 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Trackers</p>
-    <h2>Operational Google Flights setup, grouped under trip instances.</h2>
-    <p>These are the underlying tracker envelopes attached to each dated trip instance.</p>
+    <h2>Google Flights coverage, grouped under scheduled trip instances.</h2>
+    <p>Each tracker is one ranked route option. Travel Agent checks airport-pair combinations in the background and rolls the lowest current price back up to the tracker.</p>
   </div>
 </section>
 
@@ -24,24 +24,72 @@
         <div class="tracker-copy">
           <strong>Option {{ tracker.rank }}</strong>
           <p class="muted">{{ tracker.origin_airports|replace('|', ', ') }} → {{ tracker.destination_airports|replace('|', ', ') }} · {{ tracker.travel_date.isoformat() }} · {{ tracker.start_time }}-{{ tracker.end_time }} · {{ tracker.airlines|replace('|', ', ') }}</p>
-          <p class="muted">Status: {{ tracker.tracking_status }}{% if tracker.latest_observed_price is not none %} · Latest ${{ tracker.latest_observed_price }}{% endif %}</p>
-          {% if tracker.link_source == 'generated' %}
+          {% set fetch_targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id) %}
+          {% if tracker.latest_observed_price is not none %}
+          <p class="muted">
+            Best known price among selected airports:
+            <strong>${{ tracker.latest_observed_price }}</strong>
+            {% if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport %}
+            via {{ tracker.latest_winning_origin_airport }} → {{ tracker.latest_winning_destination_airport }}
+            {% endif %}
+            {% if tracker.latest_match_summary %}
+            · {{ tracker.latest_match_summary }}
+            {% endif %}
+          </p>
+          {% else %}
+          <p class="muted">
+            {% if tracker.tracking_status == 'needs_setup' %}
+            Waiting for background fetch to be enabled.
+            {% else %}
+            Waiting for first price from Google Flights.
+            {% endif %}
+          </p>
+          {% endif %}
+          <p class="muted">
+            Status: {{ tracker.tracking_status }}
+            {% if tracker.last_signal_at %}
+            · Last checked {{ tracker.last_signal_at.strftime('%Y-%m-%d %H:%M') }}
+            {% endif %}
+          </p>
+          {% if fetch_targets %}
+          <div class="link-chip-list">
+            {% for target in fetch_targets %}
+            <a class="link-chip {% if tracker.latest_winning_origin_airport == target.origin_airport and tracker.latest_winning_destination_airport == target.destination_airport %}is-best{% endif %}" href="{{ target.google_flights_url }}" target="_blank" rel="noreferrer">
+              {{ target.origin_airport }} to {{ target.destination_airport }}
+              {% if target.latest_price is not none %}
+              · ${{ target.latest_price }}
+              {% endif %}
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if tracker.link_source == 'generated' and tracker.latest_observed_price is none %}
           <p class="muted">{{ generated_tracker_seed_summary(tracker) }}</p>
           {% endif %}
         </div>
         <div class="tracker-actions">
-          <a class="button ghost" href="{{ tracker.google_flights_url }}" target="_blank" rel="noreferrer">
-            {{ 'Open generated search' if tracker.link_source == 'generated' else 'Open Google Flights' }}
-          </a>
+          {% if tracker.tracking_status == 'needs_setup' %}
           <form method="post" action="/trackers/{{ tracker.tracker_id }}/mark-enabled">
-            <button type="submit" class="button secondary">Mark enabled</button>
+            <button type="submit" class="button secondary">Start background tracking</button>
           </form>
+          {% else %}
+          <span class="status-pill success">Background tracking on</span>
+          {% endif %}
         </div>
       </div>
-      <form method="post" action="/trackers/{{ tracker.tracker_id }}/paste-link" class="inline-form">
-        <input type="url" name="google_flights_url" value="{{ tracker.google_flights_url }}" placeholder="Paste exact Google Flights tracked link">
-        <button type="submit" class="button secondary">Save link</button>
-      </form>
+      {% if snapshot.app_state.enable_manual_imports %}
+      <details class="legacy-panel">
+        <summary>Legacy manual tracker link</summary>
+        <p class="muted">Only use this if you want to keep pasting an exact tracked Google Flights link for the email-import workflow.</p>
+        {% if tracker.google_flights_url %}
+        <p><a href="{{ tracker.google_flights_url }}" target="_blank" rel="noreferrer">{{ 'Open saved manual link' if tracker.link_source == 'manual' else 'Open primary generated link' }}</a></p>
+        {% endif %}
+        <form method="post" action="/trackers/{{ tracker.tracker_id }}/paste-link" class="inline-form">
+          <input type="url" name="google_flights_url" value="{{ tracker.google_flights_url if tracker.link_source == 'manual' else '' }}" placeholder="Paste exact Google Flights tracked link">
+          <button type="submit" class="button secondary">Save legacy link</button>
+        </form>
+      </details>
+      {% endif %}
       {% endfor %}
     </div>
   </article>

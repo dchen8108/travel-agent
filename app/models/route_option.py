@@ -35,6 +35,8 @@ class RouteOption(CsvModel):
         normalized = [normalize_airport_code(item) for item in split_pipe(value)]
         if not normalized:
             raise ValueError("Choose at least one airport.")
+        if len(normalized) > 3:
+            raise ValueError("Choose at most three airports.")
         return join_pipe(normalized)
 
     @field_validator("airlines")

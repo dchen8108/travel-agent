@@ -50,7 +50,15 @@
     return option.label ? `${option.value} · ${option.label}` : option.value;
   }
 
-  function createMultiPicker({ root, options, values, placeholder, emptyText = "No selections", onChange }) {
+  function createMultiPicker({
+    root,
+    options,
+    values,
+    placeholder,
+    emptyText = "No selections",
+    maxSelections = Number.POSITIVE_INFINITY,
+    onChange
+  }) {
     const state = { values: Array.from(values || []) };
     root.innerHTML = `
       <div class="multi-select">
@@ -94,6 +102,10 @@
     }
 
     function renderMenu(query = "") {
+      if (state.values.length >= maxSelections) {
+        closeMenu();
+        return;
+      }
       const normalized = query.trim().toLowerCase();
       const matches = options
         .filter((option) => !state.values.includes(option.value))
@@ -350,6 +362,7 @@
           options: airports,
           values: option.origin_airports,
           placeholder: "Search origins",
+          maxSelections: 3,
           onChange(values) {
             option.origin_airports = values;
             serialize();
@@ -360,6 +373,7 @@
           options: airports,
           values: option.destination_airports,
           placeholder: "Search destinations",
+          maxSelections: 3,
           onChange(values) {
             option.destination_airports = values;
             serialize();

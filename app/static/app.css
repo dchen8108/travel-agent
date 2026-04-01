@@ -505,6 +505,63 @@ textarea {
   justify-content: end;
 }
 
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  border: 1px solid rgba(31, 92, 82, 0.18);
+  background: rgba(216, 235, 230, 0.6);
+  color: var(--accent);
+}
+
+.status-pill.success {
+  border-color: rgba(31, 92, 82, 0.24);
+  background: rgba(216, 235, 230, 0.72);
+}
+
+.link-chip-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 92, 82, 0.14);
+  background: rgba(247, 243, 234, 0.88);
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-chip:hover {
+  border-color: rgba(31, 92, 82, 0.28);
+  background: rgba(255, 252, 246, 0.96);
+}
+
+.link-chip.is-best {
+  border-color: rgba(31, 92, 82, 0.26);
+  background: rgba(216, 235, 230, 0.54);
+}
+
+.legacy-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(215, 207, 191, 0.9);
+}
+
+.legacy-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .inline-form {
   flex-wrap: wrap;
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from base64 import urlsafe_b64encode
+from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -23,6 +24,16 @@ GOOGLE_FLIGHTS_AIRLINE_CODES = {
     "Spirit": "NK",
     "Sun Country": "SY",
 }
+
+
+@dataclass(frozen=True)
+class GoogleFlightsSearchSpec:
+    travel_date: str
+    origin_airport: str
+    destination_airport: str
+    airline_codes: list[str]
+    start_time: str
+    end_time: str
 
 
 def _encode_varint(value: int) -> bytes:
@@ -65,13 +76,25 @@ def _encode_airport_message(code: str, *, filtered: bool = False) -> bytes:
 
 
 def _encode_info_message(tracker: Tracker) -> bytes:
+    search = GoogleFlightsSearchSpec(
+        travel_date=tracker.travel_date.isoformat(),
+        origin_airport=tracker.primary_origin,
+        destination_airport=tracker.primary_destination,
+        airline_codes=tracker.airline_codes,
+        start_time=tracker.start_time,
+        end_time=tracker.end_time,
+    )
+    return _encode_info_message_from_search(search)
+
+
+def _encode_info_message_from_search(search: GoogleFlightsSearchSpec) -> bytes:
     payload = bytearray()
-    departure_window = _departure_hour_window(tracker.start_time, tracker.end_time)
+    departure_window = _departure_hour_window(search.start_time, search.end_time)
     has_departure_filter = departure_window != (0, 23)
     if has_departure_filter:
         payload.extend(_encode_enum_field(1, 28))
         payload.extend(_encode_enum_field(2, 2))
-    payload.extend(_encode_message_field(3, _encode_flight_data_message(tracker)))
+    payload.extend(_encode_message_field(3, _encode_flight_data_message(search)))
     payload.extend(_encode_enum_field(8, 1))   # one adult
     payload.extend(_encode_enum_field(9, 1))   # economy
     if has_departure_filter:
@@ -82,9 +105,36 @@ def _encode_info_message(tracker: Tracker) -> bytes:
 
 
 def build_google_flights_query_url(tracker: Tracker) -> str:
-    tfs = urlsafe_b64encode(_encode_info_message(tracker)).decode("utf-8").rstrip("=")
+    return build_google_flights_query_url_for_search(
+        travel_date=tracker.travel_date.isoformat(),
+        origin_airport=tracker.primary_origin,
+        destination_airport=tracker.primary_destination,
+        airline_codes=tracker.airline_codes,
+        start_time=tracker.start_time,
+        end_time=tracker.end_time,
+    )
+
+
+def build_google_flights_query_url_for_search(
+    *,
+    travel_date: str,
+    origin_airport: str,
+    destination_airport: str,
+    airline_codes: list[str],
+    start_time: str,
+    end_time: str,
+) -> str:
+    search = GoogleFlightsSearchSpec(
+        travel_date=travel_date,
+        origin_airport=origin_airport,
+        destination_airport=destination_airport,
+        airline_codes=airline_codes,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    tfs = urlsafe_b64encode(_encode_info_message_from_search(search)).decode("utf-8").rstrip("=")
     params: dict[str, str] = {"tfs": tfs, "hl": GOOGLE_FLIGHTS_LANGUAGE}
-    if _departure_hour_window(tracker.start_time, tracker.end_time) != (0, 23):
+    if _departure_hour_window(start_time, end_time) != (0, 23):
         params["tfu"] = GOOGLE_FLIGHTS_TIME_FILTER_TFU
     return f"https://www.google.com/travel/flights/search?{urlencode(params)}"
 
@@ -144,19 +194,19 @@ def _departure_hour_window(start_time: str, end_time: str) -> tuple[int, int]:
     return start_hour, end_inclusive
 
 
-def _encode_flight_data_message(tracker: Tracker) -> bytes:
+def _encode_flight_data_message(search: GoogleFlightsSearchSpec) -> bytes:
     payload = bytearray()
-    payload.extend(_encode_string_field(2, tracker.travel_date.isoformat()))
+    payload.extend(_encode_string_field(2, search.travel_date))
     payload.extend(_encode_enum_field(5, 0))  # nonstop only
-    for airline in tracker.airline_codes:
+    for airline in search.airline_codes:
         payload.extend(_encode_string_field(6, GOOGLE_FLIGHTS_AIRLINE_CODES.get(airline, airline)))
-    departure_start, departure_end = _departure_hour_window(tracker.start_time, tracker.end_time)
+    departure_start, departure_end = _departure_hour_window(search.start_time, search.end_time)
     is_filtered = (departure_start, departure_end) != (0, 23)
     if is_filtered:
         payload.extend(_encode_enum_field(8, departure_start))
         payload.extend(_encode_enum_field(9, departure_end))
         payload.extend(_encode_enum_field(10, 0))
         payload.extend(_encode_enum_field(11, 23))
-    payload.extend(_encode_message_field(13, _encode_airport_message(tracker.primary_origin, filtered=is_filtered)))
-    payload.extend(_encode_message_field(14, _encode_airport_message(tracker.primary_destination, filtered=is_filtered)))
+    payload.extend(_encode_message_field(13, _encode_airport_message(search.origin_airport, filtered=is_filtered)))
+    payload.extend(_encode_message_field(14, _encode_airport_message(search.destination_airport, filtered=is_filtered)))
     return bytes(payload)

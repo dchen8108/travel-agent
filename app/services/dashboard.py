@@ -9,6 +9,7 @@ from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
+from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
@@ -23,10 +24,12 @@ class AppSnapshot:
     route_options: list[RouteOption]
     trip_instances: list[TripInstance]
     trackers: list[Tracker]
+    tracker_fetch_targets: list[TrackerFetchTarget]
     bookings: list[Booking]
     unmatched_bookings: list[UnmatchedBooking]
     observations: list[FareObservation]
     email_events: list[EmailEvent]
+    app_state: object
 
 
 def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnapshot:
@@ -38,10 +41,12 @@ def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnaps
         route_options=repository.load_route_options(),
         trip_instances=repository.load_trip_instances(),
         trackers=repository.load_trackers(),
+        tracker_fetch_targets=repository.load_tracker_fetch_targets(),
         bookings=repository.load_bookings(),
         unmatched_bookings=repository.load_unmatched_bookings(),
         observations=repository.load_fare_observations(),
         email_events=repository.load_email_events(),
+        app_state=repository.load_app_state(),
     )
 
 
@@ -94,6 +99,13 @@ def trackers_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[
 
 def best_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
     return best_tracker_for_instance(trackers_for_instance(snapshot, trip_instance_id))
+
+
+def fetch_targets_for_tracker(snapshot: AppSnapshot, tracker_id: str) -> list[TrackerFetchTarget]:
+    return sorted(
+        [target for target in snapshot.tracker_fetch_targets if target.tracker_id == tracker_id],
+        key=lambda item: (item.origin_airport, item.destination_airport),
+    )
 
 
 def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:

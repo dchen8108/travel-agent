@@ -11,6 +11,9 @@ The current design baseline is:
 - dated trip instances are the scheduled trips the user actually flies
 - skipped trip instances are hidden by default and can be surfaced again through scheduled-trip filters
 - route options are ranked tracker definitions under a trip
+- each tracker can fan out into concrete airport-pair fetch targets
+- the app now has a conservative in-house Google Flights fetcher
+- the manual import path remains as a legacy fallback
 - weekly trips maintain the next 12 future occurrences
 - only unmatched bookings go to `Resolve`
 - unmatched tracker noise is ignored

@@ -6,8 +6,6 @@ Use local files only.
 
 For v0, store record lists as CSV files because they are easy to inspect and back up. Use one small JSON file for app-level metadata.
 
-Suggested layout:
-
 ```text
 data/
   app.json
@@ -15,6 +13,7 @@ data/
   route_options.csv
   trip_instances.csv
   trackers.csv
+  tracker_fetch_targets.csv
   bookings.csv
   unmatched_bookings.csv
   email_events.csv
@@ -27,13 +26,13 @@ data/
 - easy to inspect manually
 - easy to reset during development
 - enough structure to support recurring generation and booking linkage
-- isolate Google Flights specifics to trackers, email events, and observations
+- isolate Google Flights specifics to trackers, fetch targets, email events, and observations
 
 ## `app.json`
 
 Purpose:
 
-- local metadata and defaults
+- local metadata and feature flags
 
 Suggested fields:
 
@@ -42,7 +41,9 @@ Suggested fields:
   "timezone": "America/Los_Angeles",
   "future_weeks": 12,
   "email_ingestion_mode": "manual_upload",
-  "version": 2
+  "enable_background_fetcher": true,
+  "enable_manual_imports": true,
+  "version": 3
 }
 ```
 
@@ -64,13 +65,6 @@ Suggested columns:
 - `anchor_weekday`
 - `created_at`
 - `updated_at`
-
-Notes:
-
-- `label` must be unique
-- `trip_kind` is `one_time` or `weekly`
-- `anchor_date` is used by one-time trips
-- `anchor_weekday` is used by weekly trips and defines the rolling weekly anchor day
 
 ## `route_options.csv`
 
@@ -97,7 +91,9 @@ Suggested columns:
 Notes:
 
 - store airport and airline selections as `|`-delimited values
-- `day_offset` is an integer, typically `-1`, `0`, or `1`
+- `day_offset` is typically `-1`, `0`, or `1`
+- cap origin airports at 3
+- cap destination airports at 3
 - all route options are implicitly nonstop-only in v0
 
 ## `trip_instances.csv`
@@ -114,6 +110,7 @@ Suggested columns:
 - `trip_id`
 - `display_label`
 - `anchor_date`
+- `instance_kind`
 - `travel_state`
 - `recommendation_state`
 - `recommendation_reason`
@@ -136,17 +133,11 @@ Allowed `recommendation_state` values:
 - `booked_monitoring`
 - `rebook`
 
-Notes:
-
-- weekly trips maintain the next 12 future instances
-- skipping one occurrence should set `travel_state = skipped`
-- recommendation state is distinct from travel state
-
 ## `trackers.csv`
 
 Purpose:
 
-- operational Google Flights tracker rows for a specific route option on a specific trip instance
+- operational tracker rows for a specific route option on a specific trip instance
 
 One row per route option per trip instance.
 
@@ -170,18 +161,13 @@ Suggested columns:
 - `tracking_enabled_at`
 - `last_signal_at`
 - `latest_observed_price`
+- `latest_fetched_at`
+- `latest_winning_origin_airport`
+- `latest_winning_destination_airport`
+- `latest_signal_source`
 - `latest_match_summary`
 - `created_at`
 - `updated_at`
-
-Allowed `provider` values:
-
-- `google_flights`
-
-Allowed `link_source` values:
-
-- `generated`
-- `manual`
 
 Allowed `tracking_status` values:
 
@@ -190,16 +176,65 @@ Allowed `tracking_status` values:
 - `signal_received`
 - `stale`
 
+Allowed `latest_signal_source` values:
+
+- `manual_import`
+- `background_fetch`
+
 Notes:
 
 - a tracker is a search envelope, not a single concrete itinerary
-- actual observed itineraries belong in `fare_observations.csv`
+- actual airport-pair fetches belong in `tracker_fetch_targets.csv`
+- email-based historical observations still belong in `fare_observations.csv`
+
+## `tracker_fetch_targets.csv`
+
+Purpose:
+
+- store the concrete airport-pair Google Flights search state under each tracker
+
+One row per tracker + origin airport + destination airport.
+
+Suggested columns:
+
+- `fetch_target_id`
+- `tracker_id`
+- `trip_instance_id`
+- `origin_airport`
+- `destination_airport`
+- `google_flights_url`
+- `last_fetch_started_at`
+- `last_fetch_finished_at`
+- `last_fetch_status`
+- `last_fetch_error`
+- `consecutive_failures`
+- `next_fetch_not_before`
+- `latest_price`
+- `latest_airline`
+- `latest_departure_label`
+- `latest_arrival_label`
+- `latest_summary`
+- `latest_fetched_at`
+- `created_at`
+- `updated_at`
+
+Allowed `last_fetch_status` values:
+
+- `pending`
+- `success`
+- `failed`
+
+Notes:
+
+- one tracker can fan out to at most 9 fetch targets
+- fetch targets are the background polling unit
+- the tracker keeps the rolled-up best known price
 
 ## `bookings.csv`
 
 Purpose:
 
-- store user bookings that have been attached to a trip instance
+- store user bookings attached to a trip instance
 
 One row per attached booking.
 
@@ -222,16 +257,6 @@ Suggested columns:
 - `created_at`
 - `updated_at`
 
-Allowed `status` values:
-
-- `active`
-- `rebooked`
-
-Notes:
-
-- a booking should attach to the best matching tracker when possible
-- `tracker_id` may be empty if the trip instance match is known but tracker match is unclear
-
 ## `unmatched_bookings.csv`
 
 Purpose:
@@ -240,101 +265,10 @@ Purpose:
 
 One row per unresolved booking.
 
-Suggested columns:
-
-- `unmatched_booking_id`
-- `source`
-- `airline`
-- `origin_airport`
-- `destination_airport`
-- `departure_date`
-- `departure_time`
-- `arrival_time`
-- `booked_price`
-- `record_locator`
-- `raw_summary`
-- `candidate_trip_instance_ids`
-- `resolution_status`
-- `created_at`
-- `updated_at`
-
-Allowed `source` values:
-
-- `manual`
-- `email_import`
-
-Allowed `resolution_status` values:
-
-- `open`
-- `resolved`
-
-Notes:
-
-- only unmatched bookings should surface in `Resolve`
-- unmatched tracker observations should never create rows here
-
-## `email_events.csv`
+## `email_events.csv` and `fare_observations.csv`
 
 Purpose:
 
-- keep a record of imported Google Flights emails
+- preserve the legacy manual-import path
 
-One row per `.eml` import.
-
-Suggested columns:
-
-- `email_event_id`
-- `provider`
-- `source_message_id`
-- `received_at`
-- `subject`
-- `parsed_status`
-- `observation_count`
-- `matched_observation_count`
-- `imported_email_path`
-- `raw_excerpt`
-- `created_at`
-
-Allowed `parsed_status` values:
-
-- `parsed`
-- `parsed_with_ignored_observations`
-- `failed`
-
-Notes:
-
-- the email event exists for debugging and history
-- ignored observations should not create user-facing review work
-
-## `fare_observations.csv`
-
-Purpose:
-
-- store concrete price observations extracted from Google Flights emails
-
-One row per accepted matched observation.
-
-Suggested columns:
-
-- `fare_observation_id`
-- `email_event_id`
-- `tracker_id`
-- `trip_instance_id`
-- `observed_at`
-- `airline`
-- `origin_airport`
-- `destination_airport`
-- `travel_date`
-- `departure_time`
-- `arrival_time`
-- `price`
-- `previous_price`
-- `price_direction`
-- `match_summary`
-- `created_at`
-
-Notes:
-
-- only confidently matched observations should be stored here
-- ambiguous or unmatched tracker observations should be ignored
-- trip-level recommendation logic should rely on the best latest observations per tracker envelope
+These tables remain in v0 as a fallback path while the in-house Google Flights fetcher proves itself out.

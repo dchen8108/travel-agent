@@ -28,6 +28,10 @@ class Tracker(CsvModel):
     tracking_enabled_at: datetime | None = None
     last_signal_at: datetime | None = None
     latest_observed_price: int | None = None
+    latest_fetched_at: datetime | None = None
+    latest_winning_origin_airport: str = ""
+    latest_winning_destination_airport: str = ""
+    latest_signal_source: str = ""
     latest_match_summary: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -80,6 +84,12 @@ class Tracker(CsvModel):
     def normalize_url(cls, value: str) -> str:
         return value.strip()
 
+    @field_validator("latest_winning_origin_airport", "latest_winning_destination_airport")
+    @classmethod
+    def normalize_optional_airport(cls, value: str) -> str:
+        value = value.strip()
+        return normalize_airport_code(value) if value else ""
+
     @field_validator("start_time", "end_time")
     @classmethod
     def validate_time_field(cls, value: str) -> str:
@@ -90,6 +100,14 @@ class Tracker(CsvModel):
     def validate_latest_price(cls, value: int | None) -> int | None:
         if value is not None and value < 0:
             raise ValueError("Tracker price cannot be negative.")
+        return value
+
+    @field_validator("latest_signal_source")
+    @classmethod
+    def validate_signal_source(cls, value: str) -> str:
+        value = value.strip()
+        if value and value not in {"manual_import", "background_fetch"}:
+            raise ValueError("Unsupported tracker signal source.")
         return value
 
     @property

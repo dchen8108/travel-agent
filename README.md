@@ -8,8 +8,8 @@ This MVP is built around a simple idea:
 - each trip owns one or more ranked `Route Options`
 - each route option corresponds to one Google Flights tracker/search definition
 - the app generates dated `Trip Instances` and per-instance `Trackers`
-- you manually turn on `Track prices` in Google Flights
-- you import Google Flights `.eml` alerts into the app
+- the app fans each tracker out into concrete airport-pair Google Flights searches
+- a background job queries those links conservatively and rolls the best current price back onto the tracker
 - the app stores tracker signals, organizes bookings, and tells you what still needs attention
 
 This version is intentionally local and simple:
@@ -18,8 +18,9 @@ This version is intentionally local and simple:
 - local CSV/JSON storage under `data/`
 - one-time or weekly trips
 - a rolling 12-week horizon for weekly trips
-- manual Google Flights setup
-- manual `.eml` upload
+- in-house Google Flights background fetching
+- at most 3 origin airports and 3 destination airports per route option
+- manual `.eml` upload kept as a legacy fallback
 - no paid fare APIs
 - no Gmail automation
 - no credits or hotels
@@ -31,6 +32,7 @@ This version is intentionally local and simple:
 - `Route Option`: ranked tracker definition under a trip
 - `Trip Instance`: one dated scheduled trip, either standalone or generated from a weekly trip
 - `Tracker`: one Google Flights tracker/search envelope for a route option on a trip instance
+- `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Booking`: a purchased itinerary attached to a trip instance
 - `Unmatched Booking`: a booking the system could not confidently place
 
@@ -51,10 +53,16 @@ Then open `http://127.0.0.1:8000`.
 2. Choose whether it is `one_time` or `weekly`.
 3. Add ranked `Route Options`.
 4. Use `Trips` to manage weekly recurring trips at the parent level and review all dated scheduled trips below them.
-5. Open generated Google Flights links and enable `Track prices`.
-6. Import Google Flights `.eml` alerts as they arrive.
+5. Use `Trackers` to review each route option’s airport-pair Google Flights links.
+6. Run the background fetch job to populate current prices.
 7. Record bookings in the app.
-8. Let the app continue comparing booked prices against tracker signals.
+8. Let the app continue comparing booked prices against tracker prices.
+
+Legacy fallback:
+
+1. Keep using `Imports` only if you still want the Google-tracked-link email flow.
+2. Paste an exact tracked link into a tracker’s `Legacy manual tracker link` section if needed.
+3. Import `.eml` alerts as before.
 
 For travel that already happened:
 
@@ -66,4 +74,18 @@ For travel that already happened:
 
 ```bash
 uv run pytest -q
+```
+
+## Background Fetch
+
+Run a conservative Google Flights batch:
+
+```bash
+uv run python -m app.jobs.fetch_google_flights --max-targets 3
+```
+
+Useful for quick testing:
+
+```bash
+uv run python -m app.jobs.fetch_google_flights --max-targets 1 --no-sleep
 ```

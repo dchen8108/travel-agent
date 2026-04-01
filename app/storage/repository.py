@@ -9,6 +9,7 @@ from app.models.email_event import EmailEvent
 from app.models.fare_observation import FareObservation
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
+from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
@@ -38,6 +39,7 @@ class Repository:
             ("route_options.csv", RouteOption),
             ("trip_instances.csv", TripInstance),
             ("trackers.csv", Tracker),
+            ("tracker_fetch_targets.csv", TrackerFetchTarget),
             ("bookings.csv", Booking),
             ("unmatched_bookings.csv", UnmatchedBooking),
             ("email_events.csv", EmailEvent),
@@ -76,6 +78,16 @@ class Repository:
 
     def save_trackers(self, trackers: list[Tracker]) -> None:
         save_csv_models(self._path("trackers.csv"), trackers, _fieldnames(Tracker))
+
+    def load_tracker_fetch_targets(self) -> list[TrackerFetchTarget]:
+        return load_csv_models(self._path("tracker_fetch_targets.csv"), TrackerFetchTarget)
+
+    def save_tracker_fetch_targets(self, targets: list[TrackerFetchTarget]) -> None:
+        save_csv_models(
+            self._path("tracker_fetch_targets.csv"),
+            targets,
+            _fieldnames(TrackerFetchTarget),
+        )
 
     def load_bookings(self) -> list[Booking]:
         return load_csv_models(self._path("bookings.csv"), Booking)
