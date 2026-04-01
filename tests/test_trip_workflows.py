@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.services.google_flights import build_google_flights_query_url, normalize_google_flights_url
 from app.services.dashboard import horizon_instances_for_trip, past_instances_for_trip
 from app.services.trips import save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
@@ -240,3 +241,42 @@ def test_save_past_trip_creates_historical_instance_without_trackers(repository:
     assert trip_instances[0].anchor_date == date(2026, 3, 10)
     assert trip_instances[0].recommendation_state == "wait"
     assert len(trackers) == 0
+
+
+def test_generated_google_flights_url_uses_stable_single_route_seed(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Seed search test",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR|LAX",
+                "destination_airports": "SFO|OAK",
+                "airlines": "Alaska|United",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
+
+    url = build_google_flights_query_url(tracker)
+
+    assert url == "https://www.google.com/travel/flights?q=Flights%20to%20SFO%20from%20BUR%20on%202026-05-10"
+
+
+def test_manual_google_flights_url_rejects_unrelated_hosts() -> None:
+    try:
+        normalize_google_flights_url("https://example.com/flights?q=test")
+    except ValueError as exc:
+        assert "Google Flights" in str(exc)
+    else:
+        raise AssertionError("Expected unrelated host to be rejected.")

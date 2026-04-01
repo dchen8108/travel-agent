@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from pathlib import Path
+import re
 
 from fastapi.testclient import TestClient
 
@@ -457,6 +458,42 @@ def test_log_past_trip_flow_can_redirect_to_history_or_booking(tmp_path: Path) -
     assert save_and_add.status_code == 303
     assert save_and_add.headers["location"].startswith("/bookings/new?trip_instance_id=")
     assert "message=Past+trip+logged" in save_and_add.headers["location"]
+
+
+def test_tracker_link_save_rejects_non_google_urls(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Tracker link validation",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    trackers_page = client.get("/trackers")
+    match = re.search(r'action="/trackers/([^"]+)/paste-link"', trackers_page.text)
+    assert match is not None
+    tracker_id = match.group(1)
+
+    save = client.post(
+        f"/trackers/{tracker_id}/paste-link",
+        data={"google_flights_url": "https://example.com/flights"},
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+    assert save.headers["location"] == "/trackers?message=Paste+a+Google+Flights+link."
 
 
 def test_skipped_trips_do_not_appear_in_past_history_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.base import TrackerStatus, utcnow
+from app.services.google_flights import generated_tracker_seed_summary, normalize_google_flights_url
 from app.services.dashboard import best_tracker, load_snapshot, trackers_for_instance, trip_focus_url
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -47,6 +48,7 @@ def trackers_index(
             best_tracker=best_tracker,
             trackers_for_instance=trackers_for_instance,
             trip_focus_url=trip_focus_url,
+            generated_tracker_seed_summary=generated_tracker_seed_summary,
         ),
     )
 
@@ -79,7 +81,10 @@ async def paste_tracker_link(
     if tracker is None:
         raise HTTPException(status_code=404, detail="Tracker not found")
     form = await request.form()
-    tracker.google_flights_url = str(form.get("google_flights_url", "")).strip()
+    try:
+        tracker.google_flights_url = normalize_google_flights_url(str(form.get("google_flights_url", "")))
+    except ValueError as exc:
+        return RedirectResponse(url=f"/trackers?message={str(exc).replace(' ', '+')}", status_code=303)
     tracker.link_source = "manual" if tracker.google_flights_url else "generated"
     repository.save_trackers(trackers)
     sync_and_persist(repository)
