@@ -248,6 +248,14 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     }
 
 
+def _queued_refresh_message(base_message: str, queued_count: int) -> str:
+    if queued_count == 1:
+        return f"{base_message}. Refresh queued for 1 airport-pair search."
+    if queued_count > 1:
+        return f"{base_message}. Refresh queued for {queued_count} airport-pair searches."
+    return base_message
+
+
 def _queue_trip_refreshes(snapshot, repository: Repository, *, trip_id: str) -> int:
     trip_instance_ids = {
         instance.trip_instance_id
@@ -261,6 +269,18 @@ def _queue_trip_refreshes(snapshot, repository: Repository, *, trip_id: str) -> 
         snapshot.trip_instances,
         snapshot.tracker_fetch_targets,
         trip_instance_ids=trip_instance_ids,
+    )
+    if queued_count:
+        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+    return queued_count
+
+
+def _queue_trip_instance_refresh(snapshot, repository: Repository, *, trip_instance_id: str) -> int:
+    queued_count = queue_rolling_refresh(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        trip_instance_ids={trip_instance_id},
     )
     if queued_count:
         repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
@@ -408,12 +428,7 @@ async def save_trip_action(
         )
         snapshot = sync_and_persist(repository)
         queued_count = _queue_trip_refreshes(snapshot, repository, trip_id=trip.trip_id)
-        if queued_count == 1:
-            message = "Trip saved. Refresh queued for 1 airport-pair search."
-        elif queued_count > 1:
-            message = f"Trip saved. Refresh queued for {queued_count} airport-pair searches."
-        else:
-            message = "Trip saved."
+        message = _queued_refresh_message("Trip saved", queued_count)
         return RedirectResponse(url=f"/trips/{trip.trip_id}?message={quote_plus(message)}", status_code=303)
     except ValueError as exc:
         snapshot = load_snapshot(repository)
@@ -466,8 +481,13 @@ def activate_trip_action(
         set_trip_active(repository, trip_id, True)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    return _redirect_back(request, fallback_url="/trips", message="Trip activated")
+    snapshot = sync_and_persist(repository)
+    queued_count = _queue_trip_refreshes(snapshot, repository, trip_id=trip_id)
+    return _redirect_back(
+        request,
+        fallback_url="/trips",
+        message=_queued_refresh_message("Trip activated", queued_count),
+    )
 
 
 @router.post("/trips/{trip_id}/delete")
@@ -522,9 +542,10 @@ def restore_trip_instance(
         raise HTTPException(status_code=404, detail="Trip instance not found")
     trip_instance.travel_state = TravelState.OPEN
     repository.save_trip_instances(trip_instances)
-    sync_and_persist(repository)
+    snapshot = sync_and_persist(repository)
+    queued_count = _queue_trip_instance_refresh(snapshot, repository, trip_instance_id=trip_instance_id)
     return _redirect_back(
         request,
         fallback_url=f"/trip-instances/{trip_instance_id}",
-        message="Trip restored",
+        message=_queued_refresh_message("Trip restored", queued_count),
     )

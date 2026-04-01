@@ -229,7 +229,10 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
 
     activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
     assert activate.status_code == 303
-    assert activate.headers["location"] == "/trips?message=Trip+activated"
+    assert (
+        activate.headers["location"]
+        == "/trips?message=Trip+activated.+Refresh+queued+for+12+airport-pair+searches."
+    )
 
     pause_from_page = client.post(
         f"/trips/{trip_id}/pause",
@@ -245,7 +248,53 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
         follow_redirects=False,
     )
     assert activate_from_page.status_code == 303
-    assert activate_from_page.headers["location"] == "/trips?q=Test+Weekly+Trip&message=Trip+activated"
+    assert (
+        activate_from_page.headers["location"]
+        == "/trips?q=Test+Weekly+Trip&message=Trip+activated.+Refresh+queued+for+12+airport-pair+searches."
+    )
+
+
+def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Activation Queue Trip",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    trip_id = response.headers["location"].split("/trips/")[1].split("?")[0]
+
+    repository = Repository(settings)
+    fetch_targets = repository.load_tracker_fetch_targets()
+    delayed_until = utcnow() + timedelta(hours=6)
+    for target in fetch_targets:
+        target.next_fetch_not_before = delayed_until
+    repository.save_tracker_fetch_targets(fetch_targets)
+
+    pause = client.post(f"/trips/{trip_id}/pause", follow_redirects=False)
+    assert pause.status_code == 303
+
+    activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
+    assert activate.status_code == 303
+    assert "Trip+activated.+Refresh+queued+for+12+airport-pair+searches." in activate.headers["location"]
+
+    refreshed_targets = repository.load_tracker_fetch_targets()
+    assert len(refreshed_targets) == 12
+    assert all(target.next_fetch_not_before is not None for target in refreshed_targets)
+    assert all(target.next_fetch_not_before < delayed_until for target in refreshed_targets)
 
 
 def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Path) -> None:
@@ -338,17 +387,31 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
     assert "Doctor Visit Flight" in skipped_page.text
     assert "Unskip" in skipped_page.text
 
+    repository = Repository(settings)
+    fetch_targets = repository.load_tracker_fetch_targets()
+    delayed_until = utcnow() + timedelta(hours=6)
+    for target in fetch_targets:
+        target.next_fetch_not_before = delayed_until
+    repository.save_tracker_fetch_targets(fetch_targets)
+
     restore = client.post(
         f"/trip-instances/{trip_instance_id}/restore",
         headers={"referer": "http://testserver/trips?show_skipped=true"},
         follow_redirects=False,
     )
     assert restore.status_code == 303
-    assert restore.headers["location"] == "/trips?show_skipped=true&message=Trip+restored"
+    assert (
+        restore.headers["location"]
+        == "/trips?show_skipped=true&message=Trip+restored.+Refresh+queued+for+1+airport-pair+search."
+    )
 
     restored_page = client.get("/trips")
     assert restored_page.status_code == 200
     assert "Doctor Visit Flight" in restored_page.text
+    refreshed_targets = repository.load_tracker_fetch_targets()
+    assert len(refreshed_targets) == 1
+    assert refreshed_targets[0].next_fetch_not_before is not None
+    assert refreshed_targets[0].next_fetch_not_before < delayed_until
 
 
 def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_path: Path) -> None:
