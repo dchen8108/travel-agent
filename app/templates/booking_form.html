@@ -79,5 +79,5 @@
     catalogs: {{ catalogs_json|safe }}
   };
 </script>
-<script src="{{ url_for('static', path='/trips.js') }}" defer></script>
+<script src="{{ url_for('static', path='/trips.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}

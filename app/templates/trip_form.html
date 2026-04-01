@@ -74,5 +74,5 @@
     routeOptions: {{ route_option_state|tojson }}
   };
 </script>
-<script src="{{ url_for('static', path='/trips.js') }}" defer></script>
+<script src="{{ url_for('static', path='/trips.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}

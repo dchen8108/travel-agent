@@ -82,5 +82,5 @@
     recurringOptions: {{ recurring_filter_options | tojson }}
   };
 </script>
-<script src="{{ url_for('static', path='/trips.js') }}" defer></script>
+<script src="{{ url_for('static', path='/trips.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}
