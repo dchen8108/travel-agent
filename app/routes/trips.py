@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote_plus, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
 from app.models.base import TravelState
+from app.services.background_fetch import queue_rolling_refresh
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
@@ -247,6 +248,25 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     }
 
 
+def _queue_trip_refreshes(snapshot, repository: Repository, *, trip_id: str) -> int:
+    trip_instance_ids = {
+        instance.trip_instance_id
+        for instance in horizon_instances_for_trip(snapshot, trip_id, today=date.today())
+        if instance.travel_state != TravelState.SKIPPED
+    }
+    if not trip_instance_ids:
+        return 0
+    queued_count = queue_rolling_refresh(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        trip_instance_ids=trip_instance_ids,
+    )
+    if queued_count:
+        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+    return queued_count
+
+
 @router.get("/trips", response_class=HTMLResponse)
 def trips_index(
     request: Request,
@@ -386,8 +406,15 @@ async def save_trip_action(
             anchor_weekday=anchor_weekday,
             route_option_payloads=route_options,
         )
-        sync_and_persist(repository)
-        return RedirectResponse(url=f"/trips/{trip.trip_id}?message=Trip+saved", status_code=303)
+        snapshot = sync_and_persist(repository)
+        queued_count = _queue_trip_refreshes(snapshot, repository, trip_id=trip.trip_id)
+        if queued_count == 1:
+            message = "Trip saved. Refresh queued for 1 airport-pair search."
+        elif queued_count > 1:
+            message = f"Trip saved. Refresh queued for {queued_count} airport-pair searches."
+        else:
+            message = "Trip saved."
+        return RedirectResponse(url=f"/trips/{trip.trip_id}?message={quote_plus(message)}", status_code=303)
     except ValueError as exc:
         snapshot = load_snapshot(repository)
         return get_templates(request).TemplateResponse(

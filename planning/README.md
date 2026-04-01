@@ -26,3 +26,5 @@ Current docs:
 - `v1-ui-pass.md`: the current UI/UX consolidation pass for turning the MVP into a cleaner v1 product
 - `google-flights-poc.md`: what has been verified about Google Flights and what assumptions remain
 - `implementation-plan.md`: concrete implementation order and quality gates
+- `agent-checkpoint.md`: current implementation snapshot and bootstrap guide for a fresh agent
+- `agent-refresh-prompt.md`: reusable prompt for refreshing the checkpoint after more work

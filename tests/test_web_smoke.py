@@ -79,6 +79,36 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert "ABC123" in bookings_page.text
 
 
+def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Queued Refresh Trip",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert "Refresh+queued+for+2+airport-pair+searches." in response.headers["location"]
+
+    repository = Repository(settings)
+    fetch_targets = repository.load_tracker_fetch_targets()
+    assert len(fetch_targets) == 2
+    assert all(target.next_fetch_not_before is not None for target in fetch_targets)
+    assert all(target.last_fetch_status == FetchTargetStatus.PENDING for target in fetch_targets)
+
+
 def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

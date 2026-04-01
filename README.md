@@ -11,6 +11,7 @@ This MVP is built around a simple idea:
 - the app generates dated `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
 - a background job queries those links conservatively every 4 hours on trip-anchored refresh windows and rolls the best current price back onto the tracker
+- saving a trip pulls its affected airport-pair searches to the front of the refresh queue
 - the app stores tracker signals, organizes bookings, and tells you what still needs attention
 
 This version is intentionally local and simple:
@@ -57,7 +58,7 @@ Then open `http://127.0.0.1:8000`.
 6. Use `Trips` to manage recurring plans and browse the dated scheduled trips they create.
 7. Open a recurring trip for parent-level details, route options, and scheduled dates.
 8. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, and booking state.
-9. Let the background fetcher populate current prices automatically.
+9. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
 10. Record bookings in the app.
 11. Let the app continue comparing booked prices against tracker prices.
 
