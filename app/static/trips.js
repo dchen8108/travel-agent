@@ -57,7 +57,6 @@
     placeholder,
     emptyText = "No selections",
     maxSelections = Number.POSITIVE_INFINITY,
-    helperText = "",
     compact = false,
     onChange
   }) {
@@ -66,11 +65,9 @@
       root.innerHTML = `
         <div class="multi-select">
           <div class="chip-list" data-chip-list></div>
-          ${helperText ? `<p class="picker-helper">${helperText}</p>` : ""}
           <div class="multi-select-control">
             <div class="multi-select-input-row">
               <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
-              ${Number.isFinite(maxSelections) ? '<span class="multi-select-count" data-count></span>' : ""}
             </div>
             <div class="multi-select-menu" data-menu hidden></div>
           </div>
@@ -79,7 +76,6 @@
       const chipList = root.querySelector("[data-chip-list]");
       const search = root.querySelector("[data-search]");
       const menu = root.querySelector("[data-menu]");
-      const count = root.querySelector("[data-count]");
       let closeMenuTimer = null;
 
       function closeMenu() {
@@ -121,11 +117,6 @@
           empty.className = "chip-empty";
           empty.textContent = emptyText;
           chipList.appendChild(empty);
-        }
-        if (count) {
-          count.textContent = Number.isFinite(maxSelections)
-            ? `${state.values.length}/${maxSelections}`
-            : `${state.values.length}`;
         }
       }
 
@@ -200,7 +191,6 @@
             <input type="text" data-search placeholder="${placeholder}" autocomplete="off" spellcheck="false">
             ${Number.isFinite(maxSelections) ? '<span class="picker-count" data-count></span>' : ""}
           </div>
-          ${helperText ? `<p class="picker-helper">${helperText}</p>` : ""}
           <div class="picker-menu" data-menu></div>
         </div>
       </div>
@@ -600,7 +590,6 @@
           values: option.origin_airports,
           placeholder: "Search origins",
           maxSelections: 3,
-          helperText: "Choose up to 3 supported origin airports.",
           onChange(values) {
             option.origin_airports = values;
             serialize();
@@ -612,7 +601,6 @@
           values: option.destination_airports,
           placeholder: "Search destinations",
           maxSelections: 3,
-          helperText: "Choose up to 3 supported destination airports.",
           onChange(values) {
             option.destination_airports = values;
             serialize();
@@ -623,7 +611,6 @@
           options: airlines,
           values: option.airlines,
           placeholder: "Search airlines",
-          helperText: "Choose one or more supported airlines.",
           onChange(values) {
             option.airlines = values;
             serialize();
@@ -800,7 +787,6 @@
       values: selectedRecurringTripIds(),
       placeholder: "Search recurring trips",
       emptyText: "All recurring trips",
-      helperText: "Select one or more recurring trips to narrow the scheduled list.",
       compact: true,
       onChange(values) {
         setSelectedRecurringTripIds(values);

@@ -764,19 +764,12 @@ textarea {
   flex: 1 1 auto;
 }
 
-.multi-select-count {
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 0.88rem;
-}
-
 .picker-count {
   white-space: nowrap;
   color: var(--muted);
   font-size: 0.88rem;
 }
 
-.picker-helper,
 .picker-empty-state {
   margin: 0;
   color: var(--muted);
