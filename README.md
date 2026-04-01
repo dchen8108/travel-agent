@@ -68,6 +68,29 @@ Then open `http://127.0.0.1:8000`.
 uv run pytest -q
 ```
 
+## Playwright Smoke Checks
+
+Playwright is installed as a dev dependency for targeted browser debugging, not as part of the default pytest suite.
+
+Quick smoke against a temporary local server:
+
+```bash
+uv run python scripts/playwright_smoke.py --serve --path /trips
+```
+
+Example filter/screenshot check:
+
+```bash
+uv run python scripts/playwright_smoke.py \
+  --serve \
+  --path /trips \
+  --fill '[data-filter-search]=New York' \
+  --wait-ms 500 \
+  --screenshot /tmp/trips-filtered.png
+```
+
+Use `--base-url http://127.0.0.1:8000` instead of `--serve` if the app is already running.
+
 ## Background Fetch
 
 Run a conservative Google Flights batch:

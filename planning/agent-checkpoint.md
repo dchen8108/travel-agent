@@ -155,6 +155,7 @@ Persistence:
 Verified on this machine:
 
 - repo-local virtualenv exists at `.venv`
+- Playwright and Chromium are installed in the repo environment for targeted browser smoke checks
 - full test suite currently passes:
   - `/.venv/bin/python -m pytest -q`
   - result at last refresh: `64 passed in 6.14s`
@@ -165,6 +166,9 @@ Verified on this machine:
   - `/resolve`
   - one scheduled-trip detail page under `/trip-instances/{trip_instance_id}`
 - `/.venv/bin/python -m compileall app tests` also succeeds
+- Playwright smoke harness works:
+  - `uv run python scripts/playwright_smoke.py --serve --path /`
+  - `uv run python scripts/playwright_smoke.py --serve --path /trips --fill '[data-filter-search]=New York' --wait-ms 600 --screenshot /tmp/travel-agent-trips-filtered.png`
 
 Working tree state at last refresh:
 
