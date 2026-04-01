@@ -43,7 +43,6 @@
       <div class="filter-field">
         <span>Recurring trips</span>
         <div class="filter-picker-shell" data-recurring-filter-root></div>
-        <p class="filter-field-hint">Choose one or more recurring trips to narrow the list.</p>
         <div data-recurring-hidden-inputs>
           {% for trip_id in selected_recurring_trip_ids %}
           <input type="hidden" name="recurring_trip_id" value="{{ trip_id }}">

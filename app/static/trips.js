@@ -59,6 +59,7 @@
     maxSelections = Number.POSITIVE_INFINITY,
     compact = false,
     checkable = false,
+    allowSelectAll = false,
     summaryFormatter = null,
     onChange
   }) {
@@ -203,6 +204,7 @@
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
     const count = root.querySelector("[data-count]");
+    const header = root.querySelector(".picker-popover-header");
 
     function renderTrigger() {
       if (compact) {
@@ -302,10 +304,50 @@
         })
         .slice(0, 10);
       menu.innerHTML = "";
+      const canSelectAll = allowSelectAll && compact && options.length > 1;
       if (count) {
         count.textContent = Number.isFinite(maxSelections)
           ? `${state.values.length}/${maxSelections}`
           : `${state.values.length}`;
+      }
+      if (header) {
+        const existingActions = header.querySelector(".picker-actions");
+        existingActions?.remove();
+        if (canSelectAll) {
+          const actions = document.createElement("div");
+          actions.className = "picker-actions";
+
+          const selectAllButton = document.createElement("button");
+          selectAllButton.type = "button";
+          selectAllButton.className = "picker-action";
+          selectAllButton.textContent = "Select all";
+          selectAllButton.disabled = state.values.length === options.length;
+          selectAllButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            state.values = options.map((option) => option.value);
+            renderSelection();
+            renderTrigger();
+            renderMenu(search.value);
+            onChange(Array.from(state.values));
+          });
+
+          const clearButton = document.createElement("button");
+          clearButton.type = "button";
+          clearButton.className = "picker-action";
+          clearButton.textContent = "Clear";
+          clearButton.disabled = state.values.length === 0;
+          clearButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            state.values = [];
+            renderSelection();
+            renderTrigger();
+            renderMenu(search.value);
+            onChange(Array.from(state.values));
+          });
+
+          actions.append(selectAllButton, clearButton);
+          header.appendChild(actions);
+        }
       }
       if (!matches.length) {
         const empty = document.createElement("p");
@@ -785,8 +827,10 @@
       return params;
     }
 
-    async function refreshScheduledPanel(params) {
-      closeOtherPickers();
+    async function refreshScheduledPanel(params, { preservePickerUi = false } = {}) {
+      if (!preservePickerUi) {
+        closeOtherPickers();
+      }
       if (!resultsShell) {
         window.location.assign(`/trips${params.toString() ? `?${params.toString()}` : ""}`);
         return;
@@ -823,16 +867,16 @@
       }
     }
 
-    function submitFilters({ debounce = false } = {}) {
+    function submitFilters({ debounce = false, preservePickerUi = false } = {}) {
       if (debounce) {
         window.clearTimeout(debounceTimer);
         debounceTimer = window.setTimeout(() => {
-          refreshScheduledPanel(buildQuery());
+          refreshScheduledPanel(buildQuery(), { preservePickerUi });
         }, scheduledSearchDebounceMs);
         return;
       }
       window.clearTimeout(debounceTimer);
-      refreshScheduledPanel(buildQuery());
+      refreshScheduledPanel(buildQuery(), { preservePickerUi });
     }
 
     createMultiPicker({
@@ -843,6 +887,7 @@
       emptyText: "All recurring trips",
       compact: true,
       checkable: true,
+      allowSelectAll: true,
       summaryFormatter(values, options, emptyText) {
         if (!values.length) {
           return emptyText;
@@ -854,7 +899,7 @@
       },
       onChange(values) {
         setSelectedRecurringTripIds(values);
-        submitFilters();
+        submitFilters({ preservePickerUi: true });
       }
     });
 
