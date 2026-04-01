@@ -62,9 +62,7 @@ def apply_fetch_target_rollups(
                 tracker.latest_winning_destination_airport = ""
                 tracker.latest_signal_source = ""
                 tracker.latest_match_summary = ""
-                tracker.tracking_status = (
-                    TrackerStatus.TRACKING_ENABLED if tracker.tracking_enabled_at else TrackerStatus.NEEDS_SETUP
-                )
+                tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
                 tracker.updated_at = utcnow()
             continue
         freshest_candidates = [
@@ -81,9 +79,7 @@ def apply_fetch_target_rollups(
                 tracker.latest_winning_destination_airport = ""
                 tracker.latest_signal_source = ""
                 tracker.latest_match_summary = ""
-                tracker.tracking_status = (
-                    TrackerStatus.TRACKING_ENABLED if tracker.tracking_enabled_at else TrackerStatus.NEEDS_SETUP
-                )
+                tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
                 tracker.updated_at = utcnow()
             continue
         winner = min(
@@ -142,6 +138,10 @@ def recompute_trip_states(
         related_observations = observations_by_instance.get(instance.trip_instance_id, [])
         booking = active_booking_by_instance.get(instance.trip_instance_id)
         best_tracker = best_tracker_for_instance(related_trackers)
+        booked_tracker = next(
+            (tracker for tracker in related_trackers if booking and booking.tracker_id and tracker.tracker_id == booking.tracker_id),
+            None,
+        )
         is_past = instance.anchor_date < date.today()
         instance.last_signal_at = max(
             (tracker.last_signal_at for tracker in related_trackers if tracker.last_signal_at),
@@ -162,10 +162,14 @@ def recompute_trip_states(
             continue
 
         if booking:
-            if best_tracker and best_tracker.latest_observed_price is not None and best_tracker.latest_observed_price < booking.booked_price:
+            comparison_tracker = booked_tracker if booked_tracker else best_tracker
+            if booked_tracker and booked_tracker.latest_observed_price is None:
+                instance.recommendation_state = RecommendationState.BOOKED_MONITORING
+                instance.recommendation_reason = "Monitoring for a refreshed price on the booked route option."
+            elif comparison_tracker and comparison_tracker.latest_observed_price is not None and comparison_tracker.latest_observed_price < booking.booked_price:
                 instance.recommendation_state = RecommendationState.REBOOK
                 instance.recommendation_reason = (
-                    f"Latest matched price ${best_tracker.latest_observed_price} is below your booked price ${booking.booked_price}."
+                    f"Latest matched price ${comparison_tracker.latest_observed_price} is below your booked price ${booking.booked_price}."
                 )
             else:
                 instance.recommendation_state = RecommendationState.BOOKED_MONITORING

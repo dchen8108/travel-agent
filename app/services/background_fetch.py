@@ -11,6 +11,7 @@ from app.models.base import FetchTargetStatus, TrackerStatus, TravelState, utcno
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
+from app.services.fetch_targets import FETCH_STAGGER_SECONDS, next_refresh_time
 from app.services.google_flights_fetcher import (
     GoogleFlightsFetchError,
     best_google_flights_offer,
@@ -18,7 +19,7 @@ from app.services.google_flights_fetcher import (
 )
 
 MAX_FETCH_TARGETS_PER_RUN = 3
-SLEEP_RANGE_SECONDS = (3.0, 7.0)
+SLEEP_RANGE_SECONDS = (FETCH_STAGGER_SECONDS, FETCH_STAGGER_SECONDS + 3.0)
 
 
 @dataclass(frozen=True)
@@ -49,8 +50,6 @@ def select_due_fetch_targets(
         tracker = tracker_by_id.get(target.tracker_id)
         instance = instance_by_id.get(target.trip_instance_id)
         if not tracker or not instance:
-            continue
-        if tracker.tracking_status == TrackerStatus.NEEDS_SETUP:
             continue
         if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
             continue
@@ -113,7 +112,7 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.SUCCESS
                 target.last_fetch_error = ""
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = fetched_at + success_backoff_for_tracker(tracker, today=fetched_at.date())
+                target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at)
                 target.updated_at = fetched_at
             except Exception as exc:
                 failed_at = utcnow()
@@ -121,7 +120,10 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.FAILED
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures += 1
-                target.next_fetch_not_before = failed_at + failure_backoff(target.consecutive_failures)
+                target.next_fetch_not_before = max(
+                    next_refresh_time(failed_at, target.schedule_offset_seconds),
+                    failed_at + failure_backoff(target.consecutive_failures),
+                )
                 target.updated_at = failed_at
             if sleep_between_requests and index < len(due_targets) - 1:
                 time.sleep(random.uniform(*SLEEP_RANGE_SECONDS))
@@ -131,14 +133,8 @@ def run_fetch_batch(
     return FetchBatchResult(fetched_count=len(due_targets), updated_targets=fetch_targets)
 
 
-def success_backoff_for_tracker(tracker: Tracker, *, today: date | None = None) -> timedelta:
-    today = today or date.today()
-    days_until_trip = max(0, (tracker.travel_date - today).days)
-    if days_until_trip <= 7:
-        return timedelta(hours=8)
-    if days_until_trip <= 21:
-        return timedelta(hours=18)
-    return timedelta(hours=30)
+def success_backoff_for_tracker(target: TrackerFetchTarget, fetched_at: datetime) -> datetime:
+    return next_refresh_time(fetched_at, target.schedule_offset_seconds)
 
 
 def failure_backoff(consecutive_failures: int) -> timedelta:

@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">Trackers</p>
     <h2>Google Flights coverage, grouped under scheduled trip instances.</h2>
-    <p>Each tracker is one ranked route option. Travel Agent checks airport-pair combinations in the background and rolls the lowest current price back up to the tracker.</p>
+    <p>Each tracker is one ranked route option. Travel Agent checks airport-pair combinations automatically in the background, twice per day, and rolls the best recent price back up to the tracker.</p>
   </div>
 </section>
 
@@ -21,13 +21,14 @@
     <div class="tracker-stack">
       {% for tracker in trackers %}
       <div class="tracker-row">
+        {% set monitor = tracker_monitor_by_id.get(tracker.tracker_id) %}
         <div class="tracker-copy">
           <strong>Option {{ tracker.rank }}</strong>
           <p class="muted">{{ tracker.origin_airports|replace('|', ', ') }} → {{ tracker.destination_airports|replace('|', ', ') }} · {{ tracker.travel_date.isoformat() }} · {{ tracker.start_time }}-{{ tracker.end_time }} · {{ tracker.airlines|replace('|', ', ') }}</p>
           {% set fetch_targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id) %}
           {% if tracker.latest_observed_price is not none %}
           <p class="muted">
-            Best known price among selected airports:
+            Best current price:
             <strong>${{ tracker.latest_observed_price }}</strong>
             {% if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport %}
             via {{ tracker.latest_winning_origin_airport }} → {{ tracker.latest_winning_destination_airport }}
@@ -38,23 +39,26 @@
           </p>
           {% else %}
           <p class="muted">
-            {% if tracker.tracking_status == 'needs_setup' %}
-            Waiting for background fetch to be enabled.
-            {% else %}
             Waiting for first price from Google Flights.
-            {% endif %}
           </p>
           {% endif %}
-          <p class="muted">
-            Status: {{ tracker.tracking_status }}
-            {% if tracker.last_signal_at %}
-            · Last checked {{ tracker.last_signal_at.strftime('%Y-%m-%d %H:%M') }}
-            {% endif %}
-          </p>
+          {% if monitor %}
+          <div class="tracker-meta">
+            <p class="muted"><strong>Last updated:</strong> {{ format_tracker_timestamp(monitor.last_updated_at) }}</p>
+            <p class="muted"><strong>Next refresh:</strong> {{ format_tracker_timestamp(monitor.next_refresh_at) }}</p>
+          </div>
+          <p class="muted">{{ monitor.detail }}</p>
+          {% endif %}
           {% if fetch_targets %}
           <div class="link-chip-list">
             {% for target in fetch_targets %}
-            <a class="link-chip {% if tracker.latest_winning_origin_airport == target.origin_airport and tracker.latest_winning_destination_airport == target.destination_airport %}is-best{% endif %}" href="{{ target.google_flights_url }}" target="_blank" rel="noreferrer">
+            <a
+              class="link-chip {% if tracker.latest_winning_origin_airport == target.origin_airport and tracker.latest_winning_destination_airport == target.destination_airport %}is-best{% endif %}"
+              href="{{ target.google_flights_url }}"
+              target="_blank"
+              rel="noreferrer"
+              title="{{ target.origin_airport }} to {{ target.destination_airport }}{% if target.last_fetch_finished_at %} · Last checked {{ format_tracker_timestamp(target.last_fetch_finished_at) }}{% endif %}{% if target.next_fetch_not_before %} · Next refresh {{ format_tracker_timestamp(target.next_fetch_not_before) }}{% endif %}"
+            >
               {{ target.origin_airport }} to {{ target.destination_airport }}
               {% if target.latest_price is not none %}
               · ${{ target.latest_price }}
@@ -68,13 +72,7 @@
           {% endif %}
         </div>
         <div class="tracker-actions">
-          {% if tracker.tracking_status == 'needs_setup' %}
-          <form method="post" action="/trackers/{{ tracker.tracker_id }}/mark-enabled">
-            <button type="submit" class="button secondary">Start background tracking</button>
-          </form>
-          {% else %}
-          <span class="status-pill success">Background tracking on</span>
-          {% endif %}
+          <span class="status-pill {{ monitor.tone if monitor else 'neutral' }}">{{ monitor.label if monitor else 'Auto tracking on' }}</span>
         </div>
       </div>
       {% if snapshot.app_state.enable_manual_imports %}

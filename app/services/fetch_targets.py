@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from itertools import product
 
 from app.models.base import FetchTargetStatus, utcnow
@@ -8,13 +9,18 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.services.google_flights import build_google_flights_query_url_for_search
 from app.services.ids import stable_id
 
+FETCH_STAGGER_SECONDS = 10
+FETCH_INTERVAL_SECONDS = 12 * 60 * 60
+
 
 def reconcile_fetch_targets(
     trackers: list[Tracker],
     existing_targets: list[TrackerFetchTarget],
 ) -> list[TrackerFetchTarget]:
     existing_by_id = {target.fetch_target_id: target for target in existing_targets}
+    now = utcnow()
     desired: list[TrackerFetchTarget] = []
+    reschedule_basis_by_id: dict[str, datetime] = {}
 
     for tracker in trackers:
         for origin_airport, destination_airport in product(tracker.origin_codes, tracker.destination_codes):
@@ -43,9 +49,9 @@ def reconcile_fetch_targets(
                     existing.last_fetch_status = FetchTargetStatus.PENDING
                     existing.last_fetch_error = ""
                     existing.consecutive_failures = 0
-                    existing.next_fetch_not_before = None
                     existing.last_fetch_started_at = None
                     existing.last_fetch_finished_at = None
+                    reschedule_basis_by_id[existing.fetch_target_id] = now
                 desired.append(existing)
                 continue
             desired.append(
@@ -58,6 +64,25 @@ def reconcile_fetch_targets(
                     google_flights_url=google_flights_url,
                 )
             )
+            reschedule_basis_by_id[fetch_target_id] = now
 
     desired.sort(key=lambda item: (item.trip_instance_id, item.origin_airport, item.destination_airport))
+    for index, target in enumerate(desired):
+        next_offset_seconds = index * FETCH_STAGGER_SECONDS
+        offset_changed = target.schedule_offset_seconds != next_offset_seconds
+        target.schedule_offset_seconds = next_offset_seconds
+        if offset_changed:
+            reschedule_basis_by_id.setdefault(target.fetch_target_id, max(now, target.last_fetch_finished_at or now))
+        if target.next_fetch_not_before is None or target.fetch_target_id in reschedule_basis_by_id:
+            basis = reschedule_basis_by_id.get(target.fetch_target_id, max(now, target.last_fetch_finished_at or now))
+            target.next_fetch_not_before = next_refresh_time(basis, target.schedule_offset_seconds)
     return desired
+
+
+def next_refresh_time(after: datetime, schedule_offset_seconds: int) -> datetime:
+    timestamp = int(after.timestamp())
+    cycle_start = timestamp - (timestamp % FETCH_INTERVAL_SECONDS)
+    candidate_timestamp = cycle_start + schedule_offset_seconds
+    if candidate_timestamp <= timestamp:
+        candidate_timestamp += FETCH_INTERVAL_SECONDS
+    return after.fromtimestamp(candidate_timestamp, tz=after.tzinfo)

@@ -496,6 +496,37 @@ def test_tracker_link_save_rejects_non_google_urls(tmp_path: Path) -> None:
     assert save.headers["location"] == "/trackers?message=Paste+a+Google+Flights+link."
 
 
+def test_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Tracker metadata",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    trackers_page = client.get("/trackers")
+
+    assert "Waiting for first price" in trackers_page.text
+    assert "Last updated:" in trackers_page.text
+    assert "Next refresh:" in trackers_page.text
+    assert "BUR to SFO" in trackers_page.text
+    assert "LAX to SFO" in trackers_page.text
+
+
 def test_skipped_trips_do_not_appear_in_past_history_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

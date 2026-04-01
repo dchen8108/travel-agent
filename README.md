@@ -9,7 +9,7 @@ This MVP is built around a simple idea:
 - each route option corresponds to one Google Flights tracker/search definition
 - the app generates dated `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
-- a background job queries those links conservatively and rolls the best current price back onto the tracker
+- a background job queries those links conservatively, twice per day on staggered refresh windows, and rolls the best current price back onto the tracker
 - the app stores tracker signals, organizes bookings, and tells you what still needs attention
 
 This version is intentionally local and simple:
@@ -19,6 +19,7 @@ This version is intentionally local and simple:
 - one-time or weekly trips
 - a rolling 12-week horizon for weekly trips
 - in-house Google Flights background fetching
+- automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
 - manual `.eml` upload kept as a legacy fallback
 - no paid fare APIs

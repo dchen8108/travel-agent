@@ -522,6 +522,28 @@ textarea {
   background: rgba(216, 235, 230, 0.72);
 }
 
+.status-pill.warning {
+  border-color: rgba(145, 95, 18, 0.22);
+  background: rgba(248, 234, 212, 0.9);
+  color: var(--warning);
+}
+
+.status-pill.neutral {
+  border-color: rgba(95, 102, 86, 0.18);
+  background: rgba(241, 236, 225, 0.92);
+  color: var(--muted);
+}
+
+.tracker-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.tracker-meta p {
+  margin: 0;
+}
+
 .link-chip-list {
   display: flex;
   gap: 8px;

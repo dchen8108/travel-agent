@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from app.models.base import TrackerStatus, utcnow
+from app.models.base import RecommendationState, TrackerStatus, utcnow
+from app.models.booking import Booking
+from app.models.fare_observation import FareObservation
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
+from app.models.trip_instance import TripInstance
 from app.services.background_fetch import run_fetch_batch, select_due_fetch_targets
 from app.services.fetch_targets import reconcile_fetch_targets
+from app.services.ids import new_id
 from app.services.google_flights_fetcher import best_google_flights_offer, parse_google_flights_offers
-from app.services.recommendations import apply_fetch_target_rollups
+from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -69,6 +73,7 @@ def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Reposito
     assert len(fetch_targets) == 6
     assert {item.origin_airport for item in fetch_targets} == {"BUR", "LAX", "SNA"}
     assert {item.destination_airport for item in fetch_targets} == {"SFO", "OAK"}
+    assert [item.schedule_offset_seconds for item in fetch_targets] == [0, 10, 20, 30, 40, 50]
 
 
 def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
@@ -132,13 +137,16 @@ def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: R
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     for tracker in snapshot.trackers:
         tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
+    now = utcnow()
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now - timedelta(seconds=1)
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
         snapshot.trip_instances,
         snapshot.tracker_fetch_targets,
         max_targets=3,
-        now=utcnow(),
+        now=now,
     )
 
     assert len(due_targets) == 2
@@ -169,6 +177,8 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     snapshot = sync_and_persist(repository)
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
     tracker.tracking_status = TrackerStatus.TRACKING_ENABLED
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     seen_prices = iter([141, 188])
 
@@ -275,7 +285,7 @@ def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> Non
     assert tracker.latest_signal_source == ""
     assert tracker.latest_winning_origin_airport == ""
     assert tracker.latest_winning_destination_airport == ""
-    assert tracker.tracking_status == TrackerStatus.NEEDS_SETUP
+    assert tracker.tracking_status == TrackerStatus.TRACKING_ENABLED
 
 
 def test_fetch_rollup_uses_recent_price_window_instead_of_stale_cheapest_price() -> None:
@@ -364,3 +374,184 @@ def test_fetch_rollup_clears_tracker_when_only_stale_fetch_prices_remain() -> No
 
     assert tracker.latest_observed_price is None
     assert tracker.latest_signal_source == ""
+
+
+def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Offset rebalance",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR|LAX",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    initial = sync_and_persist(repository, today=date(2026, 4, 1))
+    tracker = next(
+        item
+        for item in initial.trackers
+        if item.trip_instance_id in {
+            instance.trip_instance_id for instance in initial.trip_instances if instance.trip_id == trip.trip_id
+        }
+    )
+    legacy_targets = [
+        TrackerFetchTarget(
+            fetch_target_id=item.fetch_target_id,
+            tracker_id=item.tracker_id,
+            trip_instance_id=item.trip_instance_id,
+            origin_airport=item.origin_airport,
+            destination_airport=item.destination_airport,
+            schedule_offset_seconds=0,
+            google_flights_url=item.google_flights_url,
+            next_fetch_not_before=utcnow(),
+        )
+        for item in initial.tracker_fetch_targets
+        if item.tracker_id == tracker.tracker_id
+    ]
+
+    rebalanced = reconcile_fetch_targets([tracker], legacy_targets)
+
+    assert [item.schedule_offset_seconds for item in rebalanced] == [0, 10]
+    assert rebalanced[0].next_fetch_not_before != rebalanced[1].next_fetch_not_before
+
+
+def test_trip_edit_invalidates_observations_for_changed_tracker_signature(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Invalidate changed prices",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    initial = sync_and_persist(repository, today=date(2026, 4, 1))
+    tracker = next(item for item in initial.trackers if item.trip_instance_id == initial.trip_instances[0].trip_instance_id)
+    repository.save_fare_observations(
+        [
+            FareObservation(
+                fare_observation_id=new_id("obs"),
+                email_event_id="email_1",
+                tracker_id=tracker.tracker_id,
+                trip_instance_id=tracker.trip_instance_id,
+                tracker_definition_signature=tracker.definition_signature,
+                observed_at=utcnow(),
+                airline="Alaska",
+                origin_airport="BUR",
+                destination_airport="SFO",
+                travel_date=tracker.travel_date,
+                departure_time="07:00",
+                price=141,
+                match_summary="Original price",
+            )
+        ]
+    )
+
+    updated_route_option = initial.route_options[0]
+    save_trip(
+        repository,
+        trip_id=trip.trip_id,
+        label=trip.label,
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "route_option_id": updated_route_option.route_option_id,
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "08:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    refreshed = sync_and_persist(repository, today=date(2026, 4, 1))
+    refreshed_tracker = next(item for item in refreshed.trackers if item.tracker_id == tracker.tracker_id)
+
+    assert refreshed_tracker.latest_observed_price is None
+    assert refreshed_tracker.last_signal_at is None
+    assert repository.load_fare_observations() == []
+
+
+def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
+    trip_instance = TripInstance(
+        trip_instance_id="inst_1",
+        trip_id="trip_1",
+        display_label="Commute",
+        anchor_date=date.today() + timedelta(days=7),
+        booking_id="book_1",
+    )
+    booked_tracker = Tracker(
+        tracker_id="trk_booked",
+        trip_instance_id="inst_1",
+        route_option_id="opt_1",
+        rank=1,
+        origin_airports="BUR",
+        destination_airports="SFO",
+        airlines="Alaska",
+        day_offset=0,
+        travel_date=trip_instance.anchor_date,
+        start_time="06:00",
+        end_time="10:00",
+        latest_observed_price=180,
+        last_signal_at=utcnow(),
+        latest_signal_source="background_fetch",
+    )
+    cheaper_other_tracker = Tracker(
+        tracker_id="trk_other",
+        trip_instance_id="inst_1",
+        route_option_id="opt_2",
+        rank=2,
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Alaska",
+        day_offset=0,
+        travel_date=trip_instance.anchor_date,
+        start_time="06:00",
+        end_time="10:00",
+        latest_observed_price=120,
+        last_signal_at=utcnow(),
+        latest_signal_source="background_fetch",
+    )
+    booking = Booking(
+        booking_id="book_1",
+        trip_instance_id="inst_1",
+        tracker_id="trk_booked",
+        airline="Alaska",
+        origin_airport="BUR",
+        destination_airport="SFO",
+        departure_date=trip_instance.anchor_date,
+        departure_time="07:00",
+        booked_price=150,
+        record_locator="ABC123",
+    )
+
+    recompute_trip_states([trip_instance], [booked_tracker, cheaper_other_tracker], [booking], [])
+
+    assert trip_instance.recommendation_state == RecommendationState.BOOKED_MONITORING
+    assert "Monitoring" in trip_instance.recommendation_reason

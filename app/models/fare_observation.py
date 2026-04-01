@@ -14,6 +14,7 @@ class FareObservation(CsvModel):
     email_event_id: str
     tracker_id: str
     trip_instance_id: str
+    tracker_definition_signature: str = ""
     observed_at: datetime
     airline: str
     origin_airport: str
@@ -53,3 +54,8 @@ class FareObservation(CsvModel):
         if value < 0:
             raise ValueError("Observation price must be positive.")
         return value
+
+    @field_validator("tracker_definition_signature")
+    @classmethod
+    def normalize_signature(cls, value: str) -> str:
+        return value.strip()

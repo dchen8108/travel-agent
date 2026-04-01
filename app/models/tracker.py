@@ -23,9 +23,9 @@ class Tracker(CsvModel):
     end_time: str
     provider: str = "google_flights"
     link_source: str = "generated"
-    tracking_status: TrackerStatus = TrackerStatus.NEEDS_SETUP
+    tracking_status: TrackerStatus = TrackerStatus.TRACKING_ENABLED
     google_flights_url: str = ""
-    tracking_enabled_at: datetime | None = None
+    tracking_enabled_at: datetime | None = Field(default_factory=utcnow)
     last_signal_at: datetime | None = None
     latest_observed_price: int | None = None
     latest_fetched_at: datetime | None = None
@@ -33,6 +33,7 @@ class Tracker(CsvModel):
     latest_winning_destination_airport: str = ""
     latest_signal_source: str = ""
     latest_match_summary: str = ""
+    definition_signature: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -79,7 +80,7 @@ class Tracker(CsvModel):
     def validate_tracking_status(cls, value: TrackerStatus) -> TrackerStatus:
         return value
 
-    @field_validator("google_flights_url")
+    @field_validator("google_flights_url", "definition_signature")
     @classmethod
     def normalize_url(cls, value: str) -> str:
         return value.strip()

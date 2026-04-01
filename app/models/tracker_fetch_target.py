@@ -14,6 +14,7 @@ class TrackerFetchTarget(CsvModel):
     trip_instance_id: str
     origin_airport: str
     destination_airport: str
+    schedule_offset_seconds: int = 0
     google_flights_url: str
     last_fetch_started_at: datetime | None = None
     last_fetch_finished_at: datetime | None = None
@@ -45,6 +46,13 @@ class TrackerFetchTarget(CsvModel):
     def validate_failures(cls, value: int) -> int:
         if value < 0:
             raise ValueError("Failure count cannot be negative.")
+        return value
+
+    @field_validator("schedule_offset_seconds")
+    @classmethod
+    def validate_schedule_offset(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("Schedule offset cannot be negative.")
         return value
 
     @field_validator("latest_price")

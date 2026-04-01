@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,6 +21,57 @@ from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(tags=["trackers"])
+
+
+@dataclass(frozen=True)
+class TrackerMonitorState:
+    label: str
+    tone: str
+    detail: str
+    last_updated_at: datetime | None
+    next_refresh_at: datetime | None
+
+
+def _format_tracker_timestamp(value) -> str:
+    if value is None:
+        return "Not yet"
+    hour = value.strftime("%I").lstrip("0") or "12"
+    return f"{value.strftime('%b %d')}, {hour}:{value.strftime('%M %p')}"
+
+
+def _tracker_monitor_state(tracker, fetch_targets) -> TrackerMonitorState:
+    last_finished_at = max(
+        (target.last_fetch_finished_at for target in fetch_targets if target.last_fetch_finished_at),
+        default=None,
+    )
+    next_refresh_at = min(
+        (target.next_fetch_not_before for target in fetch_targets if target.next_fetch_not_before),
+        default=None,
+    )
+    failed_targets = [target for target in fetch_targets if target.last_fetch_status == "failed"]
+    if tracker.latest_observed_price is not None:
+        return TrackerMonitorState(
+            label="Auto tracking on",
+            tone="success",
+            detail="Google Flights links are refreshing in the background.",
+            last_updated_at=tracker.last_signal_at or last_finished_at,
+            next_refresh_at=next_refresh_at,
+        )
+    if failed_targets:
+        return TrackerMonitorState(
+            label="Refresh retrying",
+            tone="warning",
+            detail="A recent Google Flights fetch failed. Travel Agent will try again automatically.",
+            last_updated_at=last_finished_at,
+            next_refresh_at=next_refresh_at,
+        )
+    return TrackerMonitorState(
+        label="Waiting for first price",
+        tone="neutral",
+        detail="Travel Agent has queued this tracker and is waiting for the first usable Google Flights price.",
+        last_updated_at=last_finished_at,
+        next_refresh_at=next_refresh_at,
+    )
 
 
 @router.get("/trackers", response_class=HTMLResponse)
@@ -43,6 +95,13 @@ def trackers_index(
             key=lambda item: (trip_instances_by_id[item[0]].anchor_date, trip_instances_by_id[item[0]].display_label),
         )
     ]
+    tracker_monitor_by_id = {}
+    for _, trackers in ordered_groups:
+        for tracker in trackers:
+            tracker_monitor_by_id[tracker.tracker_id] = _tracker_monitor_state(
+                tracker,
+                fetch_targets_for_tracker(snapshot, tracker.tracker_id),
+            )
     return get_templates(request).TemplateResponse(
         request=request,
         name="trackers.html",
@@ -56,6 +115,8 @@ def trackers_index(
             trackers_for_instance=trackers_for_instance,
             trip_focus_url=trip_focus_url,
             generated_tracker_seed_summary=generated_tracker_seed_summary,
+            tracker_monitor_by_id=tracker_monitor_by_id,
+            format_tracker_timestamp=_format_tracker_timestamp,
         ),
     )
 

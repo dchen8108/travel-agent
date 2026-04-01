@@ -35,7 +35,7 @@ v0 consists of six layers:
    Trip planning, recurring-instance generation, tracker synchronization, booking attachment, and recommendation rollup.
 
 3. `Fetch orchestration`
-   One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, fetches them serially, and updates tracker rollups.
+   One tracker fans out into concrete airport-pair fetch targets. A small worker selects due targets, fetches them serially on a staggered 12-hour cadence, and updates tracker rollups.
 
 4. `Legacy ingestion`
    Google Flights email parsing and safe observation matching remain available behind a feature flag.
@@ -146,6 +146,7 @@ Key fields:
 - `google_flights_url`
 - `last_fetch_status`
 - `next_fetch_not_before`
+- `schedule_offset_seconds`
 - latest fetched price and summary fields
 
 Each tracker can fan out to at most 9 fetch targets.
@@ -196,7 +197,7 @@ Generation must be idempotent.
 
 1. App shows one tracker row per route option per trip instance.
 2. Each tracker shows one short Google Flights link per airport pair.
-3. User enables background fetch for a tracker.
+3. Background fetch is enabled automatically for every tracker.
 4. The worker queries a small number of fetch targets serially.
 5. The cheapest successful fetch target rolls back onto the tracker as the best known price.
 
@@ -223,11 +224,14 @@ Generation must be idempotent.
 - never fetch in a request path
 - fetch only from a separate worker CLI
 - fetch serially, not in parallel
-- apply short sleeps between requests
+- refresh each concrete airport-pair target every 12 hours
+- stagger target schedules by at least 10 seconds
+- apply short sleeps between requests within a worker run
 - cap a run at a small batch size
 - allow at most one fetch target per tracker per run
 - back off after failures
 - keep old tracker prices if a new fetch fails
+- if a tracker definition changes, invalidate impacted price state and let the next scheduled refresh repopulate it
 
 Suggested worker command:
 
@@ -250,10 +254,10 @@ The Trackers page should feel like an operational coverage view:
 - one card per trip instance
 - one row per tracker / route option
 - rolled-up best price shown on the tracker row
+- last updated and next refresh timestamps shown on the tracker row
 - short airport-pair links shown under the row
 - legacy manual tracked-link paste tucked into an advanced/legacy surface
 
 ### Imports
 
 Imports remain in the app for now, but they are no longer the primary path.
-

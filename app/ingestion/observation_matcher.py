@@ -68,6 +68,7 @@ def match_observations_to_trackers(
                 email_event_id=email_event_id,
                 tracker_id=tracker.tracker_id,
                 trip_instance_id=tracker.trip_instance_id,
+                tracker_definition_signature=tracker.definition_signature,
                 observed_at=parsed_email.received_at,
                 airline=normalize_airline_code(candidate.airline),
                 origin_airport=candidate.origin_airport,

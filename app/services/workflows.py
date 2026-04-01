@@ -68,6 +68,10 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Wo
 
     valid_trip_instance_ids = {item.trip_instance_id for item in trip_instances}
     valid_tracker_ids = {item.tracker_id for item in trackers}
+    tracker_signatures = {
+        item.tracker_id: item.definition_signature
+        for item in trackers
+    }
 
     filtered_bookings: list[Booking] = []
     for booking in bookings:
@@ -77,11 +81,19 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Wo
             booking.tracker_id = ""
         filtered_bookings.append(booking)
     bookings = filtered_bookings
-    observations = [
-        observation
-        for observation in observations
-        if observation.trip_instance_id in valid_trip_instance_ids and observation.tracker_id in valid_tracker_ids
-    ]
+    filtered_observations: list[FareObservation] = []
+    for observation in observations:
+        if observation.trip_instance_id not in valid_trip_instance_ids or observation.tracker_id not in valid_tracker_ids:
+            continue
+        current_signature = tracker_signatures.get(observation.tracker_id, "")
+        if not current_signature:
+            continue
+        if not observation.tracker_definition_signature:
+            continue
+        if observation.tracker_definition_signature != current_signature:
+            continue
+        filtered_observations.append(observation)
+    observations = filtered_observations
     for unmatched in unmatched_bookings:
         unmatched.candidate_trip_instance_ids = _filter_candidate_trip_ids(
             unmatched.candidate_trip_instance_ids,
