@@ -189,7 +189,13 @@ def trips_index(
         trip_focus_url=trip_focus_url,
         **scheduled_view,
     )
-    template_name = "partials/scheduled_trips_section.html" if request.query_params.get("partial") == "scheduled" else "trips.html"
+    partial = request.query_params.get("partial")
+    if partial == "scheduled":
+        template_name = "partials/scheduled_trips_section.html"
+    elif partial == "scheduled-results":
+        template_name = "partials/scheduled_trips_results.html"
+    else:
+        template_name = "trips.html"
     return get_templates(request).TemplateResponse(
         request=request,
         name=template_name,

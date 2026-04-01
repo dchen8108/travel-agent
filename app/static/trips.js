@@ -445,6 +445,7 @@
     const searchInput = form.querySelector("[data-filter-search]");
     const recurringRoot = form.querySelector("[data-recurring-filter-root]");
     const hiddenInputsRoot = form.querySelector("[data-recurring-hidden-inputs]");
+    let resultsShell = panel.querySelector("[data-scheduled-results-shell]");
     const skippedToggle = form.querySelector("[data-skipped-toggle]");
     const skippedInput = form.querySelector("[data-skipped-input]");
     const clearLink = form.querySelector("[data-clear-filters]");
@@ -489,10 +490,14 @@
     }
 
     async function refreshScheduledPanel(params) {
+      if (!resultsShell) {
+        window.location.assign(`/trips${params.toString() ? `?${params.toString()}` : ""}`);
+        return;
+      }
       const pageQuery = params.toString();
       const pageUrl = `/trips${pageQuery ? `?${pageQuery}` : ""}`;
       const partialParams = new URLSearchParams(params);
-      partialParams.set("partial", "scheduled");
+      partialParams.set("partial", "scheduled-results");
       const partialUrl = `/trips?${partialParams.toString()}`;
       const requestToken = scheduledFilterRequestToken + 1;
       scheduledFilterRequestToken = requestToken;
@@ -510,9 +515,9 @@
         if (requestToken !== scheduledFilterRequestToken) {
           return;
         }
-        panel.outerHTML = await response.text();
+        resultsShell.outerHTML = await response.text();
+        resultsShell = panel.querySelector("[data-scheduled-results-shell]");
         window.history.replaceState({}, "", pageUrl);
-        initScheduledFilters(document);
       } catch (error) {
         if (error?.name === "AbortError") {
           return;
