@@ -22,6 +22,15 @@ body {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", serif;
   color: var(--ink);
+  background: var(--bg);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 30%),
     radial-gradient(circle at top right, rgba(216, 235, 230, 0.65), transparent 22%),
