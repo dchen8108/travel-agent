@@ -1,12 +1,53 @@
 from __future__ import annotations
 
+from base64 import urlsafe_b64decode
 from datetime import date
+from urllib.parse import parse_qs, urlsplit
 
 from app.services.google_flights import build_google_flights_query_url, normalize_google_flights_url
 from app.services.dashboard import horizon_instances_for_trip, past_instances_for_trip
 from app.services.trips import save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
+
+
+def _read_varint(buffer: bytes, index: int) -> tuple[int, int]:
+    shift = 0
+    value = 0
+    while True:
+        byte = buffer[index]
+        index += 1
+        value |= (byte & 0x7F) << shift
+        if not (byte & 0x80):
+            return value, index
+        shift += 7
+
+
+def _parse_fields(buffer: bytes) -> list[tuple[int, int, object]]:
+    index = 0
+    items: list[tuple[int, int, object]] = []
+    while index < len(buffer):
+        key, index = _read_varint(buffer, index)
+        field_number = key >> 3
+        wire_type = key & 0x07
+        if wire_type == 0:
+            value, index = _read_varint(buffer, index)
+            items.append((field_number, wire_type, value))
+        elif wire_type == 2:
+            length, index = _read_varint(buffer, index)
+            payload = buffer[index:index + length]
+            index += length
+            items.append((field_number, wire_type, payload))
+        else:
+            raise AssertionError(f"Unsupported wire type {wire_type}")
+    return items
+
+
+def _decode_tfs(url: str) -> list[tuple[int, int, object]]:
+    query = parse_qs(urlsplit(url).query)
+    tfs = query["tfs"][0]
+    padded = tfs + "=" * ((4 - len(tfs) % 4) % 4)
+    return _parse_fields(urlsafe_b64decode(padded))
 
 
 def test_weekly_trip_generates_twelve_future_instances(repository: Repository) -> None:
@@ -269,8 +310,22 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
 
     url = build_google_flights_query_url(tracker)
+    query = parse_qs(urlsplit(url).query)
+    top_fields = _decode_tfs(url)
+    flight_data = next(value for field, wire, value in top_fields if field == 3 and wire == 2)
+    nested_fields = _parse_fields(flight_data)  # type: ignore[arg-type]
 
-    assert url == "https://www.google.com/travel/flights/search?tfs=GiQSCjIwMjYtMDUtMTAoADICQVMyAlVBagUSA0JVUnIFEgNTRk9AAUgBmAEC&hl=en-US"
+    assert url.startswith("https://www.google.com/travel/flights/search?")
+    assert query["hl"] == ["en-US"]
+    assert query["tfu"] == ["EgYIABAAGAA"]
+    assert any(field == 1 and value == 28 for field, wire, value in top_fields if wire == 0)
+    assert any(field == 2 and value == 2 for field, wire, value in top_fields if wire == 0)
+    assert any(field == 14 and value == 1 for field, wire, value in top_fields if wire == 0)
+    assert any(field == 16 for field, wire, value in top_fields if wire == 2)
+    assert any(field == 8 and value == 6 for field, wire, value in nested_fields if wire == 0)
+    assert any(field == 9 and value == 9 for field, wire, value in nested_fields if wire == 0)
+    assert any(field == 10 and value == 0 for field, wire, value in nested_fields if wire == 0)
+    assert any(field == 11 and value == 23 for field, wire, value in nested_fields if wire == 0)
 
 
 def test_manual_google_flights_url_rejects_unrelated_hosts() -> None:
