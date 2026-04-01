@@ -90,3 +90,24 @@ Useful for quick testing:
 ```bash
 uv run python -m app.jobs.fetch_google_flights --max-targets 1 --no-sleep
 ```
+
+### macOS launchd setup
+
+To make background refreshes automatic on this Mac, install the bundled `launchd` agent:
+
+```bash
+uv run python -m app.jobs.install_launchd_fetcher
+```
+
+That installs a LaunchAgent that:
+
+- runs at login and every 60 seconds after that
+- fetches at most 1 due airport-pair target per run
+- relies on the app's own persisted queue and 12-hour cadence
+- writes logs under `data/logs/`
+
+To remove it later:
+
+```bash
+uv run python -m app.jobs.uninstall_launchd_fetcher
+```

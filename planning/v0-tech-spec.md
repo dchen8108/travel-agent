@@ -223,6 +223,7 @@ Generation must be idempotent.
 
 - never fetch in a request path
 - fetch only from a separate worker CLI
+- in local use, macOS `launchd` is the preferred scheduler for repeatedly invoking that CLI
 - fetch serially, not in parallel
 - refresh each concrete airport-pair target every 12 hours
 - stagger target schedules by at least 10 seconds
