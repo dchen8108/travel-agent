@@ -243,7 +243,7 @@ def test_save_past_trip_creates_historical_instance_without_trackers(repository:
     assert len(trackers) == 0
 
 
-def test_generated_google_flights_url_uses_stable_single_route_seed(repository: Repository) -> None:
+def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -270,7 +270,7 @@ def test_generated_google_flights_url_uses_stable_single_route_seed(repository: 
 
     url = build_google_flights_query_url(tracker)
 
-    assert url == "https://www.google.com/travel/flights?q=Flights%20to%20SFO%20from%20BUR%20on%202026-05-10"
+    assert url == "https://www.google.com/travel/flights/search?tfs=GiQSCjIwMjYtMDUtMTAoADICQVMyAlVBagUSA0JVUnIFEgNTRk9AAUgBmAEC&hl=en-US"
 
 
 def test_manual_google_flights_url_rejects_unrelated_hosts() -> None:

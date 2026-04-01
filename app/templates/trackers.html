@@ -31,7 +31,7 @@
         </div>
         <div class="tracker-actions">
           <a class="button ghost" href="{{ tracker.google_flights_url }}" target="_blank" rel="noreferrer">
-            {{ 'Open seed search' if tracker.link_source == 'generated' else 'Open Google Flights' }}
+            {{ 'Open generated search' if tracker.link_source == 'generated' else 'Open Google Flights' }}
           </a>
           <form method="post" action="/trackers/{{ tracker.tracker_id }}/mark-enabled">
             <button type="submit" class="button secondary">Mark enabled</button>
