@@ -658,11 +658,15 @@ textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.chip-list,
 .picker-selection {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.chip-list {
+  display: grid;
+  gap: 8px;
 }
 
 .chip {
@@ -674,6 +678,11 @@ textarea {
   border: 1px solid rgba(31, 92, 82, 0.16);
   background: rgba(216, 235, 230, 0.62);
   color: var(--ink);
+}
+
+.chip-list .chip {
+  width: 100%;
+  justify-content: space-between;
 }
 
 .chip-remove {
