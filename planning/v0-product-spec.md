@@ -123,7 +123,7 @@ One dated occurrence of a trip.
 
 - one-time trips create exactly one instance
 - weekly trips maintain the next 12 future instances
-- in the product UI, trip instances are the scheduled trips the user actually acts on
+- in the product UI, trip instances move between `Scheduled trips` and `Past trips` based on the anchor date
 
 ### Tracker
 
@@ -222,12 +222,17 @@ The MVP should include these primary screens:
 The `Trips` screen should be split into:
 
 - `Recurring trips`: weekly parent plans with edit/pause controls
-- `Scheduled trips`: every dated trip instance, including standalone one-time trips and recurring-generated occurrences
+- `Scheduled trips`: every future-or-current dated trip instance the user can still act on
   The scheduled list should support:
   - live search by trip label
   - filtering by one or more recurring trips through a searchable multiselect
   - a pill-style `Show skipped` toggle
   - restoring skipped trips inline when they are visible
+- `Past trips`: dated trip history that has already passed
+  The past list should:
+  - preserve bookings and tracker history
+  - stay out of the operational queue
+  - remain filterable through the same trip filters
 
 Optional operational surface:
 

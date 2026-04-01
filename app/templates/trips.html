@@ -14,8 +14,8 @@
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ recurring_items|length }}</span><small>recurring trips</small></div>
   <div class="summary-pill"><span>{{ total_active_scheduled }}</span><small>scheduled trips</small></div>
+  <div class="summary-pill"><span>{{ total_past }}</span><small>past trips</small></div>
   <div class="summary-pill"><span>{{ snapshot.trip_instances|selectattr('travel_state', 'equalto', 'booked')|list|length }}</span><small>booked</small></div>
-  <div class="summary-pill"><span>{{ total_skipped_scheduled }}</span><small>skipped</small></div>
 </section>
 
 <section class="section">
@@ -30,7 +30,7 @@
   <div class="card-grid">
     {% for trip in recurring_items %}
     {% set route_options = route_options_for_trip(snapshot, trip.trip_id) %}
-    {% set instances = instances_for_trip(snapshot, trip.trip_id) %}
+    {% set instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today) %}
     {% set active_preview_instances = instances|rejectattr('travel_state', 'equalto', 'skipped')|list %}
     {% set next_active_instance = active_preview_instances|first %}
     <article class="card" id="recurring-{{ trip.trip_id }}">

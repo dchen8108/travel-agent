@@ -65,6 +65,9 @@ Booked trips
 | [Show skipped toggle]                         [Clear filters]|
 | Conference Arrival (2026-05-10) | standalone               |
 | [Edit trip] [Record booking] [Skip]                        |
+| Past trips                                                   |
+| LA to SF Outbound (2026-04-01) | booked                     |
+| Booked at $129 on Alaska                                     |
 +--------------------------------------------------------------+
 ```
 

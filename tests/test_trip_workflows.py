@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.services.dashboard import horizon_instances_for_trip, past_instances_for_trip
 from app.services.trips import save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -189,3 +190,33 @@ def test_one_time_trip_creates_a_standalone_instance(repository: Repository) -> 
     assert len(trip_instances) == 1
     assert trip_instances[0].display_label == "Conference Arrival"
     assert trip_instances[0].instance_kind == "standalone"
+
+
+def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Weekly Commute History",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    sync_and_persist(repository, today=date(2026, 3, 24))
+    snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
+
+    trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
+    assert len(trip_instances) == 13
+    assert len(horizon_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 12
+    assert len(past_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 1

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -20,9 +21,13 @@ def trackers_index(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
+    today = date.today()
     grouped: dict[str, list] = defaultdict(list)
     trip_instances_by_id = {item.trip_instance_id: item for item in snapshot.trip_instances}
     for tracker in snapshot.trackers:
+        trip_instance = trip_instances_by_id.get(tracker.trip_instance_id)
+        if trip_instance is None or trip_instance.anchor_date < today:
+            continue
         grouped[tracker.trip_instance_id].append(tracker)
     ordered_groups = [
         (trip_instances_by_id[trip_instance_id], sorted(trackers, key=lambda item: item.rank))

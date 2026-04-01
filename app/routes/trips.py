@@ -12,8 +12,11 @@ from app.models.base import TravelState
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
+    horizon_instances_for_trip,
     instances_for_trip,
     load_snapshot,
+    past_instances,
+    past_instances_for_trip,
     recurring_trips,
     route_options_for_trip,
     scheduled_instances,
@@ -125,6 +128,7 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
 
 
 def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
+    today = date.today()
     recurring_items = recurring_trips(snapshot)
     recurring_ids = {trip.trip_id for trip in recurring_items}
     selected_recurring_trip_ids = [
@@ -140,6 +144,13 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
         snapshot,
         include_skipped=show_skipped,
         recurring_trip_ids=selected_recurring_trip_id_set or None,
+        today=today,
+    )
+    past_items = past_instances(
+        snapshot,
+        include_skipped=show_skipped,
+        recurring_trip_ids=selected_recurring_trip_id_set or None,
+        today=today,
     )
     if search_query:
         lowered = search_query.lower()
@@ -152,20 +163,33 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
                 and lowered in parent_trip.label.lower()
             )
         ]
+        past_items = [
+            instance
+            for instance in past_items
+            if lowered in instance.display_label.lower()
+            or (
+                (parent_trip := trip_for_instance(snapshot, instance.trip_instance_id)) is not None
+                and lowered in parent_trip.label.lower()
+            )
+        ]
 
-    total_active_scheduled = len(scheduled_instances(snapshot))
-    total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True)) - total_active_scheduled
+    total_active_scheduled = len(scheduled_instances(snapshot, today=today))
+    total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True, today=today)) - total_active_scheduled
+    total_past = len(past_instances(snapshot, include_skipped=True, today=today))
     recurring_filter_options = [{"value": trip.trip_id, "label": trip.label} for trip in recurring_items]
 
     return {
         "recurring_items": recurring_items,
         "scheduled_items": scheduled_items,
+        "past_items": past_items,
         "selected_recurring_trip_ids": selected_recurring_trip_ids,
         "show_skipped": show_skipped,
         "search_query": search_query,
         "total_active_scheduled": total_active_scheduled,
         "total_skipped_scheduled": total_skipped_scheduled,
+        "total_past": total_past,
         "recurring_filter_options": recurring_filter_options,
+        "today": today,
     }
 
 
@@ -180,7 +204,9 @@ def trips_index(
         request,
         page="trips",
         snapshot=snapshot,
+        horizon_instances_for_trip=horizon_instances_for_trip,
         instances_for_trip=instances_for_trip,
+        past_instances_for_trip=past_instances_for_trip,
         route_options_for_trip=route_options_for_trip,
         booking_for_instance=booking_for_instance,
         best_tracker=best_tracker,

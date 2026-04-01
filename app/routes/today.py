@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
@@ -25,23 +27,26 @@ def today(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
+    today = date.today()
     open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
     setup_instances = [
         instance
         for instance in snapshot.trip_instances
-        if instance.travel_state == TravelState.OPEN
+        if instance.anchor_date >= today
+        and instance.travel_state == TravelState.OPEN
         and instance.recommendation_state == RecommendationState.NEEDS_TRACKER_SETUP
     ]
     open_instances = [
         instance
         for instance in snapshot.trip_instances
+        if instance.anchor_date >= today
         if instance.travel_state == TravelState.OPEN
         and instance.recommendation_state in {RecommendationState.WAIT, RecommendationState.BOOK_NOW}
     ]
     booked_instances = [
         instance
         for instance in snapshot.trip_instances
-        if instance.travel_state == TravelState.BOOKED
+        if instance.anchor_date >= today and instance.travel_state == TravelState.BOOKED
     ]
 
     return get_templates(request).TemplateResponse(

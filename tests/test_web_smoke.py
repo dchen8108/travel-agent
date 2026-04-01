@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -358,3 +359,44 @@ def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
     assert 'data-scheduled-filter-form' in partial.text
     assert "Show skipped" in partial.text
     assert "Apply filters" in partial.text
+
+
+def test_trips_page_moves_past_trips_into_history_section(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        imported_email_dir=tmp_path / "data" / "imported_emails",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    today = date.today()
+
+    client.post(
+        "/trips",
+        data={
+            "label": "Past Commute",
+            "trip_kind": "one_time",
+            "anchor_date": (today - timedelta(days=1)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    client.post(
+        "/trips",
+        data={
+            "label": "Future Commute",
+            "trip_kind": "one_time",
+            "anchor_date": (today + timedelta(days=2)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    trips_page = client.get("/trips")
+    assert trips_page.status_code == 200
+    assert "Past trips" in trips_page.text
+    assert "Showing 1 scheduled trip and 1 past trip." in trips_page.text
+    assert 'id="scheduled-' in trips_page.text
+    assert 'id="past-' in trips_page.text

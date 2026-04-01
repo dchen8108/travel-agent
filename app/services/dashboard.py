@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from urllib.parse import urlencode
 
 from app.models.booking import Booking
@@ -69,6 +70,21 @@ def instances_for_trip(snapshot: AppSnapshot, trip_id: str) -> list[TripInstance
     )
 
 
+def is_past_instance(instance: TripInstance, *, today: date | None = None) -> bool:
+    today = today or date.today()
+    return instance.anchor_date < today
+
+
+def horizon_instances_for_trip(snapshot: AppSnapshot, trip_id: str, *, today: date | None = None) -> list[TripInstance]:
+    today = today or date.today()
+    return [instance for instance in instances_for_trip(snapshot, trip_id) if not is_past_instance(instance, today=today)]
+
+
+def past_instances_for_trip(snapshot: AppSnapshot, trip_id: str, *, today: date | None = None) -> list[TripInstance]:
+    today = today or date.today()
+    return [instance for instance in instances_for_trip(snapshot, trip_id) if is_past_instance(instance, today=today)]
+
+
 def trackers_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[Tracker]:
     return sorted(
         [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id],
@@ -116,7 +132,7 @@ def trip_focus_url(
     if show_skipped:
         params.append(("show_skipped", "true"))
     if trip_instance_id:
-        anchor = f"scheduled-{trip_instance_id}"
+        anchor = f"{'past' if trip_instance and is_past_instance(trip_instance) else 'scheduled'}-{trip_instance_id}"
 
     query = urlencode(params, doseq=True)
     url = "/trips"
@@ -139,8 +155,10 @@ def scheduled_instances(
     *,
     include_skipped: bool = False,
     recurring_trip_ids: set[str] | None = None,
+    today: date | None = None,
 ) -> list[TripInstance]:
-    items = snapshot.trip_instances
+    today = today or date.today()
+    items = [item for item in snapshot.trip_instances if not is_past_instance(item, today=today)]
     if not include_skipped:
         items = [item for item in items if item.travel_state != "skipped"]
     if recurring_trip_ids:
@@ -148,4 +166,24 @@ def scheduled_instances(
     return sorted(
         items,
         key=lambda item: (item.anchor_date, item.display_label.lower()),
+    )
+
+
+def past_instances(
+    snapshot: AppSnapshot,
+    *,
+    include_skipped: bool = False,
+    recurring_trip_ids: set[str] | None = None,
+    today: date | None = None,
+) -> list[TripInstance]:
+    today = today or date.today()
+    items = [item for item in snapshot.trip_instances if is_past_instance(item, today=today)]
+    if not include_skipped:
+        items = [item for item in items if item.travel_state != "skipped"]
+    if recurring_trip_ids:
+        items = [item for item in items if item.trip_id in recurring_trip_ids]
+    return sorted(
+        items,
+        key=lambda item: (item.anchor_date, item.display_label.lower()),
+        reverse=True,
     )
