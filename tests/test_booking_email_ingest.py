@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from app.models.base import BookingEmailEventStatus
+from app.services.bookings import BookingCandidate, record_booking
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.booking_email_ingest import process_gmail_booking_message
 from app.services.booking_extraction import BookingEmailExtraction, BookingEmailLeg
@@ -12,23 +13,32 @@ from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 
 
-def _seed_trip(repository: Repository) -> str:
+def _seed_trip(
+    repository: Repository,
+    *,
+    anchor_date: date = date(2026, 4, 22),
+    origin_airports: str = "BUR",
+    destination_airports: str = "SFO",
+    airlines: str = "Alaska",
+    start_time: str = "06:00",
+    end_time: str = "10:00",
+) -> str:
     trip = save_trip(
         repository,
         trip_id=None,
         label="Inbox Import Test",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 22),
+        anchor_date=anchor_date,
         anchor_weekday="",
         route_option_payloads=[
             {
-                "origin_airports": "BUR",
-                "destination_airports": "SFO",
-                "airlines": "Alaska",
+                "origin_airports": origin_airports,
+                "destination_airports": destination_airports,
+                "airlines": airlines,
                 "day_offset": 0,
-                "start_time": "06:00",
-                "end_time": "10:00",
+                "start_time": start_time,
+                "end_time": end_time,
             }
         ],
     )
@@ -219,3 +229,67 @@ def test_booking_email_ingest_records_retryable_error_event(repository: Reposito
 
     assert second.event.processing_status == BookingEmailEventStatus.IGNORED
     assert len(repository.load_booking_email_events()) == 1
+
+
+def test_booking_email_ingest_cancels_existing_booking(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 8),
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Southwest",
+        start_time="05:00",
+        end_time="09:00",
+    )
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="WN",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 6, 8),
+            departure_time="06:45",
+            arrival_time="08:05",
+            booked_price=121,
+            record_locator="ABC123",
+        ),
+        trip_instance_id=trip_instance_id,
+        source="gmail",
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="cancellation",
+            confidence=0.92,
+            record_locator="ABC123",
+            legs=[
+                BookingEmailLeg(
+                    airline="WN",
+                    origin_airport="LAX",
+                    destination_airport="SFO",
+                    departure_date="2026-06-08",
+                    departure_time="06:45",
+                    arrival_time="08:05",
+                    leg_status="cancelled",
+                )
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-cancel",
+            subject="Your flight has been canceled",
+            body_text="Record locator ABC123",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    saved_booking = repository.load_bookings()[0]
+    assert saved_booking.status == "cancelled"

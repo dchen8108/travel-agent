@@ -22,16 +22,17 @@
 
 ## Processing Pipeline
 
-1. List recent Gmail messages from `INBOX`.
-2. Skip messages already present in `booking_email_events`.
+1. On first run, backfill every current message in `INBOX`. After that, use Gmail history sync to fetch only newly added messages.
+2. Skip messages already present in `booking_email_events`, except prior `error` rows which are retried explicitly.
 3. Apply a cheap keyword gate to ignore obvious spam/newsletter noise.
 4. Send likely booking emails to the OpenAI extraction model.
-5. Validate extracted legs and convert them to `BookingCandidate` rows.
-6. Deduplicate against existing `Booking` and open `UnmatchedBooking` rows.
-7. Use the existing booking matcher:
+5. If the email is a cancellation, try to match it to existing `Booking` rows and mark them `cancelled`.
+6. Otherwise validate extracted legs and convert them to `BookingCandidate` rows.
+7. Deduplicate against existing `Booking` and open `UnmatchedBooking` rows.
+8. Use the existing booking matcher:
    - unique tracker match => `Booking`
    - ambiguous/no match => `UnmatchedBooking`
-8. Append one `booking_email_events` audit row for the Gmail message.
+9. Append one `booking_email_events` audit row for the Gmail message.
 
 ## Statuses
 
@@ -48,13 +49,13 @@
 Supported now:
 
 - booking confirmation emails
+- cancellation emails that can be matched to an existing booking
 - multi-leg extraction
 - automatic booking creation when a leg matches confidently
 - fallback to `Resolve` when matching is ambiguous
 
 Intentionally deferred:
 
-- automatic cancellation handling
 - automatic itinerary-change reconciliation
 - attachment or PDF parsing
 - Gmail label workflows

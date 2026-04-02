@@ -69,7 +69,7 @@ Then open `http://127.0.0.1:8000`.
 
 ## Gmail Booking Automation
 
-Travel Agent can poll a dedicated Gmail inbox, classify each new message once, and create booking rows automatically when the booking can be placed confidently.
+Travel Agent can poll a dedicated Gmail inbox, classify each new message once, and update bookings automatically when the email can be matched confidently.
 
 Setup:
 
@@ -93,10 +93,12 @@ uv run python -m app.jobs.install_launchd_booking_poller
 How it behaves:
 
 - polls the inbox directly; no Gmail labels are required
+- backfills unseen inbox mail once, then switches to Gmail history sync so already-processed messages are not sent back through the LLM
 - quickly ignores obvious spam/newsletter messages with a cheap keyword gate
 - sends likely booking confirmations to an OpenAI extraction model
 - validates and matches extracted legs to existing trip instances/trackers
 - creates `Booking` rows automatically when matching is unambiguous
+- marks existing bookings `cancelled` automatically when a cancellation email matches cleanly
 - creates `Unmatched Booking` rows only when a real booking cannot be placed confidently
 - records every processed message in `booking_email_events`
 

@@ -64,6 +64,7 @@ class FetchTargetStatus(StrEnum):
 class BookingStatus(StrEnum):
     ACTIVE = "active"
     REBOOKED = "rebooked"
+    CANCELLED = "cancelled"
 
 
 class UnmatchedBookingStatus(StrEnum):

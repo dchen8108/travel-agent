@@ -5,7 +5,7 @@ from datetime import date
 import json
 
 from app.catalog import normalize_airline_code
-from app.models.base import BookingEmailEventStatus, utcnow
+from app.models.base import BookingEmailEventStatus, BookingStatus, utcnow
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
@@ -22,6 +22,7 @@ class BookingEmailProcessResult:
     event: BookingEmailEvent
     created_bookings: list[Booking]
     created_unmatched_bookings: list[UnmatchedBooking]
+    state_changed: bool = False
 
 
 def process_gmail_booking_message(
@@ -39,6 +40,7 @@ def process_gmail_booking_message(
             event=existing_event,
             created_bookings=[],
             created_unmatched_bookings=[],
+            state_changed=False,
         )
 
     event = existing_event or BookingEmailEvent(
@@ -62,7 +64,12 @@ def process_gmail_booking_message(
         event.notes = "Ignored by booking keyword gate."
         event.updated_at = utcnow()
         _upsert_booking_email_event(repository, event)
-        return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
+        return BookingEmailProcessResult(
+            event=event,
+            created_bookings=[],
+            created_unmatched_bookings=[],
+            state_changed=False,
+        )
 
     try:
         extraction = extract_booking_email(
@@ -78,18 +85,47 @@ def process_gmail_booking_message(
         event.notes = f"Extraction failed: {type(exc).__name__}: {exc}"
         event.updated_at = utcnow()
         _upsert_booking_email_event(repository, event)
-        return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
+        return BookingEmailProcessResult(
+            event=event,
+            created_bookings=[],
+            created_unmatched_bookings=[],
+            state_changed=False,
+        )
 
     event.email_kind = extraction.email_kind
     event.extraction_confidence = extraction.confidence
     event.extracted_payload_json = extraction.model_dump_json(indent=2)
 
     if extraction.email_kind != "booking_confirmation":
+        if extraction.email_kind == "cancellation":
+            cancelled_bookings = _apply_cancellation(repository, extraction)
+            event.result_booking_ids = "|".join(item.booking_id for item in cancelled_bookings)
+            event.processing_status = (
+                BookingEmailEventStatus.RESOLVED_AUTO if cancelled_bookings else BookingEmailEventStatus.NEEDS_RESOLUTION
+            )
+            event.notes = (
+                f"Marked {len(cancelled_bookings)} booking(s) cancelled from Gmail."
+                if cancelled_bookings
+                else "Cancellation email could not be matched automatically."
+            )
+            event.updated_at = utcnow()
+            _upsert_booking_email_event(repository, event)
+            return BookingEmailProcessResult(
+                event=event,
+                created_bookings=cancelled_bookings,
+                created_unmatched_bookings=[],
+                state_changed=bool(cancelled_bookings),
+            )
         event.processing_status = BookingEmailEventStatus.IGNORED
         event.notes = _non_booking_reason(extraction)
         event.updated_at = utcnow()
         _upsert_booking_email_event(repository, event)
-        return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
+        return BookingEmailProcessResult(
+            event=event,
+            created_bookings=[],
+            created_unmatched_bookings=[],
+            state_changed=False,
+        )
 
     candidates = _candidates_from_extraction(extraction)
     if not candidates:
@@ -97,7 +133,12 @@ def process_gmail_booking_message(
         event.notes = "The extractor did not return any valid booking legs."
         event.updated_at = utcnow()
         _upsert_booking_email_event(repository, event)
-        return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
+        return BookingEmailProcessResult(
+            event=event,
+            created_bookings=[],
+            created_unmatched_bookings=[],
+            state_changed=False,
+        )
 
     created_bookings: list[Booking] = []
     created_unmatched_bookings: list[UnmatchedBooking] = []
@@ -138,6 +179,7 @@ def process_gmail_booking_message(
         event=event,
         created_bookings=created_bookings,
         created_unmatched_bookings=created_unmatched_bookings,
+        state_changed=bool(created_bookings or created_unmatched_bookings),
     )
 
 
@@ -159,8 +201,8 @@ def _looks_like_non_booking(text: str, config: GmailIntegrationConfig) -> bool:
 def _non_booking_reason(extraction: BookingEmailExtraction) -> str:
     if extraction.email_kind == "not_booking":
         return "Ignored after model classification: not a booking confirmation."
-    if extraction.email_kind in {"itinerary_change", "cancellation"}:
-        return f"Ignored for now: {extraction.email_kind.replace('_', ' ')} handling is not implemented yet."
+    if extraction.email_kind == "itinerary_change":
+        return "Ignored for now: itinerary change handling is not implemented yet."
     return "Ignored after model classification."
 
 
@@ -168,8 +210,6 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
     candidates: list[BookingCandidate] = []
     multi_leg_total_price = extraction.total_price if len(extraction.legs) > 1 else None
     for leg in extraction.legs:
-        if leg.leg_status == "cancelled":
-            continue
         if not (leg.airline and leg.origin_airport and leg.destination_airport and leg.departure_date and leg.departure_time):
             continue
         try:
@@ -242,3 +282,81 @@ def _upsert_booking_email_event(repository: Repository, event: BookingEmailEvent
     else:
         events.append(event)
     repository.save_booking_email_events(events)
+
+
+def _apply_cancellation(repository: Repository, extraction: BookingEmailExtraction) -> list[Booking]:
+    bookings = repository.load_bookings()
+    updated: list[Booking] = []
+    matched_ids: set[str] = set()
+    if not extraction.legs and extraction.record_locator:
+        for booking in bookings:
+            if booking.status == BookingStatus.CANCELLED:
+                continue
+            if booking.record_locator != extraction.record_locator:
+                continue
+            booking.status = BookingStatus.CANCELLED
+            booking.updated_at = utcnow()
+            updated.append(booking)
+        if updated:
+            repository.save_bookings(bookings)
+        return updated
+    for leg in extraction.legs:
+        if not (leg.departure_date or extraction.record_locator):
+            continue
+        departure_date: date | None = None
+        if leg.departure_date:
+            try:
+                departure_date = date.fromisoformat(leg.departure_date)
+            except ValueError:
+                continue
+        airline = _normalize_airline_code(leg.airline) if leg.airline else ""
+        exact_matches: list[Booking] = []
+        for booking in bookings:
+            if booking.booking_id in matched_ids:
+                continue
+            if booking.status == BookingStatus.CANCELLED:
+                continue
+            locator_matches = bool(extraction.record_locator) and booking.record_locator == extraction.record_locator
+            route_matches = (
+                airline
+                and booking.airline == airline
+                and booking.origin_airport == leg.origin_airport
+                and booking.destination_airport == leg.destination_airport
+                and departure_date is not None
+                and booking.departure_date == departure_date
+                and (not leg.departure_time or booking.departure_time == leg.departure_time)
+            )
+            if locator_matches and route_matches:
+                exact_matches.append(booking)
+
+        target_bookings = exact_matches
+        if not target_bookings and extraction.record_locator and len(extraction.legs) == 1:
+            target_bookings = [
+                booking
+                for booking in bookings
+                if booking.booking_id not in matched_ids
+                and booking.status != BookingStatus.CANCELLED
+                and booking.record_locator == extraction.record_locator
+            ]
+        if not target_bookings and departure_date is not None:
+            target_bookings = [
+                booking
+                for booking in bookings
+                if booking.booking_id not in matched_ids
+                and booking.status != BookingStatus.CANCELLED
+                and airline
+                and booking.airline == airline
+                and booking.origin_airport == leg.origin_airport
+                and booking.destination_airport == leg.destination_airport
+                and booking.departure_date == departure_date
+                and (not leg.departure_time or booking.departure_time == leg.departure_time)
+            ]
+
+        for booking in target_bookings:
+            booking.updated_at = utcnow()
+            booking.status = BookingStatus.CANCELLED
+            updated.append(booking)
+            matched_ids.add(booking.booking_id)
+    if updated:
+        repository.save_bookings(bookings)
+    return updated

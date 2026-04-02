@@ -92,6 +92,67 @@ def list_recent_inbox_message_ids(
     return [str(item["id"]) for item in response.get("messages", [])]
 
 
+def list_all_inbox_message_ids(
+    service,
+    *,
+    label_ids: list[str],
+) -> list[str]:
+    message_ids: list[str] = []
+    next_page_token: str | None = None
+    while True:
+        request = service.users().messages().list(
+            userId="me",
+            labelIds=label_ids,
+            maxResults=500,
+            pageToken=next_page_token,
+        )
+        response = request.execute()
+        message_ids.extend(str(item["id"]) for item in response.get("messages", []) or [])
+        next_page_token = response.get("nextPageToken")
+        if not next_page_token:
+            break
+    return message_ids
+
+
+def get_mailbox_profile(service) -> dict[str, str]:
+    payload = service.users().getProfile(userId="me").execute()
+    return {
+        "email_address": str(payload.get("emailAddress", "")),
+        "history_id": str(payload.get("historyId", "")),
+    }
+
+
+def list_message_ids_since_history(
+    service,
+    *,
+    start_history_id: str,
+    label_id: str | None = None,
+) -> tuple[list[str], str]:
+    seen: list[str] = []
+    next_page_token: str | None = None
+    latest_history_id = start_history_id
+    while True:
+        request = service.users().history().list(
+            userId="me",
+            startHistoryId=start_history_id,
+            historyTypes=["messageAdded"],
+            pageToken=next_page_token,
+            labelId=label_id,
+        )
+        payload = request.execute()
+        latest_history_id = str(payload.get("historyId", latest_history_id))
+        for history in payload.get("history", []) or []:
+            for message_added in history.get("messagesAdded", []) or []:
+                message = message_added.get("message", {}) or {}
+                message_id = str(message.get("id", "")).strip()
+                if message_id and message_id not in seen:
+                    seen.append(message_id)
+        next_page_token = payload.get("nextPageToken")
+        if not next_page_token:
+            break
+    return seen, latest_history_id
+
+
 def fetch_gmail_message(service, message_id: str) -> GmailMessage:
     payload = (
         service.users()
@@ -187,9 +248,11 @@ __all__ = [
     "authorize_gmail",
     "build_gmail_service",
     "fetch_gmail_message",
+    "get_mailbox_profile",
     "gmail_auth_status",
     "gmail_oauth_client_path",
     "gmail_token_path",
+    "list_all_inbox_message_ids",
+    "list_message_ids_since_history",
     "list_recent_inbox_message_ids",
 ]
-
