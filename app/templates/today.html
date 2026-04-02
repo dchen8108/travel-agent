@@ -2,9 +2,9 @@
 {% block content %}
 <section class="hero">
   <div>
-    <p class="eyebrow">Today</p>
-    <h2>Work the travel that needs attention, then let the rest run quietly.</h2>
-    <p>Travel Agent keeps recurring trip plans, dated trips, trackers, and bookings tied together. This page is the inbox for what matters right now.</p>
+    <p class="eyebrow">Overview</p>
+    <h2>Your travel desk for the week ahead.</h2>
+    <p>Use this page as the action queue for what needs a decision now, while the rest of your travel stays monitored in the background.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/trips/new">New trip</a>
@@ -34,7 +34,7 @@
         </div>
         <span class="badge">{{ money(unmatched.booked_price) }}</span>
       </div>
-      <p class="muted">Travel Agent could not place this booking confidently. Resolve it once so it can be monitored normally.</p>
+      <p class="muted">This booking is real, but it still needs to be attached to the right scheduled trip.</p>
       <div class="actions">
         <a class="button primary" href="/bookings#needs-linking">Link booking</a>
       </div>
@@ -111,7 +111,7 @@
     {% else %}
     <article class="empty-state">
       <strong>No open trips right now.</strong>
-      <p>Create a new trip and Travel Agent will start checking it in the background.</p>
+      <p>Create a trip and Milemark will start checking it in the background.</p>
     </article>
     {% endfor %}
   </div>

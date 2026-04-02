@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>travel-agent</title>
+    <title>Milemark</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v={{ asset_version }}">
     <script src="{{ url_for('static', path='/app.js') }}?v={{ asset_version }}" defer></script>
   </head>
@@ -11,10 +11,11 @@
     {% set resolve_count = snapshot.unmatched_bookings|selectattr('resolution_status', 'equalto', 'open')|list|length if snapshot is defined else 0 %}
     <div class="app-shell">
       <aside class="sidebar">
+        <div class="brand-mark" aria-hidden="true">M</div>
         <div class="brand">
-          <p class="eyebrow">Local-first</p>
-          <h1>travel-agent</h1>
-          <p>Tracker of trackers for recurring flight travel.</p>
+          <p class="eyebrow">Personal flight desk</p>
+          <h1>Milemark</h1>
+          <p>Stay ahead of fares, bookings, and the trips that repeat.</p>
         </div>
         <nav class="nav">
           <a href="/" class="{{ 'active' if page == 'today' else '' }}">Today</a>
@@ -26,8 +27,12 @@
             {% endif %}
           </a>
         </nav>
+        <div class="sidebar-note">
+          <p>Local-first by default. Background fare checks and Gmail booking intake run quietly behind the scenes.</p>
+        </div>
       </aside>
       <main class="content">
+        <div class="content-inner">
         {% if message %}
         <div class="toast-stack">
           <div class="flash is-{{ message_kind }}" data-toast role="status" aria-live="polite">
@@ -57,6 +62,7 @@
           </div>
         </div>
         {% block content %}{% endblock %}
+        </div>
       </main>
     </div>
   </body>

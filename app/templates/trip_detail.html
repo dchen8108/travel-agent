@@ -14,11 +14,11 @@
     <h2>{{ trip.label }}</h2>
     <p>
       {% if trip.trip_kind == 'weekly' %}
-      This trip owns a rolling 12-week set of scheduled travel instances.
+      This plan owns a rolling set of scheduled travel dates.
       {% elif trip.active %}
-      This trip creates one scheduled trip instance and tracks its ranked route options.
+      This one-time trip owns a single scheduled date and its ranked route options.
       {% else %}
-      This trip is archived and hidden from the normal scheduled-trip views until you restore it.
+      This one-time trip is archived and hidden from the active workflow until you restore it.
       {% endif %}
     </p>
   </div>
@@ -96,8 +96,8 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Route options</p>
-      <h3>Ranked tracker definitions</h3>
-      <p class="muted">These are the search envelopes Travel Agent checks for each scheduled date this trip produces.</p>
+      <h3>Ranked route definitions</h3>
+      <p class="muted">These are the search envelopes Milemark checks for each scheduled date this trip produces.</p>
     </div>
   </div>
   <div class="stack">

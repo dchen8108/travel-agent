@@ -18,10 +18,7 @@
         {% endif %}
       </p>
     </div>
-    <p>{{ factual_reason }}</p>
-    {% if fare_snapshot_note %}
-    <p class="muted">{{ fare_snapshot_note }}</p>
-    {% endif %}
+    <p>{{ fare_snapshot_note or factual_reason }}</p>
   </div>
   <div class="hero-actions">
     {% if parent_trip.trip_kind == 'weekly' %}
@@ -146,14 +143,12 @@
     <div>
       <p class="eyebrow">Current options</p>
       <h3>Searches being monitored for this date</h3>
-      <p class="muted">
-        Travel Agent checks each route option in the background and keeps the best fare that still matches your exact departure window.
-      </p>
+      <p class="muted">Milemark checks each route option in the background and keeps the best fare that still matches your exact departure window.</p>
     </div>
     {% if total_fetch_targets and trip_instance.travel_state != 'skipped' %}
     <div class="section-actions">
       <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/trackers/queue-refresh">
-        <button type="submit" class="button secondary">Refresh sooner</button>
+        <button type="submit" class="button secondary">Check now</button>
       </form>
     </div>
     {% endif %}
@@ -209,7 +204,7 @@
       </div>
 
       {% if card.is_retrying %}
-      <p class="muted">A recent Google Flights request failed. Travel Agent will retry automatically.</p>
+      <p class="muted">A recent Google Flights request failed. Milemark will retry automatically.</p>
       {% endif %}
 
       {% if card.has_diagnostics %}

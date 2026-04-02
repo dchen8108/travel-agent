@@ -2,9 +2,9 @@
 {% block content %}
 <section class="hero compact">
   <div>
-    <p class="eyebrow">{{ 'Edit trip' if trip else 'New trip' }}</p>
-    <h2>{{ trip.label if trip else 'Build a trip around ranked route options.' }}</h2>
-    <p>Each route option is one Google Flights tracker definition. Rank them from most preferred to least preferred.</p>
+    <p class="eyebrow">{{ 'Edit trip' if trip else 'Design trip' }}</p>
+    <h2>{{ trip.label if trip else 'Build a travel plan around ranked route options.' }}</h2>
+    <p>Each route option is one search definition. Put the most preferred option first, then let the ranking do the rest.</p>
   </div>
 </section>
 
@@ -50,7 +50,7 @@
       <div class="section-header compact">
         <div>
           <p class="eyebrow">Preference</p>
-          <h3>How Travel Agent should choose between options</h3>
+          <h3>How Milemark should choose between options</h3>
         </div>
       </div>
       <div class="preference-mode-grid">
@@ -75,9 +75,8 @@
       <div class="section-header">
         <div>
           <p class="eyebrow">Route options</p>
-          <h3>Ranked tracker definitions</h3>
+          <h3>Ranked route definitions</h3>
           <p class="muted">A route option can include multiple airports and airlines, but only one day and one departure window.</p>
-          <p class="muted">Departure range refers to takeoff time, not total flight duration.</p>
         </div>
         <button type="button" class="button secondary" data-add-route-option>Add route option</button>
       </div>
