@@ -815,7 +815,7 @@ label {
   gap: 8px;
 }
 
-label span,
+label > span,
 .field > span {
   color: #485764;
   font-size: 0.78rem;
@@ -1030,6 +1030,7 @@ textarea {
 
 .choice-card {
   display: flex;
+  flex-direction: row;
   gap: 12px;
   align-items: start;
   padding: 18px;
@@ -1049,6 +1050,22 @@ textarea {
 .choice-card span {
   display: grid;
   gap: 4px;
+  min-width: 0;
+}
+
+.choice-card span strong {
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.choice-card span small {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .choice-card small {
