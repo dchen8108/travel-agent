@@ -190,3 +190,32 @@ def test_booking_email_ingest_is_idempotent_for_duplicate_message(repository: Re
     assert len(repository.load_bookings()) == 1
     assert len(repository.load_booking_email_events()) == 1
 
+
+def test_booking_email_ingest_records_retryable_error_event(repository: Repository, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: (_ for _ in ()).throw(RuntimeError("quota exceeded")),
+    )
+
+    message = _gmail_message(
+        message_id="msg-error",
+        subject="Your flight booking confirmation",
+        body_text="Confirmation code ABC123",
+    )
+    first = process_gmail_booking_message(repository, message=message, config=GmailIntegrationConfig())
+
+    assert first.event.processing_status == BookingEmailEventStatus.ERROR
+    assert "quota exceeded" in first.event.notes
+    assert len(repository.load_booking_email_events()) == 1
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="not_booking",
+            confidence=0.7,
+        ),
+    )
+    second = process_gmail_booking_message(repository, message=message, config=GmailIntegrationConfig())
+
+    assert second.event.processing_status == BookingEmailEventStatus.IGNORED
+    assert len(repository.load_booking_email_events()) == 1

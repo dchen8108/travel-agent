@@ -34,14 +34,14 @@ def process_gmail_booking_message(
         (event for event in repository.load_booking_email_events() if event.gmail_message_id == message.gmail_message_id),
         None,
     )
-    if existing_event is not None:
+    if existing_event is not None and existing_event.processing_status != BookingEmailEventStatus.ERROR:
         return BookingEmailProcessResult(
             event=existing_event,
             created_bookings=[],
             created_unmatched_bookings=[],
         )
 
-    event = BookingEmailEvent(
+    event = existing_event or BookingEmailEvent(
         email_event_id=new_id("mail"),
         gmail_message_id=message.gmail_message_id,
         gmail_thread_id=message.gmail_thread_id,
@@ -50,22 +50,36 @@ def process_gmail_booking_message(
         subject=message.subject,
         received_at=message.received_at,
     )
+    event.gmail_thread_id = message.gmail_thread_id
+    event.gmail_history_id = message.gmail_history_id
+    event.from_address = message.from_address
+    event.subject = message.subject
+    event.received_at = message.received_at
     lowered = _message_search_text(message)
     if _looks_like_non_booking(lowered, config):
         event.processing_status = BookingEmailEventStatus.IGNORED
         event.email_kind = "not_booking"
         event.notes = "Ignored by booking keyword gate."
         event.updated_at = utcnow()
-        repository.append_booking_email_events([event])
+        _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
 
-    extraction = extract_booking_email(
-        settings=repository.settings,
-        model=config.model,
-        from_address=message.from_address,
-        subject=message.subject,
-        body_text=message.body_text,
-    )
+    try:
+        extraction = extract_booking_email(
+            settings=repository.settings,
+            model=config.model,
+            from_address=message.from_address,
+            subject=message.subject,
+            body_text=message.body_text,
+        )
+    except Exception as exc:
+        event.processing_status = BookingEmailEventStatus.ERROR
+        event.email_kind = "unknown"
+        event.notes = f"Extraction failed: {type(exc).__name__}: {exc}"
+        event.updated_at = utcnow()
+        _upsert_booking_email_event(repository, event)
+        return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
+
     event.email_kind = extraction.email_kind
     event.extraction_confidence = extraction.confidence
     event.extracted_payload_json = extraction.model_dump_json(indent=2)
@@ -74,7 +88,7 @@ def process_gmail_booking_message(
         event.processing_status = BookingEmailEventStatus.IGNORED
         event.notes = _non_booking_reason(extraction)
         event.updated_at = utcnow()
-        repository.append_booking_email_events([event])
+        _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
 
     candidates = _candidates_from_extraction(extraction)
@@ -82,7 +96,7 @@ def process_gmail_booking_message(
         event.processing_status = BookingEmailEventStatus.ERROR
         event.notes = "The extractor did not return any valid booking legs."
         event.updated_at = utcnow()
-        repository.append_booking_email_events([event])
+        _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(event=event, created_bookings=[], created_unmatched_bookings=[])
 
     created_bookings: list[Booking] = []
@@ -119,7 +133,7 @@ def process_gmail_booking_message(
         event.processing_status = BookingEmailEventStatus.DUPLICATE
         event.notes = "All extracted legs already exist in the booking ledger."
 
-    repository.append_booking_email_events([event])
+    _upsert_booking_email_event(repository, event)
     return BookingEmailProcessResult(
         event=event,
         created_bookings=created_bookings,
@@ -217,3 +231,14 @@ def _same_booking(booking: Booking, candidate: BookingCandidate) -> bool:
         and booking.departure_time == candidate.departure_time
         and booking.record_locator == candidate.record_locator
     )
+
+
+def _upsert_booking_email_event(repository: Repository, event: BookingEmailEvent) -> None:
+    events = repository.load_booking_email_events()
+    for index, existing in enumerate(events):
+        if existing.gmail_message_id == event.gmail_message_id:
+            events[index] = event
+            break
+    else:
+        events.append(event)
+    repository.save_booking_email_events(events)
