@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from app.services.google_flights import build_google_flights_query_url
 from app.services.dashboard import archived_one_time_trips, horizon_instances_for_trip, past_instances_for_trip, scheduled_instances
-from app.services.trips import save_past_trip, save_trip, set_trip_active
+from app.services.trips import delete_trip, save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 
@@ -158,7 +158,51 @@ def test_deactivating_weekly_trip_preserves_existing_instances_without_growing_f
     assert all(instance.instance_kind == "generated" for instance in paused_instances)
 
 
-def test_trip_labels_must_be_unique(repository: Repository) -> None:
+def test_one_time_trip_labels_can_repeat_on_different_dates(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Conference Arrival",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    duplicate = save_trip(
+        repository,
+        trip_id=None,
+        label="Conference Arrival",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 12),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "SEA",
+                "destination_airports": "LAX",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "12:00",
+                "end_time": "16:00",
+            }
+        ],
+    )
+
+    assert duplicate.label == "Conference Arrival"
+
+
+def test_one_time_trip_label_and_date_must_be_unique(repository: Repository) -> None:
     save_trip(
         repository,
         trip_id=None,
@@ -186,7 +230,7 @@ def test_trip_labels_must_be_unique(repository: Repository) -> None:
             label="Conference Arrival",
             trip_kind="one_time",
             active=True,
-            anchor_date=date(2026, 5, 12),
+            anchor_date=date(2026, 5, 10),
             anchor_weekday="",
             route_option_payloads=[
                 {
@@ -200,9 +244,148 @@ def test_trip_labels_must_be_unique(repository: Repository) -> None:
             ],
         )
     except ValueError as exc:
-        assert "unique" in str(exc).lower()
+        assert str(exc) == "A one-time trip with this Trip Label and date already exists."
     else:
-        raise AssertionError("Expected duplicate trip labels to raise.")
+        raise AssertionError("Expected one-time label/date collision to raise.")
+
+
+def test_recurring_trip_labels_must_stay_unique(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Work Commute",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    try:
+        save_trip(
+            repository,
+            trip_id=None,
+            label="Work Commute",
+            trip_kind="weekly",
+            active=True,
+            anchor_date=None,
+            anchor_weekday="Tuesday",
+            route_option_payloads=[
+                {
+                    "origin_airports": "SFO",
+                    "destination_airports": "BUR",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "15:00",
+                    "end_time": "20:00",
+                }
+            ],
+        )
+    except ValueError as exc:
+        assert str(exc) == "Recurring trips must use a unique Trip Label."
+    else:
+        raise AssertionError("Expected duplicate recurring trip label to raise.")
+
+
+def test_one_time_trip_cannot_reuse_recurring_trip_label(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Work Commute",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    try:
+        save_trip(
+            repository,
+            trip_id=None,
+            label="Work Commute",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=date(2026, 5, 10),
+            anchor_weekday="",
+            route_option_payloads=[
+                {
+                    "origin_airports": "BUR",
+                    "destination_airports": "SFO",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "06:00",
+                    "end_time": "10:00",
+                }
+            ],
+        )
+    except ValueError as exc:
+        assert str(exc) == "This Trip Label is already used by a recurring trip."
+    else:
+        raise AssertionError("Expected recurring trip label collision to raise.")
+
+
+def test_deleted_one_time_trip_no_longer_blocks_same_label_and_date(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Conference Arrival",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+    delete_trip(repository, trip.trip_id)
+
+    replacement = save_trip(
+        repository,
+        trip_id=None,
+        label="Conference Arrival",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "SEA",
+                "destination_airports": "LAX",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "12:00",
+                "end_time": "16:00",
+            }
+        ],
+    )
+
+    assert replacement.trip_id != trip.trip_id
 
 
 def test_one_time_trip_creates_a_standalone_instance(repository: Repository) -> None:

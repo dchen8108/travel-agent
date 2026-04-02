@@ -17,13 +17,35 @@ def parse_preference_mode(raw: str) -> RoutePreferenceMode:
     return RoutePreferenceMode(raw)
 
 
-def ensure_unique_trip_label(trips: list[Trip], label: str, *, existing_trip_id: str | None = None) -> None:
-    normalized = label.strip().lower()
+def normalize_trip_label(label: str) -> str:
+    return label.strip().lower()
+
+
+def ensure_valid_trip_label(
+    trips: list[Trip],
+    label: str,
+    *,
+    trip_kind: TripKind,
+    anchor_date: date | None,
+    existing_trip_id: str | None = None,
+) -> None:
+    normalized = normalize_trip_label(label)
     for trip in trips:
         if existing_trip_id and trip.trip_id == existing_trip_id:
             continue
-        if trip.label.strip().lower() == normalized:
-            raise ValueError("Trip labels must be unique.")
+        if normalize_trip_label(trip.label) != normalized:
+            continue
+
+        if trip.trip_kind == TripKind.WEEKLY:
+            if trip_kind == TripKind.WEEKLY:
+                raise ValueError("Recurring trips must use a unique Trip Label.")
+            raise ValueError("This Trip Label is already used by a recurring trip.")
+
+        if trip_kind == TripKind.WEEKLY:
+            raise ValueError("Recurring trips must use a unique Trip Label.")
+
+        if trip.active and trip.anchor_date == anchor_date:
+            raise ValueError("A one-time trip with this Trip Label and date already exists.")
 
 
 def build_trip(
@@ -114,13 +136,20 @@ def save_trip(
 ) -> Trip:
     trips = repository.load_trips()
     route_options = repository.load_route_options()
-    ensure_unique_trip_label(trips, label, existing_trip_id=trip_id)
+    parsed_trip_kind = parse_trip_kind(trip_kind)
+    ensure_valid_trip_label(
+        trips,
+        label,
+        trip_kind=parsed_trip_kind,
+        anchor_date=anchor_date,
+        existing_trip_id=trip_id,
+    )
 
     existing_trip = next((trip for trip in trips if trip.trip_id == trip_id), None) if trip_id else None
     trip = build_trip(
         trip_id=trip_id,
         label=label,
-        trip_kind=trip_kind,
+        trip_kind=parsed_trip_kind,
         preference_mode=preference_mode,
         data_scope=data_scope,
         active=active,
@@ -155,7 +184,13 @@ def save_past_trip(
     anchor_date: date,
 ) -> Trip:
     trips = repository.load_trips()
-    ensure_unique_trip_label(trips, label, existing_trip_id=trip_id)
+    ensure_valid_trip_label(
+        trips,
+        label,
+        trip_kind=TripKind.ONE_TIME,
+        anchor_date=anchor_date,
+        existing_trip_id=trip_id,
+    )
 
     existing_trip = next((trip for trip in trips if trip.trip_id == trip_id), None) if trip_id else None
     trip = build_trip(

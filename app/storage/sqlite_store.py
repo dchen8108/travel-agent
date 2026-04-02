@@ -27,6 +27,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_data_scope_to_v7(connection)
     _migrate_bookings_to_v8(connection)
     _migrate_unmatched_bookings_to_v9(connection)
+    _migrate_trips_to_v10(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -407,6 +408,61 @@ def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_trips_to_v10(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trips"):
+        return
+    table_sql = (_table_sql(connection, "trips") or "").lower()
+    if "label text not null unique" not in table_sql:
+        return
+
+    connection.execute("ALTER TABLE trips RENAME TO trips_old_v10")
+    connection.execute(
+        """
+        CREATE TABLE trips (
+            trip_id TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            trip_kind TEXT NOT NULL,
+            preference_mode TEXT NOT NULL,
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            active INTEGER NOT NULL,
+            anchor_date TEXT NULL,
+            anchor_weekday TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO trips (
+            trip_id,
+            label,
+            trip_kind,
+            preference_mode,
+            data_scope,
+            active,
+            anchor_date,
+            anchor_weekday,
+            created_at,
+            updated_at
+        )
+        SELECT
+            trip_id,
+            label,
+            trip_kind,
+            preference_mode,
+            COALESCE(data_scope, 'live'),
+            active,
+            anchor_date,
+            anchor_weekday,
+            created_at,
+            updated_at
+        FROM trips_old_v10
+        """
+    )
+    connection.execute("DROP TABLE trips_old_v10")
+
+
 def _migrate_data_scope_to_v7(connection: sqlite3.Connection) -> None:
     scope_tables = (
         "trips",
@@ -572,6 +628,16 @@ def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
         (table,),
     ).fetchone()
     return row is not None
+
+
+def _table_sql(connection: sqlite3.Connection, table: str) -> str:
+    row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table,),
+    ).fetchone()
+    if row is None or row[0] is None:
+        return ""
+    return str(row[0])
 
 
 def _table_columns(connection: sqlite3.Connection, table: str) -> list[str]:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -67,7 +67,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     """
     CREATE TABLE IF NOT EXISTS trips (
         trip_id TEXT PRIMARY KEY,
-        label TEXT NOT NULL UNIQUE,
+        label TEXT NOT NULL,
         trip_kind TEXT NOT NULL,
         preference_mode TEXT NOT NULL,
         data_scope TEXT NOT NULL DEFAULT 'live',
@@ -193,6 +193,16 @@ DDL_STATEMENTS: tuple[str, ...] = (
     """,
     CREATE_PRICE_RECORDS_TABLE,
     "CREATE INDEX IF NOT EXISTS idx_trips_label ON trips(label)",
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_trips_recurring_label_unique
+    ON trips(lower(trim(label)))
+    WHERE trip_kind = 'weekly'
+    """,
+    """
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_trips_active_one_time_label_date_unique
+    ON trips(lower(trim(label)), anchor_date)
+    WHERE trip_kind = 'one_time' AND active = 1
+    """,
     "CREATE INDEX IF NOT EXISTS idx_route_options_trip_rank ON route_options(trip_id, rank)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_trip_anchor ON trip_instances(trip_id, anchor_date)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_anchor_state ON trip_instances(anchor_date, travel_state)",

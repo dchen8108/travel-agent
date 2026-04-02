@@ -313,9 +313,9 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
         "/trips",
         data={
             "label": "Conflict Trip",
-            "trip_kind": "one_time",
-            "anchor_date": "2026-04-07",
-            "anchor_weekday": "",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
             "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
         },
         follow_redirects=False,
@@ -340,7 +340,7 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
 
     assert response.status_code == 400
     assert "Trip not saved." in response.text
-    assert "Trip labels must be unique." in response.text
+    assert "This Trip Label is already used by a recurring trip." in response.text
     assert "<p class=\"eyebrow\">Edit trip</p>" in response.text
     assert f'name=\"trip_id\" value=\"{trip_id}\"' in response.text
 
