@@ -147,6 +147,7 @@ def _route_option_views(trip, route_options):
 def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     today = date.today()
     recurring_items = recurring_trips(snapshot)
+    archived_items = archived_one_time_trips(snapshot)
     recurring_ids = {trip.trip_id for trip in recurring_items}
     selected_recurring_trip_ids = [
         trip.trip_id
@@ -155,6 +156,7 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     ]
     selected_recurring_trip_id_set = set(selected_recurring_trip_ids)
     show_skipped = str(request.query_params.get("show_skipped", "")).lower() in {"1", "true", "on", "yes"}
+    show_archived = str(request.query_params.get("show_archived", "")).lower() in {"1", "true", "on", "yes"}
     search_query = str(request.query_params.get("q", "")).strip()
 
     scheduled_items = scheduled_instances(
@@ -188,9 +190,11 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
 
     return {
         "recurring_items": recurring_items,
+        "archived_items": archived_items,
         "scheduled_items": scheduled_items,
         "selected_recurring_trip_ids": selected_recurring_trip_ids,
         "show_skipped": show_skipped,
+        "show_archived": show_archived,
         "search_query": search_query,
         "total_active_scheduled": total_active_scheduled,
         "total_skipped_scheduled": total_skipped_scheduled,
@@ -267,7 +271,6 @@ def trips_index(
         request,
         page="trips",
         snapshot=snapshot,
-        archived_one_time_trips=archived_one_time_trips(snapshot),
         horizon_instances_for_trip=horizon_instances_for_trip,
         instances_for_trip=instances_for_trip,
         route_options_for_trip=route_options_for_trip,

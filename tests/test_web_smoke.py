@@ -170,11 +170,16 @@ def test_one_time_trip_delete_archives_and_can_be_restored(tmp_path: Path) -> No
     assert archive.headers["location"] == "/trips?message=Trip+archived"
 
     trips_page = client.get("/trips")
-    assert "Archive UI Trip" in trips_page.text
-    assert "Archived one-time trips" in trips_page.text
+    assert "Archive UI Trip" not in trips_page.text
+    assert "Archived one-time trips" not in trips_page.text
+    assert "Show archived (1)" in trips_page.text
 
     scheduled_results = client.get("/trips?partial=scheduled-results")
     assert "Archive UI Trip" not in scheduled_results.text
+
+    archived_page = client.get("/trips?show_archived=true")
+    assert "Archived one-time trips" in archived_page.text
+    assert "Archive UI Trip" in archived_page.text
 
     restore = client.post(f"/trips/{trip_id}/activate", headers={"referer": "/trips"}, follow_redirects=False)
     assert restore.status_code == 303

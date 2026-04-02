@@ -7,6 +7,11 @@
     <p>Recurring trips are the planning layer. Scheduled trips are the dated instances you actually book, skip, refresh, and monitor.</p>
   </div>
   <div class="hero-actions">
+    {% if archived_items %}
+    <a class="button ghost" href="{{ '/trips' if show_archived else '/trips?show_archived=true' }}">
+      {{ 'Hide archived' if show_archived else 'Show archived (' ~ archived_items|length ~ ')' }}
+    </a>
+    {% endif %}
     <a class="button primary" href="/trips/new">New trip</a>
   </div>
 </section>
@@ -78,7 +83,7 @@
 
 {% include "partials/scheduled_trips_section.html" %}
 
-{% if archived_one_time_trips %}
+{% if show_archived and archived_items %}
 <section class="section">
   <div class="section-header">
     <div>
@@ -88,7 +93,7 @@
     </div>
   </div>
   <div class="card-grid">
-    {% for trip in archived_one_time_trips %}
+    {% for trip in archived_items %}
     {% set instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today) %}
     <article class="card">
       <div class="card-header">
