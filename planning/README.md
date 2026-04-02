@@ -10,6 +10,7 @@ Use these first when you need the implementation as it exists today:
 - `sqlite-storage.md`: current SQLite-backed storage model and runtime layout
 - `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
 - `v1-ui-pass.md`: the recent UI/UX consolidation direction
+- `trip-groups-and-recurring-rules.md`: proposed direction for decomposing recurring trips into groups + rules
 
 The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the main source of truth for:
 
