@@ -803,6 +803,12 @@ button:disabled,
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.trip-kind-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -836,6 +842,29 @@ select {
   color: var(--ink);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.select-shell {
+  position: relative;
+}
+
+.select-shell::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #71808c;
+  border-bottom: 2px solid #71808c;
+  transform: translateY(-60%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select-shell select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 46px;
 }
 
 input::placeholder,
@@ -1028,6 +1057,10 @@ textarea {
 
 .choice-card.compact {
   min-height: 100%;
+}
+
+.trip-kind-choice {
+  min-height: 122px;
 }
 
 .choice-card:has(input:checked) {
@@ -1652,6 +1685,10 @@ code {
   }
 
   .two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .trip-kind-grid {
     grid-template-columns: 1fr;
   }
 

@@ -24,24 +24,38 @@
         <span>Trip label</span>
         <input type="text" name="label" value="{{ trip_form_state.label }}" required>
       </label>
-      <label>
+      <div class="field">
         <span>Trip kind</span>
-        <select name="trip_kind" data-trip-kind>
-          <option value="one_time" {{ 'selected' if trip_form_state.trip_kind == 'one_time' else '' }}>One-time</option>
-          <option value="weekly" {{ 'selected' if trip_form_state.trip_kind == 'weekly' else '' }}>Weekly</option>
-        </select>
-      </label>
+        <div class="trip-kind-grid">
+          <label class="choice-card compact trip-kind-choice">
+            <input type="radio" name="trip_kind" value="one_time" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'one_time' else '' }}>
+            <span>
+              <strong>One-time</strong>
+              <small>Create a single scheduled trip for one specific date.</small>
+            </span>
+          </label>
+          <label class="choice-card compact trip-kind-choice">
+            <input type="radio" name="trip_kind" value="weekly" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'weekly' else '' }}>
+            <span>
+              <strong>Weekly</strong>
+              <small>Generate a rolling set of dated trips from a recurring plan.</small>
+            </span>
+          </label>
+        </div>
+      </div>
       <label class="kind-one-time {{ '' if trip_form_state.trip_kind == 'one_time' else 'is-hidden' }}" data-anchor-date-field>
         <span>Anchor date</span>
         <input type="date" name="anchor_date" value="{{ trip_form_state.anchor_date }}">
       </label>
       <label class="kind-weekly {{ '' if trip_form_state.trip_kind == 'weekly' else 'is-hidden' }}" data-anchor-weekday-field>
         <span>Anchor weekday</span>
-        <select name="anchor_weekday" data-anchor-weekday>
-          {% for weekday in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-          <option value="{{ weekday }}" {{ 'selected' if trip_form_state.anchor_weekday == weekday else '' }}>{{ weekday }}</option>
-          {% endfor %}
-        </select>
+        <div class="select-shell">
+          <select name="anchor_weekday" data-anchor-weekday>
+            {% for weekday in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+            <option value="{{ weekday }}" {{ 'selected' if trip_form_state.anchor_weekday == weekday else '' }}>{{ weekday }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </label>
     </div>
     <p class="muted">New trips start active automatically. You can pause them later from the Trips page.</p>

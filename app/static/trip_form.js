@@ -8,13 +8,13 @@
   const form = document.querySelector("#trip-form");
   const root = form?.querySelector("[data-route-options]");
   const hidden = form?.querySelector('input[name="route_options_json"]');
-  const tripKindSelect = form?.querySelector("[data-trip-kind]");
+  const tripKindInputs = Array.from(form?.querySelectorAll('input[data-trip-kind]') || []);
   const preferenceModeInputs = Array.from(form?.querySelectorAll('input[name="preference_mode"]') || []);
   const anchorWeekdaySelect = form?.querySelector("[data-anchor-weekday]");
   const anchorDateField = form?.querySelector("[data-anchor-date-field]");
   const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
   const addRouteOptionButton = document.querySelector("[data-add-route-option]");
-  if (!form || !root || !hidden || !tripKindSelect || !anchorWeekdaySelect || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
+  if (!form || !root || !hidden || !tripKindInputs.length || !anchorWeekdaySelect || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
     return;
   }
 
@@ -42,8 +42,12 @@
     return preferenceModeInputs.find((input) => input.checked)?.value || tripState.trip?.preference_mode || "equal";
   }
 
+  function currentTripKind() {
+    return tripKindInputs.find((input) => input.checked)?.value || tripState.trip?.trip_kind || "weekly";
+  }
+
   function currentAnchorWeekday() {
-    if (tripKindSelect.value === "weekly") {
+    if (currentTripKind() === "weekly") {
       return anchorWeekdaySelect.value || "Monday";
     }
     const anchorDateValue = form.querySelector('input[name="anchor_date"]').value;
@@ -77,7 +81,7 @@
   }
 
   function syncKindVisibility() {
-    const oneTime = tripKindSelect.value === "one_time";
+    const oneTime = currentTripKind() === "one_time";
     anchorDateField.classList.toggle("is-hidden", !oneTime);
     anchorWeekdayField.classList.toggle("is-hidden", oneTime);
     render();
@@ -108,7 +112,7 @@
           <div class="field"><span>Origin airports</span><div data-field="origin_airports"></div></div>
           <div class="field"><span>Destination airports</span><div data-field="destination_airports"></div></div>
           <div class="field"><span>Airlines</span><div data-field="airlines"></div></div>
-          <div class="field"><span>Relative day</span><select data-field="day_offset"></select></div>
+          <div class="field"><span>Relative day</span><div class="select-shell"><select data-field="day_offset"></select></div></div>
           <div class="field"><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></div>
           <div class="field"><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></div>
           <div class="field full-width fare-policy-field">
@@ -249,7 +253,9 @@
     render();
   });
 
-  tripKindSelect.addEventListener("change", syncKindVisibility);
+  tripKindInputs.forEach((input) => {
+    input.addEventListener("change", syncKindVisibility);
+  });
   preferenceModeInputs.forEach((input) => {
     input.addEventListener("change", render);
   });
