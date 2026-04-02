@@ -46,6 +46,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     existing_fetch_targets = repository.load_tracker_fetch_targets()
     bookings = repository.load_bookings()
     unmatched_bookings = repository.load_unmatched_bookings()
+    booking_email_events = repository.load_booking_email_events()
     price_records = repository.load_price_records()
 
     trip_instances = reconcile_trip_instances(
@@ -98,6 +99,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         tracker_fetch_targets=tracker_fetch_targets,
         bookings=bookings,
         unmatched_bookings=unmatched_bookings,
+        booking_email_events=booking_email_events,
         price_records=price_records,
         app_state=app_state,
     )

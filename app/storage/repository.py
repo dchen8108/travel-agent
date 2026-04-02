@@ -8,6 +8,7 @@ from typing import Any, Iterator
 
 from app.models.base import AppState
 from app.models.booking import Booking
+from app.models.booking_email_event import BookingEmailEvent
 from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -36,6 +37,7 @@ LEGACY_CSV_MODELS: tuple[tuple[str, type], ...] = (
     ("tracker_fetch_targets.csv", TrackerFetchTarget),
     ("bookings.csv", Booking),
     ("unmatched_bookings.csv", UnmatchedBooking),
+    ("booking_email_events.csv", BookingEmailEvent),
     ("price_records.csv", PriceRecord),
 )
 
@@ -142,6 +144,7 @@ class Repository:
         query = """
             SELECT
                 booking_id,
+                source,
                 COALESCE(trip_instance_id, '') AS trip_instance_id,
                 COALESCE(tracker_id, '') AS tracker_id,
                 airline,
@@ -169,7 +172,7 @@ class Repository:
             rows.append(
                 {
                     "booking_id": booking.booking_id,
-                    "source": "manual",
+                    "source": booking.source,
                     "trip_instance_id": booking.trip_instance_id,
                     "tracker_id": booking.tracker_id or None,
                     "airline": booking.airline,
@@ -249,6 +252,28 @@ class Repository:
 
     def load_price_records(self) -> list[PriceRecord]:
         return self._load_models("SELECT * FROM price_records ORDER BY rowid", PriceRecord)
+
+    def load_booking_email_events(self) -> list[BookingEmailEvent]:
+        return self._load_models(
+            "SELECT * FROM booking_email_events ORDER BY received_at DESC, rowid DESC",
+            BookingEmailEvent,
+        )
+
+    def save_booking_email_events(self, events: list[BookingEmailEvent]) -> None:
+        self._replace_table(
+            "booking_email_events",
+            [item.model_dump(mode="json") for item in events],
+        )
+
+    def append_booking_email_events(self, events: list[BookingEmailEvent]) -> None:
+        if not events:
+            return
+        self.ensure_data_dir()
+        rows = [item.model_dump(mode="json") for item in events]
+        with self._borrow_connection() as (connection, own_connection):
+            append_rows(connection, "booking_email_events", rows)
+            if own_connection:
+                connection.commit()
 
     def append_price_records(self, records: list[PriceRecord]) -> None:
         if not records:

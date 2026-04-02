@@ -1,0 +1,28 @@
+{
+  "booking_keywords": [
+    "booking",
+    "confirmation",
+    "confirmation code",
+    "e-ticket",
+    "flight",
+    "itinerary",
+    "record locator",
+    "reservation",
+    "ticket"
+  ],
+  "enabled": true,
+  "inbox_label_ids": [
+    "INBOX"
+  ],
+  "max_messages_per_poll": 20,
+  "min_auto_create_confidence": 0.85,
+  "model": "gpt-5-mini",
+  "spam_keywords": [
+    "bonus miles",
+    "deal",
+    "newsletter",
+    "promotion",
+    "sale",
+    "unsubscribe"
+  ]
+}

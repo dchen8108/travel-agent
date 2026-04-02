@@ -2,6 +2,7 @@
 
 `travel-agent` now uses a local SQLite database at `data/travel_agent.sqlite3`.
 App-level config lives separately in `config/app_state.json`.
+Gmail poller config lives in `config/gmail_integration.json`.
 
 The migration strategy is pragmatic:
 
@@ -209,7 +210,29 @@ Key columns:
 - `arrival_label`
 - `price`
 - `offer_rank`
+
+### `booking_email_events`
+
+Append-only audit log for Gmail intake.
+
+Key columns:
+
+- `email_event_id`
+- `gmail_message_id`
+- `gmail_thread_id`
+- `gmail_history_id`
+- `from_address`
+- `subject`
+- `received_at`
+- `processing_status`
+- `email_kind`
+- `extraction_confidence`
+- `extracted_payload_json`
+- `result_booking_ids`
+- `result_unmatched_booking_ids`
+- `notes`
 - `created_at`
+- `updated_at`
 
 ## Relationships
 
@@ -222,6 +245,7 @@ Logical ownership remains:
 - `Tracker 1 -> N TrackerFetchTarget`
 - `TripInstance 1 -> N Booking`
 - `TrackerFetchTarget 1 -> N PriceRecord`
+- `Gmail message 1 -> 1 BookingEmailEvent`
 
 For this first migration, those relationships are maintained primarily by the repository and domain services rather than deep SQL normalization. That keeps the product stable while moving off CSVs.
 

@@ -412,6 +412,10 @@ small,
   margin-top: 12px;
 }
 
+.top-gap-medium {
+  margin-top: 24px;
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -451,10 +455,37 @@ textarea {
   text-transform: capitalize;
 }
 
+.badge.success {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.badge.neutral {
+  background: #f1ece1;
+  color: var(--muted);
+}
+
 .badge-stack {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.inline-note {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(241, 236, 225, 0.82);
+  color: var(--muted);
+}
+
+.booking-ingest-event .card-header {
+  align-items: start;
 }
 
 .button,

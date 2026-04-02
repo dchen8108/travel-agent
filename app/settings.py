@@ -17,6 +17,10 @@ class Settings(BaseModel):
     timezone: str = "America/Los_Angeles"
     future_weeks: int = 12
 
+    @property
+    def config_local_dir(self) -> Path:
+        return self.config_dir / "local"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

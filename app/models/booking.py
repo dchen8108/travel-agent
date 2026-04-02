@@ -11,6 +11,7 @@ from app.route_options import parse_time
 
 class Booking(CsvModel):
     booking_id: str
+    source: str = "manual"
     trip_instance_id: str
     tracker_id: str = ""
     airline: str

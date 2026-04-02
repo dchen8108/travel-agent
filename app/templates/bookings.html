@@ -14,6 +14,36 @@
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ booking_views|length }}</span><small>active bookings</small></div>
   <div class="summary-pill"><span>{{ open_unmatched|length }}</span><small>need resolution</small></div>
+  <div class="summary-pill"><span>{{ booking_email_counts.get('resolved_auto', 0) }}</span><small>auto-imported emails</small></div>
+</section>
+
+<section class="card booking-ingest-card">
+  <div class="card-header">
+    <div>
+      <strong>Gmail booking automation</strong>
+      <p class="muted">
+        {% if gmail_auth.ready %}
+        Connected. Travel Agent is watching your inbox for new booking confirmations.
+        {% elif gmail_auth.client_config_present %}
+        Ready to connect. Run the one-time auth command to let Travel Agent read booking emails.
+        {% else %}
+        Waiting for Gmail OAuth setup.
+        {% endif %}
+      </p>
+    </div>
+    <span class="badge {{ 'success' if gmail_auth.ready else 'warning' }}">{{ 'Connected' if gmail_auth.ready else 'Needs auth' }}</span>
+  </div>
+  <div class="meta-grid">
+    <div><dt>Inbox scope</dt><dd>{{ gmail_integration.inbox_label_ids|join(', ') }}</dd></div>
+    <div><dt>Poll batch</dt><dd>{{ gmail_integration.max_messages_per_poll }} messages</dd></div>
+    <div><dt>Model</dt><dd>{{ gmail_integration.model }}</dd></div>
+    <div><dt>Auto-create threshold</dt><dd>{{ '%.0f%%'|format(gmail_integration.min_auto_create_confidence * 100) }}</dd></div>
+  </div>
+  {% if not gmail_auth.ready %}
+  <div class="inline-note">
+    Run <code>{{ gmail_auth.authorize_command }}</code> once in the repo to finish Gmail authorization.
+  </div>
+  {% endif %}
 </section>
 
 {% if open_unmatched %}
@@ -63,4 +93,34 @@
   </article>
   {% endfor %}
 </div>
+
+<section class="card top-gap-medium">
+  <div class="card-header">
+    <div>
+      <strong>Recent email intake</strong>
+      <p class="muted">Every new Gmail message is classified once, then either attached automatically or sent to Resolve.</p>
+    </div>
+  </div>
+  <div class="stack compact">
+    {% for event in recent_email_events %}
+    <article class="subcard booking-ingest-event">
+      <div class="card-header">
+        <div>
+          <strong>{{ event.subject or '(No subject)' }}</strong>
+          <p class="muted">{{ event.from_address or 'Unknown sender' }} · {{ event.received_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        </div>
+        <span class="badge {{ 'success' if event.processing_status == 'resolved_auto' else 'warning' if event.processing_status == 'needs_resolution' else 'neutral' }}">
+          {{ event.processing_status.replace('_', ' ') }}
+        </span>
+      </div>
+      <p class="muted">{{ event.notes or 'Processed.' }}</p>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No email activity yet.</strong>
+      <p>Once Gmail automation is connected, recent booking-email results will show up here.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

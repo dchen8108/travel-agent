@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
+from app.services.gmail_client import gmail_auth_status
+from app.services.gmail_config import load_gmail_integration_config
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.dashboard import load_snapshot, trackers_for_instance, trip_for_instance, trip_instance_by_id
 from app.services.workflows import sync_and_persist
@@ -36,6 +38,17 @@ def _booking_views(snapshot):
     return cards
 
 
+def _booking_email_overview(snapshot) -> dict[str, object]:
+    recent_events = snapshot.booking_email_events[:8]
+    counts: dict[str, int] = {}
+    for event in snapshot.booking_email_events:
+        counts[str(event.processing_status)] = counts.get(str(event.processing_status), 0) + 1
+    return {
+        "recent_events": recent_events,
+        "counts": counts,
+    }
+
+
 @router.get("/bookings", response_class=HTMLResponse)
 def bookings_index(
     request: Request,
@@ -43,6 +56,8 @@ def bookings_index(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
+    gmail_config = load_gmail_integration_config(repository.settings)
+    email_overview = _booking_email_overview(snapshot)
     return get_templates(request).TemplateResponse(
         request=request,
         name="bookings.html",
@@ -52,6 +67,10 @@ def bookings_index(
             snapshot=snapshot,
             booking_views=_booking_views(snapshot),
             open_unmatched=open_unmatched,
+            gmail_auth=gmail_auth_status(repository.settings),
+            gmail_integration=gmail_config,
+            recent_email_events=email_overview["recent_events"],
+            booking_email_counts=email_overview["counts"],
         ),
     )
 

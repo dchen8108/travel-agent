@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 CREATE_PRICE_RECORDS_TABLE = """
@@ -158,6 +158,26 @@ DDL_STATEMENTS: tuple[str, ...] = (
         updated_at TEXT NOT NULL
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS booking_email_events (
+        email_event_id TEXT PRIMARY KEY,
+        gmail_message_id TEXT NOT NULL UNIQUE,
+        gmail_thread_id TEXT NOT NULL DEFAULT '',
+        gmail_history_id TEXT NOT NULL DEFAULT '',
+        from_address TEXT NOT NULL DEFAULT '',
+        subject TEXT NOT NULL DEFAULT '',
+        received_at TEXT NOT NULL,
+        processing_status TEXT NOT NULL,
+        email_kind TEXT NOT NULL DEFAULT 'unknown',
+        extraction_confidence REAL NOT NULL DEFAULT 0,
+        extracted_payload_json TEXT NOT NULL DEFAULT '',
+        result_booking_ids TEXT NOT NULL DEFAULT '',
+        result_unmatched_booking_ids TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
     CREATE_PRICE_RECORDS_TABLE,
     "CREATE INDEX IF NOT EXISTS idx_trips_label ON trips(label)",
     "CREATE INDEX IF NOT EXISTS idx_route_options_trip_rank ON route_options(trip_id, rank)",
@@ -169,6 +189,8 @@ DDL_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_bookings_trip_status ON bookings(trip_instance_id, booking_status, booked_at)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_match_status ON bookings(match_status, departure_date)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_record_locator ON bookings(record_locator)",
+    "CREATE INDEX IF NOT EXISTS idx_booking_email_events_status_received ON booking_email_events(processing_status, received_at)",
+    "CREATE INDEX IF NOT EXISTS idx_booking_email_events_received ON booking_email_events(received_at)",
     "CREATE INDEX IF NOT EXISTS idx_price_records_fetch_target_observed ON price_records(fetch_target_id, observed_at)",
     "CREATE INDEX IF NOT EXISTS idx_price_records_tracker_observed ON price_records(tracker_id, observed_at)",
     "CREATE INDEX IF NOT EXISTS idx_price_records_trip_instance_observed ON price_records(trip_instance_id, observed_at)",

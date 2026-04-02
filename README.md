@@ -25,8 +25,8 @@ This version is intentionally local and simple:
 - automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
 - append-only fetched offer history in the `price_records` SQLite table
+- Gmail inbox booking automation with OpenAI-backed extraction
 - no paid fare APIs
-- no Gmail automation
 - no credits or hotels
 
 Legacy CSV/JSON files are imported automatically the first time the app boots on SQLite. After migration, they can be moved out of `data/` and kept only as manual backup artifacts if you still want them.
@@ -41,6 +41,7 @@ Legacy CSV/JSON files are imported automatically the first time the app boots on
 - `Price Record`: one append-only fetched offer row captured for analytics history
 - `Booking`: a purchased itinerary attached to a trip instance
 - `Unmatched Booking`: a booking the system could not confidently place
+- `Booking Email Event`: one Gmail intake result, including ignored, auto-linked, duplicate, and needs-resolution outcomes
 
 ## Run
 
@@ -63,8 +64,48 @@ Then open `http://127.0.0.1:8000`.
 8. Open a recurring trip for parent-level details, route options, and scheduled dates.
 9. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, fare-policy labels, and booking state.
 10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
-11. Record bookings in the app.
+11. Record bookings manually or let Gmail automation create them automatically.
 12. Let the app continue comparing booked prices against tracker prices.
+
+## Gmail Booking Automation
+
+Travel Agent can poll a dedicated Gmail inbox, classify each new message once, and create booking rows automatically when the booking can be placed confidently.
+
+Setup:
+
+1. Put your Google desktop OAuth client JSON at:
+   - `config/local/gmail_oauth_client.json`
+2. Store your OpenAI API key locally:
+   - environment variable `OPENAI_API_KEY`, or
+   - `config/local/openai_api_key.txt`
+3. Run the one-time Gmail auth flow:
+
+```bash
+uv run python -m app.jobs.authorize_gmail_bookings
+```
+
+4. Install the Gmail poller launchd job:
+
+```bash
+uv run python -m app.jobs.install_launchd_booking_poller
+```
+
+How it behaves:
+
+- polls the inbox directly; no Gmail labels are required
+- quickly ignores obvious spam/newsletter messages with a cheap keyword gate
+- sends likely booking confirmations to an OpenAI extraction model
+- validates and matches extracted legs to existing trip instances/trackers
+- creates `Booking` rows automatically when matching is unambiguous
+- creates `Unmatched Booking` rows only when a real booking cannot be placed confidently
+- records every processed message in `booking_email_events`
+
+Useful commands:
+
+```bash
+uv run python -m app.jobs.poll_gmail_bookings --max-messages 10
+uv run python -m app.jobs.uninstall_launchd_booking_poller
+```
 
 ## Tests
 
@@ -168,6 +209,7 @@ The main logical tables are:
 - `trackers`
 - `tracker_fetch_targets`
 - `bookings`
+- `booking_email_events`
 - `price_records`
 
 There is still a narrow unresolved-booking view in the product, but it is backed by rows in `bookings` rather than a separate database.

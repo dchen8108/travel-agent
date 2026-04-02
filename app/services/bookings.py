@@ -29,12 +29,14 @@ class BookingCandidate:
 def _build_booking(
     candidate: BookingCandidate,
     *,
+    source: str,
     trip_instance_id: str,
     tracker_id: str = "",
     notes: str | None = None,
 ) -> Booking:
     return Booking(
         booking_id=new_id("book"),
+        source=source,
         trip_instance_id=trip_instance_id,
         tracker_id=tracker_id,
         airline=candidate.airline,
@@ -79,6 +81,7 @@ def record_booking(
     *,
     trip_instance_id: str = "",
     tracker_id: str = "",
+    source: str = "manual",
 ) -> tuple[Booking | None, UnmatchedBooking | None]:
     trip_instances = repository.load_trip_instances()
     trackers = repository.load_trackers()
@@ -92,6 +95,7 @@ def record_booking(
     if selected_tracker:
         booking = _build_booking(
             candidate,
+            source=source,
             trip_instance_id=selected_tracker.trip_instance_id,
             tracker_id=selected_tracker.tracker_id,
         )
@@ -107,6 +111,7 @@ def record_booking(
         matching_trackers = _matching_trackers_for_booking(candidate, candidate_trackers)
         booking = _build_booking(
             candidate,
+            source=source,
             trip_instance_id=selected_trip.trip_instance_id,
             tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         )
@@ -117,6 +122,7 @@ def record_booking(
         matched = matching_trackers[0]
         booking = _build_booking(
             candidate,
+            source=source,
             trip_instance_id=matched.trip_instance_id,
             tracker_id=matched.tracker_id,
         )
@@ -124,6 +130,7 @@ def record_booking(
 
     unmatched = UnmatchedBooking(
         unmatched_booking_id=new_id("ub"),
+        source=source,
         airline=candidate.airline,
         origin_airport=candidate.origin_airport,
         destination_airport=candidate.destination_airport,
@@ -172,6 +179,7 @@ def resolve_unmatched_booking_to_trip_instance(
 
     booking = _build_booking(
         candidate,
+        source=unmatched.source,
         trip_instance_id=trip_instance_id,
         tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         notes="Resolved from unmatched booking",

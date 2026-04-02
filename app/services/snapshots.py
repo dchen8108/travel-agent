@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.models.booking import Booking
+from app.models.booking_email_event import BookingEmailEvent
 from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -21,5 +22,6 @@ class AppSnapshot:
     tracker_fetch_targets: list[TrackerFetchTarget]
     bookings: list[Booking]
     unmatched_bookings: list[UnmatchedBooking]
+    booking_email_events: list[BookingEmailEvent]
     price_records: list[PriceRecord]
     app_state: object

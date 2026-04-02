@@ -28,6 +28,7 @@ def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnaps
         tracker_fetch_targets=repository.load_tracker_fetch_targets(),
         bookings=repository.load_bookings(),
         unmatched_bookings=repository.load_unmatched_bookings(),
+        booking_email_events=repository.load_booking_email_events(),
         price_records=repository.load_price_records(),
         app_state=repository.load_app_state(),
     )

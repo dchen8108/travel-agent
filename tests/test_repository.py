@@ -184,7 +184,7 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 3
+    assert user_version == 4
     assert "price_text" not in columns
     assert "summary" not in columns
     assert "request_offer_count" not in columns

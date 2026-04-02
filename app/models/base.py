@@ -71,6 +71,14 @@ class UnmatchedBookingStatus(StrEnum):
     RESOLVED = "resolved"
 
 
+class BookingEmailEventStatus(StrEnum):
+    IGNORED = "ignored"
+    RESOLVED_AUTO = "resolved_auto"
+    NEEDS_RESOLUTION = "needs_resolution"
+    DUPLICATE = "duplicate"
+    ERROR = "error"
+
+
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
     future_weeks: int = 12
