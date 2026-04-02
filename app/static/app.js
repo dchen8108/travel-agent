@@ -58,12 +58,13 @@
         closeModal();
         return;
       }
-      activeForm.dataset.confirmBypassed = "true";
+      const form = activeForm;
+      form.dataset.confirmBypassed = "true";
       closeModal();
-      if (typeof activeForm.requestSubmit === "function") {
-        activeForm.requestSubmit();
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
       } else {
-        activeForm.submit();
+        form.submit();
       }
     }
 
