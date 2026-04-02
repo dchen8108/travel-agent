@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     match_status TEXT NOT NULL DEFAULT 'matched',
     raw_summary TEXT NOT NULL DEFAULT '',
     candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
+    auto_link_enabled INTEGER NOT NULL DEFAULT 1,
     resolution_status TEXT NOT NULL DEFAULT 'resolved',
     notes TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,

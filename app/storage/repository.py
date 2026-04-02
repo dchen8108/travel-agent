@@ -212,6 +212,7 @@ class Repository:
                 record_locator,
                 raw_summary,
                 candidate_trip_instance_ids,
+                auto_link_enabled,
                 resolution_status,
                 created_at,
                 updated_at
@@ -243,6 +244,7 @@ class Repository:
                     "match_status": "unmatched",
                     "raw_summary": unmatched.raw_summary,
                     "candidate_trip_instance_ids": unmatched.candidate_trip_instance_ids,
+                    "auto_link_enabled": unmatched.auto_link_enabled,
                     "resolution_status": unmatched.resolution_status,
                     "notes": "",
                     "created_at": unmatched.created_at.isoformat(),

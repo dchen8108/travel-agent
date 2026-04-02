@@ -96,17 +96,22 @@ def recompute_trip_states(
     bookings: list[Booking],
 ) -> list[TripInstance]:
     trackers_by_instance: dict[str, list[Tracker]] = defaultdict(list)
-    active_booking_by_instance: dict[str, Booking] = {}
+    active_bookings_by_instance: dict[str, list[Booking]] = defaultdict(list)
 
     for tracker in trackers:
         trackers_by_instance[tracker.trip_instance_id].append(tracker)
     for booking in bookings:
         if booking.status == "active":
-            active_booking_by_instance[booking.trip_instance_id] = booking
+            active_bookings_by_instance[booking.trip_instance_id].append(booking)
 
     for instance in trip_instances:
         related_trackers = sorted(trackers_by_instance.get(instance.trip_instance_id, []), key=lambda item: item.rank)
-        booking = active_booking_by_instance.get(instance.trip_instance_id)
+        active_bookings = sorted(
+            active_bookings_by_instance.get(instance.trip_instance_id, []),
+            key=lambda item: (item.booked_at, item.created_at, item.booking_id),
+            reverse=True,
+        )
+        booking = active_bookings[0] if active_bookings else None
         is_past = instance.anchor_date < date.today()
         instance.last_signal_at = max(
             (tracker.last_signal_at for tracker in related_trackers if tracker.last_signal_at),

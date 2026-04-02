@@ -26,6 +26,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_price_records_to_v3(connection)
     _migrate_data_scope_to_v7(connection)
     _migrate_bookings_to_v8(connection)
+    _migrate_unmatched_bookings_to_v9(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -330,6 +331,17 @@ def _migrate_bookings_to_v8(connection: sqlite3.Connection) -> None:
         """
     )
     connection.execute("DROP TABLE bookings_old_v8")
+
+
+def _migrate_unmatched_bookings_to_v9(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "auto_link_enabled" in columns:
+        return
+    connection.execute(
+        "ALTER TABLE bookings ADD COLUMN auto_link_enabled INTEGER NOT NULL DEFAULT 1"
+    )
 
 
 def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:

@@ -25,6 +25,7 @@ class UnmatchedBooking(CsvModel):
     record_locator: str = ""
     raw_summary: str = ""
     candidate_trip_instance_ids: str = ""
+    auto_link_enabled: bool = True
     resolution_status: UnmatchedBookingStatus = UnmatchedBookingStatus.OPEN
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

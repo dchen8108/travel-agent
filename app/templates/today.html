@@ -44,6 +44,7 @@
     {% for instance in action_booked_instances %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card action-card status-rebook">
       <div class="card-header">
@@ -54,7 +55,7 @@
         <span class="badge">rebook</span>
       </div>
       <div class="meta-grid">
-        <div><dt>Booked at</dt><dd>{{ money(booking.booked_price) if booking else 'Unknown' }}</dd></div>
+        <div><dt>Bookings</dt><dd>{% if active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
         <div><dt>Current best</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Why now</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
@@ -133,6 +134,7 @@
     {% for instance in monitoring_preview %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card trip-card">
       <div class="card-header">
@@ -143,7 +145,7 @@
         <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
       </div>
       <div class="meta-grid">
-        <div><dt>Booked at</dt><dd>{{ money(booking.booked_price) if booking else 'Unknown' }}</dd></div>
+        <div><dt>Bookings</dt><dd>{% if active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
         <div><dt>Current best</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Status</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>

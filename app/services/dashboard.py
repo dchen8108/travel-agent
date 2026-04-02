@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 from app.money import format_money
 from app.models.base import FetchTargetStatus
+from app.models.base import BookingStatus
 from app.models.booking import Booking
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -39,15 +40,35 @@ def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnaps
     return filter_snapshot(snapshot, include_test_data=include_test_data_for_ui(app_state))
 
 
-def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Booking | None:
-    return next(
-        (
-            booking
-            for booking in snapshot.bookings
-            if booking.trip_instance_id == trip_instance_id and booking.status == "active"
+def bookings_for_instance(
+    snapshot: AppSnapshot,
+    trip_instance_id: str,
+    *,
+    statuses: set[str] | None = None,
+) -> list[Booking]:
+    relevant = [
+        booking
+        for booking in snapshot.bookings
+        if booking.trip_instance_id == trip_instance_id
+        and (statuses is None or booking.status in statuses)
+    ]
+    return sorted(
+        relevant,
+        key=lambda item: (
+            item.status != BookingStatus.ACTIVE,
+            -(item.booked_at.timestamp()),
+            item.booking_id,
         ),
-        None,
     )
+
+
+def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Booking | None:
+    active = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
+    return active[0] if active else None
+
+
+def active_booking_count_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> int:
+    return len(bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE}))
 
 
 def trip_by_id(snapshot: AppSnapshot, trip_id: str) -> Trip | None:
@@ -204,9 +225,28 @@ def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> 
     if instance.travel_state == "skipped":
         return "Skipped. Restore it to resume price checks."
     booking = booking_for_instance(snapshot, trip_instance_id)
+    active_bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
+    active_count = len(active_bookings)
     tracker = comparison_tracker(snapshot, trip_instance_id)
     if booking is not None:
         savings = rebook_savings(snapshot, trip_instance_id)
+        if active_count > 1:
+            if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
+                return (
+                    f"There are {active_count} active bookings linked. "
+                    f"The latest booked fare is {format_money(booking.booked_price)}, and the best current trip option is "
+                    f"{format_money(tracker.latest_observed_price)}."
+                )
+            if tracker is not None and tracker.latest_observed_price is not None:
+                return (
+                    f"There are {active_count} active bookings linked. "
+                    f"The latest booked fare is {format_money(booking.booked_price)}. "
+                    f"Current best option is {format_money(tracker.latest_observed_price)}."
+                )
+            return (
+                f"There are {active_count} active bookings linked. "
+                f"The latest booked fare is {format_money(booking.booked_price)}."
+            )
         if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
             return (
                 f"Current comparable price is {format_money(tracker.latest_observed_price)}, "

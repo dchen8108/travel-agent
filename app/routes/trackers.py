@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.money import format_money
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
+    bookings_for_instance,
     best_tracker,
     booking_for_instance,
     comparison_tracker,
@@ -191,6 +192,8 @@ def trackers_detail(
         if instance.trip_instance_id != trip_instance_id
     ]
     booking = booking_for_instance(snapshot, trip_instance_id)
+    bookings = bookings_for_instance(snapshot, trip_instance_id)
+    active_bookings = [item for item in bookings if item.status == "active"]
     best_current_tracker = best_tracker(snapshot, trip_instance_id)
     comparison = comparison_tracker(snapshot, trip_instance_id)
     status_label = factual_trip_status_label(snapshot, trip_instance_id)
@@ -202,9 +205,25 @@ def trackers_detail(
         if comparison and comparison.latest_observed_price is not None
         else "None yet"
     )
-    booked_fare_label = format_money(booking.booked_price) if booking else "Not booked"
+    if len(active_bookings) == 1 and booking is not None:
+        booked_fare_label = format_money(booking.booked_price)
+    elif len(active_bookings) > 1:
+        booked_fare_label = f"{len(active_bookings)} active"
+    else:
+        booked_fare_label = "Not booked"
     fare_snapshot_note = ""
-    if booking and savings is not None and comparison and comparison.latest_observed_price is not None:
+    if booking and len(active_bookings) > 1 and savings is not None and comparison and comparison.latest_observed_price is not None:
+        fare_snapshot_note = (
+            f"There are {len(active_bookings)} active bookings linked to this trip. "
+            f"The latest booked fare is {format_money(booking.booked_price)}, and the best current trip option is "
+            f"{format_money(comparison.latest_observed_price)}."
+        )
+    elif booking and len(active_bookings) > 1:
+        fare_snapshot_note = (
+            f"There are {len(active_bookings)} active bookings linked to this trip. "
+            f"The latest booked fare is {format_money(booking.booked_price)}."
+        )
+    elif booking and savings is not None and comparison and comparison.latest_observed_price is not None:
         fare_snapshot_note = (
             f"Travel Agent found a better current trip option at {format_money(comparison.latest_observed_price)}, "
             f"{format_money(savings)} below what you booked."
@@ -239,6 +258,8 @@ def trackers_detail(
             tracker_cards=tracker_cards,
             total_fetch_targets=total_fetch_targets,
             sibling_instances=sibling_instances,
+            bookings=bookings,
+            active_bookings=active_bookings,
             booking=booking,
             can_archive_parent_trip=can_archive_parent_trip,
             best_tracker=best_current_tracker,

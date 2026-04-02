@@ -45,12 +45,10 @@
     </form>
     {% endif %}
     {% endif %}
-    {% if booking %}
-    <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
-      <button class="button danger-outline" type="submit">Unlink booking</button>
-    </form>
-    {% elif trip_instance.travel_state == 'open' %}
-    <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Record booking</a>
+    {% if trip_instance.travel_state != 'skipped' %}
+    <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">{{ 'Add booking' if active_bookings else 'Record booking' }}</a>
+    {% endif %}
+    {% if trip_instance.travel_state == 'open' %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
       <button class="button danger" type="submit">Skip</button>
     </form>
@@ -68,6 +66,52 @@
   <div class="summary-pill"><span>{{ current_fare_label }}</span><small>best current fare</small></div>
   <div class="summary-pill"><span>{{ booked_fare_label }}</span><small>booked fare</small></div>
 </section>
+
+{% if bookings %}
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Bookings</p>
+      <h3>Flights linked to this scheduled trip</h3>
+      <p class="muted">
+        A scheduled trip can keep multiple bookings over time. Active bookings drive monitoring; cancelled bookings stay here as history.
+      </p>
+    </div>
+  </div>
+  <div class="stack">
+    {% for linked_booking in bookings %}
+    <article class="card booking-card {{ 'is-muted-card' if linked_booking.status != 'active' else '' }}">
+      <div class="card-header">
+        <div>
+          <strong>{{ linked_booking.origin_airport }} → {{ linked_booking.destination_airport }}</strong>
+          <p class="muted">
+            {{ linked_booking.departure_date.isoformat() }} · {{ linked_booking.departure_time }}{% if linked_booking.arrival_time %}–{{ linked_booking.arrival_time }}{% endif %} ·
+            {{ airline_label(linked_booking.airline) }}
+          </p>
+        </div>
+        <div class="badge-stack">
+          <span class="badge">{{ money(linked_booking.booked_price) }}</span>
+          <span class="status-pill {{ 'success' if linked_booking.status == 'active' else 'neutral' }}">{{ linked_booking.status }}</span>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Record locator</dt><dd>{{ linked_booking.record_locator or '—' }}</dd></div>
+        <div><dt>Booked on</dt><dd>{{ linked_booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
+        <div><dt>Source</dt><dd>{{ linked_booking.source.replace('_', ' ') }}</dd></div>
+        <div><dt>Notes</dt><dd>{{ linked_booking.notes or '—' }}</dd></div>
+      </div>
+      {% if linked_booking.status == 'active' %}
+      <div class="actions">
+        <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
+          <button class="button danger-outline" type="submit">Unlink booking</button>
+        </form>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 {% if sibling_instances %}
 <section class="section section-tight">

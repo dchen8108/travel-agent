@@ -401,6 +401,57 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     assert "View plan" not in detail.text
 
 
+def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Multi Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    trip_instance_url = response.headers["location"]
+    trip_instance_id = trip_instance_url.rsplit("/", 1)[1].split("?", 1)[0]
+
+    for locator in ["MULTI1", "MULTI2"]:
+        booking_response = client.post(
+            "/bookings",
+            data={
+                "trip_instance_id": trip_instance_id,
+                "airline": "Alaska",
+                "origin_airport": "BUR",
+                "destination_airport": "SFO",
+                "departure_date": "2026-04-06",
+                "departure_time": "07:10",
+                "arrival_time": "08:35",
+                "booked_price": "119",
+                "record_locator": locator,
+                "notes": "",
+            },
+            follow_redirects=False,
+        )
+        assert booking_response.status_code == 303
+
+    detail = client.get(trip_instance_url)
+    assert detail.status_code == 200
+    assert "Flights linked to this scheduled trip" in detail.text
+    assert "MULTI1" in detail.text
+    assert "MULTI2" in detail.text
+    assert "2 active" in detail.text
+
+
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

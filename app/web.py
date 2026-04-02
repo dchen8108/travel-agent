@@ -10,9 +10,12 @@ from app.catalog import airline_display, airline_label, airport_display, airport
 from app.money import format_money
 from app.route_options import day_offset_label, route_option_summary
 from app.services.dashboard import (
+    active_booking_count_for_instance,
+    bookings_for_instance,
     factual_trip_status_label,
     factual_trip_status_reason,
     factual_trip_status_tone,
+    booking_for_instance,
     rebook_savings,
 )
 from app.settings import Settings, get_settings
@@ -95,6 +98,9 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "money": format_money,
         "day_offset_label": day_offset_label,
         "route_option_summary": route_option_summary,
+        "booking_for_instance": booking_for_instance,
+        "bookings_for_instance": bookings_for_instance,
+        "active_booking_count_for_instance": active_booking_count_for_instance,
         "factual_trip_status_label": factual_trip_status_label,
         "factual_trip_status_reason": factual_trip_status_reason,
         "factual_trip_status_tone": factual_trip_status_tone,

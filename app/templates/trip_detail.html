@@ -171,6 +171,7 @@
     {% for instance in future_instances %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}">
       <div class="scheduled-card-head">
         <div class="scheduled-date">
@@ -188,7 +189,7 @@
       </div>
       <div class="meta-grid">
         <div><dt>Best matched</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Booking</dt><dd>{{ money(booking.booked_price) if booking else 'Open' }}</dd></div>
+        <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Open{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
         <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
       </div>
       <div class="actions">
