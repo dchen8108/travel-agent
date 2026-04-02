@@ -44,10 +44,7 @@
       <p class="muted card-note">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
-        {% if instance.travel_state == 'open' %}
-        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip"><button class="button danger" type="submit">Skip</button></form>
-        {% elif instance.travel_state == 'skipped' %}
+        {% if instance.travel_state == 'skipped' %}
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore"><button class="button secondary" type="submit">Unskip</button></form>
         {% endif %}
       </div>

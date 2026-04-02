@@ -3,8 +3,8 @@
 <section class="hero compact form-hero">
   <div>
     <p class="eyebrow">{{ 'Edit trip' if trip else 'Design trip' }}</p>
-    <h2>{{ trip.label if trip else 'Build a travel plan around ranked route options.' }}</h2>
-    <p>Set your preferred options in order, then let the ranking decide what wins.</p>
+    <h2>{{ trip.label if trip else 'Build a trip around ranked options.' }}</h2>
+    <p>Set the dates, order the routes, and let price decide what wins.</p>
   </div>
 </section>
 
@@ -47,7 +47,7 @@
             {% endfor %}
           </select>
         </div>
-        <small class="muted">Optional for one-time trips. If blank on a recurring rule, Milemark will create a matching group automatically.</small>
+        <small class="muted">Optional for one-time trips. Weekly rules can create a matching group automatically.</small>
         {% if not trip_groups %}
         <small class="muted">No groups yet. <a href="/groups/new">Create one first</a>.</small>
         {% endif %}
@@ -72,7 +72,7 @@
       <div class="section-header compact">
         <div>
           <p class="eyebrow">Preference</p>
-          <h3>How Milemark should choose between options</h3>
+          <h3>How to choose between options</h3>
         </div>
       </div>
       <div class="preference-mode-grid">

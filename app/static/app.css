@@ -172,18 +172,6 @@ p {
   font-weight: 700;
 }
 
-.sidebar-note {
-  margin-top: auto;
-  padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sidebar-note p {
-  color: rgba(215, 224, 229, 0.62);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
 .content {
   padding: 34px 38px 48px;
 }
@@ -354,11 +342,12 @@ p {
 }
 
 .hero.form-hero h2 {
-  max-width: 18ch;
+  max-width: 22ch;
+  font-size: clamp(1.9rem, 2.8vw, 2.6rem);
 }
 
 .hero.form-hero p {
-  max-width: 54ch;
+  max-width: 46ch;
 }
 
 .hero p {
@@ -1791,6 +1780,27 @@ textarea {
     linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 243, 235, 0.95));
 }
 
+.compact-surface-card {
+  padding: 20px 20px 18px;
+}
+
+.compact-surface-card .card-header {
+  gap: 12px;
+}
+
+.compact-surface-card .card-header strong {
+  font-size: 1.05rem;
+}
+
+.compact-surface-card .meta-grid {
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.compact-surface-card .actions {
+  gap: 10px;
+}
+
 .booking-card .meta-grid,
 .trip-card .meta-grid,
 .scheduled-card .meta-grid,
@@ -1868,10 +1878,6 @@ code {
   .nav a {
     flex: 0 0 auto;
     min-width: max-content;
-  }
-
-  .sidebar-note {
-    display: none;
   }
 
   .two-column {

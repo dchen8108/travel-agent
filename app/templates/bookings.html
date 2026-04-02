@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">Bookings</p>
     <h2>Every purchased flight, plus the few that still need a home.</h2>
-    <p>Keep active bookings clean, link unmatched imports, and retain the booking history that matters.</p>
+    <p>Keep active bookings clean, link unmatched imports, and retain the history that matters.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/bookings/new">Add booking</a>
@@ -97,14 +97,13 @@
     {% set booking = card.booking %}
     {% set trip_instance = card.trip_instance %}
     {% set parent_trip = card.parent_trip %}
-    <article class="card booking-card">
+    <article class="card booking-card compact-surface-card">
       <div class="card-header">
         <div>
-          <strong>{{ parent_trip.label if parent_trip else booking.origin_airport ~ ' → ' ~ booking.destination_airport }}</strong>
+          <strong>{{ booking.origin_airport }} → {{ booking.destination_airport }}</strong>
           <p class="muted">
-            {{ booking.departure_date.isoformat() }} · {{ booking.origin_airport }} → {{ booking.destination_airport }} ·
-            {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
-            {{ airline_label(booking.airline) }}
+            {{ booking.departure_date.isoformat() }} · {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
+            {{ airline_label(booking.airline) }}{% if trip_instance %} · {{ trip_instance.display_label }}{% elif parent_trip %} · {{ parent_trip.label }}{% endif %}
           </p>
         </div>
         <span class="badge">{{ money(booking.booked_price) }}</span>
@@ -145,14 +144,13 @@
     {% set booking = card.booking %}
     {% set trip_instance = card.trip_instance %}
     {% set parent_trip = card.parent_trip %}
-    <article class="card booking-card is-muted-card">
+    <article class="card booking-card is-muted-card compact-surface-card">
       <div class="card-header">
         <div>
-          <strong>{{ parent_trip.label if parent_trip else booking.origin_airport ~ ' → ' ~ booking.destination_airport }}</strong>
+          <strong>{{ booking.origin_airport }} → {{ booking.destination_airport }}</strong>
           <p class="muted">
-            {{ booking.departure_date.isoformat() }} · {{ booking.origin_airport }} → {{ booking.destination_airport }} ·
-            {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
-            {{ airline_label(booking.airline) }}
+            {{ booking.departure_date.isoformat() }} · {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
+            {{ airline_label(booking.airline) }}{% if trip_instance %} · {{ trip_instance.display_label }}{% elif parent_trip %} · {{ parent_trip.label }}{% endif %}
           </p>
         </div>
         <div class="badge-stack">
