@@ -10,7 +10,6 @@ from app.catalog import catalogs_json
 from app.models.base import DataScope, FareClassPolicy, TravelState
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
-    archived_one_time_trips,
     best_tracker,
     booking_for_instance,
     horizon_instances_for_trip,
@@ -148,7 +147,6 @@ def _route_option_views(trip, route_options):
 def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     today = date.today()
     recurring_items = recurring_trips(snapshot)
-    archived_items = archived_one_time_trips(snapshot)
     recurring_ids = {trip.trip_id for trip in recurring_items}
     selected_recurring_trip_ids = [
         trip.trip_id
@@ -157,7 +155,6 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     ]
     selected_recurring_trip_id_set = set(selected_recurring_trip_ids)
     show_skipped = str(request.query_params.get("show_skipped", "")).lower() in {"1", "true", "on", "yes"}
-    show_archived = str(request.query_params.get("show_archived", "")).lower() in {"1", "true", "on", "yes"}
     search_query = str(request.query_params.get("q", "")).strip()
 
     scheduled_items = scheduled_instances(
@@ -191,11 +188,9 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
 
     return {
         "recurring_items": recurring_items,
-        "archived_items": archived_items,
         "scheduled_items": scheduled_items,
         "selected_recurring_trip_ids": selected_recurring_trip_ids,
         "show_skipped": show_skipped,
-        "show_archived": show_archived,
         "search_query": search_query,
         "total_active_scheduled": total_active_scheduled,
         "total_skipped_scheduled": total_skipped_scheduled,
@@ -209,6 +204,8 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     today = today or date.today()
     trip = trip_by_id(snapshot, trip_id)
     if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.trip_kind == "one_time" and not trip.active:
         raise HTTPException(status_code=404, detail="Trip not found")
     route_options = route_options_for_trip(snapshot, trip.trip_id)
     future_instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
@@ -354,6 +351,8 @@ def edit_trip(
     trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.trip_kind == "one_time" and not trip.active:
+        raise HTTPException(status_code=404, detail="Trip not found")
     route_options = route_options_for_trip(snapshot, trip.trip_id)
     return _render_trip_form(
         request,
@@ -449,6 +448,11 @@ def activate_trip_action(
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
     try:
+        trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None)
+        if trip is None:
+            raise KeyError("Trip not found")
+        if trip.trip_kind == "one_time" and not trip.active:
+            raise KeyError("Trip not found")
         set_trip_active(repository, trip_id, True)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -499,7 +503,7 @@ def delete_trip_action(
         )
     delete_trip(repository, trip_id)
     sync_and_persist(repository)
-    return redirect_with_message("/trips", "Trip archived")
+    return redirect_with_message("/trips", "Trip deleted")
 
 
 @router.post("/trip-instances/{trip_instance_id}/skip")

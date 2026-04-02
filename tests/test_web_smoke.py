@@ -139,7 +139,7 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert "Booked" not in trips_page.text
 
 
-def test_one_time_trip_delete_archives_and_can_be_restored(tmp_path: Path) -> None:
+def test_one_time_trip_delete_removes_trip_from_user_visible_ui(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -165,26 +165,18 @@ def test_one_time_trip_delete_archives_and_can_be_restored(tmp_path: Path) -> No
 
     archive = client.post(f"/trips/{trip_id}/delete", follow_redirects=False)
     assert archive.status_code == 303
-    assert archive.headers["location"] == "/trips?message=Trip+archived"
+    assert archive.headers["location"] == "/trips?message=Trip+deleted"
 
     trips_page = client.get("/trips")
     assert "Archive UI Trip" not in trips_page.text
+    assert "Show archived" not in trips_page.text
     assert "Archived one-time trips" not in trips_page.text
-    assert "Show archived (1)" in trips_page.text
 
     scheduled_results = client.get("/trips?partial=scheduled-results")
     assert "Archive UI Trip" not in scheduled_results.text
 
-    archived_page = client.get("/trips?show_archived=true")
-    assert "Archived one-time trips" in archived_page.text
-    assert "Archive UI Trip" in archived_page.text
-
-    restore = client.post(f"/trips/{trip_id}/activate", headers={"referer": "/trips"}, follow_redirects=False)
-    assert restore.status_code == 303
-    assert restore.headers["location"].startswith("/trips?message=Trip+activated")
-
-    restored_scheduled = client.get("/trips?partial=scheduled-results")
-    assert "Archive UI Trip" in restored_scheduled.text
+    deleted_trip_page = client.get(f"/trips/{trip_id}")
+    assert deleted_trip_page.status_code == 404
 
 
 def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
@@ -780,7 +772,7 @@ def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> N
     create = client.post(
         "/trips",
         data={
-            "label": "Modal Archive Trip",
+            "label": "Modal Delete Trip",
             "trip_kind": "one_time",
             "anchor_date": "2026-04-06",
             "anchor_weekday": "",
@@ -792,8 +784,8 @@ def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> N
 
     detail = client.get(create.headers["location"])
     assert detail.status_code == 200
-    assert 'data-confirm-title="Archive this one-time trip?"' in detail.text
-    assert 'data-confirm-action="Archive trip"' in detail.text
+    assert 'data-confirm-title="Delete this one-time trip?"' in detail.text
+    assert 'data-confirm-action="Delete trip"' in detail.text
     assert "return confirm(" not in detail.text
 
 

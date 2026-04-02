@@ -182,6 +182,8 @@ def trackers_detail(
     parent_trip = trip_for_instance(snapshot, trip_instance_id)
     if parent_trip is None:
         raise HTTPException(status_code=404, detail="Parent trip not found")
+    if parent_trip.trip_kind == "one_time" and not parent_trip.active:
+        raise HTTPException(status_code=404, detail="Scheduled trip not found")
 
     trackers = trackers_for_instance(snapshot, trip_instance_id)
     total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)

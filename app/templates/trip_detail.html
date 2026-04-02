@@ -5,20 +5,16 @@
     <p class="eyebrow">
       {% if trip.trip_kind == 'weekly' %}
       Recurring trip
-      {% elif trip.active %}
-      One-time trip
       {% else %}
-      Archived one-time trip
+      One-time trip
       {% endif %}
     </p>
     <h2>{{ trip.label }}</h2>
     <p>
       {% if trip.trip_kind == 'weekly' %}
       This plan owns a rolling set of scheduled travel dates.
-      {% elif trip.active %}
-      This one-time trip owns a single scheduled date and its ranked route options.
       {% else %}
-      This one-time trip is archived and hidden from the active workflow until you restore it.
+      This one-time trip owns a single scheduled date and its ranked route options.
       {% endif %}
     </p>
   </div>
@@ -34,20 +30,16 @@
         </span>
       </button>
     </form>
-    {% elif trip.active and booked_count == 0 %}
+    {% elif booked_count == 0 %}
     <form
       method="post"
       action="/trips/{{ trip.trip_id }}/delete"
-      data-confirm-title="Archive this one-time trip?"
-      data-confirm-description="It will disappear from the active trip workflow, but you can restore it later from the archived section."
-      data-confirm-action="Archive trip"
+      data-confirm-title="Delete this one-time trip?"
+      data-confirm-description="It will disappear from the active trip workflow and stop background fare checks for this date."
+      data-confirm-action="Delete trip"
       data-confirm-cancel="Keep trip"
     >
       <button class="button ghost danger-outline" type="submit">Delete</button>
-    </form>
-    {% else %}
-    <form method="post" action="/trips/{{ trip.trip_id }}/activate">
-      <button class="button primary" type="submit">Restore trip</button>
     </form>
     {% endif %}
   </div>
