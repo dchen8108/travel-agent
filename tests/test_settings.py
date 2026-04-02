@@ -11,6 +11,7 @@ def test_settings_reject_unknown_fields(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         Settings(
             data_dir=tmp_path / "data",
+            config_dir=tmp_path / "config",
             templates_dir=Path("app/templates"),
             static_dir=Path("app/static"),
             unknown_field=tmp_path / "data" / "unused",

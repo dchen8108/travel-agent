@@ -11,6 +11,7 @@ class Settings(BaseModel):
 
     project_root: Path = Path(__file__).resolve().parents[1]
     data_dir: Path = project_root / "data"
+    config_dir: Path = project_root / "config"
     templates_dir: Path = project_root / "app" / "templates"
     static_dir: Path = project_root / "app" / "static"
     timezone: str = "America/Los_Angeles"

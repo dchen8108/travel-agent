@@ -17,7 +17,7 @@ from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
 from app.storage.csv_store import load_csv_models
-from app.storage.json_store import load_json_model
+from app.storage.json_store import load_json_model, save_json_model
 from app.storage.sqlite_store import (
     append_rows,
     connect,
@@ -25,8 +25,6 @@ from app.storage.sqlite_store import (
     immediate_transaction,
     initialize_schema,
     replace_rows,
-    table_has_rows,
-    upsert_singleton_row,
 )
 
 
@@ -52,15 +50,20 @@ class Repository:
     def db_path(self) -> Path:
         return self.settings.data_dir / "travel_agent.sqlite3"
 
+    @property
+    def app_state_path(self) -> Path:
+        return self.settings.config_dir / "app_state.json"
+
     def ensure_data_dir(self) -> None:
         if self._initialized:
             return
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
+        self.settings.config_dir.mkdir(parents=True, exist_ok=True)
         db_exists = self.db_path.exists()
         connection = connect(self.db_path)
         try:
             initialize_schema(connection)
-            has_app_state = table_has_rows(connection, "app_state")
+            db_app_state = self._load_db_app_state(connection)
         finally:
             connection.close()
 
@@ -68,8 +71,10 @@ class Repository:
         try:
             if not db_exists and self._legacy_storage_exists():
                 self._import_legacy_storage()
-            elif not has_app_state:
-                self.save_app_state(AppState())
+            elif not self.app_state_path.exists():
+                self.save_app_state(db_app_state or AppState())
+            if db_app_state is not None:
+                self._drop_db_app_state_table()
         except Exception:
             self._initialized = False
             raise
@@ -91,17 +96,11 @@ class Repository:
 
     def load_app_state(self) -> AppState:
         self.ensure_data_dir()
-        rows = self._fetch_rows(
-            "SELECT timezone, future_weeks, enable_background_fetcher, version FROM app_state WHERE id = 1"
-        )
-        if not rows:
-            return AppState()
-        return AppState.model_validate(rows[0])
+        return load_json_model(self.app_state_path, AppState, AppState())
 
     def save_app_state(self, app_state: AppState) -> None:
         self.ensure_data_dir()
-        row = {"id": 1, **app_state.model_dump(mode="json")}
-        self._write_singleton("app_state", row)
+        save_json_model(self.app_state_path, app_state)
 
     def load_trips(self) -> list[Trip]:
         return self._load_models("SELECT * FROM trips ORDER BY rowid", Trip)
@@ -274,12 +273,6 @@ class Repository:
             if own_connection:
                 connection.commit()
 
-    def _write_singleton(self, table: str, row: dict[str, Any]) -> None:
-        with self._borrow_connection() as (connection, own_connection):
-            upsert_singleton_row(connection, table, row)
-            if own_connection:
-                connection.commit()
-
     def _load_models(self, query: str, model_type: type, params: tuple[Any, ...] = ()) -> list:
         self.ensure_data_dir()
         rows = self._fetch_rows(query, params)
@@ -313,7 +306,6 @@ class Repository:
             for name, model_type in LEGACY_CSV_MODELS
         }
         with self.transaction():
-            self.save_app_state(app_state)
             self.save_trips(legacy_rows["trips.csv"])
             self.save_route_options(legacy_rows["route_options.csv"])
             self.save_trip_instances(legacy_rows["trip_instances.csv"])
@@ -322,3 +314,22 @@ class Repository:
             self.save_bookings(legacy_rows["bookings.csv"])
             self.save_unmatched_bookings(legacy_rows["unmatched_bookings.csv"])
             self.append_price_records(legacy_rows["price_records.csv"])
+        self.save_app_state(app_state)
+
+    def _load_db_app_state(self, connection: sqlite3.Connection) -> AppState | None:
+        try:
+            rows = fetch_all(
+                connection,
+                "SELECT timezone, future_weeks, enable_background_fetcher, version FROM app_state WHERE id = 1",
+            )
+        except sqlite3.OperationalError:
+            return None
+        if not rows:
+            return None
+        return AppState.model_validate(rows[0])
+
+    def _drop_db_app_state_table(self) -> None:
+        with self._borrow_connection() as (connection, own_connection):
+            connection.execute("DROP TABLE IF EXISTS app_state")
+            if own_connection:
+                connection.commit()

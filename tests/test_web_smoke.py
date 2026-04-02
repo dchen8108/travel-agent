@@ -14,6 +14,7 @@ from app.storage.repository import Repository
 def test_core_pages_render(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -30,6 +31,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -80,6 +82,7 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
 def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -109,6 +112,7 @@ def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> Non
 def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -150,6 +154,7 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
 def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -187,6 +192,7 @@ def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
 def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -242,6 +248,7 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
 def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -289,6 +296,7 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -343,6 +351,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
 def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -385,6 +394,7 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
 def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -427,6 +437,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
 def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -500,6 +511,7 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
 def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -542,6 +554,7 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
 def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -571,6 +584,7 @@ def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -624,6 +638,7 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
 def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -651,6 +666,7 @@ def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
 def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -691,6 +707,7 @@ def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
 def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -724,6 +741,7 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
 def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -752,6 +770,7 @@ def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
 def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -790,6 +809,7 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
 def test_resolve_flow_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
@@ -845,6 +865,7 @@ def test_resolve_flow_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
 def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )

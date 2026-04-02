@@ -18,6 +18,7 @@ This version is intentionally local and simple:
 
 - one user
 - local SQLite storage under `data/travel_agent.sqlite3`
+- checked-in app config under `config/app_state.json`
 - one-time or weekly trips
 - a rolling 12-week horizon for weekly trips
 - in-house Google Flights background fetching
@@ -141,12 +142,23 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 
 ## Storage
 
-The app now stores its runtime state in `data/travel_agent.sqlite3`.
+The app stores relational runtime data in `data/travel_agent.sqlite3`.
 
 The `data/` directory is still required at runtime because it holds:
 
 - the live SQLite database
 - launchd/background fetch logs under `data/logs/`
+
+App-level config now lives outside the database in:
+
+- [config/app_state.json](/Users/davidchen/code/travel-agent/config/app_state.json)
+
+That file is the source of truth for:
+
+- `timezone`
+- `future_weeks`
+- `enable_background_fetcher`
+- config schema `version`
 
 The main logical tables are:
 
@@ -157,7 +169,6 @@ The main logical tables are:
 - `tracker_fetch_targets`
 - `bookings`
 - `price_records`
-- `app_state`
 
 There is still a narrow unresolved-booking view in the product, but it is backed by rows in `bookings` rather than a separate database.
 

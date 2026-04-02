@@ -1,18 +1,9 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 DDL_STATEMENTS: tuple[str, ...] = (
-    """
-    CREATE TABLE IF NOT EXISTS app_state (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        timezone TEXT NOT NULL,
-        future_weeks INTEGER NOT NULL,
-        enable_background_fetcher INTEGER NOT NULL,
-        version INTEGER NOT NULL
-    )
-    """,
     """
     CREATE TABLE IF NOT EXISTS trips (
         trip_id TEXT PRIMARY KEY,

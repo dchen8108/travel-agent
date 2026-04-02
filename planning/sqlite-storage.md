@@ -1,6 +1,7 @@
 # SQLite Storage
 
 `travel-agent` now uses a local SQLite database at `data/travel_agent.sqlite3`.
+App-level config lives separately in `config/app_state.json`.
 
 The migration strategy is pragmatic:
 
@@ -9,16 +10,16 @@ The migration strategy is pragmatic:
 - import legacy CSV/JSON files automatically on first boot when the database does not exist yet
 - keep `price_records` append-only
 
-## Logical Tables
-
-### `app_state`
-
-Singleton row for:
+`config/app_state.json` is the source of truth for:
 
 - `timezone`
 - `future_weeks`
 - `enable_background_fetcher`
-- `version`
+- config schema `version`
+
+SQLite itself carries its schema version through `PRAGMA user_version`.
+
+## Logical Tables
 
 ### `trips`
 
