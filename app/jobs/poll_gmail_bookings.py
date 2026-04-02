@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import json
 import os
 import sys
@@ -66,15 +67,26 @@ def _retry_message_ids(repository: Repository, *, limit: int, max_retry_attempts
     return [event.gmail_message_id for event in errored_events[:limit]]
 
 
+@dataclass
+class MessageSelection:
+    message_ids: list[str]
+    latest_history_id: str
+    source_mode: str
+    new_message_ids: list[str]
+    retry_message_ids: list[str]
+    history_id_before: str
+
+
 def _select_message_ids_for_poll(
     repository: Repository,
     service,
     *,
     inbox_label_ids: list[str],
     sync_state_last_history_id: str,
+    max_messages: int,
     retry_limit: int,
     max_retry_attempts: int,
-) -> tuple[list[str], str, str]:
+) -> MessageSelection:
     existing_events = {event.gmail_message_id: event for event in repository.load_booking_email_events()}
     retry_ids = _retry_message_ids(repository, limit=retry_limit, max_retry_attempts=max_retry_attempts)
 
@@ -95,12 +107,26 @@ def _select_message_ids_for_poll(
             else:
                 raise
         new_ids = [message_id for message_id in incremental_ids if message_id not in existing_events]
-        return _dedupe_message_ids(new_ids + retry_ids), latest_history_id, source_mode
+        return MessageSelection(
+            message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
+            latest_history_id=latest_history_id,
+            source_mode=source_mode,
+            new_message_ids=new_ids,
+            retry_message_ids=retry_ids,
+            history_id_before=sync_state_last_history_id,
+        )
 
     mailbox_profile = get_mailbox_profile(service)
     backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
     new_ids = [message_id for message_id in backfill_ids if message_id not in existing_events]
-    return _dedupe_message_ids(new_ids + retry_ids), mailbox_profile["history_id"], "backfill"
+    return MessageSelection(
+        message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
+        latest_history_id=mailbox_profile["history_id"],
+        source_mode="backfill",
+        new_message_ids=new_ids,
+        retry_message_ids=retry_ids,
+        history_id_before="",
+    )
 
 
 def main() -> None:
@@ -128,25 +154,34 @@ def main() -> None:
         service = build_gmail_service(settings)
         sync_state = load_gmail_sync_state(settings)
         stage = "gmail_list"
-        message_ids, latest_history_id, history_mode = _select_message_ids_for_poll(
+        effective_max_messages = min(args.max_messages, config.max_messages_per_poll)
+        selection = _select_message_ids_for_poll(
             repository,
             service,
             inbox_label_ids=config.inbox_label_ids,
             sync_state_last_history_id=sync_state.last_history_id,
-            retry_limit=min(args.max_messages, config.max_messages_per_poll),
+            max_messages=effective_max_messages,
+            retry_limit=effective_max_messages,
             max_retry_attempts=config.max_retry_attempts,
         )
         _emit_log(
             "run_started",
             run_id=run_id,
             pid=os.getpid(),
-            selected_message_count=len(message_ids),
+            selected_message_count=len(selection.message_ids),
+            selected_message_ids=selection.message_ids,
+            new_message_count=len(selection.new_message_ids),
+            new_message_ids=selection.new_message_ids,
+            retry_message_count=len(selection.retry_message_ids),
+            retry_message_ids=selection.retry_message_ids,
+            effective_max_messages=effective_max_messages,
             max_messages=args.max_messages,
-            history_mode=history_mode,
+            history_mode=selection.source_mode,
+            history_id_before=selection.history_id_before,
         )
         stage = "process"
         any_state_changes = False
-        for message_id in reversed(message_ids):
+        for message_id in reversed(selection.message_ids):
             message = fetch_gmail_message(service, message_id)
             with repository.transaction():
                 result = process_gmail_booking_message(
@@ -178,12 +213,13 @@ def main() -> None:
                 created_booking_ids=result.event.result_booking_ids,
                 created_unmatched_booking_ids=result.event.result_unmatched_booking_ids,
                 notes=result.event.notes,
+                debug=result.debug_fields,
             )
 
         if any_state_changes:
             stage = "sync"
             sync_and_persist(repository)
-        sync_state.last_history_id = latest_history_id
+        sync_state.last_history_id = selection.latest_history_id
         sync_state.last_polled_at = utcnow()
         save_gmail_sync_state(settings, sync_state)
         _emit_log(
@@ -196,6 +232,8 @@ def main() -> None:
             ignored_count=ignored_count,
             duplicate_count=duplicate_count,
             error_count=error_count,
+            history_id_after=selection.latest_history_id,
+            state_changed=any_state_changes,
         )
     except (GmailAuthorizationRequired, HttpError, RuntimeError, ValueError) as exc:
         _emit_log(

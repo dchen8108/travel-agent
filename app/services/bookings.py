@@ -109,6 +109,17 @@ def _matching_trip_instance_ids_for_booking(candidate: BookingCandidate, tracker
     return sorted({tracker.trip_instance_id for tracker in matching_trackers})
 
 
+def matching_trip_instance_ids_for_booking(
+    repository: Repository,
+    candidate: BookingCandidate,
+    *,
+    data_scope: str = DataScope.LIVE,
+) -> list[str]:
+    include_test_data = include_test_data_for_processing(repository.load_app_state()) or str(data_scope) == DataScope.TEST
+    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
+    return _matching_trip_instance_ids_for_booking(candidate, trackers)
+
+
 def _candidate_from_unmatched(unmatched: UnmatchedBooking) -> BookingCandidate:
     return BookingCandidate(
         airline=unmatched.airline,
@@ -185,6 +196,7 @@ def record_booking(
     trip_instance_id: str = "",
     source: str = "manual",
     data_scope: str = DataScope.LIVE,
+    auto_link: bool = True,
 ) -> tuple[Booking | None, UnmatchedBooking | None]:
     app_state = repository.load_app_state()
     include_test_data = include_test_data_for_processing(app_state) or str(data_scope) == DataScope.TEST
@@ -203,7 +215,7 @@ def record_booking(
         return _save_booking(repository, booking), None
 
     matching_trip_instance_ids = _matching_trip_instance_ids_for_booking(candidate, trackers)
-    if len(matching_trip_instance_ids) == 1:
+    if auto_link and len(matching_trip_instance_ids) == 1:
         matched_trip_instance_id = matching_trip_instance_ids[0]
         matched_trip_instance = next(
             item for item in trip_instances if item.trip_instance_id == matched_trip_instance_id
@@ -232,6 +244,7 @@ def record_booking(
         candidate_trip_instance_ids="|".join(
             matching_trip_instance_ids
         ),
+        auto_link_enabled=auto_link,
     )
     unmatched_bookings = repository.load_unmatched_bookings()
     unmatched_bookings.append(unmatched)

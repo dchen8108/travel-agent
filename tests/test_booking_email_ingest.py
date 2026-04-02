@@ -123,6 +123,8 @@ def test_booking_email_ingest_auto_creates_booking(repository: Repository, monke
     assert booking.source == "gmail"
     assert booking.record_locator == "ABC123"
     assert repository.load_booking_email_events()[0].gmail_message_id == "msg-1"
+    assert result.debug_fields["llm"]["prepared_body"]
+    assert result.debug_fields["llm"]["parsed_output"]["record_locator"] == "ABC123"
 
 
 def test_booking_email_ingest_creates_unmatched_when_no_tracker_matches(repository: Repository, monkeypatch) -> None:
@@ -162,6 +164,47 @@ def test_booking_email_ingest_creates_unmatched_when_no_tracker_matches(reposito
     assert not result.created_bookings
     assert len(result.created_unmatched_bookings) == 1
     assert result.created_unmatched_bookings[0].source == "gmail"
+
+
+def test_booking_email_ingest_low_confidence_booking_stays_unmatched(repository: Repository, monkeypatch) -> None:
+    _seed_trip(repository)
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.72,
+            record_locator="LOW123",
+            total_price="121.40",
+            legs=[
+                BookingEmailLeg(
+                    airline="AS",
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    departure_date="2026-04-22",
+                    departure_time="07:15",
+                    arrival_time="08:40",
+                )
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-low-confidence",
+            subject="Your flight booking confirmation",
+            body_text="Confirmation code LOW123",
+        ),
+        config=GmailIntegrationConfig(min_auto_create_confidence=0.85),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.NEEDS_RESOLUTION
+    assert not result.created_bookings
+    assert len(result.created_unmatched_bookings) == 1
+    assert result.created_unmatched_bookings[0].auto_link_enabled is False
+    assert result.debug_fields["matching"]["auto_create_allowed"] is False
+
 
 
 def test_booking_email_ingest_is_idempotent_for_duplicate_message(repository: Repository, monkeypatch) -> None:
@@ -342,3 +385,67 @@ def test_booking_email_ingest_cancels_existing_booking(repository: Repository, m
     assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
     saved_booking = repository.load_bookings()[0]
     assert saved_booking.status == "cancelled"
+
+
+def test_booking_email_ingest_low_confidence_cancellation_does_not_apply(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 8),
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Southwest",
+        start_time="05:00",
+        end_time="09:00",
+    )
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="WN",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 6, 8),
+            departure_time="06:45",
+            arrival_time="08:05",
+            booked_price=121,
+            record_locator="LOWCAN",
+        ),
+        trip_instance_id=trip_instance_id,
+        source="gmail",
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="cancellation",
+            confidence=0.70,
+            record_locator="LOWCAN",
+            legs=[
+                BookingEmailLeg(
+                    airline="WN",
+                    origin_airport="LAX",
+                    destination_airport="SFO",
+                    departure_date="2026-06-08",
+                    departure_time="06:45",
+                    arrival_time="08:05",
+                    leg_status="cancelled",
+                )
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-low-cancel",
+            subject="Your flight has been canceled",
+            body_text="Record locator LOWCAN",
+        ),
+        config=GmailIntegrationConfig(min_auto_create_confidence=0.85),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.NEEDS_RESOLUTION
+    saved_booking = repository.load_bookings()[0]
+    assert saved_booking.status == "active"

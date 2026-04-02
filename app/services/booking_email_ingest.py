@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
 import json
@@ -12,8 +12,8 @@ from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.models.unmatched_booking import UnmatchedBooking
-from app.services.booking_extraction import BookingEmailExtraction, extract_booking_email
-from app.services.bookings import BookingCandidate, record_booking
+from app.services.booking_extraction import BookingEmailExtraction, extract_booking_email, prepare_booking_email_body
+from app.services.bookings import BookingCandidate, matching_trip_instance_ids_for_booking, record_booking
 from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.gmail_client import GmailMessage
 from app.services.ids import new_id
@@ -26,6 +26,7 @@ class BookingEmailProcessResult:
     created_bookings: list[Booking]
     created_unmatched_bookings: list[UnmatchedBooking]
     state_changed: bool = False
+    debug_fields: dict[str, object] = field(default_factory=dict)
 
 
 def process_gmail_booking_message(
@@ -69,19 +70,41 @@ def process_gmail_booking_message(
     event.subject = message.subject
     event.received_at = message.received_at
     event.retryable = True
+    debug_fields: dict[str, object] = {
+        "message_body_chars": len(message.body_text),
+        "gmail_history_id": message.gmail_history_id,
+        "keyword_gate": "passed",
+        "llm": {
+            "model": config.model,
+            "max_body_chars": config.max_body_chars,
+        },
+        "matching": {
+            "auto_create_confidence_threshold": config.min_auto_create_confidence,
+        },
+    }
     lowered = _message_search_text(message)
     if _looks_like_non_booking(lowered, config):
         event.processing_status = BookingEmailEventStatus.IGNORED
         event.email_kind = "not_booking"
         event.notes = "Ignored by booking keyword gate."
         event.updated_at = utcnow()
+        debug_fields["keyword_gate"] = "ignored"
+        debug_fields["keyword_gate_reason"] = "spam_keywords_matched_without_booking_keywords"
         _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
             created_unmatched_bookings=[],
             state_changed=False,
+            debug_fields=debug_fields,
         )
+
+    prepared_body_text = prepare_booking_email_body(message.body_text, max_chars=config.max_body_chars)
+    debug_fields["llm"] = {
+        **debug_fields["llm"],
+        "prepared_body_chars": len(prepared_body_text),
+        "prepared_body": prepared_body_text,
+    }
 
     try:
         event.extraction_attempt_count += 1
@@ -92,6 +115,7 @@ def process_gmail_booking_message(
             subject=message.subject,
             body_text=message.body_text,
             max_body_chars=config.max_body_chars,
+            prepared_body_text=prepared_body_text,
         )
     except Exception as exc:
         retryable = _is_retryable_extraction_error(exc)
@@ -102,21 +126,51 @@ def process_gmail_booking_message(
         if not retryable:
             event.notes = f"{event.notes} This email will not be retried automatically."
         event.updated_at = utcnow()
+        debug_fields["llm"] = {
+            **debug_fields["llm"],
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
         _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
             created_unmatched_bookings=[],
             state_changed=False,
+            debug_fields=debug_fields,
         )
 
     event.email_kind = extraction.email_kind
     event.extraction_confidence = extraction.confidence
     event.retryable = True
     event.extracted_payload_json = extraction.model_dump_json(indent=2)
+    debug_fields["llm"] = {
+        **debug_fields["llm"],
+        "parsed_output": json.loads(event.extracted_payload_json),
+    }
 
     if extraction.email_kind != "booking_confirmation":
         if extraction.email_kind == "cancellation":
+            if extraction.confidence < config.min_auto_create_confidence:
+                event.processing_status = BookingEmailEventStatus.NEEDS_RESOLUTION
+                event.notes = (
+                    f"Cancellation extraction confidence {extraction.confidence:.2f} "
+                    f"is below the auto-apply threshold {config.min_auto_create_confidence:.2f}."
+                )
+                event.updated_at = utcnow()
+                debug_fields["matching"] = {
+                    **debug_fields["matching"],
+                    "auto_apply_allowed": False,
+                    "candidate_count": len(extraction.legs),
+                }
+                _upsert_booking_email_event(repository, event)
+                return BookingEmailProcessResult(
+                    event=event,
+                    created_bookings=[],
+                    created_unmatched_bookings=[],
+                    state_changed=False,
+                    debug_fields=debug_fields,
+                )
             cancelled_bookings = _apply_cancellation(repository, extraction)
             event.result_booking_ids = "|".join(item.booking_id for item in cancelled_bookings)
             event.processing_status = (
@@ -128,12 +182,19 @@ def process_gmail_booking_message(
                 else "Cancellation email could not be matched automatically."
             )
             event.updated_at = utcnow()
+            debug_fields["matching"] = {
+                **debug_fields["matching"],
+                "auto_apply_allowed": True,
+                "cancelled_booking_ids": [item.booking_id for item in cancelled_bookings],
+                "candidate_count": len(extraction.legs),
+            }
             _upsert_booking_email_event(repository, event)
             return BookingEmailProcessResult(
                 event=event,
                 created_bookings=cancelled_bookings,
                 created_unmatched_bookings=[],
                 state_changed=bool(cancelled_bookings),
+                debug_fields=debug_fields,
             )
         event.processing_status = BookingEmailEventStatus.IGNORED
         event.notes = _non_booking_reason(extraction)
@@ -144,6 +205,7 @@ def process_gmail_booking_message(
             created_bookings=[],
             created_unmatched_bookings=[],
             state_changed=False,
+            debug_fields=debug_fields,
         )
 
     candidates = _candidates_from_extraction(extraction)
@@ -151,18 +213,42 @@ def process_gmail_booking_message(
         event.processing_status = BookingEmailEventStatus.ERROR
         event.notes = "The extractor did not return any valid booking legs."
         event.updated_at = utcnow()
+        debug_fields["matching"] = {
+            **debug_fields["matching"],
+            "candidate_count": 0,
+        }
         _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
             created_unmatched_bookings=[],
             state_changed=False,
+            debug_fields=debug_fields,
         )
 
     created_bookings: list[Booking] = []
     created_unmatched_bookings: list[UnmatchedBooking] = []
     duplicate_count = 0
+    auto_create_allowed = extraction.confidence >= config.min_auto_create_confidence
+    candidate_summaries: list[dict[str, object]] = []
     for candidate in candidates:
+        matching_trip_instance_ids = matching_trip_instance_ids_for_booking(
+            repository,
+            candidate,
+            data_scope=DataScope.LIVE,
+        )
+        candidate_summaries.append(
+            {
+                "airline": candidate.airline,
+                "origin_airport": candidate.origin_airport,
+                "destination_airport": candidate.destination_airport,
+                "departure_date": candidate.departure_date.isoformat(),
+                "departure_time": candidate.departure_time,
+                "arrival_time": candidate.arrival_time,
+                "record_locator": candidate.record_locator,
+                "matching_trip_instance_ids": matching_trip_instance_ids,
+            }
+        )
         if _booking_candidate_exists(repository, candidate):
             duplicate_count += 1
             continue
@@ -170,6 +256,7 @@ def process_gmail_booking_message(
             repository,
             candidate,
             source="gmail",
+            auto_link=auto_create_allowed,
         )
         if booking is not None:
             created_bookings.append(booking)
@@ -179,10 +266,23 @@ def process_gmail_booking_message(
     event.result_booking_ids = "|".join(item.booking_id for item in created_bookings)
     event.result_unmatched_booking_ids = "|".join(item.unmatched_booking_id for item in created_unmatched_bookings)
     event.updated_at = utcnow()
+    debug_fields["matching"] = {
+        **debug_fields["matching"],
+        "auto_create_allowed": auto_create_allowed,
+        "candidate_count": len(candidates),
+        "candidates": candidate_summaries,
+        "duplicate_count": duplicate_count,
+    }
 
     if created_unmatched_bookings:
         event.processing_status = BookingEmailEventStatus.NEEDS_RESOLUTION
-        event.notes = "One or more booking legs could not be matched confidently."
+        if not auto_create_allowed:
+            event.notes = (
+                f"Extraction confidence {extraction.confidence:.2f} is below the auto-create "
+                f"threshold {config.min_auto_create_confidence:.2f}; created unmatched booking(s) for review."
+            )
+        else:
+            event.notes = "One or more booking legs could not be matched confidently."
     elif created_bookings:
         event.processing_status = BookingEmailEventStatus.RESOLVED_AUTO
         if duplicate_count:
@@ -199,6 +299,7 @@ def process_gmail_booking_message(
         created_bookings=created_bookings,
         created_unmatched_bookings=created_unmatched_bookings,
         state_changed=bool(created_bookings or created_unmatched_bookings),
+        debug_fields=debug_fields,
     )
 
 

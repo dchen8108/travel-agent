@@ -49,18 +49,19 @@ def test_select_message_ids_for_poll_backfills_unseen_and_retries_errors(reposit
         lambda service: {"email_address": "booking@example.com", "history_id": "200"},
     )
 
-    message_ids, latest_history_id, mode = _select_message_ids_for_poll(
+    selection = _select_message_ids_for_poll(
         repository,
         object(),
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="",
+        max_messages=5,
         retry_limit=5,
         max_retry_attempts=2,
     )
 
-    assert message_ids == ["msg-new", "msg-retry"]
-    assert latest_history_id == "200"
-    assert mode == "backfill"
+    assert selection.message_ids == ["msg-new", "msg-retry"]
+    assert selection.latest_history_id == "200"
+    assert selection.source_mode == "backfill"
 
 
 def test_select_message_ids_for_poll_uses_incremental_history(repository, monkeypatch) -> None:
@@ -76,18 +77,19 @@ def test_select_message_ids_for_poll_uses_incremental_history(repository, monkey
         lambda service, *, start_history_id, label_id=None: (["msg-fresh", "msg-known"], "300"),
     )
 
-    message_ids, latest_history_id, mode = _select_message_ids_for_poll(
+    selection = _select_message_ids_for_poll(
         repository,
         object(),
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="250",
+        max_messages=5,
         retry_limit=5,
         max_retry_attempts=2,
     )
 
-    assert message_ids == ["msg-fresh", "msg-retry"]
-    assert latest_history_id == "300"
-    assert mode == "incremental"
+    assert selection.message_ids == ["msg-fresh", "msg-retry"]
+    assert selection.latest_history_id == "300"
+    assert selection.source_mode == "incremental"
 
 
 def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(repository, monkeypatch) -> None:
@@ -109,18 +111,19 @@ def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(r
         lambda service: {"email_address": "booking@example.com", "history_id": "400"},
     )
 
-    message_ids, latest_history_id, mode = _select_message_ids_for_poll(
+    selection = _select_message_ids_for_poll(
         repository,
         object(),
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="350",
+        max_messages=5,
         retry_limit=5,
         max_retry_attempts=2,
     )
 
-    assert message_ids == ["msg-backfill"]
-    assert latest_history_id == "400"
-    assert mode == "history_reset_backfill"
+    assert selection.message_ids == ["msg-backfill"]
+    assert selection.latest_history_id == "400"
+    assert selection.source_mode == "history_reset_backfill"
 
 
 def test_select_message_ids_for_poll_skips_nonretryable_and_exhausted_errors(repository, monkeypatch) -> None:
@@ -141,15 +144,47 @@ def test_select_message_ids_for_poll_skips_nonretryable_and_exhausted_errors(rep
         lambda service: {"email_address": "booking@example.com", "history_id": "200"},
     )
 
-    message_ids, latest_history_id, mode = _select_message_ids_for_poll(
+    selection = _select_message_ids_for_poll(
         repository,
         object(),
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="",
+        max_messages=5,
         retry_limit=5,
         max_retry_attempts=2,
     )
 
-    assert message_ids == ["msg-transient"]
-    assert latest_history_id == "200"
-    assert mode == "backfill"
+    assert selection.message_ids == ["msg-transient"]
+    assert selection.latest_history_id == "200"
+    assert selection.source_mode == "backfill"
+
+
+def test_select_message_ids_for_poll_applies_hard_cap_after_deduping(repository, monkeypatch) -> None:
+    repository.save_booking_email_events(
+        [
+            _event("msg-retry", "error", hour=8),
+        ]
+    )
+
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.list_all_inbox_message_ids",
+        lambda service, *, label_ids: ["msg-new-1", "msg-new-2", "msg-new-3"],
+    )
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.get_mailbox_profile",
+        lambda service: {"email_address": "booking@example.com", "history_id": "200"},
+    )
+
+    selection = _select_message_ids_for_poll(
+        repository,
+        object(),
+        inbox_label_ids=["INBOX"],
+        sync_state_last_history_id="",
+        max_messages=2,
+        retry_limit=2,
+        max_retry_attempts=2,
+    )
+
+    assert selection.message_ids == ["msg-new-1", "msg-new-2"]
+    assert selection.new_message_ids == ["msg-new-1", "msg-new-2", "msg-new-3"]
+    assert selection.retry_message_ids == ["msg-retry"]

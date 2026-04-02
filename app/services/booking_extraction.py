@@ -170,6 +170,7 @@ def extract_booking_email(
     subject: str,
     body_text: str,
     max_body_chars: int,
+    prepared_body_text: str | None = None,
 ) -> BookingEmailExtraction:
     api_key = openai_api_key(settings)
     if not api_key:
@@ -178,6 +179,10 @@ def extract_booking_email(
         )
 
     client = OpenAI(api_key=api_key)
+    prepared_body = prepared_body_text if prepared_body_text is not None else prepare_booking_email_body(
+        body_text,
+        max_chars=max_body_chars,
+    )
     response = client.responses.parse(
         model=model,
         input=[
@@ -188,7 +193,7 @@ def extract_booking_email(
                     "Parse this email into the schema.\n\n"
                     f"From: {from_address}\n"
                     f"Subject: {subject}\n\n"
-                    f"{prepare_booking_email_body(body_text, max_chars=max_body_chars)}"
+                    f"{prepared_body}"
                 ),
             },
         ],
