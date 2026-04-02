@@ -32,6 +32,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_trip_groups_to_v11(connection)
     _migrate_status_enums_to_v12(connection)
     _migrate_group_memberships_to_v13(connection)
+    _migrate_weekly_rule_legacy_groups_to_v14(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -624,6 +625,22 @@ def _migrate_group_memberships_to_v13(connection: sqlite3.Connection) -> None:
                 row["instance_updated_at"],
             ),
         )
+
+
+def _migrate_weekly_rule_legacy_groups_to_v14(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trips"):
+        return
+    trip_columns = _table_columns(connection, "trips")
+    if "trip_group_id" not in trip_columns:
+        return
+    connection.execute(
+        """
+        UPDATE trips
+        SET trip_group_id = ''
+        WHERE trip_kind = 'weekly'
+          AND COALESCE(trip_group_id, '') != ''
+        """
+    )
 
 
 def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:

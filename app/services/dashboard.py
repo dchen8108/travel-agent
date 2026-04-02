@@ -95,8 +95,6 @@ def groups_for_rule(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -
         for target in snapshot.rule_group_targets
         if target.rule_trip_id == trip.trip_id
     ]
-    if not group_ids and getattr(trip, "trip_group_id", ""):
-        group_ids = [trip.trip_group_id]
     groups = [
         trip_group_by_id(snapshot, trip_group_id)
         for trip_group_id in sorted(set(group_ids))
@@ -527,11 +525,7 @@ def recurring_rules_for_group(snapshot: AppSnapshot, trip_group_id: str) -> list
         [
             trip
             for trip in snapshot.trips
-            if trip.trip_kind == "weekly"
-            and (
-                trip.trip_id in rule_trip_ids
-                or (not rule_trip_ids and getattr(trip, "trip_group_id", "") == trip_group_id)
-            )
+            if trip.trip_kind == "weekly" and trip.trip_id in rule_trip_ids
         ],
         key=lambda item: item.label.lower(),
     )

@@ -8,10 +8,12 @@ from app.services.groups import save_trip_group
 from app.services.google_flights import build_google_flights_query_url
 from app.services.dashboard import (
     archived_one_time_trips,
+    groups_for_rule,
     groups_for_instance,
     horizon_instances_for_rule,
     horizon_instances_for_trip,
     past_instances_for_trip,
+    recurring_rules_for_group,
     scheduled_instances,
 )
 from app.services.trip_instances import delete_generated_trip_instance, detach_generated_trip_instance
@@ -671,6 +673,44 @@ def test_weekly_rule_horizon_includes_detached_occurrences(repository: Repositor
     rule_horizon = horizon_instances_for_rule(refreshed, trip.trip_id, today=date(2026, 3, 31))
 
     assert any(item.trip_instance_id == generated.trip_instance_id for item in rule_horizon)
+
+
+def test_weekly_rules_ignore_legacy_group_field_after_targets_are_removed(repository: Repository) -> None:
+    group = save_trip_group(repository, trip_group_id=None, label="Work travel")
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Legacy weekly group fallback",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        trip_group_ids=[group.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
+    assert [item.trip_group_id for item in groups_for_rule(snapshot, trip)] == [group.trip_group_id]
+    assert [item.trip_id for item in recurring_rules_for_group(snapshot, group.trip_group_id)] == [trip.trip_id]
+
+    trips = repository.load_trips()
+    stored_trip = next(item for item in trips if item.trip_id == trip.trip_id)
+    stored_trip.trip_group_id = group.trip_group_id
+    repository.save_trips(trips)
+    repository.replace_rule_group_targets_for_rule(trip.trip_id, [])
+
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+    assert groups_for_rule(refreshed, trip.trip_id) == []
+    assert recurring_rules_for_group(refreshed, group.trip_group_id) == []
 
 
 def test_deleting_generated_trip_instance_tombstones_and_suppresses_regeneration(repository: Repository) -> None:
