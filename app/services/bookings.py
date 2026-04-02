@@ -55,9 +55,7 @@ def _build_booking(
 
 
 def _save_booking(repository: Repository, booking: Booking) -> Booking:
-    bookings = repository.load_bookings()
-    bookings.append(booking)
-    repository.save_bookings(bookings)
+    repository.upsert_bookings([booking])
     return booking
 
 
@@ -246,9 +244,7 @@ def record_booking(
         ),
         auto_link_enabled=auto_link,
     )
-    unmatched_bookings = repository.load_unmatched_bookings()
-    unmatched_bookings.append(unmatched)
-    repository.save_unmatched_bookings(unmatched_bookings)
+    repository.upsert_unmatched_bookings([unmatched])
     return None, unmatched
 
 
@@ -285,7 +281,7 @@ def resolve_unmatched_booking_to_trip_instance(
         _save_booking(repository, booking)
         unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
         unmatched.updated_at = utcnow()
-        repository.save_unmatched_bookings(unmatched_bookings)
+        repository.upsert_unmatched_bookings([unmatched])
     return booking
 
 
@@ -369,12 +365,10 @@ def unlink_booking(
     if booking is None or booking.status != "active":
         raise KeyError("Booking not found")
 
-    unmatched_bookings = repository.load_unmatched_bookings()
     replacement = _booking_to_unmatched(booking)
 
     with repository.transaction():
-        repository.save_bookings([item for item in bookings if item.booking_id != booking_id])
-        repository.save_unmatched_bookings(
-            [item for item in unmatched_bookings if item.unmatched_booking_id != booking_id] + [replacement]
-        )
+        repository.delete_bookings_by_ids([booking_id])
+        repository.delete_unmatched_bookings_by_ids([booking_id])
+        repository.upsert_unmatched_bookings([replacement])
     return replacement

@@ -1,4 +1,19 @@
 (() => {
+  const travelAgentApp = window.travelAgentApp || {};
+
+  function readJsonScript(scriptId, fallbackValue = null) {
+    const node = document.getElementById(scriptId);
+    if (!node || !node.textContent) {
+      return fallbackValue;
+    }
+    try {
+      return JSON.parse(node.textContent);
+    } catch (error) {
+      console.error(`Could not parse JSON payload from #${scriptId}.`, error);
+      return fallbackValue;
+    }
+  }
+
   function initToast() {
     const toast = document.querySelector("[data-toast]");
     if (!toast) {
@@ -111,6 +126,9 @@
       }
     });
   }
+
+  travelAgentApp.readJsonScript = readJsonScript;
+  window.travelAgentApp = travelAgentApp;
 
   initToast();
   initConfirmModal();

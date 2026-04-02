@@ -1,30 +1,46 @@
 # Planning
 
-This directory holds the current product and technical plan for the `travel-agent` MVP.
+This directory mixes current operational notes with older design docs from the v0 iteration. The repo has moved significantly since the early planning files were written.
 
-The current design baseline is:
+## Current References
 
-- `travel-agent` is a tracker-of-trackers
-- the top-level object is a `Trip`, not a `Rule`
+Use these first when you need the implementation as it exists today:
+
+- `agent-checkpoint.md`: current product/runtime snapshot and bootstrap guide for a fresh agent
+- `sqlite-storage.md`: current SQLite-backed storage model and runtime layout
+- `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
+- `v1-ui-pass.md`: the recent UI/UX consolidation direction
+
+The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the main source of truth for:
+
+- current runtime architecture
+- launchd jobs
+- Gmail booking automation
+- background fetch behavior
+- storage/config layout
+
+## Historical Design Docs
+
+These files are still useful for intent and original tradeoffs, but they are not authoritative descriptions of the current product:
+
+- `v0-product-spec.md`
+- `v0-wireframes.md`
+- `v0-data-model.md`
+- `v0-tech-spec.md`
+- `implementation-plan.md`
+- `google-flights-poc.md`
+
+Read them as historical design context, not current schema or route documentation.
+
+## Current Product Baseline
+
+- `travel-agent` is a local-first recurring flight control panel
+- `Trip` is the top-level planning object
 - trips can be `one_time` or `weekly`
-- weekly trips are parent plans
-- dated trip instances are the scheduled trips the user actually flies
-- skipped trip instances are hidden by default and can be surfaced again through scheduled-trip filters
+- weekly trips own rolling scheduled instances
+- one-time trips use their scheduled-trip page as the canonical operational surface
 - route options are ranked tracker definitions under a trip
-- each tracker can fan out into concrete airport-pair fetch targets
-- the app now has a conservative in-house Google Flights fetcher
-- weekly trips maintain the next 12 future occurrences
-- only unmatched bookings go to `Resolve`
-- unmatched tracker noise is ignored
-
-Current docs:
-
-- `v0-product-spec.md`: product goals, MVP scope, information architecture, and user flows
-- `v0-wireframes.md`: low-fidelity page structure and key interaction patterns
-- `v0-data-model.md`: local-file schema for trips, route options, instances, trackers, bookings, and historical price records
-- `v0-tech-spec.md`: stack, architecture, routes, services, and implementation boundaries
-- `v1-ui-pass.md`: the current UI/UX consolidation pass for turning the MVP into a cleaner v1 product
-- `google-flights-poc.md`: what has been verified about Google Flights and what assumptions remain
-- `implementation-plan.md`: concrete implementation order and quality gates
-- `agent-checkpoint.md`: current implementation snapshot and bootstrap guide for a fresh agent
-- `agent-refresh-prompt.md`: reusable prompt for refreshing the checkpoint after more work
+- bookings are trip-scoped, not tracker-scoped
+- unmatched bookings are handled inline on `Bookings`, not through a separate primary `Resolve` workspace
+- Gmail booking automation is incremental and checkpointed
+- runtime data is stored in SQLite, while checked-in config lives under `config/`

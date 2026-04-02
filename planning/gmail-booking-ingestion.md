@@ -23,16 +23,23 @@
 ## Processing Pipeline
 
 1. On first run, backfill every current message in `INBOX`. After that, use Gmail history sync to fetch only newly added messages.
-2. Skip messages already present in `booking_email_events`, except prior `error` rows which are retried explicitly.
+2. Skip messages already present in `booking_email_events`, except retryable prior `error` rows below the retry cap.
 3. Apply a cheap keyword gate to ignore obvious spam/newsletter noise.
 4. Send likely booking emails to the OpenAI extraction model.
 5. If the email is a cancellation, try to match it to existing `Booking` rows and mark them `cancelled`.
 6. Otherwise validate extracted legs and convert them to `BookingCandidate` rows.
 7. Deduplicate against existing `Booking` and open `UnmatchedBooking` rows.
 8. Use the existing booking matcher:
-   - unique tracker match => `Booking`
+   - unique trip-instance match => `Booking`
    - ambiguous/no match => `UnmatchedBooking`
 9. Append one `booking_email_events` audit row for the Gmail message.
+
+The Gmail poller uses two checkpoints:
+
+- Gmail `historyId` state in `config/local/gmail_sync_state.json`
+- a per-message ledger in `booking_email_events`
+
+That combination prevents already-processed emails from going back through the LLM while still allowing bounded retries for transient failures.
 
 ## Statuses
 
@@ -52,7 +59,8 @@ Supported now:
 - cancellation emails that can be matched to an existing booking
 - multi-leg extraction
 - automatic booking creation when a leg matches confidently
-- fallback to `Resolve` when matching is ambiguous
+- fallback to unmatched booking review on `Bookings` when matching is ambiguous
+- default log redaction for model inputs/outputs, with opt-in full model I/O logging through `debug_log_model_io`
 
 Intentionally deferred:
 

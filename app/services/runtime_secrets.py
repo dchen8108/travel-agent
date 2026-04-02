@@ -27,3 +27,20 @@ def openai_api_key(settings: Settings) -> str:
         local_filename="openai_api_key.txt",
     )
 
+
+def ensure_local_secret_from_env(
+    settings: Settings,
+    *,
+    env_var: str,
+    local_filename: str,
+) -> Path | None:
+    value = os.getenv(env_var, "").strip()
+    if not value:
+        return None
+    path = local_secret_path(settings, local_filename)
+    if path.exists() and path.read_text(encoding="utf-8").strip():
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"{value}\n", encoding="utf-8")
+    path.chmod(0o600)
+    return path

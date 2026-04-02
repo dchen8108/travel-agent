@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">Add booking</p>
     <h2>Record a purchased flight and let Travel Agent place it if it can.</h2>
-    <p>If the booking cannot be attached confidently, it moves into Resolve where you can link it once.</p>
+    <p>If the booking cannot be attached confidently, it stays in Bookings until you link it.</p>
   </div>
 </section>
 
@@ -23,26 +23,6 @@
   </section>
   {% endif %}
   <form method="post" action="/bookings" id="booking-form">
-    <section class="form-section">
-      <div class="section-header compact">
-        <div>
-          <p class="eyebrow">Placement</p>
-          <h3>Link it now or let the app auto-match it</h3>
-        </div>
-      </div>
-      <div class="form-grid">
-        <label class="full-width">
-          <span>Trip instance</span>
-          <select name="trip_instance_id">
-            <option value="">Auto-match if possible</option>
-            {% for trip_instance in trip_instances %}
-            <option value="{{ trip_instance.trip_instance_id }}" {{ 'selected' if booking_form_state.trip_instance_id == trip_instance.trip_instance_id else '' }}>{{ trip_instance.display_label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-      </div>
-    </section>
-
     <section class="form-section">
       <div class="section-header compact">
         <div>
@@ -104,6 +84,26 @@
       </div>
     </section>
 
+    <section class="form-section">
+      <div class="section-header compact">
+        <div>
+          <p class="eyebrow">Placement</p>
+          <h3>Attach it now or let the app auto-match it</h3>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label class="full-width">
+          <span>Trip instance</span>
+          <select name="trip_instance_id">
+            <option value="">Auto-match if possible</option>
+            {% for trip_instance in trip_instances %}
+            <option value="{{ trip_instance.trip_instance_id }}" {{ 'selected' if booking_form_state.trip_instance_id == trip_instance.trip_instance_id else '' }}>{{ trip_instance.display_label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+    </section>
+
     <div class="actions top-gap">
       <a class="button ghost" href="/bookings">Cancel</a>
       <button type="submit" class="button primary">Save booking</button>
@@ -111,10 +111,11 @@
   </form>
 </section>
 
-<script>
-  window.travelAgentBookingForm = {
-    catalogs: {{ catalogs_json|safe }}
-  };
+<script id="booking-form-data" type="application/json">
+  {
+    "catalogs": {{ catalogs_json|safe }}
+  }
 </script>
-<script src="{{ url_for('static', path='/trips.js') }}?v={{ asset_version }}" defer></script>
+<script src="{{ url_for('static', path='/pickers.js') }}?v={{ asset_version }}" defer></script>
+<script src="{{ url_for('static', path='/booking_form.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}

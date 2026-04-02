@@ -115,10 +115,9 @@
 </section>
 {% endif %}
 
-<script>
-  window.travelAgentTripsFilters = {
-    recurringOptions: {{ recurring_filter_options | tojson }}
-  };
+<script id="scheduled-filters-data" type="application/json">
+  {{ {"recurringOptions": recurring_filter_options}|tojson }}
 </script>
-<script src="{{ url_for('static', path='/trips.js') }}?v={{ asset_version }}" defer></script>
+<script src="{{ url_for('static', path='/pickers.js') }}?v={{ asset_version }}" defer></script>
+<script src="{{ url_for('static', path='/scheduled_filters.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}

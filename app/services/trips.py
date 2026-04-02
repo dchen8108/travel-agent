@@ -142,8 +142,8 @@ def save_trip(
     )
 
     with repository.transaction():
-        repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
-        repository.save_route_options([item for item in route_options if item.trip_id != trip.trip_id] + built_route_options)
+        repository.upsert_trip(trip)
+        repository.replace_route_options_for_trip(trip.trip_id, built_route_options)
     return trip
 
 
@@ -172,7 +172,7 @@ def save_past_trip(
         trip.updated_at = utcnow()
 
     with repository.transaction():
-        repository.save_trips([item for item in trips if item.trip_id != trip.trip_id] + [trip])
+        repository.upsert_trip(trip)
     return trip
 
 
@@ -183,7 +183,7 @@ def set_trip_active(repository: Repository, trip_id: str, active: bool) -> Trip:
         raise KeyError("Trip not found")
     trip.active = active
     trip.updated_at = utcnow()
-    repository.save_trips(trips)
+    repository.upsert_trip(trip)
     return trip
 
 
@@ -196,4 +196,4 @@ def delete_trip(repository: Repository, trip_id: str) -> None:
         raise ValueError("Only one-time trips can be archived.")
     trip.active = False
     trip.updated_at = utcnow()
-    repository.save_trips(trips)
+    repository.upsert_trip(trip)

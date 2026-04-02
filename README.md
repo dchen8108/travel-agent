@@ -66,7 +66,7 @@ Then open `http://127.0.0.1:8000`.
 9. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, fare-policy labels, and booking state.
 10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
 11. Record bookings manually or let Gmail automation create them automatically.
-12. Let the app continue comparing booked prices against tracker prices.
+12. Let the app continue comparing booked prices against the best current trip option.
 
 ## Gmail Booking Automation
 
@@ -91,17 +91,21 @@ uv run python -m app.jobs.authorize_gmail_bookings
 uv run python -m app.jobs.install_launchd_booking_poller
 ```
 
+If `OPENAI_API_KEY` is present in your shell when you run the installer, the installer will persist it to `config/local/openai_api_key.txt` so the launchd job can use it without relying on shell startup files.
+
 How it behaves:
 
 - polls the inbox directly; no Gmail labels are required
 - backfills unseen inbox mail once, then switches to Gmail history sync so already-processed messages are not sent back through the LLM
 - quickly ignores obvious spam/newsletter messages with a cheap keyword gate
 - sends likely booking confirmations to an OpenAI extraction model
-- validates and matches extracted legs to existing trip instances/trackers
-- creates `Booking` rows automatically when matching is unambiguous
+- validates and matches extracted legs to existing trip instances
+- creates `Booking` rows automatically only when there is exactly one confident trip-instance match
 - marks existing bookings `cancelled` automatically when a cancellation email matches cleanly
 - creates `Unmatched Booking` rows only when a real booking cannot be placed confidently
 - records every processed message in `booking_email_events`
+- retries only retryable email-processing failures, with a bounded retry count
+- redacts model input/output from logs by default unless `debug_log_model_io` is enabled in `config/gmail_integration.json`
 
 Useful commands:
 

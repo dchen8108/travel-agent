@@ -161,7 +161,6 @@ Key columns:
 - `source`
 - `trip_instance_id`
 - `data_scope`
-- `tracker_id`
 - `airline`
 - `origin_airport`
 - `destination_airport`
@@ -181,6 +180,8 @@ Key columns:
 - `updated_at`
 
 The application still exposes `Booking` and `UnmatchedBooking` models separately through the repository for compatibility, but both are backed by this one table.
+
+Bookings are trip-scoped. They are no longer linked to a specific tracker, and booked-vs-current comparison logic is based on the trip's best current option after preferences are applied.
 
 ### `price_records`
 

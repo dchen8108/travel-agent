@@ -94,7 +94,10 @@ def recompute_trip_states(
     trip_instances: list[TripInstance],
     trackers: list[Tracker],
     bookings: list[Booking],
+    *,
+    today: date | None = None,
 ) -> list[TripInstance]:
+    today = today or date.today()
     trackers_by_instance: dict[str, list[Tracker]] = defaultdict(list)
     active_bookings_by_instance: dict[str, list[Booking]] = defaultdict(list)
 
@@ -112,7 +115,7 @@ def recompute_trip_states(
             reverse=True,
         )
         booking = active_bookings[0] if active_bookings else None
-        is_past = instance.anchor_date < date.today()
+        is_past = instance.anchor_date < today
         instance.last_signal_at = max(
             (tracker.last_signal_at for tracker in related_trackers if tracker.last_signal_at),
             default=None,

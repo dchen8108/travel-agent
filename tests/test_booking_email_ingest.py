@@ -5,7 +5,7 @@ from datetime import date, datetime
 from app.models.base import BookingEmailEventStatus
 from app.services.bookings import BookingCandidate, record_booking
 from app.models.gmail_integration import GmailIntegrationConfig
-from app.services.booking_email_ingest import process_gmail_booking_message
+from app.services.booking_email_ingest import loggable_debug_fields, process_gmail_booking_message
 from app.services.booking_extraction import BookingEmailExtraction, BookingEmailLeg, prepare_booking_email_body
 from app.services.gmail_client import GmailMessage
 from app.services.trips import save_trip
@@ -113,7 +113,7 @@ def test_booking_email_ingest_auto_creates_booking(repository: Repository, monke
             subject="Your flight booking confirmation",
             body_text="Confirmation code ABC123",
         ),
-        config=GmailIntegrationConfig(),
+        config=GmailIntegrationConfig(debug_log_model_io=True),
     )
 
     assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
@@ -125,6 +125,24 @@ def test_booking_email_ingest_auto_creates_booking(repository: Repository, monke
     assert repository.load_booking_email_events()[0].gmail_message_id == "msg-1"
     assert result.debug_fields["llm"]["prepared_body"]
     assert result.debug_fields["llm"]["parsed_output"]["record_locator"] == "ABC123"
+
+
+def test_booking_email_debug_logging_redacts_model_io_by_default() -> None:
+    raw_debug = {
+        "llm": {
+            "prepared_body": "secret booking body",
+            "parsed_output": {"record_locator": "ABC123"},
+            "prepared_body_chars": 18,
+        },
+        "matching": {"candidate_count": 1},
+    }
+
+    sanitized = loggable_debug_fields(raw_debug, include_model_io=False)
+
+    assert "prepared_body" not in sanitized["llm"]
+    assert "parsed_output" not in sanitized["llm"]
+    assert sanitized["llm"]["prepared_body_chars"] == 18
+    assert sanitized["matching"]["candidate_count"] == 1
 
 
 def test_booking_email_ingest_creates_unmatched_when_no_tracker_matches(repository: Repository, monkeypatch) -> None:

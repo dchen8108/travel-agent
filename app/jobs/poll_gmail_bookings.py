@@ -11,9 +11,11 @@ from googleapiclient.errors import HttpError
 
 from app.models.base import BookingEmailEventStatus
 from app.models.base import utcnow
-from app.services.booking_email_ingest import process_gmail_booking_message
+from app.models.booking_email_event import BookingEmailEvent
+from app.services.booking_email_ingest import loggable_debug_fields, process_gmail_booking_message
 from app.services.gmail_client import (
     GmailAuthorizationRequired,
+    GmailMessage,
     build_gmail_service,
     fetch_gmail_message,
     get_mailbox_profile,
@@ -75,6 +77,57 @@ class MessageSelection:
     new_message_ids: list[str]
     retry_message_ids: list[str]
     history_id_before: str
+
+
+def _retryable_message_error(exc: Exception) -> bool:
+    if isinstance(exc, HttpError):
+        status = getattr(getattr(exc, "resp", None), "status", None)
+        return status in {408, 409, 425, 429, 500, 502, 503, 504}
+    return False
+
+
+def _find_existing_event(repository: Repository, gmail_message_id: str) -> BookingEmailEvent | None:
+    return next(
+        (
+            event
+            for event in repository.load_booking_email_events()
+            if event.gmail_message_id == gmail_message_id
+        ),
+        None,
+    )
+
+
+def _record_message_processing_error(
+    repository: Repository,
+    *,
+    message_id: str,
+    history_id: str = "",
+    error: Exception,
+    error_stage: str,
+    message: GmailMessage | None = None,
+) -> BookingEmailEvent:
+    event = _find_existing_event(repository, message_id) or BookingEmailEvent(
+        email_event_id=new_id("mail"),
+        gmail_message_id=message_id,
+    )
+    if message is not None:
+        event.gmail_thread_id = message.gmail_thread_id
+        event.gmail_history_id = message.gmail_history_id
+        event.from_address = message.from_address
+        event.subject = message.subject
+        event.received_at = message.received_at
+    elif history_id:
+        event.gmail_history_id = history_id
+    event.processing_status = BookingEmailEventStatus.ERROR
+    event.email_kind = "unknown"
+    event.extraction_attempt_count += 1
+    event.retryable = _retryable_message_error(error)
+    event.notes = f"{error_stage} failed: {type(error).__name__}: {error}"
+    if not event.retryable:
+        event.notes = f"{event.notes} This email will not be retried automatically."
+    event.updated_at = utcnow()
+    repository.upsert_booking_email_event(event)
+    return event
 
 
 def _select_message_ids_for_poll(
@@ -182,13 +235,73 @@ def main() -> None:
         stage = "process"
         any_state_changes = False
         for message_id in reversed(selection.message_ids):
-            message = fetch_gmail_message(service, message_id)
-            with repository.transaction():
-                result = process_gmail_booking_message(
-                    repository,
-                    message=message,
-                    config=config,
+            try:
+                message = fetch_gmail_message(service, message_id)
+            except Exception as exc:
+                with repository.transaction():
+                    event = _record_message_processing_error(
+                        repository,
+                        message_id=message_id,
+                        error=exc,
+                        error_stage="gmail_fetch",
+                    )
+                processed_count += 1
+                error_count += 1
+                _emit_log(
+                    "message_processed",
+                    run_id=run_id,
+                    gmail_message_id=message_id,
+                    subject=event.subject,
+                    from_address=event.from_address,
+                    processing_status=str(event.processing_status),
+                    email_kind=event.email_kind,
+                    extraction_confidence=event.extraction_confidence,
+                    created_booking_ids=event.result_booking_ids,
+                    created_unmatched_booking_ids=event.result_unmatched_booking_ids,
+                    notes=event.notes,
+                    debug={"error_stage": "gmail_fetch", "retryable": event.retryable},
                 )
+                continue
+
+            try:
+                with repository.transaction():
+                    result = process_gmail_booking_message(
+                        repository,
+                        message=message,
+                        config=config,
+                    )
+            except Exception as exc:
+                with repository.transaction():
+                    event = _record_message_processing_error(
+                        repository,
+                        message_id=message_id,
+                        history_id=message.gmail_history_id,
+                        message=message,
+                        error=exc,
+                        error_stage="message_processing",
+                    )
+                processed_count += 1
+                error_count += 1
+                _emit_log(
+                    "message_processed",
+                    run_id=run_id,
+                    gmail_message_id=message_id,
+                    subject=event.subject,
+                    from_address=event.from_address,
+                    processing_status=str(event.processing_status),
+                    email_kind=event.email_kind,
+                    extraction_confidence=event.extraction_confidence,
+                    created_booking_ids=event.result_booking_ids,
+                    created_unmatched_booking_ids=event.result_unmatched_booking_ids,
+                    notes=event.notes,
+                    debug={
+                        "error_stage": "message_processing",
+                        "retryable": event.retryable,
+                        "traceback": traceback.format_exc(),
+                    },
+                )
+                continue
+
             processed_count += 1
             created_booking_count += len(result.created_bookings)
             created_unmatched_count += len(result.created_unmatched_bookings)
@@ -213,7 +326,10 @@ def main() -> None:
                 created_booking_ids=result.event.result_booking_ids,
                 created_unmatched_booking_ids=result.event.result_unmatched_booking_ids,
                 notes=result.event.notes,
-                debug=result.debug_fields,
+                debug=loggable_debug_fields(
+                    result.debug_fields,
+                    include_model_io=config.debug_log_model_io,
+                ),
             )
 
         if any_state_changes:

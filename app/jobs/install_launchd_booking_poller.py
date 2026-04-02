@@ -14,6 +14,7 @@ from app.services.launchd import (
     launch_agent_plist_path,
     launch_agent_target,
 )
+from app.services.runtime_secrets import ensure_local_secret_from_env, openai_api_key
 from app.settings import get_settings
 
 
@@ -34,6 +35,16 @@ def main() -> None:
 
     settings = get_settings()
     project_root = settings.project_root
+    ensure_local_secret_from_env(
+        settings,
+        env_var="OPENAI_API_KEY",
+        local_filename="openai_api_key.txt",
+    )
+    if not openai_api_key(settings):
+        raise SystemExit(
+            "OPENAI_API_KEY is not configured for launchd. Set it in your shell and rerun this installer, "
+            "or write config/local/openai_api_key.txt."
+        )
     uv_executable = shutil.which("uv")
     if not uv_executable:
         raise SystemExit("Could not find `uv` in PATH.")
@@ -75,4 +86,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

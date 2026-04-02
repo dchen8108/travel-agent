@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import plistlib
 from pathlib import Path
 
@@ -9,6 +8,8 @@ from app.services.launchd import (
     build_booking_poller_launch_agent_plist,
     build_launch_agent_plist,
 )
+from app.services.runtime_secrets import ensure_local_secret_from_env
+from app.settings import Settings
 
 
 def test_launch_agent_plist_contains_expected_program_arguments() -> None:
@@ -63,3 +64,17 @@ def test_booking_poller_launch_agent_plist_contains_expected_program_arguments()
     assert plist["WorkingDirectory"] == "/Users/example/code/travel-agent"
     assert plist["RunAtLoad"] is True
     assert plist["StartInterval"] == 180
+
+
+def test_ensure_local_secret_from_env_persists_launchd_compatible_key(tmp_path, monkeypatch) -> None:
+    settings = Settings(data_dir=tmp_path / "data", config_dir=tmp_path / "config")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-secret")
+
+    path = ensure_local_secret_from_env(
+        settings,
+        env_var="OPENAI_API_KEY",
+        local_filename="openai_api_key.txt",
+    )
+
+    assert path == settings.config_local_dir / "openai_api_key.txt"
+    assert path.read_text(encoding="utf-8").strip() == "sk-test-secret"

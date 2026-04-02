@@ -36,6 +36,7 @@ class GmailIntegrationConfig(BaseModel):
     max_body_chars: int = 12000
     max_retry_attempts: int = 2
     min_auto_create_confidence: float = 0.85
+    debug_log_model_io: bool = False
 
     @field_validator("max_messages_per_poll")
     @classmethod

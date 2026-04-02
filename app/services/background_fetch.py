@@ -324,7 +324,7 @@ def run_fetch_batch(
                         error=str(exc),
                     )
                 )
-            except Exception as exc:
+            except (GoogleFlightsFetchError, httpx.HTTPError) as exc:
                 failed_at = utcnow()
                 target.last_fetch_finished_at = failed_at
                 target.last_fetch_status = FetchTargetStatus.FAILED

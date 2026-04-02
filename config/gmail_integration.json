@@ -11,6 +11,7 @@
     "ticket"
   ],
   "enabled": true,
+  "debug_log_model_io": false,
   "inbox_label_ids": [
     "INBOX"
   ],

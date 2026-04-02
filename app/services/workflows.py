@@ -85,7 +85,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         )
 
     apply_fetch_target_rollups(trackers, tracker_fetch_targets)
-    recompute_trip_states(trip_instances, trackers, bookings)
+    recompute_trip_states(trip_instances, trackers, bookings, today=today)
 
     with repository.transaction():
         repository.save_trip_instances(trip_instances)

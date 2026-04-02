@@ -4,13 +4,6 @@
   </p>
 
   <div class="stack top-gap-small scheduled-results-stack" data-scheduled-results>
-    <section class="stack">
-      <div class="section-header compact">
-        <div>
-          <p class="eyebrow">Scheduled trips</p>
-          <h3>Operational dates still in play</h3>
-        </div>
-      </div>
     {% for instance in scheduled_items %}
     {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
@@ -59,6 +52,5 @@
       <p>Clear a search term or recurring-trip filter to widen the list again.</p>
     </article>
     {% endfor %}
-    </section>
   </div>
 </div>

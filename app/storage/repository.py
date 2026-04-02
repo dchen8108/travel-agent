@@ -22,10 +22,12 @@ from app.storage.json_store import load_json_model, save_json_model
 from app.storage.sqlite_store import (
     append_rows,
     connect,
+    delete_rows,
     fetch_all,
     immediate_transaction,
     initialize_schema,
     replace_rows,
+    upsert_rows,
 )
 
 
@@ -110,11 +112,24 @@ class Repository:
     def save_trips(self, trips: list[Trip]) -> None:
         self._replace_table("trips", [item.model_dump(mode="json") for item in trips])
 
+    def upsert_trip(self, trip: Trip) -> None:
+        self._upsert_table("trips", [trip.model_dump(mode="json")], conflict_columns=("trip_id",))
+
     def load_route_options(self) -> list[RouteOption]:
         return self._load_models("SELECT * FROM route_options ORDER BY rowid", RouteOption)
 
     def save_route_options(self, route_options: list[RouteOption]) -> None:
         self._replace_table("route_options", [item.model_dump(mode="json") for item in route_options])
+
+    def replace_route_options_for_trip(self, trip_id: str, route_options: list[RouteOption]) -> None:
+        self.ensure_data_dir()
+        rows = [item.model_dump(mode="json") for item in route_options]
+        with self._borrow_connection() as (connection, own_connection):
+            delete_rows(connection, "route_options", where_sql="trip_id = ?", where_params=(trip_id,))
+            if rows:
+                upsert_rows(connection, "route_options", rows, conflict_columns=("route_option_id",))
+            if own_connection:
+                connection.commit()
 
     def load_trip_instances(self) -> list[TripInstance]:
         return self._load_models("SELECT * FROM trip_instances ORDER BY rowid", TripInstance)
@@ -167,34 +182,22 @@ class Repository:
         return self._load_models(query, Booking)
 
     def save_bookings(self, bookings: list[Booking]) -> None:
-        rows = []
-        for booking in bookings:
-            rows.append(
-                {
-                    "booking_id": booking.booking_id,
-                    "source": booking.source,
-                    "trip_instance_id": booking.trip_instance_id,
-                    "data_scope": booking.data_scope,
-                    "airline": booking.airline,
-                    "origin_airport": booking.origin_airport,
-                    "destination_airport": booking.destination_airport,
-                    "departure_date": booking.departure_date.isoformat(),
-                    "departure_time": booking.departure_time,
-                    "arrival_time": booking.arrival_time,
-                    "booked_price": float(booking.booked_price),
-                    "record_locator": booking.record_locator,
-                    "booked_at": booking.booked_at.isoformat(),
-                    "booking_status": booking.status,
-                    "match_status": "matched",
-                    "raw_summary": "",
-                    "candidate_trip_instance_ids": "",
-                    "resolution_status": "resolved",
-                    "notes": booking.notes,
-                    "created_at": booking.created_at.isoformat(),
-                    "updated_at": booking.updated_at.isoformat(),
-                }
-            )
+        rows = [self._booking_row(booking) for booking in bookings]
         self._replace_table("bookings", rows, where_sql="match_status = 'matched'")
+
+    def upsert_bookings(self, bookings: list[Booking]) -> None:
+        rows = [self._booking_row(booking) for booking in bookings]
+        self._upsert_table("bookings", rows, conflict_columns=("booking_id",))
+
+    def delete_bookings_by_ids(self, booking_ids: list[str]) -> None:
+        if not booking_ids:
+            return
+        placeholders = ", ".join(["?"] * len(booking_ids))
+        self._delete_from_table(
+            "bookings",
+            where_sql=f"booking_id IN ({placeholders}) AND match_status = 'matched'",
+            where_params=tuple(booking_ids),
+        )
 
     def load_unmatched_bookings(self) -> list[UnmatchedBooking]:
         query = """
@@ -223,35 +226,22 @@ class Repository:
         return self._load_models(query, UnmatchedBooking)
 
     def save_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
-        rows = []
-        for unmatched in unmatched_bookings:
-            rows.append(
-                {
-                    "booking_id": unmatched.unmatched_booking_id,
-                    "source": unmatched.source,
-                    "data_scope": unmatched.data_scope,
-                    "trip_instance_id": None,
-                    "airline": unmatched.airline,
-                    "origin_airport": unmatched.origin_airport,
-                    "destination_airport": unmatched.destination_airport,
-                    "departure_date": unmatched.departure_date.isoformat(),
-                    "departure_time": unmatched.departure_time,
-                    "arrival_time": unmatched.arrival_time,
-                    "booked_price": float(unmatched.booked_price),
-                    "record_locator": unmatched.record_locator,
-                    "booked_at": unmatched.created_at.isoformat(),
-                    "booking_status": "active",
-                    "match_status": "unmatched",
-                    "raw_summary": unmatched.raw_summary,
-                    "candidate_trip_instance_ids": unmatched.candidate_trip_instance_ids,
-                    "auto_link_enabled": unmatched.auto_link_enabled,
-                    "resolution_status": unmatched.resolution_status,
-                    "notes": "",
-                    "created_at": unmatched.created_at.isoformat(),
-                    "updated_at": unmatched.updated_at.isoformat(),
-                }
-            )
+        rows = [self._unmatched_booking_row(unmatched) for unmatched in unmatched_bookings]
         self._replace_table("bookings", rows, where_sql="match_status = 'unmatched'")
+
+    def upsert_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
+        rows = [self._unmatched_booking_row(unmatched) for unmatched in unmatched_bookings]
+        self._upsert_table("bookings", rows, conflict_columns=("booking_id",))
+
+    def delete_unmatched_bookings_by_ids(self, unmatched_booking_ids: list[str]) -> None:
+        if not unmatched_booking_ids:
+            return
+        placeholders = ", ".join(["?"] * len(unmatched_booking_ids))
+        self._delete_from_table(
+            "bookings",
+            where_sql=f"booking_id IN ({placeholders}) AND match_status = 'unmatched'",
+            where_params=tuple(unmatched_booking_ids),
+        )
 
     def load_price_records(self) -> list[PriceRecord]:
         return self._load_models("SELECT * FROM price_records ORDER BY rowid", PriceRecord)
@@ -266,6 +256,13 @@ class Repository:
         self._replace_table(
             "booking_email_events",
             [item.model_dump(mode="json") for item in events],
+        )
+
+    def upsert_booking_email_event(self, event: BookingEmailEvent) -> None:
+        self._upsert_table(
+            "booking_email_events",
+            [event.model_dump(mode="json")],
+            conflict_columns=("email_event_id",),
         )
 
     def append_booking_email_events(self, events: list[BookingEmailEvent]) -> None:
@@ -298,6 +295,34 @@ class Repository:
         self.ensure_data_dir()
         with self._borrow_connection() as (connection, own_connection):
             replace_rows(connection, table, rows, where_sql=where_sql)
+            if own_connection:
+                connection.commit()
+
+    def _upsert_table(
+        self,
+        table: str,
+        rows: list[dict[str, Any]],
+        *,
+        conflict_columns: tuple[str, ...],
+    ) -> None:
+        if not rows:
+            return
+        self.ensure_data_dir()
+        with self._borrow_connection() as (connection, own_connection):
+            upsert_rows(connection, table, rows, conflict_columns=conflict_columns)
+            if own_connection:
+                connection.commit()
+
+    def _delete_from_table(
+        self,
+        table: str,
+        *,
+        where_sql: str,
+        where_params: tuple[Any, ...] = (),
+    ) -> None:
+        self.ensure_data_dir()
+        with self._borrow_connection() as (connection, own_connection):
+            delete_rows(connection, table, where_sql=where_sql, where_params=where_params)
             if own_connection:
                 connection.commit()
 
@@ -361,3 +386,57 @@ class Repository:
             connection.execute("DROP TABLE IF EXISTS app_state")
             if own_connection:
                 connection.commit()
+
+    @staticmethod
+    def _booking_row(booking: Booking) -> dict[str, Any]:
+        return {
+            "booking_id": booking.booking_id,
+            "source": booking.source,
+            "trip_instance_id": booking.trip_instance_id,
+            "data_scope": booking.data_scope,
+            "airline": booking.airline,
+            "origin_airport": booking.origin_airport,
+            "destination_airport": booking.destination_airport,
+            "departure_date": booking.departure_date.isoformat(),
+            "departure_time": booking.departure_time,
+            "arrival_time": booking.arrival_time,
+            "booked_price": float(booking.booked_price),
+            "record_locator": booking.record_locator,
+            "booked_at": booking.booked_at.isoformat(),
+            "booking_status": booking.status,
+            "match_status": "matched",
+            "raw_summary": "",
+            "candidate_trip_instance_ids": "",
+            "auto_link_enabled": True,
+            "resolution_status": "resolved",
+            "notes": booking.notes,
+            "created_at": booking.created_at.isoformat(),
+            "updated_at": booking.updated_at.isoformat(),
+        }
+
+    @staticmethod
+    def _unmatched_booking_row(unmatched: UnmatchedBooking) -> dict[str, Any]:
+        return {
+            "booking_id": unmatched.unmatched_booking_id,
+            "source": unmatched.source,
+            "data_scope": unmatched.data_scope,
+            "trip_instance_id": None,
+            "airline": unmatched.airline,
+            "origin_airport": unmatched.origin_airport,
+            "destination_airport": unmatched.destination_airport,
+            "departure_date": unmatched.departure_date.isoformat(),
+            "departure_time": unmatched.departure_time,
+            "arrival_time": unmatched.arrival_time,
+            "booked_price": float(unmatched.booked_price),
+            "record_locator": unmatched.record_locator,
+            "booked_at": unmatched.created_at.isoformat(),
+            "booking_status": "active",
+            "match_status": "unmatched",
+            "raw_summary": unmatched.raw_summary,
+            "candidate_trip_instance_ids": unmatched.candidate_trip_instance_ids,
+            "auto_link_enabled": unmatched.auto_link_enabled,
+            "resolution_status": unmatched.resolution_status,
+            "notes": "",
+            "created_at": unmatched.created_at.isoformat(),
+            "updated_at": unmatched.updated_at.isoformat(),
+        }

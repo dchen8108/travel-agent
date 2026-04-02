@@ -60,6 +60,16 @@ def replace_rows(
     _insert_rows(connection, table, rows)
 
 
+def delete_rows(
+    connection: sqlite3.Connection,
+    table: str,
+    *,
+    where_sql: str,
+    where_params: Sequence[Any] = (),
+) -> None:
+    connection.execute(f"DELETE FROM {table} WHERE {where_sql}", where_params)
+
+
 def append_rows(
     connection: sqlite3.Connection,
     table: str,
@@ -77,6 +87,32 @@ def upsert_singleton_row(
     row: dict[str, Any],
 ) -> None:
     _insert_rows(connection, table, [row], replace=True)
+
+
+def upsert_rows(
+    connection: sqlite3.Connection,
+    table: str,
+    rows: Iterable[dict[str, Any]],
+    *,
+    conflict_columns: Sequence[str],
+) -> None:
+    rows = list(rows)
+    if not rows:
+        return
+    columns = list(rows[0].keys())
+    update_columns = [column for column in columns if column not in conflict_columns]
+    if not update_columns:
+        raise ValueError("upsert_rows requires at least one non-conflict column.")
+    quoted_columns = ", ".join(columns)
+    placeholders = ", ".join(["?"] * len(columns))
+    conflict_target = ", ".join(conflict_columns)
+    assignments = ", ".join(f"{column}=excluded.{column}" for column in update_columns)
+    query = (
+        f"INSERT INTO {table} ({quoted_columns}) VALUES ({placeholders}) "
+        f"ON CONFLICT({conflict_target}) DO UPDATE SET {assignments}"
+    )
+    values = [[row.get(column) for column in columns] for row in rows]
+    connection.executemany(query, values)
 
 
 def table_has_rows(connection: sqlite3.Connection, table: str) -> bool:

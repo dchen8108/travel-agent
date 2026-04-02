@@ -103,8 +103,9 @@ def process_gmail_booking_message(
     debug_fields["llm"] = {
         **debug_fields["llm"],
         "prepared_body_chars": len(prepared_body_text),
-        "prepared_body": prepared_body_text,
     }
+    if config.debug_log_model_io:
+        debug_fields["llm"]["prepared_body"] = prepared_body_text
 
     try:
         event.extraction_attempt_count += 1
@@ -146,8 +147,11 @@ def process_gmail_booking_message(
     event.extracted_payload_json = extraction.model_dump_json(indent=2)
     debug_fields["llm"] = {
         **debug_fields["llm"],
-        "parsed_output": json.loads(event.extracted_payload_json),
+        "parsed_leg_count": len(extraction.legs),
+        "parsed_summary": extraction.summary,
     }
+    if config.debug_log_model_io:
+        debug_fields["llm"]["parsed_output"] = json.loads(event.extracted_payload_json)
 
     if extraction.email_kind != "booking_confirmation":
         if extraction.email_kind == "cancellation":
@@ -428,20 +432,12 @@ def _same_booking(booking: Booking, candidate: BookingCandidate) -> bool:
 
 
 def _upsert_booking_email_event(repository: Repository, event: BookingEmailEvent) -> None:
-    events = repository.load_booking_email_events()
-    for index, existing in enumerate(events):
-        if existing.gmail_message_id == event.gmail_message_id:
-            events[index] = event
-            break
-    else:
-        events.append(event)
-    repository.save_booking_email_events(events)
+    repository.upsert_booking_email_event(event)
 
 
 def _apply_cancellation(repository: Repository, extraction: BookingEmailExtraction) -> list[Booking]:
     include_test_data = include_test_data_for_processing(repository.load_app_state())
-    all_bookings = repository.load_bookings()
-    bookings = filter_items(all_bookings, include_test_data=include_test_data)
+    bookings = filter_items(repository.load_bookings(), include_test_data=include_test_data)
     updated: list[Booking] = []
     matched_ids: set[str] = set()
     if not extraction.legs and extraction.record_locator:
@@ -454,7 +450,7 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
             booking.updated_at = utcnow()
             updated.append(booking)
         if updated:
-            repository.save_bookings(all_bookings)
+            repository.upsert_bookings(updated)
         return updated
     for leg in extraction.legs:
         if not (leg.departure_date or extraction.record_locator):
@@ -514,5 +510,20 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
             updated.append(booking)
             matched_ids.add(booking.booking_id)
     if updated:
-        repository.save_bookings(all_bookings)
+        repository.upsert_bookings(updated)
     return updated
+
+
+def loggable_debug_fields(
+    debug_fields: dict[str, object],
+    *,
+    include_model_io: bool,
+) -> dict[str, object]:
+    if include_model_io:
+        return debug_fields
+    sanitized = dict(debug_fields)
+    llm = dict(sanitized.get("llm") or {})
+    llm.pop("prepared_body", None)
+    llm.pop("parsed_output", None)
+    sanitized["llm"] = llm
+    return sanitized

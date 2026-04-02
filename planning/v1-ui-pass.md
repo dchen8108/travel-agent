@@ -4,7 +4,7 @@
 - `Today` is the action inbox.
 - `Trips` is the planning workspace.
 - `Bookings` is the ledger of purchased travel.
-- `Resolve` is only for unmatched bookings.
+- unmatched bookings are managed inline on `Bookings`, not through a separate primary page.
 - Global tracker browsing is removed. Tracker detail lives under a scheduled trip instance.
 
 ### Core surfaces
@@ -52,10 +52,7 @@
   - route
   - airline
   - record locator
-
-#### Resolve
-- Keep it narrow.
-- Two outcomes only:
+- keep unmatched actions adjacent to the unresolved booking itself:
   - link to an existing trip instance
   - create a new one-time trip from the booking
 
@@ -72,4 +69,4 @@
 - Database migration
 - Historical analytics UI
 - Past-trip management UI
-- Gmail/manual import revival
+- a separate inbox-resolution workspace

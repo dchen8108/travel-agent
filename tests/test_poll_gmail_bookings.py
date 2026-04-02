@@ -5,7 +5,7 @@ from datetime import datetime
 from googleapiclient.errors import HttpError
 from httplib2 import Response
 
-from app.jobs.poll_gmail_bookings import _select_message_ids_for_poll
+from app.jobs.poll_gmail_bookings import _record_message_processing_error, _select_message_ids_for_poll
 from app.models.base import BookingEmailEventStatus
 from app.models.booking_email_event import BookingEmailEvent
 
@@ -188,3 +188,23 @@ def test_select_message_ids_for_poll_applies_hard_cap_after_deduping(repository,
     assert selection.message_ids == ["msg-new-1", "msg-new-2"]
     assert selection.new_message_ids == ["msg-new-1", "msg-new-2", "msg-new-3"]
     assert selection.retry_message_ids == ["msg-retry"]
+
+
+def test_record_message_processing_error_reuses_existing_event_and_marks_terminal_404(repository) -> None:
+    existing = _event("msg-known", "error", hour=8, extraction_attempt_count=1, retryable=True)
+    repository.save_booking_email_events([existing])
+
+    error = HttpError(Response({"status": "404"}), b'{"error":{"message":"Not Found"}}')
+    updated = _record_message_processing_error(
+        repository,
+        message_id="msg-known",
+        history_id="999",
+        error=error,
+        error_stage="gmail_fetch",
+    )
+
+    assert updated.email_event_id == existing.email_event_id
+    assert updated.processing_status == BookingEmailEventStatus.ERROR
+    assert updated.retryable is False
+    assert updated.extraction_attempt_count == 2
+    assert "This email will not be retried automatically." in updated.notes

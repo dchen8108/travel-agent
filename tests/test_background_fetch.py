@@ -1159,6 +1159,69 @@ def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(reposi
     assert targets[1].next_fetch_not_before == now + timedelta(seconds=10)
 
 
+def test_recompute_trip_states_uses_explicit_today_without_calling_date_today(monkeypatch) -> None:
+    class DateProxy:
+        @staticmethod
+        def today():
+            raise AssertionError("recompute_trip_states should use the explicit today parameter")
+
+    monkeypatch.setattr("app.services.recommendations.date", DateProxy)
+
+    trip_instance = TripInstance(
+        trip_instance_id="inst_1",
+        trip_id="trip_1",
+        display_label="Trip",
+        anchor_date=date(2026, 4, 1),
+    )
+
+    recompute_trip_states([trip_instance], [], [], today=date(2026, 3, 31))
+
+    assert trip_instance.travel_state == "open"
+
+
+def test_run_fetch_batch_reraises_unexpected_exceptions(repository: Repository, monkeypatch) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Unexpected fetch bug",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    snapshot = sync_and_persist(repository)
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    monkeypatch.setattr(
+        "app.services.background_fetch.fetch_google_flights_offers",
+        lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("unexpected parser bug")),
+    )
+
+    try:
+        run_fetch_batch(
+            snapshot.trackers,
+            snapshot.trip_instances,
+            snapshot.tracker_fetch_targets,
+            max_targets=1,
+            sleep_between_requests=False,
+        )
+    except ValueError as exc:
+        assert "unexpected parser bug" in str(exc)
+    else:
+        raise AssertionError("Expected unexpected fetch exceptions to bubble out of run_fetch_batch.")
+
+
 def test_successful_fetch_builds_price_records_for_all_offers(repository: Repository, monkeypatch) -> None:
     trip = save_trip(
         repository,
