@@ -372,12 +372,10 @@
       chipList.innerHTML = "";
       const option = options.find((item) => item.value === state.value);
       if (!option) {
-        const empty = document.createElement("span");
-        empty.className = "chip-empty";
-        empty.textContent = "No selection";
-        chipList.appendChild(empty);
+        chipList.hidden = true;
         return;
       }
+      chipList.hidden = false;
       const chip = document.createElement("span");
       chip.className = "chip";
       const text = document.createElement("span");
