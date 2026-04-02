@@ -102,7 +102,7 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     assert detail.status_code == 200
     assert "Work Trips" in detail.text
     assert "Recurring rules" in detail.text
-    assert "Grouped trips" in detail.text
+    assert "Upcoming trips" in detail.text
 
 
 def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:

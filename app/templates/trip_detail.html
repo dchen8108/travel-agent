@@ -3,6 +3,9 @@
 <section class="hero compact">
   {% set trip_group = group_for_trip(snapshot, trip) %}
   <div>
+    <p class="detail-breadcrumb">
+      <a class="inline-back-link" href="/trips">Back to trips</a>
+    </p>
     <p class="eyebrow">
       {% if trip.trip_kind == 'weekly' %}
       Recurring rule
@@ -13,18 +16,17 @@
     <h2>{{ trip.label }}</h2>
     <p>
       {% if trip.trip_kind == 'weekly' %}
-      This recurring rule creates future dated trips inside {{ trip_group.label if trip_group else 'its trip group' }}.
+      Adds future dates inside {{ trip_group.label if trip_group else 'its trip group' }}.
       {% else %}
-      This one-time trip owns a single scheduled date{% if trip_group %} inside {{ trip_group.label }}{% endif %} and its ranked route options.
+      Owns one scheduled date{% if trip_group %} in {{ trip_group.label }}{% endif %} and the route definitions behind it.
       {% endif %}
     </p>
   </div>
   <div class="hero-actions">
-    <a class="button ghost" href="/trips">Back to trips</a>
     {% if trip_group %}
-    <a class="button secondary" href="/groups/{{ trip_group.trip_group_id }}">View group</a>
+    <a class="button ghost" href="/groups/{{ trip_group.trip_group_id }}">Open group</a>
     {% endif %}
-    <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit trip</a>
+    <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">{{ 'Edit rule' if trip.trip_kind == 'weekly' else 'Edit trip' }}</a>
     {% if trip.trip_kind == 'weekly' %}
     <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
       <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
@@ -33,17 +35,6 @@
           <span class="toggle-switch-thumb"></span>
         </span>
       </button>
-    </form>
-    {% elif booked_count == 0 %}
-    <form
-      method="post"
-      action="/trips/{{ trip.trip_id }}/delete"
-      data-confirm-title="Delete this one-time trip?"
-      data-confirm-description="It will disappear from the active trip workflow and stop background fare checks for this date."
-      data-confirm-action="Delete trip"
-      data-confirm-cancel="Keep trip"
-    >
-      <button class="button ghost danger-outline" type="submit">Delete</button>
     </form>
     {% endif %}
   </div>
@@ -63,26 +54,14 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Trip summary</p>
-      <h3>How this trip is anchored</h3>
-      <p class="muted">
-        {% if trip.trip_kind == 'weekly' %}
-        Anchor weekday: {{ trip.anchor_weekday }} · Future generation {{ 'active' if trip.active else 'paused' }}.
-        {% else %}
-        Scheduled around {{ trip.anchor_date.isoformat() }}.
-        {% endif %}
-      </p>
-      <p class="muted">
-        {% if trip.preference_mode == 'ranked_bias' %}
-        Option 1 is preferred, but lower options can still win if they are cheaper by at least your configured amount.
-        {% else %}
-        Route options are treated equally; the cheapest matching option wins.
-        {% endif %}
-      </p>
+      <p class="eyebrow">Rule setup</p>
+      <h3>How this trip is configured</h3>
     </div>
   </div>
   <div class="card travel-overview-card">
     <div class="meta-grid">
+      <div><dt>{{ 'Anchor weekday' if trip.trip_kind == 'weekly' else 'Anchor date' }}</dt><dd>{{ trip.anchor_weekday if trip.trip_kind == 'weekly' else trip.anchor_date.isoformat() }}</dd></div>
+      <div><dt>Selection style</dt><dd>{{ 'Preferred order' if trip.preference_mode == 'ranked_bias' else 'Cheapest wins' }}</dd></div>
       <div><dt>Next active date</dt><dd>{{ next_open_instance.anchor_date.isoformat() if next_open_instance else 'None' }}</dd></div>
       <div><dt>Open</dt><dd>{{ open_count }}</dd></div>
       <div><dt>Booked</dt><dd>{{ booked_count }}</dd></div>
@@ -96,7 +75,6 @@
     <div>
       <p class="eyebrow">Route options</p>
       <h3>Ranked route definitions</h3>
-      <p class="muted">These are the search envelopes Milemark checks for each scheduled date this trip produces.</p>
     </div>
   </div>
   <div class="stack">
@@ -157,13 +135,6 @@
     <div>
       <p class="eyebrow">Scheduled trips</p>
       <h3>Operational dates created by this {{ 'rule' if trip.trip_kind == 'weekly' else 'trip' }}</h3>
-      <p class="muted">
-        {% if trip.trip_kind == 'weekly' %}
-        These are the future dates this recurring rule is currently managing.
-        {% else %}
-        This trip currently owns one dated trip instance.
-        {% endif %}
-      </p>
     </div>
   </div>
   <div class="stack">
@@ -179,18 +150,25 @@
         </div>
         <div class="scheduled-copy">
           <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
+          <p class="muted">
+            {% if trip_group %}
+            {{ trip_group.label }}
+            {% endif %}
+            {% if trip.trip_kind == 'weekly' %}
+            {% if trip_group %} · {% endif %}{{ trip.label }}
+            {% endif %}
+          </p>
         </div>
         <div class="badge-stack">
-          <span class="badge">{{ instance.travel_state }}</span>
           <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
         </div>
       </div>
       <div class="meta-grid">
-        <div><dt>Best matched</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Open{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
-        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
+        <div><dt>Watching</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }} search{{ '' if trackers_for_instance(snapshot, instance.trip_instance_id)|length == 1 else 'es' }}</dd></div>
       </div>
+      <p class="muted card-note">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
         {% if trip.trip_kind == 'weekly' and active_booking_count == 0 %}
@@ -209,7 +187,7 @@
         </form>
         {% endif %}
         {% if instance.travel_state == 'open' %}
-        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
+        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip">
           <button class="button danger" type="submit">Skip</button>
         </form>
@@ -228,4 +206,25 @@
     {% endfor %}
   </div>
 </section>
+{% if trip.trip_kind != 'weekly' and booked_count == 0 %}
+<section class="section section-tight">
+  <div class="section-header compact">
+    <div>
+      <p class="eyebrow">Trip controls</p>
+    </div>
+  </div>
+  <div class="actions">
+    <form
+      method="post"
+      action="/trips/{{ trip.trip_id }}/delete"
+      data-confirm-title="Delete this one-time trip?"
+      data-confirm-description="It will disappear from the active trip workflow and stop background fare checks for this date."
+      data-confirm-action="Delete trip"
+      data-confirm-cancel="Keep trip"
+    >
+      <button class="button ghost danger-outline" type="submit">Delete trip</button>
+    </form>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

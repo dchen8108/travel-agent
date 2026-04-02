@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">Trip group</p>
     <h2>{{ group.label }}</h2>
-    <p>{{ group.description or 'This group collects related trips for organization and display. Recurring rules can add dated trips into it, but the group itself is just a container.' }}</p>
+    <p>{{ group.description or 'A simple container for recurring rules, manual trips, and every future date they create.' }}</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="/trips">Back to trips</a>
@@ -26,8 +26,7 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Recurring rules</p>
-      <h3>Cadences that add trips into this group</h3>
-      <p class="muted">Edit a rule when you want to change future generation, route options, or pause a repeating pattern.</p>
+      <h3>Rules feeding this group</h3>
     </div>
   </div>
   <div class="card-grid">
@@ -37,7 +36,7 @@
       <div class="card-header">
         <div>
           <strong>{{ trip.label }}</strong>
-          <p class="muted">{{ trip.anchor_weekday }} · {{ 'active' if trip.active else 'paused' }}</p>
+          <p class="muted">Every {{ trip.anchor_weekday }} · {{ 'active' if trip.active else 'paused' }}</p>
         </div>
         <span class="badge">{{ rule_instances|length }} upcoming</span>
       </div>
@@ -66,9 +65,8 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Grouped trips</p>
-      <h3>Upcoming trips collected in this group</h3>
-      <p class="muted">This includes rule-generated trips and manual one-time trips assigned to the group.</p>
+      <p class="eyebrow">Upcoming trips</p>
+      <h3>Everything currently in this group</h3>
     </div>
   </div>
   <div class="stack">
@@ -90,23 +88,22 @@
             {% if recurring_rule %}
             Rule · <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
             {% elif parent_trip %}
-            Manual trip · {{ parent_trip.label }}
+            Manual
             {% else %}
-            Standalone trip
+            Standalone
             {% endif %}
           </p>
-          <p class="muted">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
         </div>
         <div class="badge-stack">
-          <span class="badge">{{ instance.anchor_date.isoformat() }}</span>
           <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
         </div>
       </div>
       <div class="meta-grid">
-        <div><dt>Best matched</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Open{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
-        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
+        <div><dt>Watching</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }} search{{ '' if trackers_for_instance(snapshot, instance.trip_instance_id)|length == 1 else 'es' }}</dd></div>
       </div>
+      <p class="muted card-note">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
       </div>

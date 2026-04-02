@@ -3,8 +3,8 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Bookings</p>
-    <h2>Every purchased flight, plus the few that still need to be placed.</h2>
-    <p>Use this ledger to review active bookings, resolve unmatched imports, and keep a clean history of what changed.</p>
+    <h2>Every purchased flight, plus the few that still need a home.</h2>
+    <p>Keep active bookings clean, link unmatched imports, and retain the booking history that matters.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/bookings/new">Add booking</a>
@@ -23,7 +23,6 @@
     <div>
       <p class="eyebrow">Needs linking</p>
       <h3>Bookings that still need a home</h3>
-      <p class="muted">If a booking could not be matched confidently, choose the right scheduled trip here or create a new one-time trip.</p>
     </div>
   </div>
   <div class="stack">
@@ -59,7 +58,6 @@
       <div class="two-column top-gap-small">
         <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
           <h4>Link to an existing scheduled trip</h4>
-          <p class="muted">Choose the trip this booking belongs to. One booking can attach to only one scheduled trip.</p>
           <label>
             <span>Scheduled trip</span>
             <select name="trip_instance_id" required>
@@ -74,7 +72,6 @@
 
         <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/create-trip" class="subcard">
           <h4>Create a new one-time trip</h4>
-          <p class="muted">Use this when the travel is real, but the trip does not exist in the system yet.</p>
           <label>
             <span>New trip label</span>
             <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
@@ -93,7 +90,6 @@
     <div>
       <p class="eyebrow">Active bookings</p>
       <h3>Flights currently attached to trips</h3>
-      <p class="muted">These are the bookings currently tied into trip monitoring and rebook alerts.</p>
     </div>
   </div>
   <div class="stack">
@@ -116,7 +112,6 @@
       <div class="meta-grid">
         <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>
         <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
-        <div><dt>Source</dt><dd>{{ booking.source.replace('_', ' ') }}</dd></div>
         <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
       </div>
       <div class="actions">
@@ -143,7 +138,6 @@
     <div>
       <p class="eyebrow">History</p>
       <h3>Cancelled and replaced bookings</h3>
-      <p class="muted">Historical bookings stay attached so you can see what changed over time.</p>
     </div>
   </div>
   <div class="stack">
@@ -169,7 +163,6 @@
       <div class="meta-grid">
         <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else '—' }}</dd></div>
         <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
-        <div><dt>Source</dt><dd>{{ booking.source.replace('_', ' ') }}</dd></div>
         <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
       </div>
     </article>

@@ -2,13 +2,13 @@
 {% block content %}
 <section class="hero compact">
   <div>
-    <p class="eyebrow">Trip portfolio</p>
-    <h2>Organize trips into groups, then let recurring rules fill them over time.</h2>
-    <p>Groups are for organization. Recurring rules create future dates inside them, and scheduled trips are the specific dates you actually price, book, skip, delete, or detach.</p>
+    <p class="eyebrow">Trips</p>
+    <h2>Groups organize the portfolio. Scheduled trips run the work.</h2>
+    <p>Use groups to keep related travel together and recurring rules to keep future dates filled in.</p>
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="/groups/new">New group</a>
-    <a class="button primary" href="/trips/new">New trip</a>
+    <a class="button primary" href="/trips/new?trip_kind=one_time">New one-time trip</a>
   </div>
 </section>
 
@@ -22,8 +22,7 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Trip groups</p>
-      <h3>Collections that hold related travel</h3>
-      <p class="muted">A group can contain recurring rules, manual one-time trips, or both. Open one to manage its cadence and the dates it contains.</p>
+      <h3>Collections for related travel</h3>
     </div>
   </div>
 
@@ -37,7 +36,9 @@
       <div class="card-header">
         <div>
           <strong>{{ group.label }}</strong>
-          <p class="muted">{{ group.description or 'Trip group' }}</p>
+          {% if group.description %}
+          <p class="muted">{{ group.description }}</p>
+          {% endif %}
         </div>
         <span class="badge">{{ instances|length }} upcoming</span>
       </div>
