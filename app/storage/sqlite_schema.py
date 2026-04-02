@@ -1,6 +1,37 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+
+
+CREATE_PRICE_RECORDS_TABLE = """
+CREATE TABLE IF NOT EXISTS price_records (
+    price_record_id TEXT PRIMARY KEY,
+    fetch_event_id TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    fetch_target_id TEXT NOT NULL,
+    tracker_id TEXT NOT NULL,
+    trip_instance_id TEXT NOT NULL,
+    trip_id TEXT NOT NULL,
+    route_option_id TEXT NOT NULL,
+    tracker_definition_signature TEXT NOT NULL,
+    tracker_rank INTEGER NOT NULL,
+    search_origin_airports TEXT NOT NULL,
+    search_destination_airports TEXT NOT NULL,
+    search_airlines TEXT NOT NULL,
+    search_day_offset INTEGER NOT NULL,
+    search_travel_date TEXT NOT NULL,
+    search_start_time TEXT NOT NULL,
+    search_end_time TEXT NOT NULL,
+    search_fare_class_policy TEXT NOT NULL,
+    query_origin_airport TEXT NOT NULL,
+    query_destination_airport TEXT NOT NULL,
+    airline TEXT NOT NULL,
+    departure_label TEXT NOT NULL DEFAULT '',
+    arrival_label TEXT NOT NULL DEFAULT '',
+    price INTEGER NOT NULL,
+    offer_rank INTEGER NOT NULL
+)
+"""
 
 
 DDL_STATEMENTS: tuple[str, ...] = (
@@ -127,47 +158,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         updated_at TEXT NOT NULL
     )
     """,
-    """
-    CREATE TABLE IF NOT EXISTS price_records (
-        price_record_id TEXT PRIMARY KEY,
-        fetch_event_id TEXT NOT NULL,
-        observed_at TEXT NOT NULL,
-        observed_date TEXT NULL,
-        source TEXT NOT NULL,
-        provider TEXT NOT NULL,
-        fetch_method TEXT NOT NULL,
-        fetch_target_id TEXT NOT NULL,
-        tracker_id TEXT NOT NULL,
-        trip_instance_id TEXT NOT NULL,
-        trip_id TEXT NOT NULL,
-        route_option_id TEXT NOT NULL,
-        tracker_definition_signature TEXT NOT NULL,
-        trip_label TEXT NOT NULL DEFAULT '',
-        tracker_rank INTEGER NOT NULL,
-        search_origin_airports TEXT NOT NULL,
-        search_destination_airports TEXT NOT NULL,
-        search_airlines TEXT NOT NULL,
-        search_day_offset INTEGER NOT NULL,
-        search_travel_date TEXT NOT NULL,
-        search_start_time TEXT NOT NULL,
-        search_end_time TEXT NOT NULL,
-        search_fare_class_policy TEXT NOT NULL,
-        query_origin_airport TEXT NOT NULL,
-        query_destination_airport TEXT NOT NULL,
-        google_flights_url TEXT NOT NULL DEFAULT '',
-        airline TEXT NOT NULL,
-        departure_label TEXT NOT NULL DEFAULT '',
-        arrival_label TEXT NOT NULL DEFAULT '',
-        price INTEGER NOT NULL,
-        price_text TEXT NOT NULL DEFAULT '',
-        summary TEXT NOT NULL DEFAULT '',
-        offer_rank INTEGER NOT NULL,
-        request_offer_count INTEGER NOT NULL,
-        is_request_cheapest INTEGER NOT NULL DEFAULT 0,
-        record_signature TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL
-    )
-    """,
+    CREATE_PRICE_RECORDS_TABLE,
     "CREATE INDEX IF NOT EXISTS idx_trips_label ON trips(label)",
     "CREATE INDEX IF NOT EXISTS idx_route_options_trip_rank ON route_options(trip_id, rank)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_trip_anchor ON trip_instances(trip_id, anchor_date)",

@@ -1227,21 +1227,13 @@ def test_successful_fetch_builds_price_records_for_all_offers(repository: Reposi
     assert len(saved_records) == 2
     assert {item.price for item in saved_records} == {241, 267}
     assert all(item.fetch_target_id == snapshot.tracker_fetch_targets[0].fetch_target_id for item in saved_records)
-    assert all(item.trip_label == trip.label for item in saved_records)
     assert all(item.search_origin_airports == "BUR" for item in saved_records)
     assert all(item.query_origin_airport == "BUR" for item in saved_records)
     assert all(item.query_destination_airport == "SFO" for item in saved_records)
     assert saved_records[0].fetch_event_id == saved_records[1].fetch_event_id
-    assert all(item.provider == "google_flights" for item in saved_records)
-    assert all(item.fetch_method == "generated_link" for item in saved_records)
-    assert all(item.observed_date == item.observed_at.date() for item in saved_records)
-    assert saved_records[0].request_offer_count == 2
-    assert saved_records[1].request_offer_count == 2
     assert saved_records[0].offer_rank == 1
     assert saved_records[1].offer_rank == 2
-    assert saved_records[0].is_request_cheapest is True
-    assert saved_records[1].is_request_cheapest is False
-    assert saved_records[0].record_signature != saved_records[1].record_signature
+    assert all(item.search_fare_class_policy == "include_basic" for item in saved_records)
 
 
 def test_append_price_records_migrates_legacy_header(settings) -> None:
@@ -1252,7 +1244,10 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
         "price_record_id",
         "fetch_event_id",
         "observed_at",
+        "observed_date",
         "source",
+        "provider",
+        "fetch_method",
         "fetch_target_id",
         "tracker_id",
         "trip_instance_id",
@@ -1275,8 +1270,12 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
         "departure_label",
         "arrival_label",
         "price",
+        "offer_rank",
         "price_text",
         "summary",
+        "request_offer_count",
+        "is_request_cheapest",
+        "record_signature",
         "created_at",
     ]
     observed_at = utcnow()
@@ -1288,7 +1287,10 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
                 "price_record_id": "price_old",
                 "fetch_event_id": "fetch_old",
                 "observed_at": observed_at.isoformat(),
+                "observed_date": observed_at.date().isoformat(),
                 "source": "background_fetch",
+                "provider": "google_flights",
+                "fetch_method": "generated_link",
                 "fetch_target_id": "ft_old",
                 "tracker_id": "trk_old",
                 "trip_instance_id": "inst_old",
@@ -1311,8 +1313,12 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
                 "departure_label": "6:00 AM",
                 "arrival_label": "7:30 AM",
                 "price": 199,
+                "offer_rank": 1,
                 "price_text": "$199",
                 "summary": "Legacy summary",
+                "request_offer_count": 1,
+                "is_request_cheapest": True,
+                "record_signature": "legacy_sig",
                 "created_at": observed_at.isoformat(),
             }
         )
@@ -1324,14 +1330,12 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
                 price_record_id="price_new",
                 fetch_event_id="fetch_new",
                 observed_at=observed_at,
-                source="background_fetch",
                 fetch_target_id="ft_new",
                 tracker_id="trk_new",
                 trip_instance_id="inst_new",
                 trip_id="trip_new",
                 route_option_id="opt_new",
                 tracker_definition_signature="sig_new",
-                trip_label="New trip",
                 tracker_rank=1,
                 search_origin_airports="LAX",
                 search_destination_airports="SFO",
@@ -1342,14 +1346,11 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
                 search_end_time="11:00",
                 query_origin_airport="LAX",
                 query_destination_airport="SFO",
-                google_flights_url="https://www.google.com/travel/flights/search?tfs=new",
                 airline="United",
                 departure_label="7:05 AM",
                 arrival_label="8:35 AM",
                 price=209,
-                price_text="$209",
-                summary="New summary",
-                record_signature="sig_record_new",
+                offer_rank=1,
             )
         ]
     )
@@ -1358,10 +1359,12 @@ def test_append_price_records_migrates_legacy_header(settings) -> None:
     assert len(saved_records) == 2
     assert {item.price_record_id for item in saved_records} == {"price_old", "price_new"}
     legacy = next(item for item in saved_records if item.price_record_id == "price_old")
-    assert legacy.observed_date == observed_at.date()
+    assert legacy.price == 199
+    assert legacy.offer_rank == 1
+    assert legacy.query_origin_airport == "BUR"
 
 
-def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -> None:
+def test_load_price_records_ignores_removed_legacy_columns(settings) -> None:
     repository = Repository(settings)
     path = repository.settings.data_dir / "price_records.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1369,7 +1372,10 @@ def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -
         "price_record_id",
         "fetch_event_id",
         "observed_at",
+        "observed_date",
         "source",
+        "provider",
+        "fetch_method",
         "fetch_target_id",
         "tracker_id",
         "trip_instance_id",
@@ -1392,8 +1398,12 @@ def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -
         "departure_label",
         "arrival_label",
         "price",
+        "offer_rank",
         "price_text",
         "summary",
+        "request_offer_count",
+        "is_request_cheapest",
+        "record_signature",
         "created_at",
     ]
     observed_at = utcnow()
@@ -1405,7 +1415,10 @@ def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -
                 "price_record_id": "price_old",
                 "fetch_event_id": "fetch_old",
                 "observed_at": observed_at.isoformat(),
+                "observed_date": observed_at.date().isoformat(),
                 "source": "background_fetch",
+                "provider": "google_flights",
+                "fetch_method": "generated_link",
                 "fetch_target_id": "ft_old",
                 "tracker_id": "trk_old",
                 "trip_instance_id": "inst_old",
@@ -1428,8 +1441,12 @@ def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -
                 "departure_label": "6:00 AM",
                 "arrival_label": "7:30 AM",
                 "price": 199,
+                "offer_rank": 1,
                 "price_text": "$199",
                 "summary": "Legacy summary",
+                "request_offer_count": 1,
+                "is_request_cheapest": True,
+                "record_signature": "legacy_sig",
                 "created_at": observed_at.isoformat(),
             }
         )
@@ -1437,4 +1454,6 @@ def test_load_price_records_backfills_observed_date_from_legacy_rows(settings) -
     repository.ensure_data_dir()
     saved_records = repository.load_price_records()
     assert len(saved_records) == 1
-    assert saved_records[0].observed_date == observed_at.date()
+    assert saved_records[0].price_record_id == "price_old"
+    assert saved_records[0].price == 199
+    assert saved_records[0].offer_rank == 1

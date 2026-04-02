@@ -187,17 +187,12 @@ Key columns:
 - `price_record_id`
 - `fetch_event_id`
 - `observed_at`
-- `observed_date`
-- `source`
-- `provider`
-- `fetch_method`
 - `fetch_target_id`
 - `tracker_id`
 - `trip_instance_id`
 - `trip_id`
 - `route_option_id`
 - `tracker_definition_signature`
-- `trip_label`
 - `tracker_rank`
 - `search_origin_airports`
 - `search_destination_airports`
@@ -209,17 +204,11 @@ Key columns:
 - `search_fare_class_policy`
 - `query_origin_airport`
 - `query_destination_airport`
-- `google_flights_url`
 - `airline`
 - `departure_label`
 - `arrival_label`
 - `price`
-- `price_text`
-- `summary`
 - `offer_rank`
-- `request_offer_count`
-- `is_request_cheapest`
-- `record_signature`
 - `created_at`
 
 ## Relationships

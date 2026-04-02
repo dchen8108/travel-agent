@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
-from app.storage.sqlite_schema import DDL_STATEMENTS, SCHEMA_VERSION
+from app.storage.sqlite_schema import CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
@@ -19,6 +19,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
+    _migrate_price_records_to_v3(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -102,3 +103,113 @@ def _insert_rows(
     query = f"{insert_keyword} INTO {table} ({quoted_columns}) VALUES ({placeholders})"
     values = [[row.get(column) for column in columns] for row in rows]
     connection.executemany(query, values)
+
+
+def _migrate_price_records_to_v3(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "price_records"):
+        return
+    columns = _table_columns(connection, "price_records")
+    desired_columns = {
+        "price_record_id",
+        "fetch_event_id",
+        "observed_at",
+        "fetch_target_id",
+        "tracker_id",
+        "trip_instance_id",
+        "trip_id",
+        "route_option_id",
+        "tracker_definition_signature",
+        "tracker_rank",
+        "search_origin_airports",
+        "search_destination_airports",
+        "search_airlines",
+        "search_day_offset",
+        "search_travel_date",
+        "search_start_time",
+        "search_end_time",
+        "search_fare_class_policy",
+        "query_origin_airport",
+        "query_destination_airport",
+        "airline",
+        "departure_label",
+        "arrival_label",
+        "price",
+        "offer_rank",
+    }
+    if set(columns) == desired_columns:
+        return
+
+    connection.execute("ALTER TABLE price_records RENAME TO price_records_old")
+    connection.execute(CREATE_PRICE_RECORDS_TABLE.replace("IF NOT EXISTS ", ""))
+    connection.execute(
+        """
+        INSERT INTO price_records (
+            price_record_id,
+            fetch_event_id,
+            observed_at,
+            fetch_target_id,
+            tracker_id,
+            trip_instance_id,
+            trip_id,
+            route_option_id,
+            tracker_definition_signature,
+            tracker_rank,
+            search_origin_airports,
+            search_destination_airports,
+            search_airlines,
+            search_day_offset,
+            search_travel_date,
+            search_start_time,
+            search_end_time,
+            search_fare_class_policy,
+            query_origin_airport,
+            query_destination_airport,
+            airline,
+            departure_label,
+            arrival_label,
+            price,
+            offer_rank
+        )
+        SELECT
+            price_record_id,
+            fetch_event_id,
+            observed_at,
+            fetch_target_id,
+            tracker_id,
+            trip_instance_id,
+            trip_id,
+            route_option_id,
+            tracker_definition_signature,
+            tracker_rank,
+            search_origin_airports,
+            search_destination_airports,
+            search_airlines,
+            search_day_offset,
+            search_travel_date,
+            search_start_time,
+            search_end_time,
+            search_fare_class_policy,
+            query_origin_airport,
+            query_destination_airport,
+            airline,
+            COALESCE(departure_label, ''),
+            COALESCE(arrival_label, ''),
+            price,
+            COALESCE(offer_rank, 1)
+        FROM price_records_old
+        """
+    )
+    connection.execute("DROP TABLE price_records_old")
+
+
+def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    row = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table,),
+    ).fetchone()
+    return row is not None
+
+
+def _table_columns(connection: sqlite3.Connection, table: str) -> list[str]:
+    rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+    return [str(row[1]) for row in rows]
