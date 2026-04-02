@@ -98,7 +98,7 @@ class DataScope(StrEnum):
 
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
-    future_weeks: int = 12
+    future_weeks: int = 16
     enable_background_fetcher: bool = True
     show_test_data: bool = False
     process_test_data: bool = False

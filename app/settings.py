@@ -15,7 +15,7 @@ class Settings(BaseModel):
     templates_dir: Path = project_root / "app" / "templates"
     static_dir: Path = project_root / "app" / "static"
     timezone: str = "America/Los_Angeles"
-    future_weeks: int = 12
+    future_weeks: int = 16
 
     @property
     def config_local_dir(self) -> Path:

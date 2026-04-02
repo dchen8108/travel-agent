@@ -671,7 +671,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
     assert activate.status_code == 303
     assert (
         activate.headers["location"]
-        == "/trips?message=Trip+activated.+Refresh+queued+for+12+airport-pair+searches."
+        == "/trips?message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches."
     )
 
     pause_from_page = client.post(
@@ -690,7 +690,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
     assert activate_from_page.status_code == 303
     assert (
         activate_from_page.headers["location"]
-        == "/trips?q=Test+Weekly+Trip&message=Trip+activated.+Refresh+queued+for+12+airport-pair+searches."
+        == "/trips?q=Test+Weekly+Trip&message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches."
     )
 
 
@@ -729,10 +729,10 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
 
     activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
     assert activate.status_code == 303
-    assert "Trip+activated.+Refresh+queued+for+12+airport-pair+searches." in activate.headers["location"]
+    assert "Trip+activated.+Refresh+queued+for+16+airport-pair+searches." in activate.headers["location"]
 
     refreshed_targets = repository.load_tracker_fetch_targets()
-    assert len(refreshed_targets) == 12
+    assert len(refreshed_targets) == 16
     assert all(target.next_fetch_not_before is not None for target in refreshed_targets)
     assert all(target.next_fetch_not_before < delayed_until for target in refreshed_targets)
 
@@ -901,7 +901,7 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert trips_page.text.count('class="badge horizon-badge') >= 12
+    assert trips_page.text.count('class="badge horizon-badge') >= 16
     assert 'class="badge horizon-badge is-skipped"' in trips_page.text
 
 

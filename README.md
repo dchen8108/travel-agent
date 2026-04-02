@@ -23,7 +23,7 @@ This version is intentionally local and simple:
 - local SQLite storage under `data/travel_agent.sqlite3`
 - checked-in app config under `config/app_state.json`
 - one-time or weekly trips
-- a rolling 12-week horizon for weekly trips
+- a rolling 16-week horizon for weekly trips
 - in-house Google Flights background fetching
 - automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
