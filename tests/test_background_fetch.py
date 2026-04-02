@@ -1048,7 +1048,7 @@ def test_reconcile_fetch_targets_immediately_requeues_definition_changes(reposit
     assert updated_target.latest_price is None
     assert updated_target.last_fetch_status == "pending"
     assert updated_target.tracker_definition_signature == "changed-definition"
-def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
+def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
     trip_instance = TripInstance(
         trip_instance_id="inst_1",
         trip_id="trip_1",
@@ -1091,7 +1091,6 @@ def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
     booking = Booking(
         booking_id="book_1",
         trip_instance_id="inst_1",
-        tracker_id="trk_booked",
         airline="Alaska",
         origin_airport="BUR",
         destination_airport="SFO",
@@ -1112,8 +1111,8 @@ def test_booked_trip_prefers_its_attached_tracker_for_rebook_checks() -> None:
             "bookings": [booking],
         },
     )()
-    assert factual_trip_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"
-    assert "Booked at $150" in factual_trip_status_reason(snapshot, trip_instance.trip_instance_id)
+    assert factual_trip_status_label(snapshot, trip_instance.trip_instance_id) == "Lower fare found"
+    assert "Current comparable price is $120" in factual_trip_status_reason(snapshot, trip_instance.trip_instance_id)
 
 
 def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(repository: Repository) -> None:

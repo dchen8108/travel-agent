@@ -16,7 +16,6 @@ class Booking(CsvModel):
     source: str = "manual"
     trip_instance_id: str
     data_scope: DataScope = DataScope.LIVE
-    tracker_id: str = ""
     airline: str
     origin_airport: str
     destination_airport: str

@@ -142,17 +142,7 @@ def tracker_fetch_state(snapshot: AppSnapshot, trip_instance_id: str) -> dict[st
     }
 
 
-def booked_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
-    booking = booking_for_instance(snapshot, trip_instance_id)
-    if booking is None or not booking.tracker_id:
-        return None
-    return next((tracker for tracker in snapshot.trackers if tracker.tracker_id == booking.tracker_id), None)
-
-
 def comparison_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
-    tracker = booked_tracker(snapshot, trip_instance_id)
-    if tracker is not None and tracker.latest_observed_price is not None:
-        return tracker
     return best_tracker(snapshot, trip_instance_id)
 
 

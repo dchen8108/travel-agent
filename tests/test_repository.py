@@ -185,7 +185,7 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 7
+    assert user_version == 8
     assert "data_scope" in columns
     assert "price_text" not in columns
     assert "summary" not in columns
@@ -211,7 +211,6 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
                 booking_id TEXT PRIMARY KEY,
                 source TEXT NOT NULL DEFAULT 'manual',
                 trip_instance_id TEXT NULL,
-                tracker_id TEXT NULL,
                 airline TEXT NOT NULL,
                 origin_airport TEXT NOT NULL,
                 destination_airport TEXT NOT NULL,
@@ -257,11 +256,11 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
         connection.execute(
             """
             INSERT INTO bookings (
-                booking_id, source, trip_instance_id, tracker_id, airline, origin_airport, destination_airport,
+                booking_id, source, trip_instance_id, airline, origin_airport, destination_airport,
                 departure_date, departure_time, arrival_time, booked_price, record_locator, booked_at, booking_status,
                 match_status, raw_summary, candidate_trip_instance_ids, resolution_status, notes, created_at, updated_at
             ) VALUES (
-                'book_bad', 'gmail', 'inst_1', 'trk_1', 'WN', 'LAX', 'SFO',
+                'book_bad', 'gmail', 'inst_1', 'WN', 'LAX', 'SFO',
                 '2026-04-20', '06:00', '07:30', 7840, 'BDJ594', '2026-04-01T12:00:00+00:00', 'active',
                 'matched', '', '', 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
             )
@@ -302,7 +301,7 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
 
     assert booked_price == 78.4
     assert booking_columns["booked_price"] == "REAL"
-    assert user_version == 7
+    assert user_version == 8
     assert "extraction_attempt_count" in booking_email_event_columns
     assert "retryable" in booking_email_event_columns
     assert "data_scope" in booking_email_event_columns
@@ -341,17 +340,17 @@ def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> N
         connection.execute(
             """
             INSERT INTO bookings (
-                booking_id, source, trip_instance_id, data_scope, tracker_id, airline, origin_airport, destination_airport,
+                booking_id, source, trip_instance_id, data_scope, airline, origin_airport, destination_airport,
                 departure_date, departure_time, arrival_time, booked_price, record_locator, booked_at, booking_status,
                 match_status, raw_summary, candidate_trip_instance_ids, resolution_status, notes, created_at, updated_at
             ) VALUES (
-                'book_test', 'manual', 'inst_test', 'live', NULL, 'AS', 'BUR', 'SFO',
+                'book_test', 'manual', 'inst_test', 'live', 'AS', 'BUR', 'SFO',
                 '2026-04-15', '07:00', '08:30', 145.0, 'E2EX123', '2026-04-01T12:00:00+00:00', 'active',
                 'matched', '', '', 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
             )
             """
         )
-        connection.execute("PRAGMA user_version = 6")
+        connection.execute("PRAGMA user_version = 7")
         connection.commit()
     finally:
         connection.close()

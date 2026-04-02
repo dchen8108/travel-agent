@@ -299,7 +299,7 @@ def test_open_trip_stays_fetching_until_all_route_options_settle(repository: Rep
     assert "still checking the remaining options" in reason
 
 
-def test_rebook_stays_tied_to_booked_tracker_when_booking_is_attached(repository: Repository) -> None:
+def test_rebook_uses_trip_level_best_option_when_booking_exists(repository: Repository) -> None:
     snapshot, instance, trackers = _single_instance_snapshot(
         repository,
         preference_mode="ranked_bias",
@@ -327,7 +327,6 @@ def test_rebook_stays_tied_to_booked_tracker_when_booking_is_attached(repository
     booking = Booking(
         booking_id="book_1",
         trip_instance_id=instance.trip_instance_id,
-        tracker_id=trackers[0].tracker_id,
         airline="Alaska",
         origin_airport="BUR",
         destination_airport="SFO",
@@ -342,9 +341,6 @@ def test_rebook_stays_tied_to_booked_tracker_when_booking_is_attached(repository
     recompute_trip_states(snapshot.trip_instances, trackers, [booking])
     snapshot.bookings = [booking]
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Booked"
-
-    trackers[0].latest_observed_price = 150
-    recompute_trip_states(snapshot.trip_instances, trackers, [booking])
-    refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
     assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Lower fare found"
+    reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
+    assert "Current comparable price is $130" in reason

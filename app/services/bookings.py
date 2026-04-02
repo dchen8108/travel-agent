@@ -34,7 +34,6 @@ def _build_booking(
     source: str,
     trip_instance_id: str,
     data_scope: str,
-    tracker_id: str = "",
     notes: str | None = None,
 ) -> Booking:
     return Booking(
@@ -42,7 +41,6 @@ def _build_booking(
         source=source,
         trip_instance_id=trip_instance_id,
         data_scope=DataScope(data_scope),
-        tracker_id=tracker_id,
         airline=candidate.airline,
         origin_airport=candidate.origin_airport,
         destination_airport=candidate.destination_airport,
@@ -104,12 +102,16 @@ def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[T
     return matches
 
 
+def _matching_trip_instance_ids_for_booking(candidate: BookingCandidate, trackers: list[Tracker]) -> list[str]:
+    matching_trackers = _matching_trackers_for_booking(candidate, trackers)
+    return sorted({tracker.trip_instance_id for tracker in matching_trackers})
+
+
 def record_booking(
     repository: Repository,
     candidate: BookingCandidate,
     *,
     trip_instance_id: str = "",
-    tracker_id: str = "",
     source: str = "manual",
     data_scope: str = DataScope.LIVE,
 ) -> tuple[Booking | None, UnmatchedBooking | None]:
@@ -119,47 +121,27 @@ def record_booking(
     trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
 
     selected_trip = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None) if trip_instance_id else None
-    selected_tracker = next((item for item in trackers if item.tracker_id == tracker_id), None) if tracker_id else None
-
-    if selected_tracker and selected_trip and selected_tracker.trip_instance_id != selected_trip.trip_instance_id:
-        raise ValueError("Selected tracker does not belong to the chosen trip instance.")
-
-    if selected_tracker:
-        booking = _build_booking(
-            candidate,
-            source=source,
-            trip_instance_id=selected_tracker.trip_instance_id,
-            data_scope=selected_tracker.data_scope,
-            tracker_id=selected_tracker.tracker_id,
-        )
-        return _save_booking(repository, booking), None
 
     if selected_trip:
-        candidate_trackers = [
-            tracker
-            for tracker in trackers
-            if tracker.trip_instance_id == selected_trip.trip_instance_id
-            and tracker.travel_date == candidate.departure_date
-        ]
-        matching_trackers = _matching_trackers_for_booking(candidate, candidate_trackers)
         booking = _build_booking(
             candidate,
             source=source,
             trip_instance_id=selected_trip.trip_instance_id,
             data_scope=selected_trip.data_scope,
-            tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         )
         return _save_booking(repository, booking), None
 
-    matching_trackers = _matching_trackers_for_booking(candidate, trackers)
-    if len(matching_trackers) == 1:
-        matched = matching_trackers[0]
+    matching_trip_instance_ids = _matching_trip_instance_ids_for_booking(candidate, trackers)
+    if len(matching_trip_instance_ids) == 1:
+        matched_trip_instance_id = matching_trip_instance_ids[0]
+        matched_trip_instance = next(
+            item for item in trip_instances if item.trip_instance_id == matched_trip_instance_id
+        )
         booking = _build_booking(
             candidate,
             source=source,
-            trip_instance_id=matched.trip_instance_id,
-            data_scope=matched.data_scope,
-            tracker_id=matched.tracker_id,
+            trip_instance_id=matched_trip_instance.trip_instance_id,
+            data_scope=matched_trip_instance.data_scope,
         )
         return _save_booking(repository, booking), None
 
@@ -177,7 +159,7 @@ def record_booking(
         record_locator=candidate.record_locator,
         raw_summary=f"{candidate.airline} {candidate.origin_airport}->{candidate.destination_airport} {candidate.departure_date.isoformat()} {candidate.departure_time}",
         candidate_trip_instance_ids="|".join(
-            sorted({tracker.trip_instance_id for tracker in matching_trackers})
+            matching_trip_instance_ids
         ),
     )
     unmatched_bookings = repository.load_unmatched_bookings()
@@ -197,7 +179,6 @@ def resolve_unmatched_booking_to_trip_instance(
     if unmatched is None or unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
         raise KeyError("Unmatched booking not found")
 
-    trackers = repository.load_trackers()
     candidate = BookingCandidate(
         airline=unmatched.airline,
         origin_airport=unmatched.origin_airport,
@@ -208,17 +189,12 @@ def resolve_unmatched_booking_to_trip_instance(
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
     )
-    matching_trackers = _matching_trackers_for_booking(
-        candidate,
-        [tracker for tracker in trackers if tracker.trip_instance_id == trip_instance_id],
-    )
 
     booking = _build_booking(
         candidate,
         source=unmatched.source,
         trip_instance_id=trip_instance_id,
         data_scope=unmatched.data_scope,
-        tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         notes="Resolved from unmatched booking",
     )
     with repository.transaction():

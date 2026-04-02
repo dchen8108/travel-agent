@@ -206,18 +206,18 @@ def trackers_detail(
     fare_snapshot_note = ""
     if booking and savings is not None and comparison and comparison.latest_observed_price is not None:
         fare_snapshot_note = (
-            f"Travel Agent found a comparable fare at {format_money(comparison.latest_observed_price)}, "
+            f"Travel Agent found a better current trip option at {format_money(comparison.latest_observed_price)}, "
             f"{format_money(savings)} below what you booked."
         )
     elif booking and comparison and comparison.latest_observed_price is not None:
         fare_snapshot_note = (
             f"Booked at {format_money(booking.booked_price)}. "
-            f"The latest comparable fare is {format_money(comparison.latest_observed_price)}."
+            f"The best current trip option is {format_money(comparison.latest_observed_price)}."
         )
     elif booking:
         fare_snapshot_note = (
             f"Booked at {format_money(booking.booked_price)}. "
-            "A current comparison fare is not available yet."
+            "A current trip-level comparison fare is not available yet."
         )
     elif trackers and not (best_current_tracker and best_current_tracker.latest_observed_price is not None):
         fare_snapshot_note = "Travel Agent is still checking the monitored searches for this date."

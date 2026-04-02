@@ -38,7 +38,7 @@ def seed_trip(repository: Repository) -> str:
     return next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
 
 
-def test_record_booking_auto_matches_exact_tracker(repository: Repository) -> None:
+def test_record_booking_auto_matches_unique_trip_instance(repository: Repository) -> None:
     trip_instance_id = seed_trip(repository)
 
     booking, unmatched = record_booking(
@@ -58,7 +58,6 @@ def test_record_booking_auto_matches_exact_tracker(repository: Repository) -> No
     assert unmatched is None
     assert booking is not None
     assert booking.trip_instance_id == trip_instance_id
-    assert booking.tracker_id
 
 
 def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: Repository) -> None:

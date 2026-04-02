@@ -11,7 +11,7 @@ from app.models.base import DataScope
 from app.services.gmail_client import gmail_auth_status
 from app.services.gmail_config import load_gmail_integration_config
 from app.services.bookings import BookingCandidate, record_booking, unlink_booking
-from app.services.dashboard import load_snapshot, trackers_for_instance, trip_for_instance, trip_instance_by_id
+from app.services.dashboard import load_snapshot, trip_for_instance, trip_instance_by_id
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
@@ -28,13 +28,11 @@ def _booking_views(snapshot):
     for booking in active_bookings:
         trip_instance = trip_instance_by_id(snapshot, booking.trip_instance_id)
         parent_trip = trip_for_instance(snapshot, booking.trip_instance_id) if trip_instance else None
-        tracker = next((item for item in trackers_for_instance(snapshot, booking.trip_instance_id) if item.tracker_id == booking.tracker_id), None) if booking.tracker_id else None
         cards.append(
             {
                 "booking": booking,
                 "trip_instance": trip_instance,
                 "parent_trip": parent_trip,
-                "tracker": tracker,
             }
         )
     return cards
@@ -165,7 +163,6 @@ async def save_booking(
             repository,
             candidate,
             trip_instance_id=booking_state["trip_instance_id"],
-            tracker_id=str(form.get("tracker_id", "")).strip(),
             data_scope=str(form.get("data_scope", DataScope.LIVE)).strip() or DataScope.LIVE,
         )
         sync_and_persist(repository)

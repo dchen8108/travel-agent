@@ -59,7 +59,6 @@
   {% set booking = card.booking %}
   {% set trip_instance = card.trip_instance %}
   {% set parent_trip = card.parent_trip %}
-  {% set tracker = card.tracker %}
   <article class="card booking-card">
     <div class="card-header">
       <div>
@@ -75,7 +74,7 @@
     <div class="meta-grid">
       <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>
       <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
-      <div><dt>Tracker option</dt><dd>{{ 'Option %s'|format(tracker.rank) if tracker else 'Auto-matched trip only' }}</dd></div>
+      <div><dt>Source</dt><dd>{{ booking.source.replace('_', ' ') }}</dd></div>
       <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
     </div>
     <div class="actions">

@@ -25,6 +25,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_booking_email_events_to_v6(connection)
     _migrate_price_records_to_v3(connection)
     _migrate_data_scope_to_v7(connection)
+    _migrate_bookings_to_v8(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -221,7 +222,7 @@ def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:
                 booking_id,
                 source,
                 trip_instance_id,
-                tracker_id,
+                data_scope,
                 airline,
                 origin_airport,
                 destination_airport,
@@ -244,7 +245,7 @@ def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:
                 booking_id,
                 source,
                 trip_instance_id,
-                tracker_id,
+                'live',
                 airline,
                 origin_airport,
                 destination_airport,
@@ -267,6 +268,68 @@ def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:
         )
         connection.execute("DROP TABLE bookings_old")
     _repair_gmail_booking_prices_to_v5(connection)
+
+
+def _migrate_bookings_to_v8(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "tracker_id" not in columns:
+        return
+
+    connection.execute("ALTER TABLE bookings RENAME TO bookings_old_v8")
+    connection.execute(CREATE_BOOKINGS_TABLE.replace("IF NOT EXISTS ", ""))
+    connection.execute(
+        """
+        INSERT INTO bookings (
+            booking_id,
+            source,
+            trip_instance_id,
+            data_scope,
+            airline,
+            origin_airport,
+            destination_airport,
+            departure_date,
+            departure_time,
+            arrival_time,
+            booked_price,
+            record_locator,
+            booked_at,
+            booking_status,
+            match_status,
+            raw_summary,
+            candidate_trip_instance_ids,
+            resolution_status,
+            notes,
+            created_at,
+            updated_at
+        )
+        SELECT
+            booking_id,
+            source,
+            trip_instance_id,
+            COALESCE(data_scope, 'live'),
+            airline,
+            origin_airport,
+            destination_airport,
+            departure_date,
+            departure_time,
+            arrival_time,
+            booked_price,
+            record_locator,
+            booked_at,
+            booking_status,
+            match_status,
+            raw_summary,
+            candidate_trip_instance_ids,
+            resolution_status,
+            notes,
+            created_at,
+            updated_at
+        FROM bookings_old_v8
+        """
+    )
+    connection.execute("DROP TABLE bookings_old_v8")
 
 
 def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:

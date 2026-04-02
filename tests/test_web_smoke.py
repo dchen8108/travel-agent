@@ -60,7 +60,6 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
         "/bookings",
         data={
             "trip_instance_id": "",
-            "tracker_id": "",
             "airline": "Alaska",
             "origin_airport": "BUR",
             "destination_airport": "SFO",
@@ -105,7 +104,6 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
         "/bookings",
         data={
             "trip_instance_id": "",
-            "tracker_id": "",
             "airline": "Alaska",
             "origin_airport": "BUR",
             "destination_airport": "SFO",
@@ -381,7 +379,6 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
         "/bookings",
         data={
             "trip_instance_id": "",
-            "tracker_id": "",
             "airline": "Alaska",
             "origin_airport": "BUR",
             "destination_airport": "SFO",
@@ -1000,7 +997,6 @@ def test_resolve_flow_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
         "/bookings",
         data={
             "trip_instance_id": "",
-            "tracker_id": "",
             "airline": "United",
             "origin_airport": "LAX",
             "destination_airport": "SEA",

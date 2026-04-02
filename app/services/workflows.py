@@ -65,14 +65,10 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     )
 
     valid_trip_instance_ids = {item.trip_instance_id for item in trip_instances}
-    valid_tracker_ids = {item.tracker_id for item in trackers}
-
     filtered_bookings: list[Booking] = []
     for booking in bookings:
         if booking.trip_instance_id not in valid_trip_instance_ids:
             continue
-        if booking.tracker_id and booking.tracker_id not in valid_tracker_ids:
-            booking.tracker_id = ""
         filtered_bookings.append(booking)
     bookings = filtered_bookings
     for unmatched in unmatched_bookings:
