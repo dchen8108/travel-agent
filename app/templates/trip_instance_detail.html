@@ -33,7 +33,14 @@
       <button class="button primary" type="submit">Restore trip</button>
     </form>
     {% elif can_archive_parent_trip %}
-    <form method="post" action="/trips/{{ parent_trip.trip_id }}/delete" onsubmit="return confirm('Archive this one-time trip and hide it from the active views?');">
+    <form
+      method="post"
+      action="/trips/{{ parent_trip.trip_id }}/delete"
+      data-confirm-title="Archive this one-time trip?"
+      data-confirm-description="It will disappear from the active trip workflow, but you can restore it later from the archived section."
+      data-confirm-action="Archive trip"
+      data-confirm-cancel="Keep trip"
+    >
       <button class="button ghost danger-outline" type="submit">Delete trip</button>
     </form>
     {% endif %}

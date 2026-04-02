@@ -37,6 +37,26 @@
           </div>
         </div>
         {% endif %}
+        <div class="confirm-modal-root" data-confirm-modal-root hidden>
+          <div class="confirm-modal-backdrop" data-confirm-close></div>
+          <div
+            class="confirm-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-modal-title"
+            aria-describedby="confirm-modal-description"
+          >
+            <p class="eyebrow">Confirm action</p>
+            <h3 id="confirm-modal-title" data-confirm-modal-title>Are you sure?</h3>
+            <p id="confirm-modal-description" class="muted" data-confirm-modal-description>
+              This change will take effect immediately.
+            </p>
+            <div class="confirm-modal-actions">
+              <button type="button" class="button secondary" data-confirm-cancel>Keep it</button>
+              <button type="button" class="button danger" data-confirm-accept>Continue</button>
+            </div>
+          </div>
+        </div>
         {% block content %}{% endblock %}
       </main>
     </div>

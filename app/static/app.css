@@ -25,6 +25,10 @@ body {
   background: var(--bg);
 }
 
+body.has-modal-open {
+  overflow: hidden;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -131,6 +135,57 @@ a {
   right: 28px;
   z-index: 50;
   pointer-events: none;
+}
+
+.confirm-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.confirm-modal-root[hidden] {
+  display: none;
+}
+
+.confirm-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 28%),
+    rgba(31, 33, 28, 0.38);
+  backdrop-filter: blur(10px);
+}
+
+.confirm-modal-card {
+  position: relative;
+  width: min(520px, calc(100vw - 32px));
+  padding: 24px 24px 22px;
+  border-radius: 26px;
+  border: 1px solid rgba(215, 207, 191, 0.9);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 244, 236, 0.98));
+  box-shadow: 0 24px 60px rgba(24, 27, 22, 0.2);
+}
+
+.confirm-modal-card h3 {
+  margin: 8px 0 10px;
+  font-size: 1.65rem;
+  line-height: 1.05;
+}
+
+.confirm-modal-card p {
+  margin: 0;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+  flex-wrap: wrap;
 }
 
 .flash {

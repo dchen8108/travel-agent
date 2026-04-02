@@ -35,7 +35,14 @@
       </button>
     </form>
     {% elif trip.active and booked_count == 0 %}
-    <form method="post" action="/trips/{{ trip.trip_id }}/delete" onsubmit="return confirm('Archive this one-time trip and hide it from the active views?');">
+    <form
+      method="post"
+      action="/trips/{{ trip.trip_id }}/delete"
+      data-confirm-title="Archive this one-time trip?"
+      data-confirm-description="It will disappear from the active trip workflow, but you can restore it later from the archived section."
+      data-confirm-action="Archive trip"
+      data-confirm-cancel="Keep trip"
+    >
       <button class="button ghost danger-outline" type="submit">Delete</button>
     </form>
     {% else %}
