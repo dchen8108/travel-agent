@@ -19,9 +19,8 @@
         <nav class="nav">
           <a href="/" class="{{ 'active' if page == 'today' else '' }}">Today</a>
           <a href="/trips" class="{{ 'active' if page == 'trips' else '' }}">Trips</a>
-          <a href="/bookings" class="{{ 'active' if page == 'bookings' else '' }}">Bookings</a>
-          <a href="/resolve" class="{{ 'active' if page == 'resolve' else '' }}">
-            Resolve
+          <a href="/bookings" class="{{ 'active' if page in ['bookings', 'resolve'] else '' }}">
+            Bookings
             {% if resolve_count %}
             <span class="nav-badge">{{ resolve_count }}</span>
             {% endif %}

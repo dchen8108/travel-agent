@@ -3,8 +3,8 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Bookings</p>
-    <h2>Keep purchased flights tied to the right trip.</h2>
-    <p>Bookings are the highest-signal records in the system. If Travel Agent cannot place one confidently, it goes to Resolve exactly once.</p>
+    <h2>Manage linked flights, unresolved imports, and booking history in one place.</h2>
+    <p>The bookings ledger is the source of truth for what you purchased. Unlinked bookings stay here until you attach them or turn them into a new trip.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/bookings/new">Add booking</a>
@@ -12,115 +12,169 @@
 </section>
 
 <section class="summary-strip">
-  <div class="summary-pill"><span>{{ booking_views|length }}</span><small>active bookings</small></div>
-  <div class="summary-pill"><span>{{ open_unmatched|length }}</span><small>need resolution</small></div>
-  <div class="summary-pill"><span>{{ booking_email_counts.get('resolved_auto', 0) }}</span><small>auto-imported emails</small></div>
+  <div class="summary-pill"><span>{{ booking_views|length }}</span><small>active</small></div>
+  <div class="summary-pill"><span>{{ unmatched_views|length }}</span><small>need linking</small></div>
+  <div class="summary-pill"><span>{{ history_views|length }}</span><small>history</small></div>
 </section>
 
-<section class="card booking-ingest-card">
-  <div class="card-header">
+{% if unmatched_views %}
+<section class="section" id="needs-linking">
+  <div class="section-header">
     <div>
-      <strong>Gmail booking automation</strong>
-      <p class="muted">
-        {% if gmail_auth.ready %}
-        Connected. Travel Agent is watching your inbox for new booking confirmations.
-        {% elif gmail_auth.client_config_present %}
-        Ready to connect. Run the one-time auth command to let Travel Agent read booking emails.
-        {% else %}
-        Waiting for Gmail OAuth setup.
-        {% endif %}
-      </p>
-    </div>
-    <span class="badge {{ 'success' if gmail_auth.ready else 'warning' }}">{{ 'Connected' if gmail_auth.ready else 'Needs auth' }}</span>
-  </div>
-  <div class="meta-grid">
-    <div><dt>Inbox scope</dt><dd>{{ gmail_integration.inbox_label_ids|join(', ') }}</dd></div>
-    <div><dt>Poll batch</dt><dd>{{ gmail_integration.max_messages_per_poll }} messages</dd></div>
-    <div><dt>Model</dt><dd>{{ gmail_integration.model }}</dd></div>
-    <div><dt>Auto-create threshold</dt><dd>{{ '%.0f%%'|format(gmail_integration.min_auto_create_confidence * 100) }}</dd></div>
-  </div>
-  {% if not gmail_auth.ready %}
-  <div class="inline-note">
-    Run <code>{{ gmail_auth.authorize_command }}</code> once in the repo to finish Gmail authorization.
-  </div>
-  {% endif %}
-</section>
-
-{% if open_unmatched %}
-<section class="card warning-card">
-  <strong>{{ open_unmatched|length }} booking{{ '' if open_unmatched|length == 1 else 's' }} need resolution.</strong>
-  <p>Resolve them once and they will drop back into the normal booking ledger.</p>
-  <a class="button secondary" href="/resolve">Open resolve</a>
-</section>
-{% endif %}
-
-<div class="stack">
-  {% for card in booking_views %}
-  {% set booking = card.booking %}
-  {% set trip_instance = card.trip_instance %}
-  {% set parent_trip = card.parent_trip %}
-  <article class="card booking-card">
-    <div class="card-header">
-      <div>
-        <strong>{{ parent_trip.label if parent_trip else booking.origin_airport ~ ' → ' ~ booking.destination_airport }}</strong>
-        <p class="muted">
-          {{ booking.departure_date.isoformat() }} · {{ booking.origin_airport }} → {{ booking.destination_airport }} ·
-          {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
-          {{ airline_label(booking.airline) }}
-        </p>
-      </div>
-      <span class="badge">{{ money(booking.booked_price) }}</span>
-    </div>
-    <div class="meta-grid">
-      <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>
-      <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
-      <div><dt>Source</dt><dd>{{ booking.source.replace('_', ' ') }}</dd></div>
-      <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
-    </div>
-    <div class="actions">
-      {% if trip_instance %}
-      <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
-      {% endif %}
-      <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
-        <button class="button danger-outline" type="submit">Unlink</button>
-      </form>
-    </div>
-  </article>
-  {% else %}
-  <article class="empty-state">
-    <strong>No bookings saved.</strong>
-    <p>Add a booking after purchase and Travel Agent will keep comparing it against live tracker prices.</p>
-  </article>
-  {% endfor %}
-</div>
-
-<section class="card top-gap-medium">
-  <div class="card-header">
-    <div>
-      <strong>Recent email intake</strong>
-      <p class="muted">Every new Gmail message is classified once, then either attached automatically or sent to Resolve.</p>
+      <p class="eyebrow">Needs linking</p>
+      <h3>Bookings that still need a home</h3>
+      <p class="muted">If a booking could not be matched confidently, choose the right scheduled trip here or create a new one-time trip.</p>
     </div>
   </div>
-  <div class="stack compact">
-    {% for event in recent_email_events %}
-    <article class="subcard booking-ingest-event">
+  <div class="stack">
+    {% for card in unmatched_views %}
+    {% set unmatched = card.unmatched %}
+    <article class="card resolve-card booking-card">
       <div class="card-header">
         <div>
-          <strong>{{ event.subject or '(No subject)' }}</strong>
-          <p class="muted">{{ event.from_address or 'Unknown sender' }} · {{ event.received_at.strftime('%Y-%m-%d %H:%M') }}</p>
+          <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
+          <p class="muted">
+            {{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }}{% if unmatched.arrival_time %}–{{ unmatched.arrival_time }}{% endif %} ·
+            {{ airline_label(unmatched.airline) }}
+          </p>
         </div>
-        <span class="badge {{ 'success' if event.processing_status == 'resolved_auto' else 'warning' if event.processing_status == 'needs_resolution' else 'neutral' }}">
-          {{ event.processing_status.replace('_', ' ') }}
-        </span>
+        <span class="badge">{{ money(unmatched.booked_price) }}</span>
       </div>
-      <p class="muted">{{ event.notes or 'Processed.' }}</p>
-    </article>
-    {% else %}
-    <article class="empty-state">
-      <strong>No email activity yet.</strong>
-      <p>Once Gmail automation is connected, recent booking-email results will show up here.</p>
+      <div class="meta-grid">
+        <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
+        <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
+        <div><dt>Status</dt><dd>Needs linking</dd></div>
+        <div><dt>Matching signal</dt><dd>{% if card.suggested_trip_instances %}{{ card.suggested_trip_instances|length }} possible trip{{ '' if card.suggested_trip_instances|length == 1 else 's' }}{% else %}No strong match yet{% endif %}</dd></div>
+      </div>
+      {% if unmatched.raw_summary %}
+      <p class="muted top-gap-small">{{ unmatched.raw_summary }}</p>
+      {% endif %}
+      {% if card.suggested_trip_instances %}
+      <div class="inline-badge-row top-gap-small">
+        {% for trip_instance in card.suggested_trip_instances %}
+        <span class="badge">{{ trip_instance.display_label }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="two-column top-gap-small">
+        <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
+          <h4>Link to an existing scheduled trip</h4>
+          <p class="muted">Choose the trip this booking belongs to. One booking can attach to only one scheduled trip.</p>
+          <label>
+            <span>Scheduled trip</span>
+            <select name="trip_instance_id" required>
+              <option value="">Choose one</option>
+              {% for trip_instance in card.trip_options %}
+              <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="submit" class="button primary">Link booking</button>
+        </form>
+
+        <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/create-trip" class="subcard">
+          <h4>Create a new one-time trip</h4>
+          <p class="muted">Use this when the travel is real, but the trip does not exist in the system yet.</p>
+          <label>
+            <span>New trip label</span>
+            <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
+          </label>
+          <button type="submit" class="button secondary">Create trip from booking</button>
+        </form>
+      </div>
     </article>
     {% endfor %}
   </div>
 </section>
+{% endif %}
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Active bookings</p>
+      <h3>Flights currently attached to trips</h3>
+      <p class="muted">These active bookings drive booked-trip monitoring and rebook alerts.</p>
+    </div>
+  </div>
+  <div class="stack">
+    {% for card in booking_views %}
+    {% set booking = card.booking %}
+    {% set trip_instance = card.trip_instance %}
+    {% set parent_trip = card.parent_trip %}
+    <article class="card booking-card">
+      <div class="card-header">
+        <div>
+          <strong>{{ parent_trip.label if parent_trip else booking.origin_airport ~ ' → ' ~ booking.destination_airport }}</strong>
+          <p class="muted">
+            {{ booking.departure_date.isoformat() }} · {{ booking.origin_airport }} → {{ booking.destination_airport }} ·
+            {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
+            {{ airline_label(booking.airline) }}
+          </p>
+        </div>
+        <span class="badge">{{ money(booking.booked_price) }}</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>
+        <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
+        <div><dt>Source</dt><dd>{{ booking.source.replace('_', ' ') }}</dd></div>
+        <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
+      </div>
+      <div class="actions">
+        {% if trip_instance %}
+        <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
+        {% endif %}
+        <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
+          <button class="button danger-outline" type="submit">Unlink</button>
+        </form>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No active bookings.</strong>
+      <p>Add a booking after purchase and Travel Agent will keep the linked trip under monitoring.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+{% if history_views %}
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">History</p>
+      <h3>Cancelled and replaced bookings</h3>
+      <p class="muted">Historical bookings stay attached so you can see what changed over time.</p>
+    </div>
+  </div>
+  <div class="stack">
+    {% for card in history_views %}
+    {% set booking = card.booking %}
+    {% set trip_instance = card.trip_instance %}
+    {% set parent_trip = card.parent_trip %}
+    <article class="card booking-card is-muted-card">
+      <div class="card-header">
+        <div>
+          <strong>{{ parent_trip.label if parent_trip else booking.origin_airport ~ ' → ' ~ booking.destination_airport }}</strong>
+          <p class="muted">
+            {{ booking.departure_date.isoformat() }} · {{ booking.origin_airport }} → {{ booking.destination_airport }} ·
+            {{ booking.departure_time }}{% if booking.arrival_time %}–{{ booking.arrival_time }}{% endif %} ·
+            {{ airline_label(booking.airline) }}
+          </p>
+        </div>
+        <div class="badge-stack">
+          <span class="badge">{{ money(booking.booked_price) }}</span>
+          <span class="status-pill neutral">{{ booking.status }}</span>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else '—' }}</dd></div>
+        <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
+        <div><dt>Source</dt><dd>{{ booking.source.replace('_', ' ') }}</dd></div>
+        <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}

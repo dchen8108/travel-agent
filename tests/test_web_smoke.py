@@ -1022,7 +1022,7 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     assert "is-unavailable" in trackers_page.text
 
 
-def test_resolve_flow_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
+def test_unmatched_booking_can_be_linked_from_bookings_page(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1061,15 +1061,15 @@ def test_resolve_flow_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert booking_response.status_code == 303
-    assert booking_response.headers["location"] == "/resolve?message=Booking+needs+resolution"
+    assert booking_response.headers["location"] == "/bookings?message=Booking+needs+linking#needs-linking"
 
-    resolve_page = client.get("/resolve")
-    unmatched_id = resolve_page.text.split('/resolve/', 1)[1].split('/link', 1)[0]
+    bookings_page = client.get("/bookings")
+    unmatched_id = bookings_page.text.split('/bookings/unmatched/', 1)[1].split('/link', 1)[0]
 
     trips_page = client.get("/trips?q=Resolve+Redirect+Trip")
     trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
     resolve_response = client.post(
-        f"/resolve/{unmatched_id}/link",
+        f"/bookings/unmatched/{unmatched_id}/link",
         data={"trip_instance_id": trip_instance_id},
         follow_redirects=False,
     )
