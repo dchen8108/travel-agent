@@ -253,7 +253,7 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
     detail = client.get(response.headers["location"])
     assert detail.status_code == 200
     assert "Respect option order" not in detail.text
-    assert "cheaper by at least your configured amount" in detail.text
+    assert "Needs $50 more savings to outrank higher options." in detail.text
 
 
 def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
@@ -395,7 +395,8 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     detail = client.get(booking_response.headers["location"])
     assert detail.status_code == 200
     assert "Scheduled trip" in detail.text
-    assert "View plan" in detail.text
+    assert "Edit trip" in detail.text
+    assert "View plan" not in detail.text
 
 
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
@@ -684,6 +685,34 @@ def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
     assert "Redirect Weekly Trip" in response.text
     assert "Route options" in response.text
     assert "Scheduled trips" in response.text
+
+
+def test_one_time_trip_detail_redirects_to_scheduled_trip_page(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Redirect One-Time Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+
+    response = client.get(f"/trips/{trip_id}", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/trip-instances/")
 
 
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:

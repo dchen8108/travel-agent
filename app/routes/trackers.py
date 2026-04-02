@@ -220,6 +220,11 @@ def trackers_detail(
         )
     elif trackers and not (best_current_tracker and best_current_tracker.latest_observed_price is not None):
         fare_snapshot_note = "Travel Agent is still checking the monitored searches for this date."
+    can_archive_parent_trip = (
+        parent_trip.trip_kind == "one_time"
+        and parent_trip.active
+        and booking is None
+    )
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -234,6 +239,7 @@ def trackers_detail(
             total_fetch_targets=total_fetch_targets,
             sibling_instances=sibling_instances,
             booking=booking,
+            can_archive_parent_trip=can_archive_parent_trip,
             best_tracker=best_current_tracker,
             comparison_tracker=comparison,
             current_fare_label=current_fare_label,
