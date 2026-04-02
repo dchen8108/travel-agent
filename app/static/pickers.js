@@ -105,9 +105,8 @@
             event.stopPropagation();
             state.values = state.values.filter((_, itemIndex) => itemIndex !== index);
             renderChips();
-            renderMenu(search.value);
             onChange(Array.from(state.values));
-            search.focus();
+            closeMenu();
           });
           chip.append(text, remove);
           chipList.appendChild(chip);
@@ -390,8 +389,7 @@
         state.value = "";
         hidden.value = "";
         renderChip();
-        renderMenu(search.value || "");
-        search.focus();
+        closeMenu();
       });
       chip.append(text, remove);
       chipList.appendChild(chip);
