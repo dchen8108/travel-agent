@@ -7,7 +7,7 @@ import sys
 import traceback
 
 from app.models.base import utcnow
-from app.services.background_fetch import run_fetch_batch, select_due_fetch_targets
+from app.services.background_fetch import claim_due_fetch_targets, run_fetch_batch, select_due_fetch_targets
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import trip_for_instance
 from app.services.ids import new_id
@@ -64,15 +64,22 @@ def main() -> None:
             max_targets=len(snapshot.tracker_fetch_targets),
             include_test_data=include_test_data,
         )
-        due_targets = select_due_fetch_targets(
-            snapshot.trackers,
-            snapshot.trip_instances,
-            snapshot.tracker_fetch_targets,
+        selected_target_ids = claim_due_fetch_targets(
+            repository,
+            run_id=run_id,
             now=selection_now,
             max_targets=args.max_targets,
             include_test_data=include_test_data,
         )
-        selected_target_ids = [target.fetch_target_id for target in due_targets]
+        target_by_id = {
+            target.fetch_target_id: target
+            for target in snapshot.tracker_fetch_targets
+        }
+        due_targets = [
+            target_by_id[target_id]
+            for target_id in selected_target_ids
+            if target_id in target_by_id
+        ]
         total_due_target_count = len(all_due_targets)
         _emit_log(
             "run_started",
@@ -143,8 +150,14 @@ def main() -> None:
         )
 
         with repository.transaction():
+            existing_target_ids = repository.load_tracker_fetch_target_ids()
+            updated_due_targets = [
+                target
+                for target in due_targets
+                if target.fetch_target_id in existing_target_ids
+            ]
             repository.append_price_records(price_records)
-            repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+            repository.upsert_tracker_fetch_targets(updated_due_targets)
             repository.save_trackers(snapshot.trackers)
             repository.save_trip_instances(snapshot.trip_instances)
         status_counts: dict[str, int] = {}

@@ -32,6 +32,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_status_enums_to_v12(connection)
     _migrate_group_memberships_to_v13(connection)
     _migrate_weekly_rule_legacy_groups_to_v14(connection)
+    _migrate_fetch_target_claims_to_v15(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -640,6 +641,20 @@ def _migrate_weekly_rule_legacy_groups_to_v14(connection: sqlite3.Connection) ->
           AND COALESCE(trip_group_id, '') != ''
         """
     )
+
+
+def _migrate_fetch_target_claims_to_v15(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "tracker_fetch_targets"):
+        return
+    columns = _table_columns(connection, "tracker_fetch_targets")
+    if "fetch_claim_owner" not in columns:
+        connection.execute(
+            "ALTER TABLE tracker_fetch_targets ADD COLUMN fetch_claim_owner TEXT NOT NULL DEFAULT ''"
+        )
+    if "fetch_claim_expires_at" not in columns:
+        connection.execute(
+            "ALTER TABLE tracker_fetch_targets ADD COLUMN fetch_claim_expires_at TEXT NULL"
+        )
 
 
 def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:

@@ -10,7 +10,12 @@ from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
 from app.jobs.fetch_google_flights import _non_negative_int
-from app.services.background_fetch import queue_rolling_refresh, run_fetch_batch, select_due_fetch_targets
+from app.services.background_fetch import (
+    claim_due_fetch_targets,
+    queue_rolling_refresh,
+    run_fetch_batch,
+    select_due_fetch_targets,
+)
 from app.services.dashboard import factual_trip_status_label, factual_trip_status_reason
 from app.services.fetch_targets import (
     FETCH_INTERVAL_SECONDS,
@@ -406,6 +411,173 @@ def test_select_due_fetch_targets_skips_past_trip_targets(repository: Repository
     assert due_targets == []
 
 
+def test_select_due_fetch_targets_skips_trackers_with_active_claims(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Claimed tracker A",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR|LAX",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    trip_b = save_trip(
+        repository,
+        trip_id=None,
+        label="Claimed tracker B",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 11),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "21:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    now = utcnow()
+    instance_by_id = {item.trip_instance_id: item for item in snapshot.trip_instances}
+    first_tracker_id = snapshot.trackers[0].tracker_id
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now - timedelta(seconds=1)
+        if target.tracker_id == first_tracker_id:
+            target.fetch_claim_owner = "fetchrun_other"
+            target.fetch_claim_expires_at = now + timedelta(minutes=5)
+
+    due_targets = select_due_fetch_targets(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=3,
+        now=now,
+    )
+
+    assert len(due_targets) == 1
+    chosen_instance = instance_by_id[due_targets[0].trip_instance_id]
+    assert chosen_instance.trip_id == trip_b.trip_id
+
+
+def test_claim_due_fetch_targets_prevents_overlap_between_workers(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Overlap claim A",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Overlap claim B",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 11),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "21:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    now = utcnow()
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now - timedelta(seconds=1)
+    repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+
+    first_claim = claim_due_fetch_targets(
+        repository,
+        run_id="fetchrun_a",
+        now=now,
+        max_targets=1,
+    )
+    second_claim = claim_due_fetch_targets(
+        repository,
+        run_id="fetchrun_b",
+        now=now,
+        max_targets=2,
+    )
+
+    assert len(first_claim) == 1
+    assert len(second_claim) == 1
+    assert set(first_claim).isdisjoint(second_claim)
+
+    refreshed = repository.load_tracker_fetch_targets()
+    owner_by_id = {item.fetch_target_id: item.fetch_claim_owner for item in refreshed}
+    assert owner_by_id[first_claim[0]] == "fetchrun_a"
+    assert owner_by_id[second_claim[0]] == "fetchrun_b"
+
+
+def test_sync_and_persist_preserves_active_fetch_claims(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Claim preservation",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    target = snapshot.tracker_fetch_targets[0]
+    claim_until = utcnow() + timedelta(minutes=10)
+    target.fetch_claim_owner = "fetchrun_live"
+    target.fetch_claim_expires_at = claim_until
+    repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+
+    refreshed = sync_and_persist(repository)
+    updated_target = next(item for item in refreshed.tracker_fetch_targets if item.fetch_target_id == target.fetch_target_id)
+
+    assert updated_target.fetch_claim_owner == "fetchrun_live"
+    assert updated_target.fetch_claim_expires_at == claim_until
+
+
 def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: Repository) -> None:
     save_trip(
         repository,
@@ -538,6 +710,72 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert result.attempts[0].price == 141
     assert result.attempts[0].offer_count == 1
     assert result.attempts[0].matching_offer_count == 1
+
+
+def test_run_fetch_batch_releases_claim_after_success(repository: Repository, monkeypatch) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Fetch batch claim release",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    target = next(
+        item
+        for item in snapshot.tracker_fetch_targets
+        if item.trip_instance_id
+        in {
+            instance.trip_instance_id
+            for instance in snapshot.trip_instances
+            if instance.trip_id == trip.trip_id
+        }
+    )
+    target.fetch_claim_owner = "fetchrun_claimed"
+    target.fetch_claim_expires_at = utcnow() + timedelta(minutes=10)
+    target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname="IWWDBc">
+              <ul class="Rk10dc">
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+                  <span class="mv1WYe"><div>6:15 AM on Tue, Apr 1</div><div>7:25 AM on Tue, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$141</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        due_targets=[target],
+        sleep_between_requests=False,
+    )
+
+    assert result.attempts[0].status == "success"
+    assert target.fetch_claim_owner == ""
+    assert target.fetch_claim_expires_at is None
 
 
 def test_run_fetch_batch_with_zero_max_targets_is_a_no_op(repository: Repository, monkeypatch) -> None:

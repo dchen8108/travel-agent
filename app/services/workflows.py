@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.models.base import utcnow
 from app.models.booking import Booking
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -34,6 +35,26 @@ def _clear_legacy_manual_signals(trackers: list[Tracker]) -> None:
         tracker.latest_winning_destination_airport = ""
         tracker.latest_signal_source = ""
         tracker.latest_match_summary = ""
+
+
+def _preserve_active_fetch_claims(
+    tracker_fetch_targets: list[TrackerFetchTarget],
+    current_fetch_targets: list[TrackerFetchTarget],
+) -> None:
+    # Claims are operational concurrency guards. Keep any live claim already in the
+    # database when rewriting fetch targets from a reconciled snapshot.
+    now = utcnow()
+    current_claims_by_id = {
+        target.fetch_target_id: target
+        for target in current_fetch_targets
+        if target.fetch_claim_expires_at and target.fetch_claim_expires_at > now
+    }
+    for target in tracker_fetch_targets:
+        current = current_claims_by_id.get(target.fetch_target_id)
+        if current is None or current.fetch_claim_expires_at is None:
+            continue
+        target.fetch_claim_owner = current.fetch_claim_owner
+        target.fetch_claim_expires_at = current.fetch_claim_expires_at
 
 
 def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
@@ -98,6 +119,11 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     recompute_trip_states(trip_instances, trackers, bookings, today=today)
 
     with repository.transaction():
+        current_fetch_targets = repository.load_tracker_fetch_targets()
+        _preserve_active_fetch_claims(
+            tracker_fetch_targets,
+            current_fetch_targets,
+        )
         repository.save_trip_instances(trip_instances)
         repository.save_trip_instance_group_memberships(trip_instance_group_memberships)
         repository.save_trackers(trackers)

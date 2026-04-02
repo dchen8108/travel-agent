@@ -21,9 +21,11 @@ from app.services.google_flights_fetcher import (
     filter_google_flights_offers_by_departure_window,
 )
 from app.services.price_records import SuccessfulFetchRecord
+from app.storage.repository import Repository
 
 MAX_FETCH_TARGETS_PER_RUN = 3
 SLEEP_RANGE_SECONDS = (FETCH_STAGGER_SECONDS, FETCH_STAGGER_SECONDS + 3.0)
+FETCH_TARGET_CLAIM_LEASE = timedelta(minutes=15)
 
 
 @dataclass(frozen=True)
@@ -97,6 +99,41 @@ def queue_rolling_refresh(
     return queued_count
 
 
+def claim_due_fetch_targets(
+    repository: Repository,
+    *,
+    run_id: str,
+    now: datetime | None = None,
+    max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
+    include_test_data: bool = True,
+    lease_duration: timedelta = FETCH_TARGET_CLAIM_LEASE,
+) -> list[str]:
+    now = now or utcnow()
+    if max_targets <= 0:
+        return []
+    with repository.transaction():
+        trackers = repository.load_trackers()
+        trip_instances = repository.load_trip_instances()
+        fetch_targets = repository.load_tracker_fetch_targets()
+        due_targets = select_due_fetch_targets(
+            trackers,
+            trip_instances,
+            fetch_targets,
+            now=now,
+            max_targets=max_targets,
+            include_test_data=include_test_data,
+        )
+        if not due_targets:
+            return []
+        claimed_until = now + lease_duration
+        for target in due_targets:
+            target.fetch_claim_owner = run_id
+            target.fetch_claim_expires_at = claimed_until
+            target.updated_at = now
+        repository.upsert_tracker_fetch_targets(due_targets)
+        return [target.fetch_target_id for target in due_targets]
+
+
 def select_due_fetch_targets(
     trackers: list[Tracker],
     trip_instances: list[TripInstance],
@@ -112,6 +149,11 @@ def select_due_fetch_targets(
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
     selected: list[TrackerFetchTarget] = []
+    active_claimed_tracker_ids = {
+        target.tracker_id
+        for target in fetch_targets
+        if _has_active_claim(target, now)
+    }
     selected_tracker_ids: set[str] = set()
 
     ordered = sorted(
@@ -130,6 +172,10 @@ def select_due_fetch_targets(
         ):
             continue
         if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
+            continue
+        if target.tracker_id in active_claimed_tracker_ids:
+            continue
+        if _has_active_claim(target, now):
             continue
         if target.next_fetch_not_before and target.next_fetch_not_before > now:
             continue
@@ -197,6 +243,7 @@ def run_fetch_batch(
             tracker = tracker_by_id.get(target.tracker_id)
             instance = instance_by_id.get(target.trip_instance_id)
             if not tracker or not instance:
+                _release_fetch_claim(target)
                 continue
             if not include_test_data and (
                 str(getattr(target, "data_scope", "live")) == "test"
@@ -237,6 +284,7 @@ def run_fetch_batch(
                 target.last_fetch_error = ""
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at)
+                _release_fetch_claim(target)
                 target.updated_at = fetched_at
                 attempts.append(
                     FetchAttemptResult(
@@ -271,6 +319,7 @@ def run_fetch_batch(
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at)
+                _release_fetch_claim(target)
                 target.updated_at = no_results_at
                 attempts.append(
                     FetchAttemptResult(
@@ -304,6 +353,7 @@ def run_fetch_batch(
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
                 target.next_fetch_not_before = success_backoff_for_tracker(target, no_window_match_at)
+                _release_fetch_claim(target)
                 target.updated_at = no_window_match_at
                 attempts.append(
                     FetchAttemptResult(
@@ -334,6 +384,7 @@ def run_fetch_batch(
                     next_refresh_time(failed_at, target.schedule_offset_seconds),
                     failed_at + failure_backoff(target.consecutive_failures),
                 )
+                _release_fetch_claim(target)
                 target.updated_at = failed_at
                 attempts.append(
                     FetchAttemptResult(
@@ -378,6 +429,15 @@ def failure_backoff(consecutive_failures: int) -> timedelta:
     if consecutive_failures == 2:
         return timedelta(hours=24)
     return timedelta(hours=48)
+
+
+def _has_active_claim(target: TrackerFetchTarget, now: datetime) -> bool:
+    return bool(target.fetch_claim_expires_at and target.fetch_claim_expires_at > now)
+
+
+def _release_fetch_claim(target: TrackerFetchTarget) -> None:
+    target.fetch_claim_owner = ""
+    target.fetch_claim_expires_at = None
 
 
 def _selection_sort_key(

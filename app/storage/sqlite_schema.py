@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -194,6 +194,8 @@ DDL_STATEMENTS: tuple[str, ...] = (
         last_fetch_error TEXT NOT NULL DEFAULT '',
         consecutive_failures INTEGER NOT NULL DEFAULT 0,
         next_fetch_not_before TEXT NULL,
+        fetch_claim_owner TEXT NOT NULL DEFAULT '',
+        fetch_claim_expires_at TEXT NULL,
         latest_price INTEGER NULL,
         latest_airline TEXT NOT NULL DEFAULT '',
         latest_departure_label TEXT NOT NULL DEFAULT '',
@@ -253,6 +255,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_anchor_state ON trip_instances(anchor_date, travel_state)",
     "CREATE INDEX IF NOT EXISTS idx_trackers_trip_instance_rank ON trackers(trip_instance_id, rank)",
     "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_due ON tracker_fetch_targets(next_fetch_not_before, last_fetch_status)",
+    "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_claim_due ON tracker_fetch_targets(fetch_claim_expires_at, next_fetch_not_before)",
     "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_tracker_pair ON tracker_fetch_targets(tracker_id, origin_airport, destination_airport)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_trip_status ON bookings(trip_instance_id, booking_status, booked_at)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_match_status ON bookings(match_status, departure_date)",

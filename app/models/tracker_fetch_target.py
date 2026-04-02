@@ -24,6 +24,8 @@ class TrackerFetchTarget(CsvModel):
     last_fetch_error: str = ""
     consecutive_failures: int = 0
     next_fetch_not_before: datetime | None = None
+    fetch_claim_owner: str = ""
+    fetch_claim_expires_at: datetime | None = None
     latest_price: int | None = None
     latest_airline: str = ""
     latest_departure_label: str = ""
@@ -38,7 +40,16 @@ class TrackerFetchTarget(CsvModel):
     def validate_airport(cls, value: str) -> str:
         return normalize_airport_code(value)
 
-    @field_validator("tracker_definition_signature", "google_flights_url", "last_fetch_error", "latest_airline", "latest_departure_label", "latest_arrival_label", "latest_summary")
+    @field_validator(
+        "tracker_definition_signature",
+        "google_flights_url",
+        "last_fetch_error",
+        "fetch_claim_owner",
+        "latest_airline",
+        "latest_departure_label",
+        "latest_arrival_label",
+        "latest_summary",
+    )
     @classmethod
     def normalize_text(cls, value: str) -> str:
         return value.strip()

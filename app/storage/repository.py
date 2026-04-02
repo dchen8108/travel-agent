@@ -219,10 +219,21 @@ class Repository:
             TrackerFetchTarget,
         )
 
+    def load_tracker_fetch_target_ids(self) -> set[str]:
+        rows = self._fetch_rows("SELECT fetch_target_id FROM tracker_fetch_targets")
+        return {str(row["fetch_target_id"]) for row in rows if row.get("fetch_target_id")}
+
     def save_tracker_fetch_targets(self, targets: list[TrackerFetchTarget]) -> None:
         self._replace_table(
             "tracker_fetch_targets",
             [item.model_dump(mode="json") for item in targets],
+        )
+
+    def upsert_tracker_fetch_targets(self, targets: list[TrackerFetchTarget]) -> None:
+        self._upsert_table(
+            "tracker_fetch_targets",
+            [item.model_dump(mode="json") for item in targets],
+            conflict_columns=("fetch_target_id",),
         )
 
     def load_bookings(self) -> list[Booking]:
