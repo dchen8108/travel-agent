@@ -113,11 +113,10 @@
           chipList.appendChild(chip);
         });
         if (!state.values.length) {
-          const empty = document.createElement("span");
-          empty.className = "chip-empty";
-          empty.textContent = emptyText;
-          chipList.appendChild(empty);
+          chipList.hidden = true;
+          return;
         }
+        chipList.hidden = false;
       }
 
       function renderMenu(query = "") {
