@@ -679,6 +679,13 @@ textarea {
   color: var(--muted);
 }
 
+.horizon-badge,
+.badge.is-best {
+  min-width: 7.25rem;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .badge-stack {
   display: flex;
   gap: 8px;
