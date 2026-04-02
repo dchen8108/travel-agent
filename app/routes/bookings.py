@@ -29,7 +29,7 @@ def _selectable_trip_instances(snapshot):
         [
             item
             for item in snapshot.trip_instances
-            if (
+            if not item.deleted and (
                 (parent_trip := trip_for_instance(snapshot, item.trip_instance_id)) is None
                 or parent_trip.trip_kind != "one_time"
                 or parent_trip.active

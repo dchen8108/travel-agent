@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Scheduled trips</p>
       <h3>Dated trips that are still in play</h3>
-      <p class="muted">Filter this list when you want to focus on one recurring plan or surface skipped travel. Open any row to see its trackers and booking state.</p>
+      <p class="muted">Filter this list when you want to focus on one trip group or surface skipped travel. Open any row to see its trackers, bookings, and generating rule context.</p>
     </div>
   </div>
 
@@ -41,20 +41,20 @@
       </label>
 
       <div class="filter-field">
-        <span>Recurring trips</span>
-        <div class="filter-picker-shell" data-recurring-filter-root></div>
-        <div data-recurring-hidden-inputs>
-          {% for trip_id in selected_recurring_trip_ids %}
-          <input type="hidden" name="recurring_trip_id" value="{{ trip_id }}">
+        <span>Trip groups</span>
+        <div class="filter-picker-shell" data-group-filter-root></div>
+        <div data-group-hidden-inputs>
+          {% for trip_group_id in selected_trip_group_ids %}
+          <input type="hidden" name="trip_group_id" value="{{ trip_group_id }}">
           {% endfor %}
         </div>
         <noscript>
           <div class="filter-noscript">
             <label class="filter-field">
-              <span>Recurring trips</span>
-              <select name="recurring_trip_id" multiple size="{{ 4 if recurring_items|length > 4 else (recurring_items|length if recurring_items else 1) }}">
-                {% for trip in recurring_items %}
-                <option value="{{ trip.trip_id }}" {{ 'selected' if trip.trip_id in selected_recurring_trip_ids else '' }}>{{ trip.label }}</option>
+              <span>Trip groups</span>
+              <select name="trip_group_id" multiple size="{{ 4 if group_items|length > 4 else (group_items|length if group_items else 1) }}">
+                {% for group in group_items %}
+                <option value="{{ group.trip_group_id }}" {{ 'selected' if group.trip_group_id in selected_trip_group_ids else '' }}>{{ group.label }}</option>
                 {% endfor %}
               </select>
             </label>

@@ -30,6 +30,7 @@ def filter_snapshot(snapshot: AppSnapshot, *, include_test_data: bool) -> AppSna
     if include_test_data:
         return snapshot
     return AppSnapshot(
+        trip_groups=filter_items(snapshot.trip_groups, include_test_data=False),
         trips=filter_items(snapshot.trips, include_test_data=False),
         route_options=filter_items(snapshot.route_options, include_test_data=False),
         trip_instances=filter_items(snapshot.trip_instances, include_test_data=False),

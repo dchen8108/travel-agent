@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
 from app.money import normalize_extracted_total_price
+from app.services.ids import stable_id
 from app.storage.sqlite_schema import CREATE_BOOKINGS_TABLE, CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
 
 
@@ -28,6 +29,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_to_v8(connection)
     _migrate_unmatched_bookings_to_v9(connection)
     _migrate_trips_to_v10(connection)
+    _migrate_trip_groups_to_v11(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -463,8 +465,110 @@ def _migrate_trips_to_v10(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE trips_old_v10")
 
 
+def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trip_groups"):
+        connection.execute(
+            """
+            CREATE TABLE trip_groups (
+                trip_group_id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+    if _table_exists(connection, "trips"):
+        trip_columns = _table_columns(connection, "trips")
+        if "trip_group_id" not in trip_columns:
+            connection.execute(
+                "ALTER TABLE trips ADD COLUMN trip_group_id TEXT NOT NULL DEFAULT ''"
+            )
+        weekly_rows = connection.execute(
+            """
+            SELECT trip_id, label, data_scope, trip_group_id, created_at, updated_at
+            FROM trips
+            WHERE trip_kind = 'weekly'
+            """
+        ).fetchall()
+        for row in weekly_rows:
+            trip_group_id = str(row["trip_group_id"] or "").strip() or stable_id("grp", row["trip_id"])
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO trip_groups (
+                    trip_group_id,
+                    label,
+                    description,
+                    data_scope,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, '', ?, ?, ?)
+                """,
+                (
+                    trip_group_id,
+                    row["label"],
+                    str(row["data_scope"] or "live"),
+                    row["created_at"],
+                    row["updated_at"],
+                ),
+            )
+            connection.execute(
+                "UPDATE trips SET trip_group_id = ? WHERE trip_id = ?",
+                (trip_group_id, row["trip_id"]),
+            )
+
+    if _table_exists(connection, "trip_instances"):
+        instance_columns = _table_columns(connection, "trip_instances")
+        if "recurring_rule_trip_id" not in instance_columns:
+            connection.execute(
+                "ALTER TABLE trip_instances ADD COLUMN recurring_rule_trip_id TEXT NOT NULL DEFAULT ''"
+            )
+        if "rule_occurrence_date" not in instance_columns:
+            connection.execute(
+                "ALTER TABLE trip_instances ADD COLUMN rule_occurrence_date TEXT NULL"
+            )
+        if "inheritance_mode" not in instance_columns:
+            connection.execute(
+                "ALTER TABLE trip_instances ADD COLUMN inheritance_mode TEXT NOT NULL DEFAULT 'manual'"
+            )
+        if "deleted" not in instance_columns:
+            connection.execute(
+                "ALTER TABLE trip_instances ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0"
+            )
+        connection.execute(
+            """
+            UPDATE trip_instances
+            SET recurring_rule_trip_id = trip_id
+            WHERE instance_kind = 'generated'
+              AND recurring_rule_trip_id = ''
+            """
+        )
+        connection.execute(
+            """
+            UPDATE trip_instances
+            SET rule_occurrence_date = anchor_date
+            WHERE instance_kind = 'generated'
+              AND rule_occurrence_date IS NULL
+            """
+        )
+        connection.execute(
+            """
+            UPDATE trip_instances
+            SET inheritance_mode = CASE
+                WHEN instance_kind = 'generated' THEN 'attached'
+                ELSE 'manual'
+            END
+            WHERE inheritance_mode IS NULL
+               OR inheritance_mode = ''
+               OR inheritance_mode = 'manual'
+            """
+        )
+
+
 def _migrate_data_scope_to_v7(connection: sqlite3.Connection) -> None:
     scope_tables = (
+        "trip_groups",
         "trips",
         "route_options",
         "trip_instances",

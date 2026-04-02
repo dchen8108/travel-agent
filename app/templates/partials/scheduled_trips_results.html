@@ -6,6 +6,8 @@
   <div class="stack top-gap-small scheduled-results-stack" data-scheduled-results>
     {% for instance in scheduled_items %}
     {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip_group = group_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
@@ -18,10 +20,15 @@
         <div class="scheduled-copy">
           <strong>{{ parent_trip.label if parent_trip else instance.display_label }}</strong>
           <p class="muted">
-            {% if instance.instance_kind == 'generated' %}
-            Generated from <a href="/trips/{{ parent_trip.trip_id }}">{{ parent_trip.label }}</a>
+            {% if trip_group %}
+            Group · <a href="/groups/{{ trip_group.trip_group_id }}">{{ trip_group.label }}</a>
+            {% endif %}
+            {% if recurring_rule %}
+            {% if trip_group %} · {% endif %}Rule · <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
+            {% elif parent_trip %}
+            {% if trip_group %} · {% endif %}Manual trip
             {% else %}
-            Standalone one-time trip
+            Standalone trip
             {% endif %}
           </p>
           <p class="muted">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
@@ -49,7 +56,7 @@
     {% else %}
     <article class="empty-state">
       <strong>No scheduled trips match these filters.</strong>
-      <p>Clear a search term or recurring-trip filter to widen the list again.</p>
+      <p>Clear a search term or group filter to widen the list again.</p>
     </article>
     {% endfor %}
   </div>

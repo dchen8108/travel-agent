@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -65,11 +65,22 @@ CREATE TABLE IF NOT EXISTS price_records (
 
 DDL_STATEMENTS: tuple[str, ...] = (
     """
+    CREATE TABLE IF NOT EXISTS trip_groups (
+        trip_group_id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        data_scope TEXT NOT NULL DEFAULT 'live',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS trips (
         trip_id TEXT PRIMARY KEY,
         label TEXT NOT NULL,
         trip_kind TEXT NOT NULL,
         preference_mode TEXT NOT NULL,
+        trip_group_id TEXT NOT NULL DEFAULT '',
         data_scope TEXT NOT NULL DEFAULT 'live',
         active INTEGER NOT NULL,
         anchor_date TEXT NULL,
@@ -104,6 +115,10 @@ DDL_STATEMENTS: tuple[str, ...] = (
         anchor_date TEXT NOT NULL,
         data_scope TEXT NOT NULL DEFAULT 'live',
         instance_kind TEXT NOT NULL,
+        recurring_rule_trip_id TEXT NOT NULL DEFAULT '',
+        rule_occurrence_date TEXT NULL,
+        inheritance_mode TEXT NOT NULL DEFAULT 'manual',
+        deleted INTEGER NOT NULL DEFAULT 0,
         travel_state TEXT NOT NULL,
         booking_id TEXT NOT NULL DEFAULT '',
         last_signal_at TEXT NULL,
@@ -192,7 +207,9 @@ DDL_STATEMENTS: tuple[str, ...] = (
     )
     """,
     CREATE_PRICE_RECORDS_TABLE,
+    "CREATE INDEX IF NOT EXISTS idx_trip_groups_label ON trip_groups(label)",
     "CREATE INDEX IF NOT EXISTS idx_trips_label ON trips(label)",
+    "CREATE INDEX IF NOT EXISTS idx_trips_group_id ON trips(trip_group_id)",
     """
     CREATE UNIQUE INDEX IF NOT EXISTS idx_trips_recurring_label_unique
     ON trips(lower(trim(label)))
@@ -205,6 +222,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_route_options_trip_rank ON route_options(trip_id, rank)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_trip_anchor ON trip_instances(trip_id, anchor_date)",
+    "CREATE INDEX IF NOT EXISTS idx_trip_instances_rule_occurrence ON trip_instances(recurring_rule_trip_id, rule_occurrence_date)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_anchor_state ON trip_instances(anchor_date, travel_state)",
     "CREATE INDEX IF NOT EXISTS idx_trackers_trip_instance_rank ON trackers(trip_instance_id, rank)",
     "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_due ON tracker_fetch_targets(next_fetch_not_before, last_fetch_status)",

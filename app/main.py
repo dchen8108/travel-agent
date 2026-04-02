@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.routes.bookings import router as bookings_router
+from app.routes.groups import router as groups_router
 from app.routes.resolve import router as resolve_router
 from app.routes.today import router as today_router
 from app.routes.trackers import router as trackers_router
@@ -31,6 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
     app.include_router(today_router)
     app.include_router(trips_router)
+    app.include_router(groups_router)
     app.include_router(bookings_router)
     app.include_router(trackers_router)
     app.include_router(resolve_router)

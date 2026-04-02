@@ -46,11 +46,17 @@
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip_group = group_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card action-card status-rebook">
       <div class="card-header">
         <div>
           <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ trip.label if trip else 'Booked trip' }} · {{ instance.anchor_date.isoformat() }}</p>
+          <p class="muted">
+            {% if trip_group %}{{ trip_group.label }}{% endif %}
+            {% if recurring_rule %}{% if trip_group %} · {% endif %}{{ recurring_rule.label }}{% elif trip %}{% if trip_group %} · {% endif %}{{ trip.label }}{% else %}Booked trip{% endif %}
+            · {{ instance.anchor_date.isoformat() }}
+          </p>
         </div>
         <span class="badge">rebook</span>
       </div>
@@ -79,12 +85,12 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Open trips</p>
-      <h3>Upcoming trips that are not booked yet</h3>
+      <h3>Upcoming trips that still need to be booked</h3>
     </div>
     {% if open_instances|length > open_preview|length %}
     <div class="section-actions">
       <p class="muted">{{ open_instances|length - open_preview|length }} more in Trips</p>
-      <a class="button ghost" href="/trips">Open Trips</a>
+      <a class="button ghost" href="/trips">All Trips</a>
     </div>
     {% endif %}
   </div>
@@ -92,12 +98,17 @@
     {% for instance in open_preview %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip_group = group_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     {% set factual_label = factual_trip_status_label(snapshot, instance.trip_instance_id) %}
     <article class="card trip-card">
       <div class="card-header">
         <div>
           <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ trip.label if trip else 'Open trip' }}</p>
+          <p class="muted">
+            {% if trip_group %}{{ trip_group.label }}{% endif %}
+            {% if recurring_rule %}{% if trip_group %} · {% endif %}{{ recurring_rule.label }}{% elif trip %}{% if trip_group %} · {% endif %}{{ trip.label }}{% else %}Open trip{% endif %}
+          </p>
         </div>
         <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ 'Open' if factual_label == 'Ready to book' else factual_label }}</span>
       </div>
@@ -121,13 +132,13 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Booked monitoring</p>
-      <h3>Booked trips that are still being watched for lower prices</h3>
+      <p class="eyebrow">Booked trips</p>
+      <h3>Booked trips that continue to be monitored for lower prices</h3>
     </div>
     {% if monitoring_instances|length > monitoring_preview|length %}
     <div class="section-actions">
       <p class="muted">{{ monitoring_instances|length - monitoring_preview|length }} more still monitoring</p>
-      <a class="button ghost" href="/bookings">Open Bookings</a>
+      <a class="button ghost" href="/bookings">All Bookings</a>
     </div>
     {% endif %}
   </div>
@@ -137,11 +148,16 @@
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip_group = group_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card trip-card">
       <div class="card-header">
         <div>
           <strong>{{ instance.display_label }}</strong>
-          <p class="muted">{{ trip.label if trip else 'Booked trip' }}</p>
+          <p class="muted">
+            {% if trip_group %}{{ trip_group.label }}{% endif %}
+            {% if recurring_rule %}{% if trip_group %} · {% endif %}{{ recurring_rule.label }}{% elif trip %}{% if trip_group %} · {% endif %}{{ trip.label }}{% else %}Booked trip{% endif %}
+          </p>
         </div>
         <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
       </div>

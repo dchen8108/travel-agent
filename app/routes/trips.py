@@ -12,22 +12,28 @@ from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
+    group_for_instance,
+    group_for_trip,
     horizon_instances_for_trip,
     instances_for_trip,
     load_snapshot,
     recurring_trips,
+    recurring_rules_for_group,
     route_options_for_trip,
     scheduled_instances,
+    trip_groups,
     trip_by_id,
     trackers_for_instance,
     trip_for_instance,
     trip_focus_url,
+    recurring_rule_for_instance,
 )
 from app.services.refresh_queue import (
     queued_refresh_message,
     queue_refresh_for_trip,
     queue_refresh_for_trip_instance,
 )
+from app.services.trip_instances import delete_generated_trip_instance, detach_generated_trip_instance
 from app.services.trips import delete_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -42,6 +48,7 @@ def _trip_form_state(trip, route_options):
             "trip_id": "",
             "label": "",
             "trip_kind": "weekly",
+            "trip_group_id": "",
             "preference_mode": "equal",
             "anchor_date": "",
             "anchor_weekday": "Monday",
@@ -50,6 +57,7 @@ def _trip_form_state(trip, route_options):
         "trip_id": trip.trip_id,
         "label": trip.label,
         "trip_kind": trip.trip_kind,
+        "trip_group_id": trip.trip_group_id,
         "preference_mode": trip.preference_mode,
         "anchor_date": trip.anchor_date.isoformat() if trip.anchor_date else "",
         "anchor_weekday": trip.anchor_weekday or "Monday",
@@ -146,21 +154,21 @@ def _route_option_views(trip, route_options):
 
 def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
     today = date.today()
-    recurring_items = recurring_trips(snapshot)
-    recurring_ids = {trip.trip_id for trip in recurring_items}
-    selected_recurring_trip_ids = [
-        trip.trip_id
-        for trip in recurring_items
-        if trip.trip_id in request.query_params.getlist("recurring_trip_id") and trip.trip_id in recurring_ids
+    group_items = trip_groups(snapshot)
+    group_ids = {group.trip_group_id for group in group_items}
+    selected_trip_group_ids = [
+        group.trip_group_id
+        for group in group_items
+        if group.trip_group_id in request.query_params.getlist("trip_group_id") and group.trip_group_id in group_ids
     ]
-    selected_recurring_trip_id_set = set(selected_recurring_trip_ids)
+    selected_trip_group_id_set = set(selected_trip_group_ids)
     show_skipped = str(request.query_params.get("show_skipped", "")).lower() in {"1", "true", "on", "yes"}
     search_query = str(request.query_params.get("q", "")).strip()
 
     scheduled_items = scheduled_instances(
         snapshot,
         include_skipped=show_skipped,
-        recurring_trip_ids=selected_recurring_trip_id_set or None,
+        trip_group_ids=selected_trip_group_id_set or None,
         today=today,
     )
     if search_query:
@@ -173,6 +181,10 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
                 (parent_trip := trip_for_instance(snapshot, instance.trip_instance_id)) is not None
                 and lowered in parent_trip.label.lower()
             )
+            or (
+                (trip_group := group_for_instance(snapshot, instance.trip_instance_id)) is not None
+                and lowered in trip_group.label.lower()
+            )
         ]
 
     total_active_scheduled = len(scheduled_instances(snapshot, today=today))
@@ -184,18 +196,18 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
             if instance.anchor_date >= today and instance.travel_state == TravelState.BOOKED
         ]
     )
-    recurring_filter_options = [{"value": trip.trip_id, "label": trip.label} for trip in recurring_items]
+    group_filter_options = [{"value": group.trip_group_id, "label": group.label} for group in group_items]
 
     return {
-        "recurring_items": recurring_items,
+        "group_items": group_items,
         "scheduled_items": scheduled_items,
-        "selected_recurring_trip_ids": selected_recurring_trip_ids,
+        "selected_trip_group_ids": selected_trip_group_ids,
         "show_skipped": show_skipped,
         "search_query": search_query,
         "total_active_scheduled": total_active_scheduled,
         "total_skipped_scheduled": total_skipped_scheduled,
         "total_booked_scheduled": total_booked_scheduled,
-        "recurring_filter_options": recurring_filter_options,
+        "group_filter_options": group_filter_options,
         "today": today,
     }
 
@@ -252,6 +264,7 @@ def _render_trip_form(
             error_message=error_message or "",
             trip_form_state=trip_form_state,
             route_option_state=route_option_state,
+            trip_groups=trip_groups(snapshot),
             catalogs_json=catalogs_json(),
         ),
         status_code=status_code,
@@ -265,18 +278,38 @@ def trips_index(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     scheduled_view = _scheduled_view_state(snapshot, request)
+    group_rule_map = {
+        group.trip_group_id: recurring_rules_for_group(snapshot, group.trip_group_id)
+        for group in scheduled_view["group_items"]
+    }
+    group_scheduled_map = {
+        group.trip_group_id: scheduled_instances(
+            snapshot,
+            trip_group_ids={group.trip_group_id},
+            include_skipped=True,
+            today=scheduled_view["today"],
+        )
+        for group in scheduled_view["group_items"]
+    }
     context = base_context(
         request,
         page="trips",
         snapshot=snapshot,
         horizon_instances_for_trip=horizon_instances_for_trip,
         instances_for_trip=instances_for_trip,
+        trip_groups=trip_groups,
+        recurring_rules_for_group=recurring_rules_for_group,
         route_options_for_trip=route_options_for_trip,
         booking_for_instance=booking_for_instance,
         best_tracker=best_tracker,
         trackers_for_instance=trackers_for_instance,
         trip_for_instance=trip_for_instance,
+        group_for_trip=group_for_trip,
+        group_for_instance=group_for_instance,
+        recurring_rule_for_instance=recurring_rule_for_instance,
         trip_focus_url=trip_focus_url,
+        group_rule_map=group_rule_map,
+        group_scheduled_map=group_scheduled_map,
         **scheduled_view,
     )
     partial = request.query_params.get("partial")
@@ -299,12 +332,18 @@ def new_trip(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
+    trip_kind = str(request.query_params.get("trip_kind", "weekly")).strip() or "weekly"
+    trip_group_id = str(request.query_params.get("trip_group_id", "")).strip()
     return _render_trip_form(
         request,
         snapshot=snapshot,
         trip=None,
         route_options=[],
-        trip_form_state=_trip_form_state(None, []),
+        trip_form_state={
+            **_trip_form_state(None, []),
+            "trip_kind": trip_kind if trip_kind in {"one_time", "weekly"} else "weekly",
+            "trip_group_id": trip_group_id,
+        },
         route_option_state=_route_option_state([]),
     )
 
@@ -373,6 +412,7 @@ async def save_trip_action(
     trip_id = str(form.get("trip_id", "")).strip() or None
     existing_trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None) if trip_id else None
     trip_kind = str(form.get("trip_kind", "weekly"))
+    trip_group_id = str(form.get("trip_group_id", "")).strip()
     preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
@@ -393,6 +433,7 @@ async def save_trip_action(
             active=existing_trip.active if existing_trip else True,
             anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
             anchor_weekday=anchor_weekday,
+            trip_group_id=trip_group_id,
             route_option_payloads=route_options,
             data_scope=str(form.get("data_scope", existing_trip.data_scope if existing_trip else DataScope.LIVE)).strip()
             or (existing_trip.data_scope if existing_trip else DataScope.LIVE),
@@ -418,6 +459,7 @@ async def save_trip_action(
                 "trip_id": trip_id or "",
                 "label": str(form.get("label", "")).strip(),
                 "trip_kind": trip_kind,
+                "trip_group_id": trip_group_id,
                 "preference_mode": preference_mode,
                 "anchor_date": anchor_date_value,
                 "anchor_weekday": anchor_weekday or "Monday",
@@ -560,3 +602,63 @@ def restore_trip_instance(
         fallback_url=f"/trip-instances/{trip_instance_id}",
         message=queued_refresh_message("Trip restored", queued_count),
     )
+
+
+@router.post("/trip-instances/{trip_instance_id}/detach")
+def detach_trip_instance_action(
+    trip_instance_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    try:
+        trip_instance = detach_generated_trip_instance(repository, trip_instance_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        return redirect_back(
+            request,
+            fallback_url=f"/trip-instances/{trip_instance_id}",
+            message=str(exc),
+            message_kind="error",
+        )
+    snapshot = sync_and_persist(repository)
+    queued_count = queue_refresh_for_trip_instance(
+        snapshot,
+        repository,
+        trip_instance_id=trip_instance.trip_instance_id,
+        include_test_data=include_test_data_for_processing(snapshot.app_state),
+    )
+    return redirect_with_message(
+        f"/trip-instances/{trip_instance.trip_instance_id}",
+        queued_refresh_message("Trip detached", queued_count),
+    )
+
+
+@router.post("/trip-instances/{trip_instance_id}/delete-generated")
+def delete_generated_trip_instance_action(
+    trip_instance_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    snapshot = load_snapshot(repository, recompute=False)
+    existing_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if existing_instance is None:
+        raise HTTPException(status_code=404, detail="Trip instance not found")
+    redirect_url = "/trips"
+    if existing_instance.recurring_rule_trip_id:
+        recurring_rule = trip_by_id(snapshot, existing_instance.recurring_rule_trip_id)
+        if recurring_rule and recurring_rule.trip_group_id:
+            redirect_url = f"/groups/{recurring_rule.trip_group_id}"
+    try:
+        delete_generated_trip_instance(repository, trip_instance_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        return redirect_back(
+            request,
+            fallback_url=f"/trip-instances/{trip_instance_id}",
+            message=str(exc),
+            message_kind="error",
+        )
+    sync_and_persist(repository)
+    return redirect_with_message(redirect_url, "Trip deleted")

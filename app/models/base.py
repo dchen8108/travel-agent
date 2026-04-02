@@ -48,6 +48,12 @@ class TripInstanceKind(StrEnum):
     GENERATED = "generated"
 
 
+class TripInstanceInheritanceMode(StrEnum):
+    MANUAL = "manual"
+    ATTACHED = "attached"
+    DETACHED = "detached"
+
+
 class TravelState(StrEnum):
     OPEN = "open"
     BOOKED = "booked"

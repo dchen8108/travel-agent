@@ -20,7 +20,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
     )
     client = TestClient(create_app(settings))
 
-    for path in ["/", "/trips", "/trips/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
+    for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
     trackers_redirect = client.get("/trackers", follow_redirects=False)
@@ -76,6 +76,33 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
 
     bookings_page = client.get("/bookings")
     assert "ABC123" in bookings_page.text
+
+
+def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/groups",
+        data={
+            "label": "Work Trips",
+            "description": "Repeated travel tied to commuting and office visits.",
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    assert create.headers["location"].startswith("/groups/")
+
+    detail = client.get(create.headers["location"])
+    assert detail.status_code == 200
+    assert "Work Trips" in detail.text
+    assert "Recurring rules" in detail.text
+    assert "Grouped trips" in detail.text
 
 
 def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
@@ -576,7 +603,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert "Recurring trips" in trips_page.text
+    assert "Trip groups" in trips_page.text
     assert "Scheduled trips" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
@@ -682,7 +709,9 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
     assert create.status_code == 303
     trip_location = create.headers["location"]
     trip_id = trip_location.split("/trips/")[1].split("?")[0]
-    trips_page = client.get(f"/trips?recurring_trip_id={trip_id}")
+    repository = Repository(settings)
+    trip = next(item for item in repository.load_trips() if item.trip_id == trip_id)
+    trips_page = client.get(f"/trips?trip_group_id={trip.trip_group_id}")
     assert trips_page.status_code == 200
     marker = 'id="scheduled-'
     assert marker in trips_page.text
@@ -690,11 +719,11 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
 
     skip = client.post(
         f"/trip-instances/{trip_instance_id}/skip",
-        headers={"referer": f"http://testserver/trips?recurring_trip_id={trip_id}"},
+        headers={"referer": f"http://testserver/trips?trip_group_id={trip.trip_group_id}"},
         follow_redirects=False,
     )
     assert skip.status_code == 303
-    assert skip.headers["location"] == f"/trips?recurring_trip_id={trip_id}&message=Trip+skipped"
+    assert skip.headers["location"] == f"/trips?trip_group_id={trip.trip_group_id}&message=Trip+skipped"
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
@@ -836,8 +865,10 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert standalone.status_code == 303
 
     weekly_one_id = weekly_one.headers["location"].split("/trips/")[1].split("?")[0]
+    repository = Repository(settings)
+    weekly_one_trip = next(item for item in repository.load_trips() if item.trip_id == weekly_one_id)
 
-    filtered_page = client.get(f"/trips?recurring_trip_id={weekly_one_id}")
+    filtered_page = client.get(f"/trips?trip_group_id={weekly_one_trip.trip_group_id}")
     assert filtered_page.status_code == 200
     assert "Weekly Commute A" in filtered_page.text
     assert "One-off Flight" not in filtered_page.text

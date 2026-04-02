@@ -3,16 +3,17 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Trip portfolio</p>
-    <h2>Design the travel patterns you repeat, then work from the live dates they create.</h2>
-    <p>Recurring trips are the planning layer. Scheduled trips are the specific travel dates you actually price, book, skip, and revisit.</p>
+    <h2>Organize trips into groups, then let recurring rules fill them over time.</h2>
+    <p>Groups are for organization. Recurring rules create future dates inside them, and scheduled trips are the specific dates you actually price, book, skip, delete, or detach.</p>
   </div>
   <div class="hero-actions">
+    <a class="button secondary" href="/groups/new">New group</a>
     <a class="button primary" href="/trips/new">New trip</a>
   </div>
 </section>
 
 <section class="summary-strip">
-  <div class="summary-pill"><span>{{ recurring_items|length }}</span><small>recurring trips</small></div>
+  <div class="summary-pill"><span>{{ group_items|length }}</span><small>trip groups</small></div>
   <div class="summary-pill"><span>{{ total_active_scheduled }}</span><small>scheduled trips</small></div>
   <div class="summary-pill"><span>{{ total_booked_scheduled }}</span><small>booked</small></div>
 </section>
@@ -20,29 +21,30 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Recurring trips</p>
-      <h3>Weekly plans that own groups of dated trips</h3>
-      <p class="muted">These are the higher-level constructs. Edit them when you want to change the route options or pause future generation.</p>
+      <p class="eyebrow">Trip groups</p>
+      <h3>Collections that hold related travel</h3>
+      <p class="muted">A group can contain recurring rules, manual one-time trips, or both. Open one to manage its cadence and the dates it contains.</p>
     </div>
   </div>
 
   <div class="card-grid">
-    {% for trip in recurring_items %}
-    {% set route_options = route_options_for_trip(snapshot, trip.trip_id) %}
-    {% set instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today) %}
+    {% for group in group_items %}
+    {% set recurring_rules = group_rule_map[group.trip_group_id] %}
+    {% set instances = group_scheduled_map[group.trip_group_id] %}
     {% set active_preview_instances = instances|rejectattr('travel_state', 'equalto', 'skipped')|list %}
     {% set next_active_instance = active_preview_instances|first %}
-    <article class="card" id="recurring-{{ trip.trip_id }}">
+    <article class="card" id="group-{{ group.trip_group_id }}">
       <div class="card-header">
         <div>
-          <strong>{{ trip.label }}</strong>
-          <p class="muted">{{ 'active' if trip.active else 'paused' }} · {{ route_options|length }} option{{ '' if route_options|length == 1 else 's' }}</p>
+          <strong>{{ group.label }}</strong>
+          <p class="muted">{{ group.description or 'Trip group' }}</p>
         </div>
-        <span class="badge">{{ instances|length }} scheduled</span>
+        <span class="badge">{{ instances|length }} upcoming</span>
       </div>
       <div class="meta-grid">
         <div><dt>Next trip</dt><dd>{{ next_active_instance.anchor_date.isoformat() if next_active_instance else 'None' }}</dd></div>
-        <div><dt>In rolling horizon</dt><dd>{{ instances|length }}</dd></div>
+        <div><dt>Recurring rules</dt><dd>{{ recurring_rules|length }}</dd></div>
+        <div><dt>Open</dt><dd>{{ active_preview_instances|length }}</dd></div>
       </div>
       {% if instances %}
       <div class="inline-badge-row">
@@ -55,22 +57,15 @@
       </div>
       {% endif %}
       <div class="actions top-gap-small">
-        <a class="button primary" href="/trips/{{ trip.trip_id }}">View trip</a>
-        <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
-        <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
-          <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
-            <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
-            <span class="toggle-switch-track" aria-hidden="true">
-              <span class="toggle-switch-thumb"></span>
-            </span>
-          </button>
-        </form>
+        <a class="button primary" href="/groups/{{ group.trip_group_id }}">Open group</a>
+        <a class="button secondary" href="/trips/new?trip_kind=one_time&trip_group_id={{ group.trip_group_id }}">New trip</a>
+        <a class="button ghost" href="/trips/new?trip_kind=weekly&trip_group_id={{ group.trip_group_id }}">New rule</a>
       </div>
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No recurring trips yet.</strong>
-      <p>Create a weekly trip when you want Milemark to keep a rolling set of dated trips in scope.</p>
+      <strong>No trip groups yet.</strong>
+      <p>Create a group first when you want several trips to stay organized together.</p>
     </article>
     {% endfor %}
   </div>
@@ -79,7 +74,7 @@
 {% include "partials/scheduled_trips_section.html" %}
 
 <script id="scheduled-filters-data" type="application/json">
-  {{ {"recurringOptions": recurring_filter_options}|tojson }}
+  {{ {"groupOptions": group_filter_options}|tojson }}
 </script>
 <script src="{{ url_for('static', path='/pickers.js') }}?v={{ asset_version }}" defer></script>
 <script src="{{ url_for('static', path='/scheduled_filters.js') }}?v={{ asset_version }}" defer></script>

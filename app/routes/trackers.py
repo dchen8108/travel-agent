@@ -17,9 +17,11 @@ from app.services.dashboard import (
     factual_trip_status_reason,
     factual_trip_status_tone,
     fetch_targets_for_tracker,
+    group_for_instance,
     horizon_instances_for_trip,
     load_snapshot,
     rebook_savings,
+    recurring_rule_for_instance,
     tracker_detail_url,
     trackers_for_instance,
     trip_focus_url,
@@ -177,7 +179,7 @@ def trackers_detail(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
-    if trip_instance is None:
+    if trip_instance is None or trip_instance.deleted:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
     parent_trip = trip_for_instance(snapshot, trip_instance_id)
     if parent_trip is None:
@@ -188,9 +190,12 @@ def trackers_detail(
     trackers = trackers_for_instance(snapshot, trip_instance_id)
     total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)
     tracker_cards = [_tracker_card_view(snapshot, tracker) for tracker in trackers]
+    recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
+    trip_group = group_for_instance(snapshot, trip_instance_id)
+    sibling_parent = recurring_rule or parent_trip
     sibling_instances = [
         instance
-        for instance in horizon_instances_for_trip(snapshot, parent_trip.trip_id, today=date.today())
+        for instance in horizon_instances_for_trip(snapshot, sibling_parent.trip_id, today=date.today())
         if instance.trip_instance_id != trip_instance_id
     ]
     booking = booking_for_instance(snapshot, trip_instance_id)
@@ -247,6 +252,12 @@ def trackers_detail(
         and parent_trip.active
         and booking is None
     )
+    can_detach_trip_instance = (
+        trip_instance.inheritance_mode == "attached"
+        and recurring_rule is not None
+        and booking is None
+    )
+    can_delete_generated_trip_instance = can_detach_trip_instance
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -257,6 +268,9 @@ def trackers_detail(
             snapshot=snapshot,
             trip_instance=trip_instance,
             parent_trip=parent_trip,
+            recurring_rule=recurring_rule,
+            trip_group=trip_group,
+            sibling_parent=sibling_parent,
             tracker_cards=tracker_cards,
             total_fetch_targets=total_fetch_targets,
             sibling_instances=sibling_instances,
@@ -264,6 +278,8 @@ def trackers_detail(
             active_bookings=active_bookings,
             booking=booking,
             can_archive_parent_trip=can_archive_parent_trip,
+            can_detach_trip_instance=can_detach_trip_instance,
+            can_delete_generated_trip_instance=can_delete_generated_trip_instance,
             best_tracker=best_current_tracker,
             comparison_tracker=comparison,
             current_fare_label=current_fare_label,

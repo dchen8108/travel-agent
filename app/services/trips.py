@@ -5,6 +5,7 @@ from datetime import date
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
 from app.models.base import DataScope, FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
+from app.services.groups import resolve_trip_group_for_rule
 from app.services.ids import new_id
 from app.storage.repository import Repository
 
@@ -56,6 +57,7 @@ def build_trip(
     active: bool,
     anchor_date: date | None,
     anchor_weekday: str,
+    trip_group_id: str = "",
     preference_mode: str = RoutePreferenceMode.EQUAL,
     data_scope: str = DataScope.LIVE,
 ) -> Trip:
@@ -65,6 +67,7 @@ def build_trip(
         label=label,
         trip_kind=parse_trip_kind(trip_kind),
         preference_mode=parse_preference_mode(preference_mode),
+        trip_group_id=trip_group_id,
         data_scope=DataScope(data_scope),
         active=active,
         anchor_date=anchor_date,
@@ -130,6 +133,7 @@ def save_trip(
     active: bool,
     anchor_date: date | None,
     anchor_weekday: str,
+    trip_group_id: str = "",
     route_option_payloads: list[dict[str, object]],
     preference_mode: str = RoutePreferenceMode.EQUAL,
     data_scope: str = DataScope.LIVE,
@@ -137,6 +141,15 @@ def save_trip(
     trips = repository.load_trips()
     route_options = repository.load_route_options()
     parsed_trip_kind = parse_trip_kind(trip_kind)
+    resolved_trip_group_id = trip_group_id
+    if parsed_trip_kind == TripKind.WEEKLY:
+        trip_group = resolve_trip_group_for_rule(
+            repository,
+            trip_group_id=trip_group_id,
+            fallback_label=label,
+            data_scope=data_scope,
+        )
+        resolved_trip_group_id = trip_group.trip_group_id
     ensure_valid_trip_label(
         trips,
         label,
@@ -151,6 +164,7 @@ def save_trip(
         label=label,
         trip_kind=parsed_trip_kind,
         preference_mode=preference_mode,
+        trip_group_id=resolved_trip_group_id,
         data_scope=data_scope,
         active=active,
         anchor_date=anchor_date,
@@ -198,6 +212,7 @@ def save_past_trip(
         label=label,
         trip_kind=TripKind.ONE_TIME,
         preference_mode=RoutePreferenceMode.EQUAL,
+        trip_group_id="",
         active=True,
         anchor_date=anchor_date,
         anchor_weekday="",

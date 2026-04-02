@@ -57,7 +57,7 @@ def today(
     ]
     action_count = len(open_unmatched) + len(action_booked_instances)
     open_preview = open_instances[:8]
-    monitoring_preview = monitoring_instances[:6]
+    monitoring_preview = monitoring_instances[:8]
 
     return get_templates(request).TemplateResponse(
         request=request,

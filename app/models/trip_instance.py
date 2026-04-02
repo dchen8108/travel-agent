@@ -4,7 +4,14 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from app.models.base import CsvModel, DataScope, TravelState, TripInstanceKind, utcnow
+from app.models.base import (
+    CsvModel,
+    DataScope,
+    TravelState,
+    TripInstanceInheritanceMode,
+    TripInstanceKind,
+    utcnow,
+)
 
 
 class TripInstance(CsvModel):
@@ -14,6 +21,10 @@ class TripInstance(CsvModel):
     anchor_date: date
     data_scope: DataScope = DataScope.LIVE
     instance_kind: TripInstanceKind = TripInstanceKind.STANDALONE
+    recurring_rule_trip_id: str = ""
+    rule_occurrence_date: date | None = None
+    inheritance_mode: TripInstanceInheritanceMode = TripInstanceInheritanceMode.MANUAL
+    deleted: bool = False
     travel_state: TravelState = TravelState.OPEN
     booking_id: str = ""
     last_signal_at: datetime | None = None

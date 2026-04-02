@@ -1,10 +1,11 @@
 {% extends "layout.html" %}
 {% block content %}
 <section class="hero compact">
+  {% set trip_group = group_for_trip(snapshot, trip) %}
   <div>
     <p class="eyebrow">
       {% if trip.trip_kind == 'weekly' %}
-      Recurring trip
+      Recurring rule
       {% else %}
       One-time trip
       {% endif %}
@@ -12,14 +13,17 @@
     <h2>{{ trip.label }}</h2>
     <p>
       {% if trip.trip_kind == 'weekly' %}
-      This plan owns a rolling set of scheduled travel dates.
+      This recurring rule creates future dated trips inside {{ trip_group.label if trip_group else 'its trip group' }}.
       {% else %}
-      This one-time trip owns a single scheduled date and its ranked route options.
+      This one-time trip owns a single scheduled date{% if trip_group %} inside {{ trip_group.label }}{% endif %} and its ranked route options.
       {% endif %}
     </p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="/trips">Back to trips</a>
+    {% if trip_group %}
+    <a class="button secondary" href="/groups/{{ trip_group.trip_group_id }}">View group</a>
+    {% endif %}
     <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit trip</a>
     {% if trip.trip_kind == 'weekly' %}
     <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
@@ -46,6 +50,9 @@
 </section>
 
 <section class="summary-strip">
+  {% if trip_group %}
+  <div class="summary-pill"><span>{{ trip_group.label }}</span><small>group</small></div>
+  {% endif %}
   <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
   <div class="summary-pill"><span>{{ 'equal' if trip.preference_mode == 'equal' else 'preferred order' }}</span><small>preference</small></div>
   <div class="summary-pill"><span>{{ route_options|length }}</span><small>route option{{ '' if route_options|length == 1 else 's' }}</small></div>
@@ -149,10 +156,10 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Scheduled trips</p>
-      <h3>Operational dates created by this trip</h3>
+      <h3>Operational dates created by this {{ 'rule' if trip.trip_kind == 'weekly' else 'trip' }}</h3>
       <p class="muted">
         {% if trip.trip_kind == 'weekly' %}
-        These are the dated trips this recurring plan is currently managing.
+        These are the future dates this recurring rule is currently managing.
         {% else %}
         This trip currently owns one dated trip instance.
         {% endif %}
@@ -186,6 +193,21 @@
       </div>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
+        {% if trip.trip_kind == 'weekly' and active_booking_count == 0 %}
+        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/detach">
+          <button class="button ghost" type="submit">Detach</button>
+        </form>
+        <form
+          method="post"
+          action="/trip-instances/{{ instance.trip_instance_id }}/delete-generated"
+          data-confirm-title="Delete this generated trip?"
+          data-confirm-description="This date will be removed from the recurring rule and stop background fare checks unless you recreate it later."
+          data-confirm-action="Delete trip"
+          data-confirm-cancel="Keep trip"
+        >
+          <button class="button danger-outline" type="submit">Delete</button>
+        </form>
+        {% endif %}
         {% if instance.travel_state == 'open' %}
         <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Record booking</a>
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip">

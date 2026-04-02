@@ -18,30 +18,30 @@
     form.dataset.bound = "true";
 
     const searchInput = form.querySelector("[data-filter-search]");
-    const recurringRoot = form.querySelector("[data-recurring-filter-root]");
-    const hiddenInputsRoot = form.querySelector("[data-recurring-hidden-inputs]");
+    const groupRoot = form.querySelector("[data-group-filter-root]");
+    const hiddenInputsRoot = form.querySelector("[data-group-hidden-inputs]");
     let resultsShell = panel.querySelector("[data-scheduled-results-shell]");
     const skippedToggle = form.querySelector("[data-skipped-toggle]");
     const skippedInput = form.querySelector("[data-skipped-input]");
     const clearLink = form.querySelector("[data-clear-filters]");
     let debounceTimer = null;
 
-    if (!searchInput || !recurringRoot || !hiddenInputsRoot || !skippedToggle || !skippedInput) {
+    if (!searchInput || !groupRoot || !hiddenInputsRoot || !skippedToggle || !skippedInput) {
       return;
     }
 
-    function selectedRecurringTripIds() {
-      return Array.from(hiddenInputsRoot.querySelectorAll('input[name="recurring_trip_id"]'))
+    function selectedTripGroupIds() {
+      return Array.from(hiddenInputsRoot.querySelectorAll('input[name="trip_group_id"]'))
         .map((input) => input.value)
         .filter(Boolean);
     }
 
-    function setSelectedRecurringTripIds(values) {
+    function setSelectedTripGroupIds(values) {
       hiddenInputsRoot.innerHTML = "";
       values.forEach((value) => {
         const input = document.createElement("input");
         input.type = "hidden";
-        input.name = "recurring_trip_id";
+        input.name = "trip_group_id";
         input.value = value;
         hiddenInputsRoot.appendChild(input);
       });
@@ -62,8 +62,8 @@
       if (skippedInput.value) {
         params.set("show_skipped", "true");
       }
-      selectedRecurringTripIds().forEach((value) => {
-        params.append("recurring_trip_id", value);
+      selectedTripGroupIds().forEach((value) => {
+        params.append("trip_group_id", value);
       });
       return params;
     }
@@ -121,11 +121,11 @@
     }
 
     pickers.createMultiPicker({
-      root: recurringRoot,
-      options: scheduledFiltersState.recurringOptions || [],
-      values: selectedRecurringTripIds(),
-      placeholder: "Search recurring trips",
-      emptyText: "All recurring trips",
+      root: groupRoot,
+      options: scheduledFiltersState.groupOptions || [],
+      values: selectedTripGroupIds(),
+      placeholder: "Search trip groups",
+      emptyText: "All trip groups",
       compact: true,
       checkable: true,
       allowSelectAll: true,
@@ -136,10 +136,10 @@
         if (values.length === 1) {
           return options.find((option) => option.value === values[0])?.label || values[0];
         }
-        return `${values.length} recurring trips selected`;
+        return `${values.length} groups selected`;
       },
       onChange(values) {
-        setSelectedRecurringTripIds(values);
+        setSelectedTripGroupIds(values);
         submitFilters({ preservePickerUi: true });
       },
     });
@@ -162,7 +162,7 @@
       event.preventDefault();
       window.clearTimeout(debounceTimer);
       searchInput.value = "";
-      setSelectedRecurringTripIds([]);
+      setSelectedTripGroupIds([]);
       setSkippedState(false);
       submitFilters();
     });

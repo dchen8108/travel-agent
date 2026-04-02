@@ -14,6 +14,7 @@ from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
+from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
 from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
@@ -32,6 +33,7 @@ from app.storage.sqlite_store import (
 
 
 LEGACY_CSV_MODELS: tuple[tuple[str, type], ...] = (
+    ("trip_groups.csv", TripGroup),
     ("trips.csv", Trip),
     ("route_options.csv", RouteOption),
     ("trip_instances.csv", TripInstance),
@@ -114,6 +116,15 @@ class Repository:
 
     def upsert_trip(self, trip: Trip) -> None:
         self._upsert_table("trips", [trip.model_dump(mode="json")], conflict_columns=("trip_id",))
+
+    def load_trip_groups(self) -> list[TripGroup]:
+        return self._load_models("SELECT * FROM trip_groups ORDER BY rowid", TripGroup)
+
+    def save_trip_groups(self, trip_groups: list[TripGroup]) -> None:
+        self._replace_table("trip_groups", [item.model_dump(mode="json") for item in trip_groups])
+
+    def upsert_trip_group(self, trip_group: TripGroup) -> None:
+        self._upsert_table("trip_groups", [trip_group.model_dump(mode="json")], conflict_columns=("trip_group_id",))
 
     def load_route_options(self) -> list[RouteOption]:
         return self._load_models("SELECT * FROM route_options ORDER BY rowid", RouteOption)
@@ -359,6 +370,7 @@ class Repository:
             for name, model_type in LEGACY_CSV_MODELS
         }
         with self.transaction():
+            self.save_trip_groups(legacy_rows["trip_groups.csv"])
             self.save_trips(legacy_rows["trips.csv"])
             self.save_route_options(legacy_rows["route_options.csv"])
             self.save_trip_instances(legacy_rows["trip_instances.csv"])

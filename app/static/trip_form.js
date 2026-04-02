@@ -11,10 +11,11 @@
   const tripKindInputs = Array.from(form?.querySelectorAll('input[data-trip-kind]') || []);
   const preferenceModeInputs = Array.from(form?.querySelectorAll('input[name="preference_mode"]') || []);
   const anchorWeekdaySelect = form?.querySelector("[data-anchor-weekday]");
+  const tripGroupSelect = form?.querySelector('select[name="trip_group_id"]');
   const anchorDateField = form?.querySelector("[data-anchor-date-field]");
   const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
   const addRouteOptionButton = document.querySelector("[data-add-route-option]");
-  if (!form || !root || !hidden || !tripKindInputs.length || !anchorWeekdaySelect || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
+  if (!form || !root || !hidden || !tripKindInputs.length || !anchorWeekdaySelect || !tripGroupSelect || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
     return;
   }
 

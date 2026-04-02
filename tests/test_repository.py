@@ -185,7 +185,7 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 10
+    assert user_version == 11
     assert "data_scope" in columns
     assert "price_text" not in columns
     assert "summary" not in columns
@@ -301,7 +301,7 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
 
     assert booked_price == 78.4
     assert booking_columns["booked_price"] == "REAL"
-    assert user_version == 10
+    assert user_version == 11
     assert "extraction_attempt_count" in booking_email_event_columns
     assert "retryable" in booking_email_event_columns
     assert "data_scope" in booking_email_event_columns
@@ -459,5 +459,5 @@ def test_repository_migrates_trips_table_to_relaxed_label_rules(tmp_path: Path) 
     finally:
         connection.close()
 
-    assert user_version == 10
+    assert user_version == 11
     assert duplicate_weekly_conflict is True

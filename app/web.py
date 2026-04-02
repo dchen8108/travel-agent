@@ -16,7 +16,10 @@ from app.services.dashboard import (
     factual_trip_status_reason,
     factual_trip_status_tone,
     booking_for_instance,
+    group_for_instance,
+    group_for_trip,
     rebook_savings,
+    recurring_rule_for_instance,
 )
 from app.settings import Settings, get_settings
 from app.storage.repository import Repository
@@ -105,6 +108,9 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "factual_trip_status_reason": factual_trip_status_reason,
         "factual_trip_status_tone": factual_trip_status_tone,
         "rebook_savings": rebook_savings,
+        "group_for_trip": group_for_trip,
+        "group_for_instance": group_for_instance,
+        "recurring_rule_for_instance": recurring_rule_for_instance,
     }
     context.update(extra)
     return context

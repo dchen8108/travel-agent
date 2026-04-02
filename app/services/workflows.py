@@ -40,6 +40,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     today = today or date.today()
 
     app_state = repository.load_app_state()
+    trip_groups = repository.load_trip_groups()
     trips = repository.load_trips()
     route_options = repository.load_route_options()
     existing_trip_instances = repository.load_trip_instances()
@@ -95,6 +96,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         repository.save_unmatched_bookings(unmatched_bookings)
 
     return AppSnapshot(
+        trip_groups=trip_groups,
         trips=trips,
         route_options=route_options,
         trip_instances=trip_instances,

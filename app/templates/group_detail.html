@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="hero compact">
+  <div>
+    <p class="eyebrow">Trip group</p>
+    <h2>{{ group.label }}</h2>
+    <p>{{ group.description or 'This group collects related trips for organization and display. Recurring rules can add dated trips into it, but the group itself is just a container.' }}</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button ghost" href="/trips">Back to trips</a>
+    <a class="button secondary" href="/groups/{{ group.trip_group_id }}/edit">Edit group</a>
+    <a class="button secondary" href="/trips/new?trip_kind=one_time&trip_group_id={{ group.trip_group_id }}">New grouped trip</a>
+    <a class="button primary" href="/trips/new?trip_kind=weekly&trip_group_id={{ group.trip_group_id }}">New recurring rule</a>
+  </div>
+</section>
+
+<section class="summary-strip">
+  <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>recurring rules</small></div>
+  <div class="summary-pill"><span>{{ grouped_instances|length }}</span><small>upcoming trips</small></div>
+  <div class="summary-pill"><span>{{ open_count }}</span><small>open</small></div>
+  <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
+  <div class="summary-pill"><span>{{ next_instance.anchor_date.isoformat() if next_instance else '—' }}</span><small>next trip</small></div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Recurring rules</p>
+      <h3>Cadences that add trips into this group</h3>
+      <p class="muted">Edit a rule when you want to change future generation, route options, or pause a repeating pattern.</p>
+    </div>
+  </div>
+  <div class="card-grid">
+    {% for trip in recurring_rules %}
+    {% set rule_instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today) %}
+    <article class="card" id="rule-{{ trip.trip_id }}">
+      <div class="card-header">
+        <div>
+          <strong>{{ trip.label }}</strong>
+          <p class="muted">{{ trip.anchor_weekday }} · {{ 'active' if trip.active else 'paused' }}</p>
+        </div>
+        <span class="badge">{{ rule_instances|length }} upcoming</span>
+      </div>
+      <div class="actions top-gap-small">
+        <a class="button primary" href="/trips/{{ trip.trip_id }}">Open rule</a>
+        <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
+        <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
+          <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
+            <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
+            <span class="toggle-switch-track" aria-hidden="true">
+              <span class="toggle-switch-thumb"></span>
+            </span>
+          </button>
+        </form>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No recurring rules yet.</strong>
+      <p>Add one when you want this group to keep generating future trips on a cadence.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Grouped trips</p>
+      <h3>Upcoming trips collected in this group</h3>
+      <p class="muted">This includes rule-generated trips and manual one-time trips assigned to the group.</p>
+    </div>
+  </div>
+  <div class="stack">
+    {% for instance in grouped_instances %}
+    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
+    <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}">
+      <div class="scheduled-card-head">
+        <div class="scheduled-date">
+          <small>{{ instance.anchor_date.strftime('%a') }}</small>
+          <strong>{{ instance.anchor_date.strftime('%b %d') }}</strong>
+        </div>
+        <div class="scheduled-copy">
+          <strong>{{ instance.display_label }}</strong>
+          <p class="muted">
+            {% if recurring_rule %}
+            Rule · <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
+            {% elif parent_trip %}
+            Manual trip · {{ parent_trip.label }}
+            {% else %}
+            Standalone trip
+            {% endif %}
+          </p>
+          <p class="muted">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
+        </div>
+        <div class="badge-stack">
+          <span class="badge">{{ instance.anchor_date.isoformat() }}</span>
+          <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Best matched</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Open{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
+        <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No upcoming trips in this group.</strong>
+      <p>Create a one-time trip or add a recurring rule to start filling the group.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
