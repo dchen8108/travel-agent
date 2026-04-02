@@ -57,8 +57,10 @@ def reconcile_trackers(
     for instance in trip_instances:
         if instance.travel_state == TravelState.SKIPPED:
             continue
-        options = route_options_by_trip.get(instance.trip_id, [])
         trip = trip_by_id.get(instance.trip_id)
+        if trip is not None and trip.trip_kind == "one_time" and not trip.active:
+            continue
+        options = route_options_by_trip.get(instance.trip_id, [])
         pairwise_biases = [option.savings_needed_vs_previous for option in options]
         for option in options:
             tracker_id = stable_id("trk", instance.trip_instance_id, option.route_option_id)

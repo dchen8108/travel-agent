@@ -265,6 +265,47 @@ def test_archived_one_time_trip_is_hidden_from_active_scheduled_views(repository
     assert [item.trip_id for item in archived_one_time_trips(archived)] == [trip.trip_id]
 
 
+def test_archived_one_time_trip_shuts_down_tracking_until_restored(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Archive Tracking Shutdown",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    active_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    active_instance_ids = {
+        item.trip_instance_id for item in active_snapshot.trip_instances if item.trip_id == trip.trip_id
+    }
+    assert any(tracker.trip_instance_id in active_instance_ids for tracker in active_snapshot.trackers)
+    assert any(target.trip_instance_id in active_instance_ids for target in active_snapshot.tracker_fetch_targets)
+
+    set_trip_active(repository, trip.trip_id, False)
+    archived_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+
+    assert not any(tracker.trip_instance_id in active_instance_ids for tracker in archived_snapshot.trackers)
+    assert not any(target.trip_instance_id in active_instance_ids for target in archived_snapshot.tracker_fetch_targets)
+
+    set_trip_active(repository, trip.trip_id, True)
+    restored_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+
+    assert any(tracker.trip_instance_id in active_instance_ids for tracker in restored_snapshot.trackers)
+    assert any(target.trip_instance_id in active_instance_ids for target in restored_snapshot.tracker_fetch_targets)
+
+
 def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repository: Repository) -> None:
     trip = save_trip(
         repository,

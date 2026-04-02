@@ -369,6 +369,43 @@ def test_select_due_fetch_targets_returns_empty_when_max_targets_is_zero(reposit
     assert due_targets == []
 
 
+def test_select_due_fetch_targets_skips_past_trip_targets(repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Past fetch target selection",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 3, 20),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    now = utcnow()
+    for target in snapshot.tracker_fetch_targets:
+        target.next_fetch_not_before = now - timedelta(seconds=1)
+
+    due_targets = select_due_fetch_targets(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=3,
+        now=now,
+    )
+
+    assert due_targets == []
+
+
 def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: Repository) -> None:
     save_trip(
         repository,
