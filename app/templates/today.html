@@ -109,7 +109,7 @@
             {% if trip_group %} · {{ trip_group.label }}{% elif recurring_rule and trip and recurring_rule.trip_id != trip.trip_id %} · {{ recurring_rule.label }}{% endif %}
           </p>
         </div>
-        <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ 'Open' if factual_label == 'Ready to book' else factual_label }}</span>
+        <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_label }}</span>
       </div>
       <div class="meta-grid">
         <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>

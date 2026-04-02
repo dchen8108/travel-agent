@@ -227,7 +227,7 @@ def factual_trip_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> s
         return "Lower fare found" if rebook_savings(snapshot, trip_instance_id) is not None else "Booked"
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
     if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
-        return "Ready to book"
+        return "Planned"
     if fetch_state["all_unavailable"] and fetch_state["all_trackers_resolved"]:
         return "No matching flights"
     if fetch_state["has_failure"]:

@@ -257,7 +257,7 @@ def test_weighted_winner_drives_open_trip_status_reason(repository: Repository) 
     recompute_trip_states(snapshot.trip_instances, trackers, [])
 
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Ready to book"
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Planned"
     reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
     assert "option 2" in reason.lower()
     assert "$50 preference buffer" in reason
