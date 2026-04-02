@@ -2,19 +2,30 @@
 {% block content %}
 <section class="hero compact">
   <div>
-    <p class="eyebrow">{{ 'Recurring trip' if trip.trip_kind == 'weekly' else 'One-time trip' }}</p>
+    <p class="eyebrow">
+      {% if trip.trip_kind == 'weekly' %}
+      Recurring trip
+      {% elif trip.active %}
+      One-time trip
+      {% else %}
+      Archived one-time trip
+      {% endif %}
+    </p>
     <h2>{{ trip.label }}</h2>
     <p>
       {% if trip.trip_kind == 'weekly' %}
       This trip owns a rolling 12-week set of scheduled travel instances.
-      {% else %}
+      {% elif trip.active %}
       This trip creates one scheduled trip instance and tracks its ranked route options.
+      {% else %}
+      This trip is archived and hidden from the normal scheduled-trip views until you restore it.
       {% endif %}
     </p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="/trips">Back to trips</a>
     <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit trip</a>
+    {% if trip.trip_kind == 'weekly' %}
     <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
       <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
         <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
@@ -23,9 +34,15 @@
         </span>
       </button>
     </form>
-    <form method="post" action="/trips/{{ trip.trip_id }}/delete" onsubmit="return confirm('Delete this trip and its future operational state?');">
+    {% elif trip.active and booked_count == 0 %}
+    <form method="post" action="/trips/{{ trip.trip_id }}/delete" onsubmit="return confirm('Archive this one-time trip and hide it from the active views?');">
       <button class="button ghost danger-outline" type="submit">Delete</button>
     </form>
+    {% else %}
+    <form method="post" action="/trips/{{ trip.trip_id }}/activate">
+      <button class="button primary" type="submit">Restore trip</button>
+    </form>
+    {% endif %}
   </div>
 </section>
 

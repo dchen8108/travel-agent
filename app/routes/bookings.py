@@ -83,6 +83,18 @@ def new_booking(
     trip_instance_id: str | None = None,
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
+    selectable_trip_instances = sorted(
+        [
+            item
+            for item in snapshot.trip_instances
+            if (
+                (parent_trip := trip_for_instance(snapshot, item.trip_instance_id)) is None
+                or parent_trip.trip_kind != "one_time"
+                or parent_trip.active
+            )
+        ],
+        key=lambda item: (item.anchor_date, item.display_label),
+    )
     selected_trip_instance = next(
         (item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id),
         None,
@@ -95,7 +107,7 @@ def new_booking(
             request,
             page="bookings",
             snapshot=snapshot,
-            trip_instances=sorted(snapshot.trip_instances, key=lambda item: (item.anchor_date, item.display_label)),
+            trip_instances=selectable_trip_instances,
             selected_trip_instance=selected_trip_instance,
             selected_parent_trip=selected_parent_trip,
             catalogs_json=catalogs_json(),
@@ -169,6 +181,18 @@ async def save_booking(
         return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", "Booking saved")
     except ValueError as exc:
         snapshot = load_snapshot(repository)
+        selectable_trip_instances = sorted(
+            [
+                item
+                for item in snapshot.trip_instances
+                if (
+                    (parent_trip := trip_for_instance(snapshot, item.trip_instance_id)) is None
+                    or parent_trip.trip_kind != "one_time"
+                    or parent_trip.active
+                )
+            ],
+            key=lambda item: (item.anchor_date, item.display_label),
+        )
         selected_trip_instance = next(
             (item for item in snapshot.trip_instances if item.trip_instance_id == booking_state["trip_instance_id"]),
             None,
@@ -182,7 +206,7 @@ async def save_booking(
                 page="bookings",
                 snapshot=snapshot,
                 error_message=str(exc),
-                trip_instances=sorted(snapshot.trip_instances, key=lambda item: (item.anchor_date, item.display_label)),
+                trip_instances=selectable_trip_instances,
                 selected_trip_instance=selected_trip_instance,
                 selected_parent_trip=selected_parent_trip,
                 catalogs_json=catalogs_json(),

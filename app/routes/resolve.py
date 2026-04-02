@@ -23,7 +23,15 @@ def resolve_index(
     snapshot = load_snapshot(repository)
     open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
     trip_instances = sorted(
-        snapshot.trip_instances,
+        [
+            item
+            for item in snapshot.trip_instances
+            if (
+                (trip := next((candidate for candidate in snapshot.trips if candidate.trip_id == item.trip_id), None)) is None
+                or trip.trip_kind != "one_time"
+                or trip.active
+            )
+        ],
         key=lambda item: (
             is_past_instance(item),
             item.travel_state == "skipped",

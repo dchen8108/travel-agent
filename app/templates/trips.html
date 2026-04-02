@@ -77,6 +77,39 @@
 </section>
 
 {% include "partials/scheduled_trips_section.html" %}
+
+{% if archived_one_time_trips %}
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Archived one-time trips</p>
+      <h3>Hidden from the active trip workflow</h3>
+      <p class="muted">These were deleted from the active UI, but they are still available here in case you need to restore one.</p>
+    </div>
+  </div>
+  <div class="card-grid">
+    {% for trip in archived_one_time_trips %}
+    {% set instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today) %}
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <strong>{{ trip.label }}</strong>
+          <p class="muted">archived · {{ instances|length }} scheduled instance{{ '' if instances|length == 1 else 's' }}</p>
+        </div>
+        <span class="badge">Archived</span>
+      </div>
+      <div class="actions top-gap-small">
+        <a class="button secondary" href="/trips/{{ trip.trip_id }}">Open trip</a>
+        <form method="post" action="/trips/{{ trip.trip_id }}/activate">
+          <button class="button primary" type="submit">Restore</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <script>
   window.travelAgentTripsFilters = {
     recurringOptions: {{ recurring_filter_options | tojson }}

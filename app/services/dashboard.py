@@ -313,6 +313,13 @@ def standalone_trips(snapshot: AppSnapshot) -> list[Trip]:
     )
 
 
+def archived_one_time_trips(snapshot: AppSnapshot) -> list[Trip]:
+    return sorted(
+        [trip for trip in snapshot.trips if trip.trip_kind == "one_time" and not trip.active],
+        key=lambda item: item.label.lower(),
+    )
+
+
 def scheduled_instances(
     snapshot: AppSnapshot,
     *,
@@ -321,7 +328,17 @@ def scheduled_instances(
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
-    items = [item for item in snapshot.trip_instances if not is_past_instance(item, today=today)]
+    trip_map = {trip.trip_id: trip for trip in snapshot.trips}
+    items = [
+        item
+        for item in snapshot.trip_instances
+        if not is_past_instance(item, today=today)
+        and not (
+            (trip := trip_map.get(item.trip_id)) is not None
+            and trip.trip_kind == "one_time"
+            and not trip.active
+        )
+    ]
     if not include_skipped:
         items = [item for item in items if item.travel_state != "skipped"]
     if recurring_trip_ids:

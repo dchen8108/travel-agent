@@ -141,6 +141,49 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert "Booked" not in trips_page.text
 
 
+def test_one_time_trip_delete_archives_and_can_be_restored(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Archive UI Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_detail_url = create.headers["location"].split("?", 1)[0]
+    trip_id = trip_detail_url.rsplit("/", 1)[1]
+
+    archive = client.post(f"/trips/{trip_id}/delete", follow_redirects=False)
+    assert archive.status_code == 303
+    assert archive.headers["location"] == "/trips?message=Trip+archived"
+
+    trips_page = client.get("/trips")
+    assert "Archive UI Trip" in trips_page.text
+    assert "Archived one-time trips" in trips_page.text
+
+    scheduled_results = client.get("/trips?partial=scheduled-results")
+    assert "Archive UI Trip" not in scheduled_results.text
+
+    restore = client.post(f"/trips/{trip_id}/activate", headers={"referer": "/trips"}, follow_redirects=False)
+    assert restore.status_code == 303
+    assert restore.headers["location"].startswith("/trips?message=Trip+activated")
+
+    restored_scheduled = client.get("/trips?partial=scheduled-results")
+    assert "Archive UI Trip" in restored_scheduled.text
+
+
 def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

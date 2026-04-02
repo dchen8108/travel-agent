@@ -179,6 +179,12 @@ def set_trip_active(repository: Repository, trip_id: str, active: bool) -> Trip:
 
 
 def delete_trip(repository: Repository, trip_id: str) -> None:
-    with repository.transaction():
-        repository.save_trips([trip for trip in repository.load_trips() if trip.trip_id != trip_id])
-        repository.save_route_options([option for option in repository.load_route_options() if option.trip_id != trip_id])
+    trips = repository.load_trips()
+    trip = next((item for item in trips if item.trip_id == trip_id), None)
+    if trip is None:
+        raise KeyError("Trip not found")
+    if trip.trip_kind != TripKind.ONE_TIME:
+        raise ValueError("Only one-time trips can be archived.")
+    trip.active = False
+    trip.updated_at = utcnow()
+    repository.save_trips(trips)

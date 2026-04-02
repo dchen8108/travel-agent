@@ -5,7 +5,7 @@ from datetime import date
 from urllib.parse import parse_qs, urlsplit
 
 from app.services.google_flights import build_google_flights_query_url
-from app.services.dashboard import horizon_instances_for_trip, past_instances_for_trip
+from app.services.dashboard import archived_one_time_trips, horizon_instances_for_trip, past_instances_for_trip, scheduled_instances
 from app.services.trips import save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -232,6 +232,37 @@ def test_one_time_trip_creates_a_standalone_instance(repository: Repository) -> 
     assert len(trip_instances) == 1
     assert trip_instances[0].display_label == "Conference Arrival"
     assert trip_instances[0].instance_kind == "standalone"
+
+
+def test_archived_one_time_trip_is_hidden_from_active_scheduled_views(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Archive Me",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "07:00",
+                "end_time": "11:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    assert len(scheduled_instances(snapshot, today=date(2026, 4, 1))) == 1
+
+    set_trip_active(repository, trip.trip_id, False)
+    archived = sync_and_persist(repository, today=date(2026, 4, 1))
+
+    assert not scheduled_instances(archived, today=date(2026, 4, 1))
+    assert [item.trip_id for item in archived_one_time_trips(archived)] == [trip.trip_id]
 
 
 def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repository: Repository) -> None:

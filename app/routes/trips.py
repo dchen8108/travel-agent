@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.catalog import catalogs_json
 from app.models.base import FareClassPolicy, TravelState
 from app.services.dashboard import (
+    archived_one_time_trips,
     best_tracker,
     booking_for_instance,
     horizon_instances_for_trip,
@@ -266,6 +267,7 @@ def trips_index(
         request,
         page="trips",
         snapshot=snapshot,
+        archived_one_time_trips=archived_one_time_trips(snapshot),
         horizon_instances_for_trip=horizon_instances_for_trip,
         instances_for_trip=instances_for_trip,
         route_options_for_trip=route_options_for_trip,
@@ -443,11 +445,37 @@ def activate_trip_action(
 @router.post("/trips/{trip_id}/delete")
 def delete_trip_action(
     trip_id: str,
+    request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
+    trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.trip_kind != "one_time":
+        raise HTTPException(status_code=400, detail="Only one-time trips can be deleted from the UI.")
+    active_booking = next(
+        (
+            item
+            for item in repository.load_bookings()
+            if item.trip_instance_id in {
+                instance.trip_instance_id
+                for instance in repository.load_trip_instances()
+                if instance.trip_id == trip.trip_id
+            }
+            and item.status == "active"
+        ),
+        None,
+    )
+    if active_booking is not None:
+        return redirect_back(
+            request,
+            fallback_url=f"/trips/{trip_id}",
+            message="Unlink or cancel the booking before deleting this trip.",
+            message_kind="error",
+        )
     delete_trip(repository, trip_id)
     sync_and_persist(repository)
-    return redirect_with_message("/trips", "Trip deleted")
+    return redirect_with_message("/trips", "Trip archived")
 
 
 @router.post("/trip-instances/{trip_instance_id}/skip")
