@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
 from app.money import normalize_extracted_total_price
-from app.services.ids import stable_id
 from app.storage.sqlite_schema import CREATE_BOOKINGS_TABLE, CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
 
 
@@ -667,11 +666,13 @@ def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:
             """
             SELECT trip_id, label, data_scope, trip_group_id, created_at, updated_at
             FROM trips
-            WHERE trip_kind = 'weekly'
+            WHERE trip_kind = 'weekly' AND COALESCE(trip_group_id, '') != ''
             """
         ).fetchall()
         for row in weekly_rows:
-            trip_group_id = str(row["trip_group_id"] or "").strip() or stable_id("grp", row["trip_id"])
+            trip_group_id = str(row["trip_group_id"] or "").strip()
+            if not trip_group_id:
+                continue
             connection.execute(
                 """
                 INSERT OR IGNORE INTO trip_groups (
@@ -690,10 +691,6 @@ def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:
                     row["created_at"],
                     row["updated_at"],
                 ),
-            )
-            connection.execute(
-                "UPDATE trips SET trip_group_id = ? WHERE trip_id = ?",
-                (trip_group_id, row["trip_id"]),
             )
 
     if _table_exists(connection, "trip_instances"):

@@ -888,6 +888,60 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert "One-off Flight" not in filtered_page.text
 
 
+def test_editing_rule_can_remove_all_target_groups(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    work_group = save_trip_group(repository, trip_group_id=None, label="Work Travel")
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Weekly Commute A",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([work_group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "preference_mode": "equal",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00","fare_class_policy":"include_basic","savings_needed_vs_previous":0}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+
+    edit = client.post(
+        "/trips",
+        data={
+            "trip_id": trip_id,
+            "label": "Weekly Commute A",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "preference_mode": "equal",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00","fare_class_policy":"include_basic","savings_needed_vs_previous":0}]',
+        },
+        follow_redirects=False,
+    )
+    assert edit.status_code == 303
+
+    assert [
+        (item.rule_trip_id, item.trip_group_id)
+        for item in repository.load_rule_group_targets()
+        if item.rule_trip_id == trip_id
+    ] == []
+
+    group_page = client.get(f"/groups/{work_group.trip_group_id}")
+    assert group_page.status_code == 200
+    assert "Weekly Commute A" not in group_page.text
+
+
 def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
