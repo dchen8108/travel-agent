@@ -35,10 +35,7 @@ def process_gmail_booking_message(
     message: GmailMessage,
     config: GmailIntegrationConfig,
 ) -> BookingEmailProcessResult:
-    existing_event = next(
-        (event for event in repository.load_booking_email_events() if event.gmail_message_id == message.gmail_message_id),
-        None,
-    )
+    existing_event = repository.get_booking_email_event_by_message_id(message.gmail_message_id)
     if existing_event is not None and existing_event.processing_status != BookingEmailEventStatus.ERROR:
         return BookingEmailProcessResult(
             event=existing_event,

@@ -322,6 +322,39 @@ class Repository:
             BookingEmailEvent,
         )
 
+    def load_booking_email_message_ids(self) -> set[str]:
+        rows = self._fetch_rows("SELECT gmail_message_id FROM booking_email_events")
+        return {str(row["gmail_message_id"]) for row in rows if row.get("gmail_message_id")}
+
+    def get_booking_email_event_by_message_id(self, gmail_message_id: str) -> BookingEmailEvent | None:
+        rows = self._fetch_rows(
+            "SELECT * FROM booking_email_events WHERE gmail_message_id = ? LIMIT 1",
+            (gmail_message_id,),
+        )
+        if not rows:
+            return None
+        return BookingEmailEvent.model_validate(rows[0])
+
+    def load_retryable_booking_email_events(
+        self,
+        *,
+        max_retry_attempts: int,
+        limit: int | None = None,
+    ) -> list[BookingEmailEvent]:
+        query = """
+            SELECT *
+            FROM booking_email_events
+            WHERE processing_status = 'error'
+              AND retryable = 1
+              AND extraction_attempt_count < ?
+            ORDER BY received_at ASC, rowid ASC
+        """
+        params: tuple[Any, ...] = (max_retry_attempts,)
+        if limit is not None:
+            query = f"{query}\nLIMIT ?"
+            params = (max_retry_attempts, limit)
+        return self._load_models(query, BookingEmailEvent, params)
+
     def save_booking_email_events(self, events: list[BookingEmailEvent]) -> None:
         self._replace_table(
             "booking_email_events",
@@ -431,12 +464,15 @@ class Repository:
         with self.transaction():
             self.save_trip_groups(legacy_rows["trip_groups.csv"])
             self.save_trips(legacy_rows["trips.csv"])
+            self.save_rule_group_targets(legacy_rows["rule_group_targets.csv"])
             self.save_route_options(legacy_rows["route_options.csv"])
             self.save_trip_instances(legacy_rows["trip_instances.csv"])
+            self.save_trip_instance_group_memberships(legacy_rows["trip_instance_group_memberships.csv"])
             self.save_trackers(legacy_rows["trackers.csv"])
             self.save_tracker_fetch_targets(legacy_rows["tracker_fetch_targets.csv"])
             self.save_bookings(legacy_rows["bookings.csv"])
             self.save_unmatched_bookings(legacy_rows["unmatched_bookings.csv"])
+            self.save_booking_email_events(legacy_rows["booking_email_events.csv"])
             self.append_price_records(legacy_rows["price_records.csv"])
         self.save_app_state(app_state)
 

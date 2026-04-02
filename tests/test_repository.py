@@ -5,7 +5,16 @@ from decimal import Decimal
 from pathlib import Path
 
 from app.models.base import AppState
+from app.models.booking_email_event import BookingEmailEvent
+from app.models.route_option import RouteOption
+from app.models.rule_group_target import RuleGroupTarget
+from app.models.trip import Trip
+from app.models.trip_group import TripGroup
+from app.models.trip_instance import TripInstance
+from app.models.trip_instance_group_membership import TripInstanceGroupMembership
 from app.settings import Settings
+from app.storage.csv_store import save_csv_models
+from app.storage.json_store import save_json_model
 from app.storage.repository import Repository
 
 
@@ -462,3 +471,74 @@ def test_repository_migrates_trips_table_to_relaxed_label_rules(tmp_path: Path) 
 
     assert user_version == 14
     assert duplicate_weekly_conflict is True
+
+
+def test_repository_imports_current_legacy_tables_when_bootstrapping_sqlite(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    save_json_model(settings.data_dir / "app.json", AppState())
+
+    group = TripGroup(trip_group_id="grp_1", label="Work travel")
+    rule = Trip(
+        trip_id="trip_rule",
+        label="Weekly commute",
+        trip_kind="weekly",
+        anchor_weekday="Monday",
+    )
+    instance = TripInstance(
+        trip_instance_id="inst_1",
+        trip_id="trip_rule",
+        display_label="Weekly commute (2026-04-06)",
+        anchor_date="2026-04-06",
+        instance_kind="generated",
+        recurring_rule_trip_id="trip_rule",
+        rule_occurrence_date="2026-04-06",
+        inheritance_mode="attached",
+    )
+    target = RuleGroupTarget(rule_trip_id="trip_rule", trip_group_id="grp_1")
+    membership = TripInstanceGroupMembership(
+        trip_instance_id="inst_1",
+        trip_group_id="grp_1",
+        membership_source="inherited",
+        source_rule_trip_id="trip_rule",
+    )
+    event = BookingEmailEvent(
+        email_event_id="mail_1",
+        gmail_message_id="gmail_1",
+        subject="Booking confirmation",
+        processing_status="ignored",
+    )
+
+    save_csv_models(settings.data_dir / "trip_groups.csv", [group], list(TripGroup.model_fields))
+    save_csv_models(settings.data_dir / "trips.csv", [rule], list(Trip.model_fields))
+    save_csv_models(settings.data_dir / "route_options.csv", [], list(RouteOption.model_fields))
+    save_csv_models(settings.data_dir / "trip_instances.csv", [instance], list(TripInstance.model_fields))
+    save_csv_models(settings.data_dir / "rule_group_targets.csv", [target], list(RuleGroupTarget.model_fields))
+    save_csv_models(
+        settings.data_dir / "trip_instance_group_memberships.csv",
+        [membership],
+        list(TripInstanceGroupMembership.model_fields),
+    )
+    save_csv_models(
+        settings.data_dir / "booking_email_events.csv",
+        [event],
+        list(BookingEmailEvent.model_fields),
+    )
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    assert [item.trip_group_id for item in repository.load_trip_groups()] == ["grp_1"]
+    assert [(item.rule_trip_id, item.trip_group_id) for item in repository.load_rule_group_targets()] == [
+        ("trip_rule", "grp_1")
+    ]
+    assert [
+        (item.trip_instance_id, item.trip_group_id, item.membership_source)
+        for item in repository.load_trip_instance_group_memberships()
+    ] == [("inst_1", "grp_1", "inherited")]
+    assert [item.gmail_message_id for item in repository.load_booking_email_events()] == ["gmail_1"]

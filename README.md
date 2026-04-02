@@ -4,11 +4,14 @@ Local-first tracker-of-trackers for recurring flight travel.
 
 This MVP is built around a simple idea:
 
+- you organize travel into named `Trip Groups`
+- you define optional recurring `Rules` that generate trips on a cadence
 - you organize travel into named `Trips`
 - each trip owns one or more ranked `Route Options`
 - each route option corresponds to one Google Flights tracker/search definition, including whether Basic economy should be included or excluded
 - trips can treat route options equally or require lower-ranked options to clear user-defined savings thresholds
-- the app generates dated `Trip Instances` and per-instance `Trackers`
+- recurring rules generate dated `Trip Instances` that can stay attached or be detached later
+- the app keeps concrete `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
 - a background job queries those links conservatively every 4 hours on trip-anchored refresh windows and rolls the best current price back onto the tracker
 - saving a trip pulls its affected airport-pair searches to the front of the refresh queue
@@ -32,11 +35,15 @@ This version is intentionally local and simple:
 
 Legacy CSV/JSON files are imported automatically the first time the app boots on SQLite. After migration, they can be moved out of `data/` and kept only as manual backup artifacts if you still want them.
 
+Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) to distinguish current design notes from older historical planning docs.
+
 ## Core Objects
 
-- `Trip`: authoring object with a unique label
+- `Trip Group`: pure organization/display for concrete trips
+- `Recurring Rule`: cadence + route template that generates future trips
+- `Trip`: the authoring object for a one-time trip or a recurring rule
 - `Route Option`: ranked tracker definition under a trip
-- `Trip Instance`: one dated scheduled trip, either standalone or generated from a weekly trip
+- `Trip Instance`: one dated scheduled trip, either standalone, attached to a recurring rule, or detached from it
 - `Tracker`: one Google Flights tracker/search envelope for a route option on a trip instance
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Price Record`: one append-only fetched offer row captured for analytics history
@@ -55,22 +62,22 @@ Then open `http://127.0.0.1:8000`.
 
 ## MVP Flow
 
-1. Create a `Trip`.
-2. Choose whether it is `one_time` or `weekly`.
+1. Create a `Trip Group` if you want an organizational bucket.
+2. Create a one-time trip or a recurring rule-backed trip.
 3. Choose whether route options should be treated equally or in ranked order.
 4. Add ranked `Route Options`.
 5. For each route option, choose whether Google Flights should include or exclude Basic economy fares.
 6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
-7. Use `Trips` to manage recurring plans and browse the dated scheduled trips they create.
-8. Open a recurring trip for parent-level details, route options, and scheduled dates.
-9. Open any scheduled trip to review its trackers, prices, airport-pair Google Flights links, fare-policy labels, and booking state.
+7. Use `Trips` to browse groups, independent rules, and standalone trips.
+8. Open a recurring rule for template-level details, route options, and generated dates.
+9. Open any scheduled trip to review trackers, prices, Google Flights links, group memberships, and booking state.
 10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
 11. Record bookings manually or let Gmail automation create them automatically.
 12. Let the app continue comparing booked prices against the best current trip option.
 
 ## Gmail Booking Automation
 
-Travel Agent can poll a dedicated Gmail inbox, classify each new message once, and update bookings automatically when the email can be matched confidently.
+Milemark can poll a dedicated Gmail inbox, classify each new message once, and update bookings automatically when the email can be matched confidently.
 
 Setup:
 
@@ -188,6 +195,12 @@ To remove it later:
 uv run python -m app.jobs.uninstall_launchd_fetcher
 ```
 
+## Config Files
+
+- `config/app_state.json`: checked-in runtime config such as timezone, horizon length, and whether test data is shown/processed
+- `config/gmail_integration.json`: checked-in Gmail poller behavior such as inbox labels, model choice, retry caps, and debug logging
+- `config/local/*`: machine-local secrets and state such as Gmail OAuth credentials, Gmail sync checkpoint, and optional OpenAI API key cache
+
 ## Storage
 
 The app stores relational runtime data in `data/travel_agent.sqlite3`.
@@ -219,9 +232,12 @@ Runtime behavior:
 
 The main logical tables are:
 
+- `trip_groups`
 - `trips`
+- `rule_group_targets`
 - `route_options`
 - `trip_instances`
+- `trip_instance_group_memberships`
 - `trackers`
 - `tracker_fetch_targets`
 - `bookings`

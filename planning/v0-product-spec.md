@@ -1,5 +1,7 @@
 # travel-agent v0 Product Spec
 
+> Historical note: this document describes the original v0 concept. It is not an authoritative description of the current product. Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) and [README.md](/Users/davidchen/code/travel-agent/README.md) for the current architecture and behavior.
+
 ## Goal
 
 Build a local-first personal tool that helps one traveler manage Google Flights searches and bookings in one place.

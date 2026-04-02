@@ -123,8 +123,6 @@ def groups_for_trip(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -
         for membership in snapshot.trip_instance_group_memberships
         if membership.trip_instance_id in trip_instance_ids
     }
-    if not group_ids and getattr(trip, "trip_group_id", ""):
-        group_ids.add(trip.trip_group_id)
     groups = [
         trip_group_by_id(snapshot, trip_group_id)
         for trip_group_id in sorted(group_ids)

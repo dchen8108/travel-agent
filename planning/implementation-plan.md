@@ -1,5 +1,7 @@
 # travel-agent MVP Implementation Plan
 
+> Historical note: this implementation plan reflects the pre-SQLite, pre-Gmail-automation architecture. It is no longer authoritative. Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) for current references.
+
 ## Goal
 
 Ship a local MVP that is usable today on one machine and reflects the current product direction.

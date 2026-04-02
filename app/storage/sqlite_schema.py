@@ -257,6 +257,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_bookings_trip_status ON bookings(trip_instance_id, booking_status, booked_at)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_match_status ON bookings(match_status, departure_date)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_record_locator ON bookings(record_locator)",
+    "CREATE INDEX IF NOT EXISTS idx_booking_email_events_retry_status ON booking_email_events(processing_status, retryable, extraction_attempt_count, received_at)",
     "CREATE INDEX IF NOT EXISTS idx_booking_email_events_status_received ON booking_email_events(processing_status, received_at)",
     "CREATE INDEX IF NOT EXISTS idx_booking_email_events_received ON booking_email_events(received_at)",
     "CREATE INDEX IF NOT EXISTS idx_price_records_fetch_target_observed ON price_records(fetch_target_id, observed_at)",

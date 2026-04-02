@@ -167,6 +167,10 @@
       });
       search.addEventListener("input", () => renderMenu(search.value));
       search.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          return;
+        }
         if (event.key === "Escape") {
           closeMenu();
           search.blur();
@@ -329,6 +333,10 @@
     });
     search.addEventListener("input", () => renderMenu(search.value));
     search.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        return;
+      }
       if (event.key === "Escape") {
         closeMenu();
         trigger.focus();
@@ -439,6 +447,10 @@
     });
     search.addEventListener("input", () => renderMenu(search.value));
     search.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        return;
+      }
       if (event.key === "Escape") {
         closeMenu();
         search.blur();

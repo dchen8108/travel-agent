@@ -64,33 +64,3 @@ def save_trip_group(
         trip_group.updated_at = utcnow()
     repository.upsert_trip_group(trip_group)
     return trip_group
-
-
-def resolve_trip_group_for_rule(
-    repository: Repository,
-    *,
-    trip_group_id: str,
-    fallback_label: str,
-    data_scope: str,
-) -> TripGroup:
-    trip_groups = repository.load_trip_groups()
-    selected = next((item for item in trip_groups if item.trip_group_id == trip_group_id), None) if trip_group_id else None
-    if selected is not None:
-        return selected
-
-    normalized_fallback = fallback_label.strip()
-    existing = next(
-        (item for item in trip_groups if normalize_group_label(item.label) == normalize_group_label(normalized_fallback)),
-        None,
-    )
-    if existing is not None:
-        return existing
-
-    trip_group = build_trip_group(
-        trip_group_id=None,
-        label=normalized_fallback,
-        description="",
-        data_scope=data_scope,
-    )
-    repository.upsert_trip_group(trip_group)
-    return trip_group

@@ -58,15 +58,11 @@ def _dedupe_message_ids(message_ids: list[str]) -> list[str]:
 
 
 def _retry_message_ids(repository: Repository, *, limit: int, max_retry_attempts: int) -> list[str]:
-    errored_events = [
-        event
-        for event in repository.load_booking_email_events()
-        if event.processing_status == BookingEmailEventStatus.ERROR
-        and event.retryable
-        and event.extraction_attempt_count < max_retry_attempts
-    ]
-    errored_events.sort(key=lambda item: item.received_at)
-    return [event.gmail_message_id for event in errored_events[:limit]]
+    errored_events = repository.load_retryable_booking_email_events(
+        max_retry_attempts=max_retry_attempts,
+        limit=limit,
+    )
+    return [event.gmail_message_id for event in errored_events]
 
 
 @dataclass
@@ -87,14 +83,7 @@ def _retryable_message_error(exc: Exception) -> bool:
 
 
 def _find_existing_event(repository: Repository, gmail_message_id: str) -> BookingEmailEvent | None:
-    return next(
-        (
-            event
-            for event in repository.load_booking_email_events()
-            if event.gmail_message_id == gmail_message_id
-        ),
-        None,
-    )
+    return repository.get_booking_email_event_by_message_id(gmail_message_id)
 
 
 def _record_message_processing_error(
@@ -140,7 +129,7 @@ def _select_message_ids_for_poll(
     retry_limit: int,
     max_retry_attempts: int,
 ) -> MessageSelection:
-    existing_events = {event.gmail_message_id: event for event in repository.load_booking_email_events()}
+    existing_message_ids = repository.load_booking_email_message_ids()
     retry_ids = _retry_message_ids(repository, limit=retry_limit, max_retry_attempts=max_retry_attempts)
 
     if sync_state_last_history_id:
@@ -159,7 +148,7 @@ def _select_message_ids_for_poll(
                 source_mode = "history_reset_backfill"
             else:
                 raise
-        new_ids = [message_id for message_id in incremental_ids if message_id not in existing_events]
+        new_ids = [message_id for message_id in incremental_ids if message_id not in existing_message_ids]
         return MessageSelection(
             message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
             latest_history_id=latest_history_id,
@@ -171,7 +160,7 @@ def _select_message_ids_for_poll(
 
     mailbox_profile = get_mailbox_profile(service)
     backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
-    new_ids = [message_id for message_id in backfill_ids if message_id not in existing_events]
+    new_ids = [message_id for message_id in backfill_ids if message_id not in existing_message_ids]
     return MessageSelection(
         message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
         latest_history_id=mailbox_profile["history_id"],

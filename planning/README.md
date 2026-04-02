@@ -10,7 +10,7 @@ Use these first when you need the implementation as it exists today:
 - `sqlite-storage.md`: current SQLite-backed storage model and runtime layout
 - `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
 - `v1-ui-pass.md`: the recent UI/UX consolidation direction
-- `trip-groups-and-recurring-rules.md`: proposed direction for decomposing recurring trips into groups + rules
+- `trip-groups-and-recurring-rules.md`: current trip-group / recurring-rule architecture and migration notes
 
 The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the main source of truth for:
 
@@ -36,9 +36,11 @@ Read them as historical design context, not current schema or route documentatio
 ## Current Product Baseline
 
 - `travel-agent` is a local-first recurring flight control panel
-- `Trip` is the top-level planning object
-- trips can be `one_time` or `weekly`
-- weekly trips own rolling scheduled instances
+- `Trip Group` is a pure organizational bucket for concrete scheduled trips
+- `Trip` can be a one-time trip or a recurring rule authoring object
+- recurring rules can target zero or more groups
+- scheduled trips can belong to zero or more groups and at most one rule
+- attached recurring instances inherit rule group targets; detached instances freeze them
 - one-time trips use their scheduled-trip page as the canonical operational surface
 - route options are ranked tracker definitions under a trip
 - bookings are trip-scoped, not tracker-scoped

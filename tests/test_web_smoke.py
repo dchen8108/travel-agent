@@ -107,6 +107,88 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     assert "Upcoming trips" in detail.text
 
 
+def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create_planned = client.post(
+        "/trips",
+        data={
+            "label": "Planned Commute",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=3)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create_planned.status_code == 303
+
+    create_booked = client.post(
+        "/trips",
+        data={
+            "label": "Booked Commute",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=5)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create_booked.status_code == 303
+
+    booked_response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": (date.today() + timedelta(days=5)).isoformat(),
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "BOOK123",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert booked_response.status_code == 303
+
+    unmatched_response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "airline": "Southwest",
+            "origin_airport": "LAX",
+            "destination_airport": "LAS",
+            "departure_date": (date.today() + timedelta(days=8)).isoformat(),
+            "departure_time": "09:15",
+            "arrival_time": "10:30",
+            "booked_price": "89",
+            "record_locator": "UNMATCH1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert unmatched_response.status_code == 303
+
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "Things that deserve your attention now" in page.text
+    assert "Upcoming trips that still need to be booked" in page.text
+    assert "Booked trips that continue to be monitored for lower prices" in page.text
+    assert "Planned Commute" in page.text
+    assert "Booked Commute" in page.text
+    assert "Resolve booking" in page.text
+    assert "/bookings#needs-linking" in page.text
+
+
 def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

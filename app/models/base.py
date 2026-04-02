@@ -54,6 +54,12 @@ class TripInstanceInheritanceMode(StrEnum):
     DETACHED = "detached"
 
 
+class TripInstanceGroupMembershipSource(StrEnum):
+    MANUAL = "manual"
+    INHERITED = "inherited"
+    FROZEN = "frozen"
+
+
 class TravelState(StrEnum):
     PLANNED = "planned"
     BOOKED = "booked"

@@ -1,5 +1,7 @@
 # Google Flights POC Findings
 
+> Historical note: this document captures an earlier Google Flights proof-of-concept and inbox-import direction. It is not an authoritative description of the current fetcher or Gmail booking pipeline. Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) and [README.md](/Users/davidchen/code/travel-agent/README.md) for current behavior.
+
 ## Objective
 
 Validate that Google Flights can act as the upstream signal source for a free local MVP.

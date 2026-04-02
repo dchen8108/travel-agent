@@ -1,5 +1,7 @@
 # travel-agent v0 Wireframes
 
+> Historical note: these wireframes are retained for original intent only. They are not an authoritative description of the current UI. Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) to distinguish current references from historical notes.
+
 ## Design Baseline
 
 The MVP is trips-first.
