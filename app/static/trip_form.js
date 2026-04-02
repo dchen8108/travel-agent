@@ -100,7 +100,6 @@
         <div class="card-header">
           <div>
             <strong>Option ${index + 1}</strong>
-            <p class="muted">One tracker definition.</p>
           </div>
           <div class="inline-actions">
             <button type="button" class="button ghost" data-move-up ${index === 0 ? "disabled" : ""}>Up</button>

@@ -353,6 +353,14 @@ p {
   font-size: clamp(2rem, 3vw, 2.75rem);
 }
 
+.hero.form-hero h2 {
+  max-width: 18ch;
+}
+
+.hero.form-hero p {
+  max-width: 54ch;
+}
+
 .hero p {
   max-width: 760px;
   color: var(--muted);
@@ -378,8 +386,8 @@ p {
 
 .summary-pill {
   position: relative;
-  min-height: 126px;
-  padding: 22px 22px 18px;
+  min-height: 114px;
+  padding: 18px 20px 16px;
   border-radius: 28px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(250, 245, 237, 0.9)),
@@ -400,7 +408,7 @@ p {
 
 .summary-pill span {
   display: block;
-  margin-top: 20px;
+  margin-top: 14px;
   font-family: var(--font-display);
   font-size: clamp(2rem, 3vw, 2.6rem);
   font-weight: 700;
@@ -460,6 +468,14 @@ p {
 .section-header h3 {
   margin-top: 6px;
   font-size: clamp(1.5rem, 2.4vw, 2rem);
+}
+
+.section-header.compact {
+  margin-bottom: 14px;
+}
+
+.section-header.compact h3 {
+  margin-top: 4px;
 }
 
 .muted,
@@ -803,6 +819,10 @@ button:disabled,
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.booking-itinerary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -1007,6 +1027,18 @@ textarea {
   box-shadow: var(--shadow-soft);
 }
 
+.route-option-card .card-header {
+  margin-bottom: 18px;
+}
+
+.route-option-card .inline-actions {
+  align-self: flex-start;
+}
+
+.route-option-card .form-grid {
+  row-gap: 18px;
+}
+
 .preference-card {
   padding: 24px;
   border: 1px solid rgba(200, 209, 204, 0.8);
@@ -1171,6 +1203,15 @@ textarea {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.route-editor .section-header {
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.route-editor .stack[data-route-options] {
+  gap: 20px;
 }
 
 .preference-threshold-field {
@@ -1579,6 +1620,27 @@ textarea {
   background: rgba(241, 236, 225, 0.72);
 }
 
+.slim-callout {
+  padding: 16px 18px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(244, 239, 231, 0.88));
+}
+
+.slim-callout strong {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slim-callout p {
+  margin-top: 6px;
+  color: var(--ink);
+}
+
 .form-section + .form-section {
   margin-top: 28px;
   padding-top: 24px;
@@ -1784,6 +1846,10 @@ code {
 
   .filter-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .booking-itinerary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
 
   .filter-toggle-field {
