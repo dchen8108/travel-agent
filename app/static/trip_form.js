@@ -14,6 +14,7 @@
   const anchorWeekdaySelect = form?.querySelector("[data-anchor-weekday]");
   const tripGroupPickerRoot = form?.querySelector("[data-trip-group-picker]");
   const tripGroupLabel = form?.querySelector("[data-trip-group-label]");
+  const tripGroupHelp = form?.querySelector("[data-trip-group-help]");
   const anchorDateField = form?.querySelector("[data-anchor-date-field]");
   const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
   const addRouteOptionButton = document.querySelector("[data-add-route-option]");
@@ -26,6 +27,12 @@
   const airlines = catalogs.airlines || [];
   const weekdays = catalogs.weekdays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const tripGroups = tripState.tripGroups || [];
+  const existingRuleHadGroups = Boolean(
+    tripState.trip?.trip_id
+    && tripState.trip?.trip_kind === "weekly"
+    && Array.isArray(tripState.trip?.trip_group_ids)
+    && tripState.trip.trip_group_ids.length
+  );
   let tripGroupIds = Array.isArray(tripState.trip?.trip_group_ids) ? Array.from(tripState.trip.trip_group_ids) : [];
   const blankRouteOption = () => ({
     route_option_id: "",
@@ -87,15 +94,27 @@
   }
 
   function syncTripGroupPicker() {
+    const weekly = currentTripKind() === "weekly";
     if (tripGroupLabel) {
-      tripGroupLabel.textContent = currentTripKind() === "weekly" ? "Target groups" : "Groups";
+      tripGroupLabel.textContent = weekly ? "Target groups" : "Groups";
+    }
+    if (tripGroupHelp) {
+      if (weekly) {
+        tripGroupHelp.innerHTML = existingRuleHadGroups
+          ? "Recurring rules should stay in at least one group."
+          : "Leave this blank and Milemark will create a matching group when you save.";
+      } else if (!tripGroups.length) {
+        tripGroupHelp.innerHTML = 'No groups yet. <a href="/groups/new">Create one first</a>.';
+      } else {
+        tripGroupHelp.textContent = "";
+      }
     }
     pickers.createMultiPicker({
       root: tripGroupPickerRoot,
       options: tripGroups,
       values: tripGroupIds,
       placeholder: "Search groups",
-      emptyText: "No groups",
+      emptyText: weekly ? (existingRuleHadGroups ? "Select groups" : "Will create matching group") : "No groups",
       compact: true,
       checkable: true,
       allowSelectAll: true,

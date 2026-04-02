@@ -21,7 +21,6 @@ from app.services.dashboard import (
     horizon_instances_for_trip,
     instances_for_trip,
     load_snapshot,
-    recurring_trips,
     recurring_rules_for_group,
     route_options_for_trip,
     scheduled_instances,
@@ -33,6 +32,7 @@ from app.services.dashboard import (
     recurring_rule_for_instance,
 )
 from app.services.group_memberships import replace_manual_trip_instance_groups
+from app.services.groups import find_or_create_trip_group
 from app.services.refresh_queue import (
     queued_refresh_message,
     queue_refresh_for_trip,
@@ -303,11 +303,6 @@ def trips_index(
         )
         for group in scheduled_view["group_items"]
     }
-    ungrouped_recurring_rules = [
-        trip
-        for trip in recurring_trips(snapshot)
-        if not groups_for_rule(snapshot, trip)
-    ]
     context = base_context(
         request,
         page="trips",
@@ -331,7 +326,6 @@ def trips_index(
         trip_focus_url=trip_focus_url,
         group_rule_map=group_rule_map,
         group_scheduled_map=group_scheduled_map,
-        ungrouped_recurring_rules=ungrouped_recurring_rules,
         **scheduled_view,
     )
     partial = request.query_params.get("partial")
@@ -456,6 +450,11 @@ async def save_trip_action(
         for item in parsed_trip_group_ids
         if str(item).strip()
     ]
+    label = str(form.get("label", "")).strip()
+    data_scope = (
+        str(form.get("data_scope", existing_trip.data_scope if existing_trip else DataScope.LIVE)).strip()
+        or (existing_trip.data_scope if existing_trip else DataScope.LIVE)
+    )
     raw_route_option_state: list[dict[str, object]]
     try:
         raw_route_option_state = json.loads(route_options_json or "[]")
@@ -463,20 +462,51 @@ async def save_trip_action(
         raw_route_option_state = []
     try:
         route_options = _parse_route_options(route_options_json)
-        trip = save_trip(
-            repository,
-            trip_id=trip_id,
-            label=str(form.get("label", "")).strip(),
-            trip_kind=trip_kind,
-            preference_mode=preference_mode,
-            active=existing_trip.active if existing_trip else True,
-            anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
-            anchor_weekday=anchor_weekday,
-            trip_group_ids=trip_group_ids,
-            route_option_payloads=route_options,
-            data_scope=str(form.get("data_scope", existing_trip.data_scope if existing_trip else DataScope.LIVE)).strip()
-            or (existing_trip.data_scope if existing_trip else DataScope.LIVE),
-        )
+        auto_created_group = False
+        if trip_kind == "weekly" and not trip_group_ids:
+            existing_rule_has_groups = bool(
+                existing_trip
+                and any(target.rule_trip_id == existing_trip.trip_id for target in repository.load_rule_group_targets())
+            )
+            if existing_trip is not None and existing_rule_has_groups:
+                raise ValueError("Recurring rules must stay in at least one group.")
+            if not label:
+                raise ValueError("Trip label is required.")
+            with repository.transaction():
+                fallback_group = find_or_create_trip_group(
+                    repository,
+                    label=label,
+                    data_scope=data_scope,
+                )
+                trip_group_ids = [fallback_group.trip_group_id]
+                trip = save_trip(
+                    repository,
+                    trip_id=trip_id,
+                    label=label,
+                    trip_kind=trip_kind,
+                    preference_mode=preference_mode,
+                    active=existing_trip.active if existing_trip else True,
+                    anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
+                    anchor_weekday=anchor_weekday,
+                    trip_group_ids=trip_group_ids,
+                    route_option_payloads=route_options,
+                    data_scope=data_scope,
+                )
+                auto_created_group = True
+        if not auto_created_group:
+            trip = save_trip(
+                repository,
+                trip_id=trip_id,
+                label=label,
+                trip_kind=trip_kind,
+                preference_mode=preference_mode,
+                active=existing_trip.active if existing_trip else True,
+                anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
+                anchor_weekday=anchor_weekday,
+                trip_group_ids=trip_group_ids,
+                route_option_payloads=route_options,
+                data_scope=data_scope,
+            )
         snapshot = sync_and_persist(repository)
         if trip.trip_kind == "one_time":
             replace_manual_trip_instance_groups(
@@ -508,7 +538,7 @@ async def save_trip_action(
             error_message=str(exc),
             trip_form_state={
                 "trip_id": trip_id or "",
-                "label": str(form.get("label", "")).strip(),
+                "label": label,
                 "trip_kind": trip_kind,
                 "trip_group_ids": trip_group_ids,
                 "preference_mode": preference_mode,

@@ -41,9 +41,17 @@
       <label>
         <span data-trip-group-label>{{ 'Target groups' if trip_form_state.trip_kind == 'weekly' else 'Groups' }}</span>
         <div data-trip-group-picker></div>
-        {% if not trip_groups %}
-        <small class="muted">No groups yet. <a href="/groups/new">Create one first</a>.</small>
-        {% endif %}
+        <small class="muted" data-trip-group-help>
+          {% if trip_form_state.trip_kind == 'weekly' %}
+            {% if trip_form_state.trip_id and trip_form_state.trip_group_ids %}
+            Recurring rules should stay in at least one group.
+            {% else %}
+            Leave this blank and Milemark will create a matching group when you save.
+            {% endif %}
+          {% elif not trip_groups %}
+          No groups yet. <a href="/groups/new">Create one first</a>.
+          {% endif %}
+        </small>
       </label>
       <label class="kind-one-time {{ '' if trip_form_state.trip_kind == 'one_time' else 'is-hidden' }}" data-anchor-date-field>
         <span>Anchor date</span>

@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.models.base import FetchTargetStatus, utcnow
 from app.services.groups import save_trip_group
+from app.services.trips import save_trip
 from app.settings import Settings
 from app.storage.repository import Repository
 
@@ -25,6 +26,8 @@ def test_core_pages_render(tmp_path: Path) -> None:
     for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
+    trips_page = client.get("/trips")
+    assert "Independent rules" not in trips_page.text
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/trips"
@@ -187,6 +190,87 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "Booked Commute" in page.text
     assert "Resolve booking" in page.text
     assert "/bookings#needs-linking" in page.text
+
+
+def test_new_weekly_rule_without_groups_creates_matching_group(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Commute Rule",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "trip_group_ids_json": "[]",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    repository = Repository(settings)
+    rule = next(item for item in repository.load_trips() if item.label == "Commute Rule")
+    groups = repository.load_trip_groups()
+    matching_group = next(item for item in groups if item.label == "Commute Rule")
+    targets = repository.load_rule_group_targets()
+
+    assert any(target.rule_trip_id == rule.trip_id and target.trip_group_id == matching_group.trip_group_id for target in targets)
+
+
+def test_edit_grouped_weekly_rule_cannot_clear_all_groups(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Work trips")
+    rule = save_trip(
+        repository,
+        trip_id=None,
+        label="Work commute rule",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        trip_group_ids=[group.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post(
+        "/trips",
+        data={
+            "trip_id": rule.trip_id,
+            "label": rule.label,
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "trip_group_ids_json": "[]",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Recurring rules must stay in at least one group." in response.text
+    assert any(target.rule_trip_id == rule.trip_id for target in repository.load_rule_group_targets())
 
 
 def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
@@ -970,7 +1054,7 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert "One-off Flight" not in filtered_page.text
 
 
-def test_editing_rule_can_remove_all_target_groups(tmp_path: Path) -> None:
+def test_editing_grouped_rule_cannot_remove_all_target_groups(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1009,19 +1093,20 @@ def test_editing_rule_can_remove_all_target_groups(tmp_path: Path) -> None:
             "preference_mode": "equal",
             "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00","fare_class_policy":"include_basic","savings_needed_vs_previous":0}]',
         },
-        follow_redirects=False,
+        follow_redirects=True,
     )
-    assert edit.status_code == 303
+    assert edit.status_code == 400
+    assert "Recurring rules must stay in at least one group." in edit.text
 
     assert [
         (item.rule_trip_id, item.trip_group_id)
         for item in repository.load_rule_group_targets()
         if item.rule_trip_id == trip_id
-    ] == []
+    ] == [(trip_id, work_group.trip_group_id)]
 
     group_page = client.get(f"/groups/{work_group.trip_group_id}")
     assert group_page.status_code == 200
-    assert "Weekly Commute A" not in group_page.text
+    assert "Weekly Commute A" in group_page.text
 
 
 def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:

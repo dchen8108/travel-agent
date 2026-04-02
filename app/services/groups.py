@@ -10,6 +10,17 @@ def normalize_group_label(label: str) -> str:
     return label.strip().lower()
 
 
+def find_trip_group_by_label(
+    trip_groups: list[TripGroup],
+    label: str,
+) -> TripGroup | None:
+    normalized = normalize_group_label(label)
+    return next(
+        (trip_group for trip_group in trip_groups if normalize_group_label(trip_group.label) == normalized),
+        None,
+    )
+
+
 def ensure_unique_group_label(
     trip_groups: list[TripGroup],
     label: str,
@@ -64,3 +75,23 @@ def save_trip_group(
         trip_group.updated_at = utcnow()
     repository.upsert_trip_group(trip_group)
     return trip_group
+
+
+def find_or_create_trip_group(
+    repository: Repository,
+    *,
+    label: str,
+    description: str = "",
+    data_scope: str = DataScope.LIVE,
+) -> TripGroup:
+    trip_groups = repository.load_trip_groups()
+    existing = find_trip_group_by_label(trip_groups, label)
+    if existing is not None:
+        return existing
+    return save_trip_group(
+        repository,
+        trip_group_id=None,
+        label=label,
+        description=description,
+        data_scope=data_scope,
+    )
