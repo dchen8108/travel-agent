@@ -806,7 +806,7 @@ button:disabled,
 .trip-kind-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 label {
@@ -1042,9 +1042,31 @@ textarea {
 }
 
 .choice-card input {
-  width: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
   margin: 2px 0 0;
-  accent-color: var(--accent);
+  border-radius: 999px;
+  border: 2px solid rgba(113, 128, 140, 0.78);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.choice-card input:checked {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 4px var(--accent),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.choice-card input:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(13, 122, 109, 0.12),
+    inset 0 0 0 5px rgba(13, 122, 109, 0.88);
 }
 
 .choice-card span {
@@ -1077,7 +1099,11 @@ textarea {
 }
 
 .trip-kind-choice {
-  min-height: 122px;
+  min-height: 108px;
+}
+
+.trip-kind-field {
+  margin-top: 2px;
 }
 
 .choice-card:has(input:checked) {
