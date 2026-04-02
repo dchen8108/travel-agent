@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from datetime import date, datetime
 
 from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
+from app.money import parse_money
 from app.models.base import BookingStatus, CsvModel, utcnow
 from app.route_options import parse_time
 
@@ -20,7 +22,7 @@ class Booking(CsvModel):
     departure_date: date
     departure_time: str
     arrival_time: str = ""
-    booked_price: int
+    booked_price: Decimal
     record_locator: str = ""
     booked_at: datetime = Field(default_factory=utcnow)
     status: BookingStatus = BookingStatus.ACTIVE
@@ -55,7 +57,8 @@ class Booking(CsvModel):
 
     @field_validator("booked_price")
     @classmethod
-    def validate_booked_price(cls, value: int) -> int:
-        if value < 0:
+    def validate_booked_price(cls, value: object) -> Decimal:
+        amount = parse_money(value)
+        if amount is None or amount < 0:
             raise ValueError("Booked price must be positive.")
-        return value
+        return amount

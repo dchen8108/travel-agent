@@ -32,7 +32,7 @@ class GmailIntegrationConfig(BaseModel):
             "unsubscribe",
         ]
     )
-    model: str = "gpt-5-mini"
+    model: str = "gpt-5.4"
     min_auto_create_confidence: float = 0.85
 
     @field_validator("max_messages_per_poll")
@@ -48,4 +48,3 @@ class GmailIntegrationConfig(BaseModel):
         if not 0.0 <= value <= 1.0:
             raise ValueError("min_auto_create_confidence must be between 0 and 1.")
         return value
-

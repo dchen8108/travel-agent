@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
+from app.money import parse_money
 from app.services.gmail_client import gmail_auth_status
 from app.services.gmail_config import load_gmail_integration_config
 from app.services.bookings import BookingCandidate, record_booking
@@ -133,6 +134,9 @@ async def save_booking(
         "notes": str(form.get("notes", "")).strip(),
     }
     try:
+        booked_price = parse_money(booking_state["booked_price"])
+        if booked_price is None:
+            raise ValueError("Booked price is required.")
         candidate = BookingCandidate(
             airline=booking_state["airline"],
             origin_airport=booking_state["origin_airport"],
@@ -140,7 +144,7 @@ async def save_booking(
             departure_date=date.fromisoformat(booking_state["departure_date"]),
             departure_time=booking_state["departure_time"],
             arrival_time=booking_state["arrival_time"],
-            booked_price=int(booking_state["booked_price"]),
+            booked_price=booked_price,
             record_locator=booking_state["record_locator"],
             notes=booking_state["notes"],
         )

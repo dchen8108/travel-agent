@@ -16,7 +16,7 @@
   ],
   "max_messages_per_poll": 20,
   "min_auto_create_confidence": 0.85,
-  "model": "gpt-5-mini",
+  "model": "gpt-5.4",
   "spam_keywords": [
     "bonus miles",
     "deal",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from datetime import date, datetime
 
 from app.models.base import UnmatchedBookingStatus, utcnow
@@ -21,7 +22,7 @@ class BookingCandidate:
     departure_date: date
     departure_time: str
     arrival_time: str
-    booked_price: int
+    booked_price: Decimal
     record_locator: str
     notes: str = ""
 

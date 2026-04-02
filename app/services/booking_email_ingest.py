@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from datetime import date
 import json
 
 from app.catalog import normalize_airline_code
+from app.money import format_money
 from app.models.base import BookingEmailEventStatus, BookingStatus, utcnow
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
@@ -208,7 +210,8 @@ def _non_booking_reason(extraction: BookingEmailExtraction) -> str:
 
 def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[BookingCandidate]:
     candidates: list[BookingCandidate] = []
-    multi_leg_total_price = extraction.total_price if len(extraction.legs) > 1 else None
+    extracted_total_price = extraction.total_price_amount()
+    multi_leg_total_price = extracted_total_price if len(extraction.legs) > 1 else None
     for leg in extraction.legs:
         if not (leg.airline and leg.origin_airport and leg.destination_airport and leg.departure_date and leg.departure_time):
             continue
@@ -216,11 +219,11 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
             departure_date = date.fromisoformat(leg.departure_date)
         except ValueError:
             continue
-        price = extraction.total_price or 0
+        price = extracted_total_price or Decimal("0")
         notes = "Imported from Gmail."
         if multi_leg_total_price is not None:
-            price = 0
-            notes = f"Imported from Gmail. Total itinerary price was ${multi_leg_total_price}."
+            price = Decimal("0")
+            notes = f"Imported from Gmail. Total itinerary price was {format_money(multi_leg_total_price)}."
         if extraction.record_locator:
             notes = f"{notes} Record locator {extraction.record_locator}."
         airline = _normalize_airline_code(leg.airline)

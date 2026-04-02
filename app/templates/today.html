@@ -32,7 +32,7 @@
           <strong>Resolve booking · {{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
           <p class="muted">{{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }} · {{ airline_label(unmatched.airline) }}</p>
         </div>
-        <span class="badge">${{ unmatched.booked_price }}</span>
+        <span class="badge">{{ money(unmatched.booked_price) }}</span>
       </div>
       <p class="muted">Travel Agent could not place this booking confidently. Resolve it once so it can be monitored normally.</p>
       <div class="actions">
@@ -54,8 +54,8 @@
         <span class="badge">rebook</span>
       </div>
       <div class="meta-grid">
-        <div><dt>Booked at</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Unknown' }}</dd></div>
-        <div><dt>Current best</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Booked at</dt><dd>{{ money(booking.booked_price) if booking else 'Unknown' }}</dd></div>
+        <div><dt>Current best</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Why now</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
       <div class="actions">
@@ -100,7 +100,7 @@
         <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
       </div>
       <div class="meta-grid">
-        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Best matched</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Status</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
       <div class="actions">
@@ -143,8 +143,8 @@
         <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
       </div>
       <div class="meta-grid">
-        <div><dt>Booked at</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Unknown' }}</dd></div>
-        <div><dt>Current best</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Booked at</dt><dd>{{ money(booking.booked_price) if booking else 'Unknown' }}</dd></div>
+        <div><dt>Current best</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
         <div><dt>Status</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
       <div class="actions">

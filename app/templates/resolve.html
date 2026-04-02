@@ -16,7 +16,7 @@
         <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
         <p class="muted">{{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }} · {{ airline_label(unmatched.airline) }}</p>
       </div>
-      <span class="badge">${{ unmatched.booked_price }}</span>
+      <span class="badge">{{ money(unmatched.booked_price) }}</span>
     </div>
     <div class="two-column top-gap-small">
       <form method="post" action="/resolve/{{ unmatched.unmatched_booking_id }}/link" class="subcard">

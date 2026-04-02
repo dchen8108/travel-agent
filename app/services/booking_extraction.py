@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal
 
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.money import normalize_extracted_total_price
 from app.settings import Settings
 from app.services.runtime_secrets import openai_api_key
 
@@ -37,7 +39,7 @@ class BookingEmailExtraction(BaseModel):
     confidence: float = 0.0
     record_locator: str = ""
     currency: str = "USD"
-    total_price: int | None = None
+    total_price: str = ""
     passenger_names: list[str] = Field(default_factory=list)
     summary: str = ""
     notes: str = ""
@@ -52,6 +54,19 @@ class BookingEmailExtraction(BaseModel):
             return 1.0
         return value
 
+    @field_validator("total_price", mode="before")
+    @classmethod
+    def normalize_total_price(cls, value: object) -> str:
+        if value in (None, ""):
+            return ""
+        return str(value).strip()
+
+    def total_price_amount(self) -> Decimal | None:
+        return normalize_extracted_total_price(
+            self.total_price,
+            context_texts=[self.summary, self.notes, *(leg.evidence for leg in self.legs)],
+        )
+
 
 SYSTEM_PROMPT = """You extract structured flight booking information from emails.
 
@@ -64,7 +79,7 @@ Rules:
 - Use 24-hour times HH:MM in the local time shown in the email.
 - Do not guess unknown fields. Use empty strings or null.
 - If the itinerary contains multiple flight legs, include every leg.
-- total_price should be the itinerary total if clearly stated as a whole-booking amount in USD. Otherwise null.
+- total_price should be the itinerary total in USD as a string amount that preserves cents, like "78.40". If unknown, return an empty string.
 - confidence should reflect extraction reliability, not whether the email is desirable.
 """
 

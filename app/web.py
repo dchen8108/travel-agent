@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.catalog import airline_display, airline_label, airport_display, airport_label
+from app.money import format_money
 from app.route_options import day_offset_label, route_option_summary
 from app.services.dashboard import (
     factual_trip_status_label,
@@ -91,6 +92,7 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "airport_display": airport_display,
         "airline_label": airline_label,
         "airline_display": airline_display,
+        "money": format_money,
         "day_offset_label": day_offset_label,
         "route_option_summary": route_option_summary,
         "factual_trip_status_label": factual_trip_status_label,

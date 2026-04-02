@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from urllib.parse import urlencode
 
+from app.money import format_money
 from app.models.base import FetchTargetStatus
 from app.models.booking import Booking
 from app.models.route_option import RouteOption
@@ -214,27 +215,27 @@ def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> 
         savings = rebook_savings(snapshot, trip_instance_id)
         if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
             return (
-                f"Current comparable price is ${tracker.latest_observed_price}, "
-                f"${savings} below your booked price of ${booking.booked_price}."
+                f"Current comparable price is {format_money(tracker.latest_observed_price)}, "
+                f"{format_money(savings)} below your booked price of {format_money(booking.booked_price)}."
             )
         if tracker is not None and tracker.latest_observed_price is not None:
             return (
-                f"Booked at ${booking.booked_price}. Current comparable price is "
-                f"${tracker.latest_observed_price}."
+                f"Booked at {format_money(booking.booked_price)}. Current comparable price is "
+                f"{format_money(tracker.latest_observed_price)}."
             )
-        return f"Booked at ${booking.booked_price}. No current comparison price yet."
+        return f"Booked at {format_money(booking.booked_price)}. No current comparison price yet."
     tracker = best_tracker(snapshot, trip_instance_id)
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
     if tracker is not None and tracker.latest_observed_price is not None and fetch_state["all_trackers_resolved"]:
         if tracker.preference_bias_dollars > 0:
             return (
-                f"Best current price is ${tracker.latest_observed_price} on option {tracker.rank}, "
-                f"after applying a ${tracker.preference_bias_dollars} preference buffer."
+                f"Best current price is {format_money(tracker.latest_observed_price)} on option {tracker.rank}, "
+                f"after applying a {format_money(tracker.preference_bias_dollars)} preference buffer."
             )
-        return f"Best current price is ${tracker.latest_observed_price}."
+        return f"Best current price is {format_money(tracker.latest_observed_price)}."
     if tracker is not None and tracker.latest_observed_price is not None:
         return (
-            f"Best current price so far is ${tracker.latest_observed_price}. "
+            f"Best current price so far is {format_money(tracker.latest_observed_price)}. "
             "Travel Agent is still checking the remaining options."
         )
     if fetch_state["all_unavailable"]:

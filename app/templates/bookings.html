@@ -70,7 +70,7 @@
           {{ airline_label(booking.airline) }}
         </p>
       </div>
-      <span class="badge">${{ booking.booked_price }}</span>
+      <span class="badge">{{ money(booking.booked_price) }}</span>
     </div>
     <div class="meta-grid">
       <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>

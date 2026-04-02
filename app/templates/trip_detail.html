@@ -163,8 +163,8 @@
         </div>
       </div>
       <div class="meta-grid">
-        <div><dt>Best matched</dt><dd>{{ '$%s'|format(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Booking</dt><dd>{{ '$%s'|format(booking.booked_price) if booking else 'Open' }}</dd></div>
+        <div><dt>Best matched</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
+        <div><dt>Booking</dt><dd>{{ money(booking.booked_price) if booking else 'Open' }}</dd></div>
         <div><dt>Trackers</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }}</dd></div>
       </div>
       <div class="actions">

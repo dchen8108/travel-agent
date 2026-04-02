@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
-from app.storage.sqlite_schema import CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
+from app.money import normalize_extracted_total_price
+from app.storage.sqlite_schema import CREATE_BOOKINGS_TABLE, CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
@@ -19,6 +21,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
+    _migrate_bookings_to_v5(connection)
     _migrate_price_records_to_v3(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
@@ -202,6 +205,117 @@ def _migrate_price_records_to_v3(connection: sqlite3.Connection) -> None:
     connection.execute("DROP TABLE price_records_old")
 
 
+def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    needs_rebuild = "booked_price" in columns and _column_type(connection, "bookings", "booked_price") != "REAL"
+    if needs_rebuild:
+        connection.execute("ALTER TABLE bookings RENAME TO bookings_old")
+        connection.execute(CREATE_BOOKINGS_TABLE.replace("IF NOT EXISTS ", ""))
+        connection.execute(
+            """
+            INSERT INTO bookings (
+                booking_id,
+                source,
+                trip_instance_id,
+                tracker_id,
+                airline,
+                origin_airport,
+                destination_airport,
+                departure_date,
+                departure_time,
+                arrival_time,
+                booked_price,
+                record_locator,
+                booked_at,
+                booking_status,
+                match_status,
+                raw_summary,
+                candidate_trip_instance_ids,
+                resolution_status,
+                notes,
+                created_at,
+                updated_at
+            )
+            SELECT
+                booking_id,
+                source,
+                trip_instance_id,
+                tracker_id,
+                airline,
+                origin_airport,
+                destination_airport,
+                departure_date,
+                departure_time,
+                arrival_time,
+                booked_price,
+                record_locator,
+                booked_at,
+                booking_status,
+                match_status,
+                raw_summary,
+                candidate_trip_instance_ids,
+                resolution_status,
+                notes,
+                created_at,
+                updated_at
+            FROM bookings_old
+            """
+        )
+        connection.execute("DROP TABLE bookings_old")
+    _repair_gmail_booking_prices_to_v5(connection)
+
+
+def _repair_gmail_booking_prices_to_v5(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "booking_email_events"):
+        return
+    rows = connection.execute(
+        """
+        SELECT extracted_payload_json, result_booking_ids, result_unmatched_booking_ids
+        FROM booking_email_events
+        WHERE processing_status IN ('resolved_auto', 'needs_resolution')
+          AND (result_booking_ids != '' OR result_unmatched_booking_ids != '')
+        """
+    ).fetchall()
+    for row in rows:
+        repaired = _repaired_event_booked_price(
+            extracted_payload_json=str(row["extracted_payload_json"] or ""),
+        )
+        if repaired is None:
+            continue
+        booking_ids = [item for item in str(row["result_booking_ids"] or "").split("|") if item]
+        unmatched_ids = [item for item in str(row["result_unmatched_booking_ids"] or "").split("|") if item]
+        for booking_id in booking_ids + unmatched_ids:
+            connection.execute(
+                "UPDATE bookings SET booked_price = ? WHERE booking_id = ? AND source = 'gmail'",
+                (float(repaired), booking_id),
+            )
+
+
+def _repaired_event_booked_price(*, extracted_payload_json: str) -> float | None:
+    if not extracted_payload_json:
+        return None
+    try:
+        payload = json.loads(extracted_payload_json)
+    except json.JSONDecodeError:
+        return None
+    legs = payload.get("legs", []) or []
+    if len(legs) > 1:
+        return 0.0
+    repaired = normalize_extracted_total_price(
+        payload.get("total_price"),
+        context_texts=[
+            str(payload.get("summary", "")),
+            str(payload.get("notes", "")),
+            *(str(leg.get("evidence", "")) for leg in legs if isinstance(leg, dict)),
+        ],
+    )
+    if repaired is None:
+        return None
+    return float(repaired)
+
+
 def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
     row = connection.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -213,3 +327,11 @@ def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
 def _table_columns(connection: sqlite3.Connection, table: str) -> list[str]:
     rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
     return [str(row[1]) for row in rows]
+
+
+def _column_type(connection: sqlite3.Connection, table: str, column: str) -> str:
+    rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+    for row in rows:
+        if str(row[1]) == column:
+            return str(row[2]).upper()
+    return ""

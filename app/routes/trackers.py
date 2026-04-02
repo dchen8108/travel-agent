@@ -6,6 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.money import format_money
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
     best_tracker,
@@ -111,7 +112,7 @@ def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
     fetch_targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
     monitor = _tracker_monitor_state(tracker, fetch_targets)
     if tracker.latest_observed_price is not None:
-        headline = f"${tracker.latest_observed_price}"
+        headline = format_money(tracker.latest_observed_price)
         summary_parts = []
         if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
             summary_parts.append(
@@ -196,23 +197,27 @@ def trackers_detail(
     status_tone = factual_trip_status_tone(snapshot, trip_instance_id)
     savings = rebook_savings(snapshot, trip_instance_id)
     current_fare_label = (
-        f"${comparison.latest_observed_price}"
+        format_money(comparison.latest_observed_price)
         if comparison and comparison.latest_observed_price is not None
         else "None yet"
     )
-    booked_fare_label = f"${booking.booked_price}" if booking else "Not booked"
+    booked_fare_label = format_money(booking.booked_price) if booking else "Not booked"
     fare_snapshot_note = ""
     if booking and savings is not None and comparison and comparison.latest_observed_price is not None:
         fare_snapshot_note = (
-            f"Travel Agent found a comparable fare at ${comparison.latest_observed_price}, "
-            f"${savings} below what you booked."
+            f"Travel Agent found a comparable fare at {format_money(comparison.latest_observed_price)}, "
+            f"{format_money(savings)} below what you booked."
         )
     elif booking and comparison and comparison.latest_observed_price is not None:
         fare_snapshot_note = (
-            f"Booked at ${booking.booked_price}. The latest comparable fare is ${comparison.latest_observed_price}."
+            f"Booked at {format_money(booking.booked_price)}. "
+            f"The latest comparable fare is {format_money(comparison.latest_observed_price)}."
         )
     elif booking:
-        fare_snapshot_note = f"Booked at ${booking.booked_price}. A current comparison fare is not available yet."
+        fare_snapshot_note = (
+            f"Booked at {format_money(booking.booked_price)}. "
+            "A current comparison fare is not available yet."
+        )
     elif trackers and not (best_current_tracker and best_current_tracker.latest_observed_price is not None):
         fare_snapshot_note = "Travel Agent is still checking the monitored searches for this date."
 

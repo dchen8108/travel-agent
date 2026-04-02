@@ -1,6 +1,33 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
+
+
+CREATE_BOOKINGS_TABLE = """
+CREATE TABLE IF NOT EXISTS bookings (
+    booking_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL DEFAULT 'manual',
+    trip_instance_id TEXT NULL,
+    tracker_id TEXT NULL,
+    airline TEXT NOT NULL,
+    origin_airport TEXT NOT NULL,
+    destination_airport TEXT NOT NULL,
+    departure_date TEXT NOT NULL,
+    departure_time TEXT NOT NULL,
+    arrival_time TEXT NOT NULL DEFAULT '',
+    booked_price REAL NOT NULL,
+    record_locator TEXT NOT NULL DEFAULT '',
+    booked_at TEXT NOT NULL,
+    booking_status TEXT NOT NULL DEFAULT 'active',
+    match_status TEXT NOT NULL DEFAULT 'matched',
+    raw_summary TEXT NOT NULL DEFAULT '',
+    candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
+    resolution_status TEXT NOT NULL DEFAULT 'resolved',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)
+"""
 
 
 CREATE_PRICE_RECORDS_TABLE = """
@@ -133,31 +160,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         updated_at TEXT NOT NULL
     )
     """,
-    """
-    CREATE TABLE IF NOT EXISTS bookings (
-        booking_id TEXT PRIMARY KEY,
-        source TEXT NOT NULL DEFAULT 'manual',
-        trip_instance_id TEXT NULL,
-        tracker_id TEXT NULL,
-        airline TEXT NOT NULL,
-        origin_airport TEXT NOT NULL,
-        destination_airport TEXT NOT NULL,
-        departure_date TEXT NOT NULL,
-        departure_time TEXT NOT NULL,
-        arrival_time TEXT NOT NULL DEFAULT '',
-        booked_price INTEGER NOT NULL,
-        record_locator TEXT NOT NULL DEFAULT '',
-        booked_at TEXT NOT NULL,
-        booking_status TEXT NOT NULL DEFAULT 'active',
-        match_status TEXT NOT NULL DEFAULT 'matched',
-        raw_summary TEXT NOT NULL DEFAULT '',
-        candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
-        resolution_status TEXT NOT NULL DEFAULT 'resolved',
-        notes TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-    )
-    """,
+    CREATE_BOOKINGS_TABLE,
     """
     CREATE TABLE IF NOT EXISTS booking_email_events (
         email_event_id TEXT PRIMARY KEY,

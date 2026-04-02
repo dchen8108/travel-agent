@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from decimal import Decimal
 from pathlib import Path
 
 from app.models.base import AppState
@@ -184,9 +185,119 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 4
+    assert user_version == 5
     assert "price_text" not in columns
     assert "summary" not in columns
     assert "request_offer_count" not in columns
     assert "is_request_cheapest" not in columns
     assert "record_signature" not in columns
+
+
+def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(settings.data_dir / "travel_agent.sqlite3")
+    try:
+        connection.execute("PRAGMA user_version = 4")
+        connection.execute(
+            """
+            CREATE TABLE bookings (
+                booking_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL DEFAULT 'manual',
+                trip_instance_id TEXT NULL,
+                tracker_id TEXT NULL,
+                airline TEXT NOT NULL,
+                origin_airport TEXT NOT NULL,
+                destination_airport TEXT NOT NULL,
+                departure_date TEXT NOT NULL,
+                departure_time TEXT NOT NULL,
+                arrival_time TEXT NOT NULL DEFAULT '',
+                booked_price INTEGER NOT NULL,
+                record_locator TEXT NOT NULL DEFAULT '',
+                booked_at TEXT NOT NULL,
+                booking_status TEXT NOT NULL DEFAULT 'active',
+                match_status TEXT NOT NULL DEFAULT 'matched',
+                raw_summary TEXT NOT NULL DEFAULT '',
+                candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
+                resolution_status TEXT NOT NULL DEFAULT 'resolved',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE booking_email_events (
+                email_event_id TEXT PRIMARY KEY,
+                gmail_message_id TEXT NOT NULL UNIQUE,
+                gmail_thread_id TEXT NOT NULL DEFAULT '',
+                gmail_history_id TEXT NOT NULL DEFAULT '',
+                from_address TEXT NOT NULL DEFAULT '',
+                subject TEXT NOT NULL DEFAULT '',
+                received_at TEXT NOT NULL,
+                processing_status TEXT NOT NULL,
+                email_kind TEXT NOT NULL DEFAULT 'unknown',
+                extraction_confidence REAL NOT NULL DEFAULT 0,
+                extracted_payload_json TEXT NOT NULL DEFAULT '',
+                result_booking_ids TEXT NOT NULL DEFAULT '',
+                result_unmatched_booking_ids TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO bookings (
+                booking_id, source, trip_instance_id, tracker_id, airline, origin_airport, destination_airport,
+                departure_date, departure_time, arrival_time, booked_price, record_locator, booked_at, booking_status,
+                match_status, raw_summary, candidate_trip_instance_ids, resolution_status, notes, created_at, updated_at
+            ) VALUES (
+                'book_bad', 'gmail', 'inst_1', 'trk_1', 'WN', 'LAX', 'SFO',
+                '2026-04-20', '06:00', '07:30', 7840, 'BDJ594', '2026-04-01T12:00:00+00:00', 'active',
+                'matched', '', '', 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO booking_email_events (
+                email_event_id, gmail_message_id, gmail_thread_id, gmail_history_id, from_address, subject, received_at,
+                processing_status, email_kind, extraction_confidence, extracted_payload_json, result_booking_ids,
+                result_unmatched_booking_ids, notes, created_at, updated_at
+            ) VALUES (
+                'mail_1', 'gmail_1', 'thread_1', '123', 'test@example.com', 'Booking', '2026-04-01T12:00:00+00:00',
+                'resolved_auto', 'booking_confirmation', 0.92,
+                '{"email_kind":"booking_confirmation","confidence":0.92,"record_locator":"BDJ594","currency":"USD","total_price":7840,"passenger_names":["Test"],"summary":"Total paid $78.40 USD.","notes":"","legs":[{"airline":"WN","origin_airport":"LAX","destination_airport":"SFO","departure_date":"2026-04-20","departure_time":"06:00","arrival_time":"07:30","flight_number":"1105","leg_status":"booked","fare_class":"basic","evidence":"Total $78.40"}]}',
+                'book_bad', '', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    saved_booking = repository.load_bookings()[0]
+    assert saved_booking.booked_price == Decimal("78.40")
+
+    connection = sqlite3.connect(repository.db_path)
+    try:
+        booked_price = connection.execute("SELECT booked_price FROM bookings WHERE booking_id = 'book_bad'").fetchone()[0]
+        booked_price_type = connection.execute("PRAGMA table_info(bookings)").fetchall()[10][2]
+        user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        connection.close()
+
+    assert booked_price == 78.4
+    assert booked_price_type == "REAL"
+    assert user_version == 5
