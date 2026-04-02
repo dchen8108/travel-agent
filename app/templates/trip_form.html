@@ -24,6 +24,20 @@
         <span>Trip label</span>
         <input type="text" name="label" value="{{ trip_form_state.label }}" required>
       </label>
+      <div class="field trip-type-field">
+        <span>Trip type</span>
+        <div class="trip-type-segmented">
+          <label class="trip-type-pill">
+            <input type="radio" name="trip_kind" value="one_time" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'one_time' else '' }}>
+            <span>One-time</span>
+          </label>
+          <label class="trip-type-pill">
+            <input type="radio" name="trip_kind" value="weekly" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'weekly' else '' }}>
+            <span>Weekly</span>
+          </label>
+        </div>
+        <p class="muted trip-type-help">Choose a single scheduled date or a recurring weekly plan.</p>
+      </div>
       <label class="kind-one-time {{ '' if trip_form_state.trip_kind == 'one_time' else 'is-hidden' }}" data-anchor-date-field>
         <span>Anchor date</span>
         <input type="date" name="anchor_date" value="{{ trip_form_state.anchor_date }}">
@@ -38,25 +52,6 @@
           </select>
         </div>
       </label>
-      <div class="field trip-kind-field full-width">
-        <span>Trip kind</span>
-        <div class="trip-kind-grid">
-          <label class="choice-card compact trip-kind-choice">
-            <input type="radio" name="trip_kind" value="one_time" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'one_time' else '' }}>
-            <span>
-              <strong>One-time</strong>
-              <small>Create a single scheduled trip for one specific date.</small>
-            </span>
-          </label>
-          <label class="choice-card compact trip-kind-choice">
-            <input type="radio" name="trip_kind" value="weekly" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'weekly' else '' }}>
-            <span>
-              <strong>Weekly</strong>
-              <small>Generate a rolling set of dated trips from a recurring plan.</small>
-            </span>
-          </label>
-        </div>
-      </div>
     </div>
     <p class="muted">New trips start active automatically. You can pause them later from the Trips page.</p>
 
