@@ -5,6 +5,7 @@ from datetime import date
 from app.services.bookings import (
     BookingCandidate,
     create_one_time_trip_from_unmatched_booking,
+    unlink_booking,
     record_booking,
     resolve_unmatched_booking_to_trip_instance,
 )
@@ -117,3 +118,34 @@ def test_unmatched_booking_can_create_new_one_time_trip(repository: Repository) 
 
     assert created_booking.record_locator == "ZZZ999"
     assert any(trip.label == "Conference Arrival" for trip in snapshot.trips)
+
+
+def test_linked_booking_can_be_unlinked_back_to_resolve(repository: Repository) -> None:
+    trip_instance_id = seed_trip(repository)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="UNLINK1",
+        ),
+    )
+
+    assert booking is not None
+    assert unmatched is None
+
+    moved = unlink_booking(repository, booking_id=booking.booking_id)
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+
+    assert moved.unmatched_booking_id == booking.booking_id
+    assert moved.candidate_trip_instance_ids == trip_instance_id
+    assert not repository.load_bookings()
+    assert any(item.unmatched_booking_id == booking.booking_id for item in repository.load_unmatched_bookings())
+    instance = next(item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id)
+    assert instance.travel_state == "open"

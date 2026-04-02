@@ -81,9 +81,10 @@
     <div class="actions">
       {% if trip_instance %}
       <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
-      {% else %}
-      <a class="button primary" href="/resolve">Resolve</a>
       {% endif %}
+      <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
+        <button class="button danger-outline" type="submit">Unlink</button>
+      </form>
     </div>
   </article>
   {% else %}

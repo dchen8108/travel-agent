@@ -79,6 +79,68 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert "ABC123" in bookings_page.text
 
 
+def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Unlink Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    save = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "tracker_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "UNLINK123",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+
+    repository = Repository(settings)
+    booking = repository.load_bookings()[0]
+
+    unlink = client.post(
+        f"/bookings/{booking.booking_id}/unlink",
+        headers={"referer": "/bookings"},
+        follow_redirects=False,
+    )
+    assert unlink.status_code == 303
+    assert unlink.headers["location"].startswith("/bookings?message=Booking+moved+to+Resolve")
+
+    repository = Repository(settings)
+    assert not repository.load_bookings()
+    unmatched = repository.load_unmatched_bookings()
+    assert len(unmatched) == 1
+    assert unmatched[0].record_locator == "UNLINK123"
+
+    trips_page = client.get("/trips?q=Unlink+Booking+Trip")
+    assert "Booked" not in trips_page.text
+
+
 def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

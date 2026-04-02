@@ -25,7 +25,11 @@
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}">View plan</a>
-    {% if trip_instance.travel_state == 'open' %}
+    {% if booking %}
+    <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
+      <button class="button danger-outline" type="submit">Unlink booking</button>
+    </form>
+    {% elif trip_instance.travel_state == 'open' %}
     <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Record booking</a>
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
       <button class="button danger" type="submit">Skip</button>

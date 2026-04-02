@@ -9,11 +9,11 @@ from app.catalog import catalogs_json
 from app.money import parse_money
 from app.services.gmail_client import gmail_auth_status
 from app.services.gmail_config import load_gmail_integration_config
-from app.services.bookings import BookingCandidate, record_booking
+from app.services.bookings import BookingCandidate, record_booking, unlink_booking
 from app.services.dashboard import load_snapshot, trackers_for_instance, trip_for_instance, trip_instance_by_id
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_with_message
+from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["bookings"])
 
@@ -190,3 +190,21 @@ async def save_booking(
             ),
             status_code=400,
         )
+
+
+@router.post("/bookings/{booking_id}/unlink")
+def unlink_booking_action(
+    booking_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    try:
+        unlink_booking(repository, booking_id=booking_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    sync_and_persist(repository)
+    return redirect_back(
+        request,
+        fallback_url="/bookings",
+        message="Booking moved to Resolve",
+    )

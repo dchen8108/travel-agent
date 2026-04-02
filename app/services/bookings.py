@@ -59,6 +59,30 @@ def _save_booking(repository: Repository, booking: Booking) -> Booking:
     return booking
 
 
+def _booking_to_unmatched(booking: Booking) -> UnmatchedBooking:
+    return UnmatchedBooking(
+        unmatched_booking_id=booking.booking_id,
+        source=booking.source,
+        airline=booking.airline,
+        origin_airport=booking.origin_airport,
+        destination_airport=booking.destination_airport,
+        departure_date=booking.departure_date,
+        departure_time=booking.departure_time,
+        arrival_time=booking.arrival_time,
+        booked_price=booking.booked_price,
+        record_locator=booking.record_locator,
+        raw_summary=(
+            f"Unlinked booking {booking.airline} "
+            f"{booking.origin_airport}->{booking.destination_airport} "
+            f"{booking.departure_date.isoformat()} {booking.departure_time}"
+        ),
+        candidate_trip_instance_ids=booking.trip_instance_id,
+        resolution_status=UnmatchedBookingStatus.OPEN,
+        created_at=booking.created_at,
+        updated_at=utcnow(),
+    )
+
+
 def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[Tracker]) -> list[Tracker]:
     matches: list[Tracker] = []
     for tracker in trackers:
@@ -244,3 +268,24 @@ def create_one_time_trip_from_unmatched_booking(
         trip_instance_id=trip_instance.trip_instance_id,
     )
     return booking
+
+
+def unlink_booking(
+    repository: Repository,
+    *,
+    booking_id: str,
+) -> UnmatchedBooking:
+    bookings = repository.load_bookings()
+    booking = next((item for item in bookings if item.booking_id == booking_id), None)
+    if booking is None or booking.status != "active":
+        raise KeyError("Booking not found")
+
+    unmatched_bookings = repository.load_unmatched_bookings()
+    replacement = _booking_to_unmatched(booking)
+
+    with repository.transaction():
+        repository.save_bookings([item for item in bookings if item.booking_id != booking_id])
+        repository.save_unmatched_bookings(
+            [item for item in unmatched_bookings if item.unmatched_booking_id != booking_id] + [replacement]
+        )
+    return replacement
