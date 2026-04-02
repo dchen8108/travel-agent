@@ -1148,7 +1148,7 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
             "bookings": [booking],
         },
     )()
-    assert factual_trip_status_label(snapshot, trip_instance.trip_instance_id) == "Lower fare found"
+    assert factual_trip_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"
     assert "Current comparable price is $120" in factual_trip_status_reason(snapshot, trip_instance.trip_instance_id)
 
 
@@ -1213,7 +1213,7 @@ def test_recompute_trip_states_uses_explicit_today_without_calling_date_today(mo
 
     recompute_trip_states([trip_instance], [], [], today=date(2026, 3, 31))
 
-    assert trip_instance.travel_state == "open"
+    assert trip_instance.travel_state == "planned"
 
 
 def test_run_fetch_batch_reraises_unexpected_exceptions(repository: Repository, monkeypatch) -> None:

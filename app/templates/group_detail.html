@@ -17,7 +17,7 @@
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>recurring rules</small></div>
   <div class="summary-pill"><span>{{ grouped_instances|length }}</span><small>upcoming trips</small></div>
-  <div class="summary-pill"><span>{{ open_count }}</span><small>open</small></div>
+  <div class="summary-pill"><span>{{ planned_count }}</span><small>planned</small></div>
   <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
   <div class="summary-pill"><span>{{ next_instance.anchor_date.isoformat() if next_instance else '—' }}</span><small>next trip</small></div>
 </section>
@@ -95,15 +95,15 @@
           </p>
         </div>
         <div class="badge-stack">
-          <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
+          <span class="status-pill {{ trip_lifecycle_status_tone(snapshot, instance.trip_instance_id) }}">{{ trip_lifecycle_status_label(snapshot, instance.trip_instance_id) }}</span>
         </div>
       </div>
       <div class="meta-grid">
         <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Open{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
-        <div><dt>Watching</dt><dd>{{ trackers_for_instance(snapshot, instance.trip_instance_id)|length }} search{{ '' if trackers_for_instance(snapshot, instance.trip_instance_id)|length == 1 else 'es' }}</dd></div>
+        <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Not booked{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
+        <div><dt>Monitoring</dt><dd>{{ trip_monitoring_status_label(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
-      <p class="muted card-note">{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</p>
+      <p class="muted card-note">{{ trip_status_detail(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
       </div>

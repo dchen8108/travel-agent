@@ -45,7 +45,7 @@
       <div class="meta-grid">
         <div><dt>Next trip</dt><dd>{{ next_active_instance.anchor_date.isoformat() if next_active_instance else 'None' }}</dd></div>
         <div><dt>Recurring rules</dt><dd>{{ recurring_rules|length }}</dd></div>
-        <div><dt>Open</dt><dd>{{ active_preview_instances|length }}</dd></div>
+        <div><dt>Planned</dt><dd>{{ active_preview_instances|length }}</dd></div>
       </div>
       {% if instances %}
       <div class="inline-badge-row">

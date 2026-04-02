@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 
 CREATE_BOOKINGS_TABLE = """

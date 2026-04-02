@@ -20,6 +20,11 @@ from app.services.dashboard import (
     group_for_trip,
     rebook_savings,
     recurring_rule_for_instance,
+    trip_lifecycle_status_label,
+    trip_lifecycle_status_tone,
+    trip_monitoring_status_label,
+    trip_recommended_action,
+    trip_status_detail,
 )
 from app.settings import Settings, get_settings
 from app.storage.repository import Repository
@@ -107,6 +112,11 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "factual_trip_status_label": factual_trip_status_label,
         "factual_trip_status_reason": factual_trip_status_reason,
         "factual_trip_status_tone": factual_trip_status_tone,
+        "trip_lifecycle_status_label": trip_lifecycle_status_label,
+        "trip_lifecycle_status_tone": trip_lifecycle_status_tone,
+        "trip_monitoring_status_label": trip_monitoring_status_label,
+        "trip_recommended_action": trip_recommended_action,
+        "trip_status_detail": trip_status_detail,
         "rebook_savings": rebook_savings,
         "group_for_trip": group_for_trip,
         "group_for_instance": group_for_instance,

@@ -8,7 +8,11 @@
     <p class="eyebrow">Scheduled trip</p>
     <h2>{{ trip_instance.display_label }}</h2>
     <div class="detail-hero-meta">
-      <span class="status-pill {{ factual_tone }}">{{ factual_label }}</span>
+      <span class="status-pill {{ lifecycle_tone }}">{{ lifecycle_label }}</span>
+      <span class="badge neutral">{{ monitoring_label }}</span>
+      {% if action_label %}
+      <span class="badge warning">{{ action_label }}</span>
+      {% endif %}
       <p class="muted">
         {% if trip_group %}
         In <a href="/groups/{{ trip_group.trip_group_id }}">{{ trip_group.label }}</a>
@@ -23,7 +27,7 @@
         {% endif %}
       </p>
     </div>
-    <p>{{ fare_snapshot_note or factual_reason }}</p>
+    <p>{{ fare_snapshot_note or status_detail }}</p>
   </div>
   <div class="hero-actions">
     {% if trip_group %}
@@ -40,7 +44,7 @@
     {% if trip_instance.travel_state != 'skipped' %}
     <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
     {% endif %}
-    {% if trip_instance.travel_state == 'open' %}
+    {% if trip_instance.travel_state == 'planned' %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
       <button class="button danger" type="submit">Skip</button>
     </form>
@@ -54,7 +58,7 @@
 
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ trip_instance.anchor_date.strftime('%b %d') }}</span><small>travel date</small></div>
-  <div class="summary-pill"><span>{{ factual_label }}</span><small>status</small></div>
+  <div class="summary-pill"><span>{{ lifecycle_label }}</span><small>status</small></div>
   <div class="summary-pill"><span>{{ current_fare_label }}</span><small>best current fare</small></div>
   <div class="summary-pill"><span>{{ booked_fare_label }}</span><small>booked fare</small></div>
 </section>

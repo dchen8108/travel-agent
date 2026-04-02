@@ -13,15 +13,17 @@ from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
     comparison_tracker,
-    factual_trip_status_label,
-    factual_trip_status_reason,
-    factual_trip_status_tone,
     fetch_targets_for_tracker,
     group_for_instance,
     horizon_instances_for_trip,
     load_snapshot,
     rebook_savings,
     recurring_rule_for_instance,
+    trip_lifecycle_status_label,
+    trip_lifecycle_status_tone,
+    trip_monitoring_status_label,
+    trip_recommended_action,
+    trip_status_detail,
     tracker_detail_url,
     trackers_for_instance,
     trip_focus_url,
@@ -203,9 +205,11 @@ def trackers_detail(
     active_bookings = [item for item in bookings if item.status == "active"]
     best_current_tracker = best_tracker(snapshot, trip_instance_id)
     comparison = comparison_tracker(snapshot, trip_instance_id)
-    status_label = factual_trip_status_label(snapshot, trip_instance_id)
-    status_reason = factual_trip_status_reason(snapshot, trip_instance_id)
-    status_tone = factual_trip_status_tone(snapshot, trip_instance_id)
+    lifecycle_label = trip_lifecycle_status_label(snapshot, trip_instance_id)
+    lifecycle_tone = trip_lifecycle_status_tone(snapshot, trip_instance_id)
+    monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
+    action_label = trip_recommended_action(snapshot, trip_instance_id)
+    status_detail = trip_status_detail(snapshot, trip_instance_id)
     savings = rebook_savings(snapshot, trip_instance_id)
     current_fare_label = (
         format_money(comparison.latest_observed_price)
@@ -285,9 +289,11 @@ def trackers_detail(
             current_fare_label=current_fare_label,
             booked_fare_label=booked_fare_label,
             fare_snapshot_note=fare_snapshot_note,
-            factual_label=status_label,
-            factual_reason=status_reason,
-            factual_tone=status_tone,
+            lifecycle_label=lifecycle_label,
+            lifecycle_tone=lifecycle_tone,
+            monitoring_label=monitoring_label,
+            action_label=action_label,
+            status_detail=status_detail,
             trip_focus_url=trip_focus_url,
             tracker_detail_url=tracker_detail_url,
         ),

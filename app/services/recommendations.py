@@ -125,7 +125,7 @@ def recompute_trip_states(
             instance.travel_state = TravelState.BOOKED
             instance.booking_id = booking.booking_id
         elif instance.travel_state != TravelState.SKIPPED:
-            instance.travel_state = TravelState.OPEN
+            instance.travel_state = TravelState.PLANNED
             instance.booking_id = ""
 
         if instance.travel_state == TravelState.SKIPPED:

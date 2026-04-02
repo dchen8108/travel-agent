@@ -25,7 +25,7 @@ class TripInstance(CsvModel):
     rule_occurrence_date: date | None = None
     inheritance_mode: TripInstanceInheritanceMode = TripInstanceInheritanceMode.MANUAL
     deleted: bool = False
-    travel_state: TravelState = TravelState.OPEN
+    travel_state: TravelState = TravelState.PLANNED
     booking_id: str = ""
     last_signal_at: datetime | None = None
     created_at: datetime = Field(default_factory=utcnow)

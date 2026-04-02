@@ -13,7 +13,7 @@
 
 <section class="summary-strip">
   <div class="summary-pill"><span>{{ action_count }}</span><small>need action</small></div>
-  <div class="summary-pill"><span>{{ open_instances|length }}</span><small>open trips</small></div>
+  <div class="summary-pill"><span>{{ planned_instances|length }}</span><small>planned trips</small></div>
   <div class="summary-pill"><span>{{ total_booked_monitoring }}</span><small>booked trips</small></div>
 </section>
 
@@ -74,7 +74,7 @@
     {% if not open_unmatched and not action_booked_instances %}
     <article class="empty-state">
       <strong>Nothing urgent right now.</strong>
-      <p>All upcoming travel is either open without a clear issue or already booked without a lower fare.</p>
+      <p>All upcoming travel is either planned without a clear issue or already booked without a lower fare.</p>
     </article>
     {% endif %}
   </div>
@@ -83,23 +83,22 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Open trips</p>
+      <p class="eyebrow">Planned trips</p>
       <h3>Upcoming trips that still need to be booked</h3>
     </div>
-    {% if open_instances|length > open_preview|length %}
+    {% if planned_instances|length > planned_preview|length %}
     <div class="section-actions">
-      <p class="muted">{{ open_instances|length - open_preview|length }} more in Trips</p>
+      <p class="muted">{{ planned_instances|length - planned_preview|length }} more in Trips</p>
       <a class="button ghost" href="/trips">All Trips</a>
     </div>
     {% endif %}
   </div>
   <div class="card-grid">
-    {% for instance in open_preview %}
+    {% for instance in planned_preview %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     {% set trip_group = group_for_instance(snapshot, instance.trip_instance_id) %}
     {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set factual_label = factual_trip_status_label(snapshot, instance.trip_instance_id) %}
     <article class="card trip-card compact-surface-card">
       <div class="card-header">
         <div>
@@ -109,19 +108,20 @@
             {% if trip_group %} · {{ trip_group.label }}{% elif recurring_rule and trip and recurring_rule.trip_id != trip.trip_id %} · {{ recurring_rule.label }}{% endif %}
           </p>
         </div>
-        <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_label }}</span>
+        <span class="status-pill {{ trip_lifecycle_status_tone(snapshot, instance.trip_instance_id) }}">{{ trip_lifecycle_status_label(snapshot, instance.trip_instance_id) }}</span>
       </div>
       <div class="meta-grid">
         <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Status</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
+        <div><dt>Monitoring</dt><dd>{{ trip_monitoring_status_label(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
+      <p class="muted card-note">{{ trip_status_detail(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
       </div>
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No open trips right now.</strong>
+      <strong>No planned trips right now.</strong>
       <p>Create a trip and Milemark will start checking it in the background.</p>
     </article>
     {% endfor %}
@@ -158,13 +158,14 @@
             {% if trip_group %} · {{ trip_group.label }}{% elif recurring_rule and trip and recurring_rule.trip_id != trip.trip_id %} · {{ recurring_rule.label }}{% endif %}
           </p>
         </div>
-        <span class="status-pill {{ factual_trip_status_tone(snapshot, instance.trip_instance_id) }}">{{ factual_trip_status_label(snapshot, instance.trip_instance_id) }}</span>
+        <span class="status-pill {{ trip_lifecycle_status_tone(snapshot, instance.trip_instance_id) }}">{{ trip_lifecycle_status_label(snapshot, instance.trip_instance_id) }}</span>
       </div>
       <div class="meta-grid">
         <div><dt>Bookings</dt><dd>{% if active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
         <div><dt>Current best</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Status</dt><dd>{{ factual_trip_status_reason(snapshot, instance.trip_instance_id) }}</dd></div>
+        <div><dt>Monitoring</dt><dd>{{ trip_monitoring_status_label(snapshot, instance.trip_instance_id) }}</dd></div>
       </div>
+      <p class="muted card-note">{{ trip_status_detail(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
       </div>

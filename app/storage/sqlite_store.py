@@ -30,6 +30,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_unmatched_bookings_to_v9(connection)
     _migrate_trips_to_v10(connection)
     _migrate_trip_groups_to_v11(connection)
+    _migrate_status_enums_to_v12(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -463,6 +464,25 @@ def _migrate_trips_to_v10(connection: sqlite3.Connection) -> None:
         """
     )
     connection.execute("DROP TABLE trips_old_v10")
+
+
+def _migrate_status_enums_to_v12(connection: sqlite3.Connection) -> None:
+    if _table_exists(connection, "trip_instances"):
+        connection.execute(
+            """
+            UPDATE trip_instances
+            SET travel_state = 'planned'
+            WHERE travel_state = 'open'
+            """
+        )
+    if _table_exists(connection, "bookings"):
+        connection.execute(
+            """
+            UPDATE bookings
+            SET booking_status = 'cancelled'
+            WHERE booking_status = 'rebooked'
+            """
+        )
 
 
 def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:

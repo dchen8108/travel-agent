@@ -223,7 +223,7 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     future_instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
     booked_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.BOOKED)
     skipped_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.SKIPPED)
-    open_count = len(future_instances) - booked_count - skipped_count
+    planned_count = len(future_instances) - booked_count - skipped_count
     next_open_instance = next(
         (instance for instance in future_instances if instance.travel_state != TravelState.SKIPPED),
         None,
@@ -233,7 +233,7 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
         "route_options": route_options,
         "route_option_views": _route_option_views(trip, route_options),
         "future_instances": future_instances,
-        "open_count": open_count,
+        "planned_count": planned_count,
         "booked_count": booked_count,
         "skipped_count": skipped_count,
         "next_open_instance": next_open_instance,
@@ -588,7 +588,7 @@ def restore_trip_instance(
     trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
     if trip_instance is None:
         raise HTTPException(status_code=404, detail="Trip instance not found")
-    trip_instance.travel_state = TravelState.OPEN
+    trip_instance.travel_state = TravelState.PLANNED
     repository.save_trip_instances(trip_instances)
     snapshot = sync_and_persist(repository)
     queued_count = queue_refresh_for_trip_instance(

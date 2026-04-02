@@ -293,8 +293,9 @@ def test_open_trip_stays_fetching_until_all_route_options_settle(repository: Rep
     recompute_trip_states(snapshot.trip_instances, trackers, [])
 
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Fetching prices"
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Planned"
     reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
+    assert reason.startswith("Initializing.")
     assert "Best current price so far is $180" in reason
     assert "still checking the remaining options" in reason
 
@@ -341,6 +342,7 @@ def test_rebook_uses_trip_level_best_option_when_booking_exists(repository: Repo
     recompute_trip_states(snapshot.trip_instances, trackers, [booking])
     snapshot.bookings = [booking]
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Lower fare found"
+    assert factual_trip_status_label(snapshot, refreshed.trip_instance_id) == "Booked"
     reason = factual_trip_status_reason(snapshot, refreshed.trip_instance_id)
+    assert reason.startswith("Tracking.")
     assert "Current comparable price is $130" in reason

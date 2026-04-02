@@ -55,7 +55,7 @@ class TripInstanceInheritanceMode(StrEnum):
 
 
 class TravelState(StrEnum):
-    OPEN = "open"
+    PLANNED = "planned"
     BOOKED = "booked"
     SKIPPED = "skipped"
 
@@ -69,7 +69,6 @@ class FetchTargetStatus(StrEnum):
 
 class BookingStatus(StrEnum):
     ACTIVE = "active"
-    REBOOKED = "rebooked"
     CANCELLED = "cancelled"
 
 

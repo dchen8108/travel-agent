@@ -92,7 +92,7 @@ def group_detail(
     today = date.today()
     recurring_rules = recurring_rules_for_group(snapshot, trip_group_id)
     grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, include_skipped=True, today=today)
-    open_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.OPEN)
+    planned_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.PLANNED)
     booked_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.BOOKED)
     skipped_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.SKIPPED)
     next_instance = next(
@@ -110,7 +110,7 @@ def group_detail(
             group=group,
             recurring_rules=recurring_rules,
             grouped_instances=grouped_instances,
-            open_count=open_count,
+            planned_count=planned_count,
             booked_count=booked_count,
             skipped_count=skipped_count,
             next_instance=next_instance,
