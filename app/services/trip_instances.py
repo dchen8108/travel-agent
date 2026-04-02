@@ -261,7 +261,6 @@ def detach_generated_trip_instance(repository: Repository, trip_instance_id: str
         active=True,
         anchor_date=trip_instance.anchor_date,
         anchor_weekday="",
-        trip_group_id=recurring_rule.trip_group_id,
         preference_mode=recurring_rule.preference_mode,
         route_option_payloads=_route_option_payloads(
             [option for option in repository.load_route_options() if option.trip_id == recurring_rule.trip_id]

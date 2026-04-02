@@ -14,6 +14,10 @@ from app.services.dashboard import (
     booking_for_instance,
     group_for_instance,
     group_for_trip,
+    groups_for_instance,
+    groups_for_trip,
+    groups_for_rule,
+    horizon_instances_for_rule,
     horizon_instances_for_trip,
     instances_for_trip,
     load_snapshot,
@@ -28,6 +32,7 @@ from app.services.dashboard import (
     trip_focus_url,
     recurring_rule_for_instance,
 )
+from app.services.group_memberships import replace_manual_trip_instance_groups
 from app.services.refresh_queue import (
     queued_refresh_message,
     queue_refresh_for_trip,
@@ -42,13 +47,13 @@ from app.web import base_context, get_repository, get_templates, redirect_back, 
 router = APIRouter(tags=["trips"])
 
 
-def _trip_form_state(trip, route_options):
+def _trip_form_state(trip, route_options, *, trip_group_ids=None):
     if trip is None:
         return {
             "trip_id": "",
             "label": "",
             "trip_kind": "weekly",
-            "trip_group_id": "",
+            "trip_group_ids": [],
             "preference_mode": "equal",
             "anchor_date": "",
             "anchor_weekday": "Monday",
@@ -57,7 +62,7 @@ def _trip_form_state(trip, route_options):
         "trip_id": trip.trip_id,
         "label": trip.label,
         "trip_kind": trip.trip_kind,
-        "trip_group_id": trip.trip_group_id,
+        "trip_group_ids": trip_group_ids or [],
         "preference_mode": trip.preference_mode,
         "anchor_date": trip.anchor_date.isoformat() if trip.anchor_date else "",
         "anchor_weekday": trip.anchor_weekday or "Monday",
@@ -182,8 +187,7 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
                 and lowered in parent_trip.label.lower()
             )
             or (
-                (trip_group := group_for_instance(snapshot, instance.trip_instance_id)) is not None
-                and lowered in trip_group.label.lower()
+                any(lowered in trip_group.label.lower() for trip_group in groups_for_instance(snapshot, instance.trip_instance_id))
             )
         ]
 
@@ -220,7 +224,11 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     if trip.trip_kind == "one_time" and not trip.active:
         raise HTTPException(status_code=404, detail="Trip not found")
     route_options = route_options_for_trip(snapshot, trip.trip_id)
-    future_instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
+    future_instances = (
+        horizon_instances_for_rule(snapshot, trip.trip_id, today=today)
+        if trip.trip_kind == "weekly"
+        else horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
+    )
     booked_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.BOOKED)
     skipped_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.SKIPPED)
     planned_count = len(future_instances) - booked_count - skipped_count
@@ -265,6 +273,10 @@ def _render_trip_form(
             trip_form_state=trip_form_state,
             route_option_state=route_option_state,
             trip_groups=trip_groups(snapshot),
+            trip_group_picker_options=[
+                {"value": group.trip_group_id, "label": group.label}
+                for group in trip_groups(snapshot)
+            ],
             catalogs_json=catalogs_json(),
         ),
         status_code=status_code,
@@ -291,11 +303,17 @@ def trips_index(
         )
         for group in scheduled_view["group_items"]
     }
+    ungrouped_recurring_rules = [
+        trip
+        for trip in recurring_trips(snapshot)
+        if not groups_for_rule(snapshot, trip)
+    ]
     context = base_context(
         request,
         page="trips",
         snapshot=snapshot,
         horizon_instances_for_trip=horizon_instances_for_trip,
+        horizon_instances_for_rule=horizon_instances_for_rule,
         instances_for_trip=instances_for_trip,
         trip_groups=trip_groups,
         recurring_rules_for_group=recurring_rules_for_group,
@@ -305,11 +323,15 @@ def trips_index(
         trackers_for_instance=trackers_for_instance,
         trip_for_instance=trip_for_instance,
         group_for_trip=group_for_trip,
+        groups_for_trip=groups_for_trip,
         group_for_instance=group_for_instance,
+        groups_for_instance=groups_for_instance,
         recurring_rule_for_instance=recurring_rule_for_instance,
+        groups_for_rule=groups_for_rule,
         trip_focus_url=trip_focus_url,
         group_rule_map=group_rule_map,
         group_scheduled_map=group_scheduled_map,
+        ungrouped_recurring_rules=ungrouped_recurring_rules,
         **scheduled_view,
     )
     partial = request.query_params.get("partial")
@@ -342,7 +364,7 @@ def new_trip(
         trip_form_state={
             **_trip_form_state(None, []),
             "trip_kind": trip_kind if trip_kind in {"one_time", "weekly"} else "weekly",
-            "trip_group_id": trip_group_id,
+            "trip_group_ids": [trip_group_id] if trip_group_id else [],
         },
         route_option_state=_route_option_state([]),
     )
@@ -398,7 +420,11 @@ def edit_trip(
         snapshot=snapshot,
         trip=trip,
         route_options=route_options,
-        trip_form_state=_trip_form_state(trip, route_options),
+        trip_form_state=_trip_form_state(
+            trip,
+            route_options,
+            trip_group_ids=[group.trip_group_id for group in groups_for_trip(snapshot, trip)],
+        ),
         route_option_state=_route_option_state(route_options),
     )
 
@@ -412,11 +438,24 @@ async def save_trip_action(
     trip_id = str(form.get("trip_id", "")).strip() or None
     existing_trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None) if trip_id else None
     trip_kind = str(form.get("trip_kind", "weekly"))
-    trip_group_id = str(form.get("trip_group_id", "")).strip()
+    trip_group_ids_json = str(form.get("trip_group_ids_json", "[]") or "[]")
     preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
     route_options_json = str(form.get("route_options_json", "[]"))
+    try:
+        parsed_trip_group_ids = json.loads(trip_group_ids_json or "[]")
+    except ValueError:
+        parsed_trip_group_ids = []
+    if not parsed_trip_group_ids:
+        legacy_trip_group_id = str(form.get("trip_group_id", "")).strip()
+        if legacy_trip_group_id:
+            parsed_trip_group_ids = [legacy_trip_group_id]
+    trip_group_ids = [
+        str(item).strip()
+        for item in parsed_trip_group_ids
+        if str(item).strip()
+    ]
     raw_route_option_state: list[dict[str, object]]
     try:
         raw_route_option_state = json.loads(route_options_json or "[]")
@@ -433,12 +472,24 @@ async def save_trip_action(
             active=existing_trip.active if existing_trip else True,
             anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
             anchor_weekday=anchor_weekday,
-            trip_group_id=trip_group_id,
+            trip_group_ids=trip_group_ids,
             route_option_payloads=route_options,
             data_scope=str(form.get("data_scope", existing_trip.data_scope if existing_trip else DataScope.LIVE)).strip()
             or (existing_trip.data_scope if existing_trip else DataScope.LIVE),
         )
         snapshot = sync_and_persist(repository)
+        if trip.trip_kind == "one_time":
+            replace_manual_trip_instance_groups(
+                repository,
+                trip_instance_ids=[
+                    instance.trip_instance_id
+                    for instance in snapshot.trip_instances
+                    if instance.trip_id == trip.trip_id and not instance.deleted
+                ],
+                trip_group_ids=trip_group_ids,
+                data_scope=trip.data_scope,
+            )
+            snapshot = load_snapshot(repository)
         queued_count = queue_refresh_for_trip(
             snapshot,
             repository,
@@ -459,7 +510,7 @@ async def save_trip_action(
                 "trip_id": trip_id or "",
                 "label": str(form.get("label", "")).strip(),
                 "trip_kind": trip_kind,
-                "trip_group_id": trip_group_id,
+                "trip_group_ids": trip_group_ids,
                 "preference_mode": preference_mode,
                 "anchor_date": anchor_date_value,
                 "anchor_weekday": anchor_weekday or "Monday",
@@ -647,8 +698,9 @@ def delete_generated_trip_instance_action(
     redirect_url = "/trips"
     if existing_instance.recurring_rule_trip_id:
         recurring_rule = trip_by_id(snapshot, existing_instance.recurring_rule_trip_id)
-        if recurring_rule and recurring_rule.trip_group_id:
-            redirect_url = f"/groups/{recurring_rule.trip_group_id}"
+        recurring_rule_groups = groups_for_rule(snapshot, recurring_rule) if recurring_rule else []
+        if len(recurring_rule_groups) == 1:
+            redirect_url = f"/groups/{recurring_rule_groups[0].trip_group_id}"
     try:
         delete_generated_trip_instance(repository, trip_instance_id)
     except KeyError as exc:

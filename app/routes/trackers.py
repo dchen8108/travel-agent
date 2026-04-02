@@ -15,6 +15,8 @@ from app.services.dashboard import (
     comparison_tracker,
     fetch_targets_for_tracker,
     group_for_instance,
+    groups_for_instance,
+    horizon_instances_for_rule,
     horizon_instances_for_trip,
     load_snapshot,
     rebook_savings,
@@ -194,10 +196,15 @@ def trackers_detail(
     tracker_cards = [_tracker_card_view(snapshot, tracker) for tracker in trackers]
     recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
     trip_group = group_for_instance(snapshot, trip_instance_id)
+    trip_groups = groups_for_instance(snapshot, trip_instance_id)
     sibling_parent = recurring_rule or parent_trip
     sibling_instances = [
         instance
-        for instance in horizon_instances_for_trip(snapshot, sibling_parent.trip_id, today=date.today())
+        for instance in (
+            horizon_instances_for_rule(snapshot, sibling_parent.trip_id, today=date.today())
+            if recurring_rule
+            else horizon_instances_for_trip(snapshot, sibling_parent.trip_id, today=date.today())
+        )
         if instance.trip_instance_id != trip_instance_id
     ]
     booking = booking_for_instance(snapshot, trip_instance_id)
@@ -274,6 +281,7 @@ def trackers_detail(
             parent_trip=parent_trip,
             recurring_rule=recurring_rule,
             trip_group=trip_group,
+            trip_groups=trip_groups,
             sibling_parent=sibling_parent,
             tracker_cards=tracker_cards,
             total_fetch_targets=total_fetch_targets,

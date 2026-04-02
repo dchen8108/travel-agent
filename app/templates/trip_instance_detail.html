@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
 <section class="hero compact">
+  {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
       <a class="inline-back-link" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id, show_skipped=trip_instance.travel_state == 'skipped') }}">Back to trips</a>
@@ -14,24 +15,27 @@
       <span class="badge warning">{{ action_label }}</span>
       {% endif %}
       <p class="muted">
-        {% if trip_group %}
-        In <a href="/groups/{{ trip_group.trip_group_id }}">{{ trip_group.label }}</a>
+        {% if trip_groups %}
+        In
+        {% for linked_group in trip_groups %}
+        <a href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
         {% endif %}
         {% if recurring_rule %}
-        {% if trip_group %} · {% endif %}Rule <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
+        {% if trip_groups %} · {% endif %}Rule <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
         {% if trip_instance.inheritance_mode == 'detached' %} · Detached{% endif %}
         {% elif parent_trip.trip_kind == 'one_time' %}
-        {% if trip_group %} · {% endif %}One-time trip
+        {% if trip_groups %} · {% endif %}One-time trip
         {% else %}
-        {% if trip_group %} · {% endif %}Standalone trip
+        {% if trip_groups %} · {% endif %}Standalone trip
         {% endif %}
       </p>
     </div>
     <p>{{ fare_snapshot_note or status_detail }}</p>
   </div>
   <div class="hero-actions">
-    {% if trip_group %}
-    <a class="button ghost" href="/groups/{{ trip_group.trip_group_id }}">Open group</a>
+    {% if primary_trip_group %}
+    <a class="button ghost" href="/groups/{{ primary_trip_group.trip_group_id }}">Open group</a>
     {% endif %}
     {% if recurring_rule and parent_trip.trip_kind == 'weekly' %}
     <a class="button secondary" href="/trips/{{ recurring_rule.trip_id }}">Open rule</a>

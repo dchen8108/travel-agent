@@ -9,8 +9,7 @@ from app.models.base import TravelState
 from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
-    group_for_instance,
-    horizon_instances_for_trip,
+    horizon_instances_for_rule,
     load_snapshot,
     recurring_rules_for_group,
     scheduled_instances,
@@ -119,8 +118,7 @@ def group_detail(
             booking_for_instance=booking_for_instance,
             trackers_for_instance=trackers_for_instance,
             trip_for_instance=trip_for_instance,
-            horizon_instances_for_trip=horizon_instances_for_trip,
-            group_for_instance=group_for_instance,
+            horizon_instances_for_rule=horizon_instances_for_rule,
         ),
     )
 

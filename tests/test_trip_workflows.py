@@ -4,8 +4,16 @@ from base64 import urlsafe_b64decode
 from datetime import date
 from urllib.parse import parse_qs, urlsplit
 
+from app.services.groups import save_trip_group
 from app.services.google_flights import build_google_flights_query_url
-from app.services.dashboard import archived_one_time_trips, horizon_instances_for_trip, past_instances_for_trip, scheduled_instances
+from app.services.dashboard import (
+    archived_one_time_trips,
+    groups_for_instance,
+    horizon_instances_for_rule,
+    horizon_instances_for_trip,
+    past_instances_for_trip,
+    scheduled_instances,
+)
 from app.services.trip_instances import delete_generated_trip_instance, detach_generated_trip_instance
 from app.services.trips import delete_trip, save_past_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
@@ -520,11 +528,11 @@ def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repos
     assert len(past_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 1
 
 
-def test_weekly_trip_auto_provisions_a_group(repository: Repository) -> None:
+def test_weekly_trip_can_exist_without_any_groups(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
-        label="Weekly Grouped Commute",
+        label="Weekly Independent Commute",
         trip_kind="weekly",
         active=True,
         anchor_date=None,
@@ -541,14 +549,53 @@ def test_weekly_trip_auto_provisions_a_group(repository: Repository) -> None:
         ],
     )
 
-    groups = repository.load_trip_groups()
-    assert trip.trip_group_id
-    assert len(groups) == 1
-    assert groups[0].trip_group_id == trip.trip_group_id
-    assert groups[0].label == trip.label
+    assert repository.load_trip_groups() == []
+    assert repository.load_rule_group_targets() == []
 
 
-def test_detaching_generated_trip_instance_preserves_occurrence_and_group(repository: Repository) -> None:
+def test_weekly_trip_targets_selected_groups_and_inherits_them_to_instances(repository: Repository) -> None:
+    group_one = save_trip_group(repository, trip_group_id=None, label="Work travel")
+    group_two = save_trip_group(repository, trip_group_id=None, label="Bay Area")
+
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Weekly Grouped Commute",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        trip_group_ids=[group_one.trip_group_id, group_two.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
+    first_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    rule_targets = repository.load_rule_group_targets()
+    target_pairs = {(item.rule_trip_id, item.trip_group_id) for item in rule_targets}
+
+    assert target_pairs == {
+        (trip.trip_id, group_one.trip_group_id),
+        (trip.trip_id, group_two.trip_group_id),
+    }
+    assert {group.trip_group_id for group in groups_for_instance(snapshot, first_instance.trip_instance_id)} == {
+        group_one.trip_group_id,
+        group_two.trip_group_id,
+    }
+
+
+def test_detaching_generated_trip_instance_preserves_occurrence_and_groups(repository: Repository) -> None:
+    group_one = save_trip_group(repository, trip_group_id=None, label="Work travel")
+    group_two = save_trip_group(repository, trip_group_id=None, label="Bay Area")
     trip = save_trip(
         repository,
         trip_id=None,
@@ -557,6 +604,7 @@ def test_detaching_generated_trip_instance_preserves_occurrence_and_group(reposi
         active=True,
         anchor_date=None,
         anchor_weekday="Monday",
+        trip_group_ids=[group_one.trip_group_id, group_two.trip_group_id],
         route_option_payloads=[
             {
                 "origin_airports": "BUR",
@@ -587,8 +635,42 @@ def test_detaching_generated_trip_instance_preserves_occurrence_and_group(reposi
     assert same_instance.instance_kind == "standalone"
     assert same_instance.trip_id != trip.trip_id
     assert detached_trip.trip_kind == "one_time"
-    assert detached_trip.trip_group_id == trip.trip_group_id
+    assert {group.trip_group_id for group in groups_for_instance(refreshed, same_instance.trip_instance_id)} == {
+        group_one.trip_group_id,
+        group_two.trip_group_id,
+    }
     assert len(matching_occurrences) == 1
+
+
+def test_weekly_rule_horizon_includes_detached_occurrences(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Rule With Detached Date",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    initial = sync_and_persist(repository, today=date(2026, 3, 31))
+    generated = next(item for item in initial.trip_instances if item.trip_id == trip.trip_id)
+    detach_generated_trip_instance(repository, generated.trip_instance_id)
+
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+    rule_horizon = horizon_instances_for_rule(refreshed, trip.trip_id, today=date(2026, 3, 31))
+
+    assert any(item.trip_instance_id == generated.trip_instance_id for item in rule_horizon)
 
 
 def test_deleting_generated_trip_instance_tombstones_and_suppresses_regeneration(repository: Repository) -> None:

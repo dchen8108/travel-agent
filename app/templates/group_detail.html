@@ -4,13 +4,13 @@
   <div>
     <p class="eyebrow">Trip group</p>
     <h2>{{ group.label }}</h2>
-    <p>{{ group.description or 'A simple container for recurring rules, manual trips, and every future date they create.' }}</p>
+    <p>{{ group.description or 'A place to organize related travel without changing how those trips are generated.' }}</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="/trips">Back to trips</a>
     <a class="button secondary" href="/groups/{{ group.trip_group_id }}/edit">Edit group</a>
-    <a class="button secondary" href="/trips/new?trip_kind=one_time&trip_group_id={{ group.trip_group_id }}">New grouped trip</a>
-    <a class="button primary" href="/trips/new?trip_kind=weekly&trip_group_id={{ group.trip_group_id }}">New recurring rule</a>
+    <a class="button secondary" href="/trips/new?trip_kind=one_time&trip_group_id={{ group.trip_group_id }}">New trip</a>
+    <a class="button primary" href="/trips/new?trip_kind=weekly&trip_group_id={{ group.trip_group_id }}">New rule</a>
   </div>
 </section>
 
@@ -26,12 +26,12 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Recurring rules</p>
-      <h3>Rules feeding this group</h3>
+      <h3>Rules targeting this group</h3>
     </div>
   </div>
   <div class="card-grid">
     {% for trip in recurring_rules %}
-    {% set rule_instances = horizon_instances_for_trip(snapshot, trip.trip_id, today=today) %}
+    {% set rule_instances = horizon_instances_for_rule(snapshot, trip.trip_id, today=today) %}
     <article class="card" id="rule-{{ trip.trip_id }}">
       <div class="card-header">
         <div>
@@ -66,7 +66,7 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Upcoming trips</p>
-      <h3>Everything currently in this group</h3>
+      <h3>Trips currently in this group</h3>
     </div>
   </div>
   <div class="stack">

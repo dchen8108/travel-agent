@@ -32,8 +32,10 @@ def filter_snapshot(snapshot: AppSnapshot, *, include_test_data: bool) -> AppSna
     return AppSnapshot(
         trip_groups=filter_items(snapshot.trip_groups, include_test_data=False),
         trips=filter_items(snapshot.trips, include_test_data=False),
+        rule_group_targets=filter_items(snapshot.rule_group_targets, include_test_data=False),
         route_options=filter_items(snapshot.route_options, include_test_data=False),
         trip_instances=filter_items(snapshot.trip_instances, include_test_data=False),
+        trip_instance_group_memberships=filter_items(snapshot.trip_instance_group_memberships, include_test_data=False),
         trackers=filter_items(snapshot.trackers, include_test_data=False),
         tracker_fetch_targets=filter_items(snapshot.tracker_fetch_targets, include_test_data=False),
         bookings=filter_items(snapshot.bookings, include_test_data=False),

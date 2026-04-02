@@ -1,7 +1,8 @@
 {% extends "layout.html" %}
 {% block content %}
 <section class="hero compact">
-  {% set trip_group = group_for_trip(snapshot, trip) %}
+  {% set trip_groups = groups_for_trip(snapshot, trip) %}
+  {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
       <a class="inline-back-link" href="/trips">Back to trips</a>
@@ -16,15 +17,22 @@
     <h2>{{ trip.label }}</h2>
     <p>
       {% if trip.trip_kind == 'weekly' %}
-      Adds future dates inside {{ trip_group.label if trip_group else 'its trip group' }}.
+      Defines the cadence, target groups, and route template for future scheduled trips.
       {% else %}
-      Owns one scheduled date{% if trip_group %} in {{ trip_group.label }}{% endif %} and the route definitions behind it.
+      Owns one scheduled date and the route definitions behind it.
       {% endif %}
     </p>
+    {% if trip_groups %}
+    <div class="inline-badge-row top-gap-small">
+      {% for linked_group in trip_groups %}
+      <a class="badge" href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   <div class="hero-actions">
-    {% if trip_group %}
-    <a class="button ghost" href="/groups/{{ trip_group.trip_group_id }}">Open group</a>
+    {% if primary_trip_group %}
+    <a class="button ghost" href="/groups/{{ primary_trip_group.trip_group_id }}">Open group</a>
     {% endif %}
     <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">{{ 'Edit rule' if trip.trip_kind == 'weekly' else 'Edit trip' }}</a>
     {% if trip.trip_kind == 'weekly' %}
@@ -41,8 +49,8 @@
 </section>
 
 <section class="summary-strip">
-  {% if trip_group %}
-  <div class="summary-pill"><span>{{ trip_group.label }}</span><small>group</small></div>
+  {% if trip_groups %}
+  <div class="summary-pill"><span>{{ trip_groups[0].label if trip_groups|length == 1 else trip_groups|length }}</span><small>{{ 'group' if trip_groups|length == 1 else 'groups' }}</small></div>
   {% endif %}
   <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
   <div class="summary-pill"><span>{{ 'equal' if trip.preference_mode == 'equal' else 'preferred order' }}</span><small>preference</small></div>
@@ -134,7 +142,7 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Scheduled trips</p>
-      <h3>Operational dates created by this {{ 'rule' if trip.trip_kind == 'weekly' else 'trip' }}</h3>
+      <h3>{{ 'Scheduled trips created by this rule' if trip.trip_kind == 'weekly' else 'Scheduled trips created by this trip' }}</h3>
     </div>
   </div>
   <div class="stack">
@@ -142,6 +150,7 @@
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set instance_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
     <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}">
       <div class="scheduled-card-head">
         <div class="scheduled-date">
@@ -151,11 +160,11 @@
         <div class="scheduled-copy">
           <strong>{{ instance.display_label }}</strong>
           <p class="muted">
-            {% if trip_group %}
-            {{ trip_group.label }}
+            {% if instance_groups %}
+            {{ instance_groups|map(attribute='label')|join(' · ') }}
             {% endif %}
             {% if trip.trip_kind == 'weekly' %}
-            {% if trip_group %} · {% endif %}{{ trip.label }}
+            {% if instance_groups %} · {% endif %}{{ trip.label }}
             {% endif %}
           </p>
         </div>

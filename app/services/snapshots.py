@@ -11,15 +11,19 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
+from app.models.trip_instance_group_membership import TripInstanceGroupMembership
 from app.models.unmatched_booking import UnmatchedBooking
+from app.models.rule_group_target import RuleGroupTarget
 
 
 @dataclass
 class AppSnapshot:
     trip_groups: list[TripGroup]
     trips: list[Trip]
+    rule_group_targets: list[RuleGroupTarget]
     route_options: list[RouteOption]
     trip_instances: list[TripInstance]
+    trip_instance_group_memberships: list[TripInstanceGroupMembership]
     trackers: list[Tracker]
     tracker_fetch_targets: list[TrackerFetchTarget]
     bookings: list[Booking]

@@ -8,14 +8,16 @@
   const form = document.querySelector("#trip-form");
   const root = form?.querySelector("[data-route-options]");
   const hidden = form?.querySelector('input[name="route_options_json"]');
+  const tripGroupIdsHidden = form?.querySelector('input[name="trip_group_ids_json"]');
   const tripKindInputs = Array.from(form?.querySelectorAll('input[data-trip-kind]') || []);
   const preferenceModeInputs = Array.from(form?.querySelectorAll('input[name="preference_mode"]') || []);
   const anchorWeekdaySelect = form?.querySelector("[data-anchor-weekday]");
-  const tripGroupSelect = form?.querySelector('select[name="trip_group_id"]');
+  const tripGroupPickerRoot = form?.querySelector("[data-trip-group-picker]");
+  const tripGroupLabel = form?.querySelector("[data-trip-group-label]");
   const anchorDateField = form?.querySelector("[data-anchor-date-field]");
   const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
   const addRouteOptionButton = document.querySelector("[data-add-route-option]");
-  if (!form || !root || !hidden || !tripKindInputs.length || !anchorWeekdaySelect || !tripGroupSelect || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
+  if (!form || !root || !hidden || !tripGroupIdsHidden || !tripKindInputs.length || !anchorWeekdaySelect || !tripGroupPickerRoot || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
     return;
   }
 
@@ -23,6 +25,8 @@
   const airports = catalogs.airports || [];
   const airlines = catalogs.airlines || [];
   const weekdays = catalogs.weekdays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const tripGroups = tripState.tripGroups || [];
+  let tripGroupIds = Array.isArray(tripState.trip?.trip_group_ids) ? Array.from(tripState.trip.trip_group_ids) : [];
   const blankRouteOption = () => ({
     route_option_id: "",
     savings_needed_vs_previous: 0,
@@ -79,12 +83,35 @@
       end_time: option.end_time,
       fare_class_policy: option.fare_class_policy || "include_basic",
     })));
+    tripGroupIdsHidden.value = JSON.stringify(Array.from(tripGroupIds));
+  }
+
+  function syncTripGroupPicker() {
+    if (tripGroupLabel) {
+      tripGroupLabel.textContent = currentTripKind() === "weekly" ? "Target groups" : "Groups";
+    }
+    pickers.createMultiPicker({
+      root: tripGroupPickerRoot,
+      options: tripGroups,
+      values: tripGroupIds,
+      placeholder: "Search groups",
+      emptyText: "No groups",
+      compact: true,
+      checkable: true,
+      allowSelectAll: true,
+      onChange(values) {
+        tripGroupIds = values;
+        serialize();
+      },
+    });
+    serialize();
   }
 
   function syncKindVisibility() {
     const oneTime = currentTripKind() === "one_time";
     anchorDateField.classList.toggle("is-hidden", !oneTime);
     anchorWeekdayField.classList.toggle("is-hidden", oneTime);
+    syncTripGroupPicker();
     render();
   }
 
@@ -261,5 +288,6 @@
   });
   form.querySelector('input[name="anchor_date"]').addEventListener("change", render);
   anchorWeekdaySelect.addEventListener("change", render);
+  syncTripGroupPicker();
   syncKindVisibility();
 })();

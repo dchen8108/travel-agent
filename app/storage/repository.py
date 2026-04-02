@@ -11,11 +11,13 @@ from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.price_record import PriceRecord
 from app.models.route_option import RouteOption
+from app.models.rule_group_target import RuleGroupTarget
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
+from app.models.trip_instance_group_membership import TripInstanceGroupMembership
 from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
 from app.storage.csv_store import load_csv_models
@@ -35,8 +37,10 @@ from app.storage.sqlite_store import (
 LEGACY_CSV_MODELS: tuple[tuple[str, type], ...] = (
     ("trip_groups.csv", TripGroup),
     ("trips.csv", Trip),
+    ("rule_group_targets.csv", RuleGroupTarget),
     ("route_options.csv", RouteOption),
     ("trip_instances.csv", TripInstance),
+    ("trip_instance_group_memberships.csv", TripInstanceGroupMembership),
     ("trackers.csv", Tracker),
     ("tracker_fetch_targets.csv", TrackerFetchTarget),
     ("bookings.csv", Booking),
@@ -142,11 +146,66 @@ class Repository:
             if own_connection:
                 connection.commit()
 
+    def load_rule_group_targets(self) -> list[RuleGroupTarget]:
+        return self._load_models("SELECT * FROM rule_group_targets ORDER BY rowid", RuleGroupTarget)
+
+    def save_rule_group_targets(self, targets: list[RuleGroupTarget]) -> None:
+        self._replace_table("rule_group_targets", [item.model_dump(mode="json") for item in targets])
+
+    def replace_rule_group_targets_for_rule(self, rule_trip_id: str, targets: list[RuleGroupTarget]) -> None:
+        self.ensure_data_dir()
+        rows = [item.model_dump(mode="json") for item in targets]
+        with self._borrow_connection() as (connection, own_connection):
+            delete_rows(connection, "rule_group_targets", where_sql="rule_trip_id = ?", where_params=(rule_trip_id,))
+            if rows:
+                upsert_rows(connection, "rule_group_targets", rows, conflict_columns=("rule_trip_id", "trip_group_id"))
+            if own_connection:
+                connection.commit()
+
     def load_trip_instances(self) -> list[TripInstance]:
         return self._load_models("SELECT * FROM trip_instances ORDER BY rowid", TripInstance)
 
     def save_trip_instances(self, trip_instances: list[TripInstance]) -> None:
         self._replace_table("trip_instances", [item.model_dump(mode="json") for item in trip_instances])
+
+    def load_trip_instance_group_memberships(self) -> list[TripInstanceGroupMembership]:
+        return self._load_models(
+            "SELECT * FROM trip_instance_group_memberships ORDER BY rowid",
+            TripInstanceGroupMembership,
+        )
+
+    def save_trip_instance_group_memberships(
+        self,
+        memberships: list[TripInstanceGroupMembership],
+    ) -> None:
+        self._replace_table(
+            "trip_instance_group_memberships",
+            [item.model_dump(mode="json") for item in memberships],
+        )
+
+    def replace_trip_instance_group_memberships_for_instance(
+        self,
+        trip_instance_id: str,
+        memberships: list[TripInstanceGroupMembership],
+    ) -> None:
+        self.ensure_data_dir()
+        rows = [item.model_dump(mode="json") for item in memberships]
+        with self._borrow_connection() as (connection, own_connection):
+            delete_rows(
+                connection,
+                "trip_instance_group_memberships",
+                where_sql="trip_instance_id = ?",
+                where_params=(trip_instance_id,),
+            )
+            if rows:
+                upsert_rows(
+                    connection,
+                    "trip_instance_group_memberships",
+                    rows,
+                    conflict_columns=("trip_instance_id", "trip_group_id"),
+                )
+            if own_connection:
+                connection.commit()
 
     def load_trackers(self) -> list[Tracker]:
         return self._load_models("SELECT * FROM trackers ORDER BY rowid", Tracker)

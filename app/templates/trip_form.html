@@ -18,6 +18,7 @@
   <form method="post" action="/trips" id="trip-form" novalidate>
     <input type="hidden" name="trip_id" value="{{ trip.trip_id if trip else '' }}">
     <input type="hidden" name="route_options_json" value="">
+    <input type="hidden" name="trip_group_ids_json" value='{{ trip_form_state.trip_group_ids|tojson }}'>
 
     <div class="form-grid">
       <label>
@@ -38,16 +39,8 @@
         </div>
       </div>
       <label>
-        <span>Trip group</span>
-        <div class="select-shell">
-          <select name="trip_group_id">
-            <option value="">No group</option>
-            {% for group in trip_groups %}
-            <option value="{{ group.trip_group_id }}" {{ 'selected' if trip_form_state.trip_group_id == group.trip_group_id else '' }}>{{ group.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <small class="muted">Optional for one-time trips. Weekly rules can create a matching group automatically.</small>
+        <span data-trip-group-label>{{ 'Target groups' if trip_form_state.trip_kind == 'weekly' else 'Groups' }}</span>
+        <div data-trip-group-picker></div>
         {% if not trip_groups %}
         <small class="muted">No groups yet. <a href="/groups/new">Create one first</a>.</small>
         {% endif %}
@@ -115,7 +108,8 @@
   {
     "catalogs": {{ catalogs_json|safe }},
     "trip": {{ trip_form_state|tojson }},
-    "routeOptions": {{ route_option_state|tojson }}
+    "routeOptions": {{ route_option_state|tojson }},
+    "tripGroups": {{ trip_group_picker_options|tojson }}
   }
 </script>
 <script src="{{ url_for('static', path='/pickers.js') }}?v={{ asset_version }}" defer></script>

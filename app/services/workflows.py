@@ -11,6 +11,7 @@ from app.models.trip_instance import TripInstance
 from app.route_options import join_pipe, split_pipe
 from app.services.bookings import reconcile_unmatched_bookings
 from app.services.fetch_targets import reconcile_fetch_targets
+from app.services.group_memberships import reconcile_trip_instance_group_memberships
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
 from app.services.snapshots import AppSnapshot
 from app.services.trackers import reconcile_trackers
@@ -42,8 +43,10 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     app_state = repository.load_app_state()
     trip_groups = repository.load_trip_groups()
     trips = repository.load_trips()
+    rule_group_targets = repository.load_rule_group_targets()
     route_options = repository.load_route_options()
     existing_trip_instances = repository.load_trip_instances()
+    existing_trip_instance_group_memberships = repository.load_trip_instance_group_memberships()
     existing_trackers = repository.load_trackers()
     existing_fetch_targets = repository.load_tracker_fetch_targets()
     bookings = repository.load_bookings()
@@ -56,6 +59,12 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         existing_trip_instances,
         today=today,
         future_weeks=app_state.future_weeks,
+    )
+    trip_instance_group_memberships = reconcile_trip_instance_group_memberships(
+        trips=trips,
+        rule_group_targets=rule_group_targets,
+        trip_instances=trip_instances,
+        existing_memberships=existing_trip_instance_group_memberships,
     )
     trackers = reconcile_trackers(trips, trip_instances, route_options, existing_trackers)
     _clear_legacy_manual_signals(trackers)
@@ -90,6 +99,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
 
     with repository.transaction():
         repository.save_trip_instances(trip_instances)
+        repository.save_trip_instance_group_memberships(trip_instance_group_memberships)
         repository.save_trackers(trackers)
         repository.save_tracker_fetch_targets(tracker_fetch_targets)
         repository.save_bookings(bookings)
@@ -98,8 +108,10 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     return AppSnapshot(
         trip_groups=trip_groups,
         trips=trips,
+        rule_group_targets=rule_group_targets,
         route_options=route_options,
         trip_instances=trip_instances,
+        trip_instance_group_memberships=trip_instance_group_memberships,
         trackers=trackers,
         tracker_fetch_targets=tracker_fetch_targets,
         bookings=bookings,

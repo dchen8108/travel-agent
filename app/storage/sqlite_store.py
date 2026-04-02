@@ -31,6 +31,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_trips_to_v10(connection)
     _migrate_trip_groups_to_v11(connection)
     _migrate_status_enums_to_v12(connection)
+    _migrate_group_memberships_to_v13(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -482,6 +483,146 @@ def _migrate_status_enums_to_v12(connection: sqlite3.Connection) -> None:
             SET booking_status = 'cancelled'
             WHERE booking_status = 'rebooked'
             """
+        )
+
+
+def _migrate_group_memberships_to_v13(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rule_group_targets (
+            rule_trip_id TEXT NOT NULL,
+            trip_group_id TEXT NOT NULL,
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (rule_trip_id, trip_group_id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS trip_instance_group_memberships (
+            trip_instance_id TEXT NOT NULL,
+            trip_group_id TEXT NOT NULL,
+            membership_source TEXT NOT NULL DEFAULT 'manual',
+            source_rule_trip_id TEXT NOT NULL DEFAULT '',
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (trip_instance_id, trip_group_id)
+        )
+        """
+    )
+    if not _table_exists(connection, "trips"):
+        return
+
+    weekly_rows = connection.execute(
+        """
+        SELECT trip_id, trip_group_id, data_scope, created_at, updated_at
+        FROM trips
+        WHERE trip_kind = 'weekly' AND COALESCE(trip_group_id, '') != ''
+        """
+    ).fetchall()
+    for row in weekly_rows:
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO rule_group_targets (
+                rule_trip_id,
+                trip_group_id,
+                data_scope,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                row["trip_id"],
+                row["trip_group_id"],
+                str(row["data_scope"] or "live"),
+                row["created_at"],
+                row["updated_at"],
+            ),
+        )
+
+    if not _table_exists(connection, "trip_instances"):
+        return
+
+    rows = connection.execute(
+        """
+        SELECT
+            instances.trip_instance_id,
+            instances.inheritance_mode,
+            instances.recurring_rule_trip_id,
+            instances.data_scope AS instance_data_scope,
+            instances.created_at AS instance_created_at,
+            instances.updated_at AS instance_updated_at,
+            trips.trip_group_id AS trip_group_id,
+            trips.data_scope AS trip_data_scope
+        FROM trip_instances AS instances
+        LEFT JOIN trips ON trips.trip_id = instances.trip_id
+        """
+    ).fetchall()
+    for row in rows:
+        instance_id = str(row["trip_instance_id"] or "")
+        inheritance_mode = str(row["inheritance_mode"] or "manual")
+        if inheritance_mode == "attached" and str(row["recurring_rule_trip_id"] or ""):
+            target_rows = connection.execute(
+                """
+                SELECT trip_group_id, data_scope
+                FROM rule_group_targets
+                WHERE rule_trip_id = ?
+                """,
+                (row["recurring_rule_trip_id"],),
+            ).fetchall()
+            for target_row in target_rows:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO trip_instance_group_memberships (
+                        trip_instance_id,
+                        trip_group_id,
+                        membership_source,
+                        source_rule_trip_id,
+                        data_scope,
+                        created_at,
+                        updated_at
+                    ) VALUES (?, ?, 'inherited', ?, ?, ?, ?)
+                    """,
+                    (
+                        instance_id,
+                        target_row["trip_group_id"],
+                        str(row["recurring_rule_trip_id"] or ""),
+                        str(target_row["data_scope"] or row["instance_data_scope"] or "live"),
+                        row["instance_created_at"],
+                        row["instance_updated_at"],
+                    ),
+                )
+            continue
+
+        trip_group_id = str(row["trip_group_id"] or "").strip()
+        if not trip_group_id:
+            continue
+        membership_source = "frozen" if inheritance_mode == "detached" else "manual"
+        source_rule_trip_id = str(row["recurring_rule_trip_id"] or "") if inheritance_mode == "detached" else ""
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO trip_instance_group_memberships (
+                trip_instance_id,
+                trip_group_id,
+                membership_source,
+                source_rule_trip_id,
+                data_scope,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                instance_id,
+                trip_group_id,
+                membership_source,
+                source_rule_trip_id,
+                str(row["trip_data_scope"] or row["instance_data_scope"] or "live"),
+                row["instance_created_at"],
+                row["instance_updated_at"],
+            ),
         )
 
 

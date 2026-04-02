@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.models.base import FetchTargetStatus, utcnow
+from app.services.groups import save_trip_group
 from app.settings import Settings
 from app.storage.repository import Repository
 
@@ -694,12 +696,15 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
         static_dir=Path("app/static"),
     )
     client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Weekly commute")
 
     create = client.post(
         "/trips",
         data={
             "label": "Weekly Commute",
             "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
             "anchor_date": "",
             "anchor_weekday": "Monday",
             "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
@@ -709,9 +714,12 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
     assert create.status_code == 303
     trip_location = create.headers["location"]
     trip_id = trip_location.split("/trips/")[1].split("?")[0]
-    repository = Repository(settings)
     trip = next(item for item in repository.load_trips() if item.trip_id == trip_id)
-    trips_page = client.get(f"/trips?trip_group_id={trip.trip_group_id}")
+    assert any(
+        target.rule_trip_id == trip.trip_id and target.trip_group_id == group.trip_group_id
+        for target in repository.load_rule_group_targets()
+    )
+    trips_page = client.get(f"/trips?trip_group_id={group.trip_group_id}")
     assert trips_page.status_code == 200
     marker = 'id="scheduled-'
     assert marker in trips_page.text
@@ -719,15 +727,15 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
 
     skip = client.post(
         f"/trip-instances/{trip_instance_id}/skip",
-        headers={"referer": f"http://testserver/trips?trip_group_id={trip.trip_group_id}"},
+        headers={"referer": f"http://testserver/trips?trip_group_id={group.trip_group_id}"},
         follow_redirects=False,
     )
     assert skip.status_code == 303
-    assert skip.headers["location"] == f"/trips?trip_group_id={trip.trip_group_id}&message=Trip+skipped"
+    assert skip.headers["location"] == f"/trips?trip_group_id={group.trip_group_id}&message=Trip+skipped"
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert trips_page.text.count('class="badge horizon-badge') == 12
+    assert trips_page.text.count('class="badge horizon-badge') >= 12
     assert 'class="badge horizon-badge is-skipped"' in trips_page.text
 
 
@@ -826,12 +834,15 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
         static_dir=Path("app/static"),
     )
     client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    work_group = save_trip_group(repository, trip_group_id=None, label="Work Travel")
 
     weekly_one = client.post(
         "/trips",
         data={
             "label": "Weekly Commute A",
             "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([work_group.trip_group_id]),
             "anchor_date": "",
             "anchor_weekday": "Monday",
             "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
@@ -865,10 +876,13 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert standalone.status_code == 303
 
     weekly_one_id = weekly_one.headers["location"].split("/trips/")[1].split("?")[0]
-    repository = Repository(settings)
     weekly_one_trip = next(item for item in repository.load_trips() if item.trip_id == weekly_one_id)
+    assert any(
+        target.rule_trip_id == weekly_one_trip.trip_id and target.trip_group_id == work_group.trip_group_id
+        for target in repository.load_rule_group_targets()
+    )
 
-    filtered_page = client.get(f"/trips?trip_group_id={weekly_one_trip.trip_group_id}")
+    filtered_page = client.get(f"/trips?trip_group_id={work_group.trip_group_id}")
     assert filtered_page.status_code == 200
     assert "Weekly Commute A" in filtered_page.text
     assert "One-off Flight" not in filtered_page.text

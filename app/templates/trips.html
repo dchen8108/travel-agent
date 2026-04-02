@@ -3,11 +3,12 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Trips</p>
-    <h2>Groups organize the portfolio. Scheduled trips run the work.</h2>
-    <p>Use groups to keep related travel together and recurring rules to keep future dates filled in.</p>
+    <h2>Groups organize. Rules generate. Scheduled trips do the work.</h2>
+    <p>Use groups when you want a portfolio view, then let recurring rules keep future dates filled in.</p>
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="/groups/new">New group</a>
+    <a class="button secondary" href="/trips/new?trip_kind=weekly">New recurring rule</a>
     <a class="button primary" href="/trips/new?trip_kind=one_time">New one-time trip</a>
   </div>
 </section>
@@ -67,6 +68,44 @@
     <article class="empty-state">
       <strong>No trip groups yet.</strong>
       <p>Create a group first when you want several trips to stay organized together.</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Independent rules</p>
+      <h3>Rules that are not routed into any group</h3>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    {% for trip in ungrouped_recurring_rules %}
+    {% set rule_instances = horizon_instances_for_rule(snapshot, trip.trip_id, today=today) %}
+    <article class="card">
+      <div class="card-header">
+        <div>
+          <strong>{{ trip.label }}</strong>
+          <p class="muted">Every {{ trip.anchor_weekday }} · {{ 'active' if trip.active else 'paused' }}</p>
+        </div>
+        <span class="badge">{{ rule_instances|length }} upcoming</span>
+      </div>
+      <div class="meta-grid">
+        <div><dt>Target groups</dt><dd>None</dd></div>
+        <div><dt>Preference</dt><dd>{{ 'Preferred order' if trip.preference_mode == 'ranked_bias' else 'Cheapest wins' }}</dd></div>
+        <div><dt>Next trip</dt><dd>{{ rule_instances[0].anchor_date.isoformat() if rule_instances else 'None' }}</dd></div>
+      </div>
+      <div class="actions top-gap-small">
+        <a class="button primary" href="/trips/{{ trip.trip_id }}">Open rule</a>
+        <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
+      </div>
+    </article>
+    {% else %}
+    <article class="empty-state">
+      <strong>No independent rules.</strong>
+      <p>Rules can target groups or stay independent until you decide where they belong.</p>
     </article>
     {% endfor %}
   </div>

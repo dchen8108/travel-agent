@@ -28,8 +28,10 @@ def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnaps
         snapshot = AppSnapshot(
             trip_groups=repository.load_trip_groups(),
             trips=repository.load_trips(),
+            rule_group_targets=repository.load_rule_group_targets(),
             route_options=repository.load_route_options(),
             trip_instances=repository.load_trip_instances(),
+            trip_instance_group_memberships=repository.load_trip_instance_group_memberships(),
             trackers=repository.load_trackers(),
             tracker_fetch_targets=repository.load_tracker_fetch_targets(),
             bookings=repository.load_bookings(),
@@ -84,11 +86,57 @@ def trip_instance_by_id(snapshot: AppSnapshot, trip_instance_id: str) -> TripIns
     return next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
 
 
-def group_for_trip(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -> TripGroup | None:
+def groups_for_rule(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -> list[TripGroup]:
     trip = trip_or_trip_id if isinstance(trip_or_trip_id, Trip) else trip_by_id(snapshot, trip_or_trip_id or "")
-    if trip is None or not trip.trip_group_id:
-        return None
-    return trip_group_by_id(snapshot, trip.trip_group_id)
+    if trip is None:
+        return []
+    group_ids = [
+        target.trip_group_id
+        for target in snapshot.rule_group_targets
+        if target.rule_trip_id == trip.trip_id
+    ]
+    if not group_ids and getattr(trip, "trip_group_id", ""):
+        group_ids = [trip.trip_group_id]
+    groups = [
+        trip_group_by_id(snapshot, trip_group_id)
+        for trip_group_id in sorted(set(group_ids))
+    ]
+    return [group for group in groups if group is not None]
+
+
+def group_for_rule(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -> TripGroup | None:
+    groups = groups_for_rule(snapshot, trip_or_trip_id)
+    return groups[0] if groups else None
+
+
+def groups_for_trip(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -> list[TripGroup]:
+    trip = trip_or_trip_id if isinstance(trip_or_trip_id, Trip) else trip_by_id(snapshot, trip_or_trip_id or "")
+    if trip is None:
+        return []
+    if trip.trip_kind == "weekly":
+        return groups_for_rule(snapshot, trip)
+    trip_instance_ids = {
+        instance.trip_instance_id
+        for instance in snapshot.trip_instances
+        if instance.trip_id == trip.trip_id and not instance.deleted
+    }
+    group_ids = {
+        membership.trip_group_id
+        for membership in snapshot.trip_instance_group_memberships
+        if membership.trip_instance_id in trip_instance_ids
+    }
+    if not group_ids and getattr(trip, "trip_group_id", ""):
+        group_ids.add(trip.trip_group_id)
+    groups = [
+        trip_group_by_id(snapshot, trip_group_id)
+        for trip_group_id in sorted(group_ids)
+    ]
+    return [group for group in groups if group is not None]
+
+
+def group_for_trip(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -> TripGroup | None:
+    groups = groups_for_trip(snapshot, trip_or_trip_id)
+    return groups[0] if groups else None
 
 
 def route_options_for_trip(snapshot: AppSnapshot, trip_id: str) -> list[RouteOption]:
@@ -104,6 +152,18 @@ def instances_for_trip(snapshot: AppSnapshot, trip_id: str, *, include_deleted: 
             instance
             for instance in snapshot.trip_instances
             if instance.trip_id == trip_id and (include_deleted or not instance.deleted)
+        ],
+        key=lambda item: item.anchor_date,
+    )
+
+
+def instances_for_rule(snapshot: AppSnapshot, rule_trip_id: str, *, include_deleted: bool = False) -> list[TripInstance]:
+    return sorted(
+        [
+            instance
+            for instance in snapshot.trip_instances
+            if instance.recurring_rule_trip_id == rule_trip_id
+            and (include_deleted or not instance.deleted)
         ],
         key=lambda item: item.anchor_date,
     )
@@ -125,6 +185,21 @@ def horizon_instances_for_trip(
     return [
         instance
         for instance in instances_for_trip(snapshot, trip_id, include_deleted=include_deleted)
+        if not is_past_instance(instance, today=today)
+    ]
+
+
+def horizon_instances_for_rule(
+    snapshot: AppSnapshot,
+    rule_trip_id: str,
+    *,
+    today: date | None = None,
+    include_deleted: bool = False,
+) -> list[TripInstance]:
+    today = today or date.today()
+    return [
+        instance
+        for instance in instances_for_rule(snapshot, rule_trip_id, include_deleted=include_deleted)
         if not is_past_instance(instance, today=today)
     ]
 
@@ -358,15 +433,30 @@ def recurring_rule_for_instance(snapshot: AppSnapshot, trip_instance_id: str) ->
     return trip_by_id(snapshot, instance.recurring_rule_trip_id)
 
 
-def group_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> TripGroup | None:
+def groups_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[TripGroup]:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
-        return None
-    if instance.recurring_rule_trip_id:
-        rule = trip_by_id(snapshot, instance.recurring_rule_trip_id)
-        if rule is not None and rule.trip_group_id:
-            return trip_group_by_id(snapshot, rule.trip_group_id)
-    return group_for_trip(snapshot, instance.trip_id)
+        return []
+    group_ids = [
+        membership.trip_group_id
+        for membership in snapshot.trip_instance_group_memberships
+        if membership.trip_instance_id == trip_instance_id
+    ]
+    if not group_ids:
+        recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
+        if recurring_rule is not None:
+            return groups_for_rule(snapshot, recurring_rule)
+        return groups_for_trip(snapshot, instance.trip_id)
+    groups = [
+        trip_group_by_id(snapshot, trip_group_id)
+        for trip_group_id in sorted(set(group_ids))
+    ]
+    return [group for group in groups if group is not None]
+
+
+def group_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> TripGroup | None:
+    groups = groups_for_instance(snapshot, trip_instance_id)
+    return groups[0] if groups else None
 
 
 def trip_focus_url(
@@ -390,8 +480,9 @@ def trip_focus_url(
 
     params: list[tuple[str, str]] = []
     anchor = ""
-    trip_group = group_for_trip(snapshot, trip)
-    if trip_group is not None:
+    trip_groups = groups_for_trip(snapshot, trip)
+    if len(trip_groups) == 1:
+        trip_group = trip_groups[0]
         params.append(("trip_group_id", trip_group.trip_group_id))
         anchor = f"group-{trip_group.trip_group_id}"
     else:
@@ -427,22 +518,37 @@ def trip_groups(snapshot: AppSnapshot) -> list[TripGroup]:
 
 
 def recurring_rules_for_group(snapshot: AppSnapshot, trip_group_id: str) -> list[Trip]:
+    rule_trip_ids = {
+        target.rule_trip_id
+        for target in snapshot.rule_group_targets
+        if target.trip_group_id == trip_group_id
+    }
     return sorted(
         [
             trip
             for trip in snapshot.trips
-            if trip.trip_kind == "weekly" and trip.trip_group_id == trip_group_id
+            if trip.trip_kind == "weekly"
+            and (
+                trip.trip_id in rule_trip_ids
+                or (not rule_trip_ids and getattr(trip, "trip_group_id", "") == trip_group_id)
+            )
         ],
         key=lambda item: item.label.lower(),
     )
 
 
 def one_time_trips_for_group(snapshot: AppSnapshot, trip_group_id: str) -> list[Trip]:
+    trip_ids = {
+        instance.trip_id
+        for instance in snapshot.trip_instances
+        if not instance.deleted
+        and any(group.trip_group_id == trip_group_id for group in groups_for_instance(snapshot, instance.trip_instance_id))
+    }
     return sorted(
         [
             trip
             for trip in snapshot.trips
-            if trip.trip_kind == "one_time" and trip.trip_group_id == trip_group_id and trip.active
+            if trip.trip_kind == "one_time" and trip.trip_id in trip_ids and trip.active
         ],
         key=lambda item: (item.anchor_date or date.max, item.label.lower()),
     )
@@ -489,10 +595,7 @@ def scheduled_instances(
         items = [
             item
             for item in items
-            if (
-                (group := group_for_instance(snapshot, item.trip_instance_id)) is not None
-                and group.trip_group_id in trip_group_ids
-            )
+            if any(group.trip_group_id in trip_group_ids for group in groups_for_instance(snapshot, item.trip_instance_id))
         ]
     if recurring_trip_ids:
         items = [
@@ -525,10 +628,7 @@ def past_instances(
         items = [
             item
             for item in items
-            if (
-                (group := group_for_instance(snapshot, item.trip_instance_id)) is not None
-                and group.trip_group_id in trip_group_ids
-            )
+            if any(group.trip_group_id in trip_group_ids for group in groups_for_instance(snapshot, item.trip_instance_id))
         ]
     if recurring_trip_ids:
         items = [

@@ -55,7 +55,7 @@ Suggested fields:
 Semantics:
 
 - pure organizational/display bucket
-- a concrete trip can belong to at most one group
+- a concrete scheduled trip can belong to zero or more groups
 - a group can contain any mix of trips
 - a group can exist with or without a recurring rule
 
@@ -66,7 +66,6 @@ New recurring generation object.
 Suggested fields:
 
 - `recurring_rule_id`
-- `trip_group_id`
 - `label`
 - `active`
 - `anchor_weekday`
@@ -76,8 +75,9 @@ Suggested fields:
 
 Important design choice:
 
-- data model should allow `many rules -> one group` later
-- initial UI can enforce `at most one rule per group`
+- rules and groups should be linked through a join table, not a single foreign key
+- a rule can target zero or more groups
+- a group can receive trips from zero or more rules
 
 ### 3. `RecurringRuleRouteOption`
 
@@ -129,6 +129,7 @@ Key meaning:
 - some concrete trips are rule-generated
 - some rule-generated trips are still attached to the rule template
 - some have been detached and can diverge
+- group membership is owned by the concrete scheduled trip, not inferred only from the rule
 
 ### 5. `RouteOption`
 
@@ -166,7 +167,7 @@ This supports:
 
 ### Creating A Recurring Rule
 
-Users create a recurring rule and attach it to a group.
+Users create a recurring rule and optionally route it into one or more groups.
 
 The rule defines:
 
@@ -176,7 +177,7 @@ The rule defines:
 
 ### Generating Concrete Trips
 
-The rule should create or maintain concrete trips in the group.
+The rule should create or maintain concrete trips and apply its current target groups to attached occurrences.
 
 Occurrence identity should be keyed by:
 
@@ -190,6 +191,7 @@ That lets one occurrence remain claimed by the rule even if its actual trip date
 An attached generated trip:
 
 - remains in the group
+- or in the groups targeted by the rule
 - continues to inherit rule changes
 - should not allow direct editing of rule-owned fields
 
@@ -209,7 +211,7 @@ Operational fields remain per-trip:
 
 Detaching a generated trip should:
 
-- keep it in the same group
+- keep its current group memberships
 - keep the `generated_by_rule_id` and `rule_occurrence_date`
 - switch `inheritance_mode` to `detached`
 - stop future template sync from the rule
@@ -254,6 +256,13 @@ It just means:
 ## How Rule Edits Should Propagate
 
 Rule edits should update **future attached trips**, not everything forever.
+
+That includes:
+
+- cadence
+- preference mode
+- route options
+- target groups
 
 Recommended propagation target:
 

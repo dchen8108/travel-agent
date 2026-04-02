@@ -6,7 +6,7 @@
   <div class="stack top-gap-small scheduled-results-stack" data-scheduled-results>
     {% for instance in scheduled_items %}
     {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set trip_group = group_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set trip_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
     {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
@@ -20,13 +20,16 @@
         <div class="scheduled-copy">
           <strong>{{ parent_trip.label if parent_trip else instance.display_label }}</strong>
           <p class="muted">
-            {% if trip_group %}
-            Group · <a href="/groups/{{ trip_group.trip_group_id }}">{{ trip_group.label }}</a>
+            {% if trip_groups %}
+            Groups ·
+            {% for trip_group in trip_groups %}
+            <a href="/groups/{{ trip_group.trip_group_id }}">{{ trip_group.label }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
             {% endif %}
             {% if recurring_rule %}
-            {% if trip_group %} · {% endif %}Rule · <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
+            {% if trip_groups %} · {% endif %}Rule · <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
             {% elif parent_trip %}
-            {% if trip_group %} · {% endif %}Manual
+            {% if trip_groups %} · {% endif %}Manual
             {% else %}
             Standalone trip
             {% endif %}

@@ -18,6 +18,9 @@ from app.services.dashboard import (
     booking_for_instance,
     group_for_instance,
     group_for_trip,
+    groups_for_instance,
+    groups_for_rule,
+    groups_for_trip,
     rebook_savings,
     recurring_rule_for_instance,
     trip_lifecycle_status_label,
@@ -119,7 +122,10 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "trip_status_detail": trip_status_detail,
         "rebook_savings": rebook_savings,
         "group_for_trip": group_for_trip,
+        "groups_for_trip": groups_for_trip,
         "group_for_instance": group_for_instance,
+        "groups_for_instance": groups_for_instance,
+        "groups_for_rule": groups_for_rule,
         "recurring_rule_for_instance": recurring_rule_for_instance,
     }
     context.update(extra)

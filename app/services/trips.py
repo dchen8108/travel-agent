@@ -5,7 +5,7 @@ from datetime import date
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
 from app.models.base import DataScope, FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
-from app.services.groups import resolve_trip_group_for_rule
+from app.services.group_memberships import build_rule_group_targets
 from app.services.ids import new_id
 from app.storage.repository import Repository
 
@@ -134,6 +134,7 @@ def save_trip(
     anchor_date: date | None,
     anchor_weekday: str,
     trip_group_id: str = "",
+    trip_group_ids: list[str] | None = None,
     route_option_payloads: list[dict[str, object]],
     preference_mode: str = RoutePreferenceMode.EQUAL,
     data_scope: str = DataScope.LIVE,
@@ -141,15 +142,6 @@ def save_trip(
     trips = repository.load_trips()
     route_options = repository.load_route_options()
     parsed_trip_kind = parse_trip_kind(trip_kind)
-    resolved_trip_group_id = trip_group_id
-    if parsed_trip_kind == TripKind.WEEKLY:
-        trip_group = resolve_trip_group_for_rule(
-            repository,
-            trip_group_id=trip_group_id,
-            fallback_label=label,
-            data_scope=data_scope,
-        )
-        resolved_trip_group_id = trip_group.trip_group_id
     ensure_valid_trip_label(
         trips,
         label,
@@ -164,7 +156,7 @@ def save_trip(
         label=label,
         trip_kind=parsed_trip_kind,
         preference_mode=preference_mode,
-        trip_group_id=resolved_trip_group_id,
+        trip_group_id="",
         data_scope=data_scope,
         active=active,
         anchor_date=anchor_date,
@@ -183,10 +175,25 @@ def save_trip(
         payloads=route_option_payloads,
         existing_route_options=existing_route_options,
     )
+    existing_rule_targets = repository.load_rule_group_targets()
+    next_trip_group_ids = sorted(
+        {
+            trip_group
+            for trip_group in (trip_group_ids if trip_group_ids is not None else ([trip_group_id] if trip_group_id else []))
+            if trip_group
+        }
+    )
+    next_rule_targets = build_rule_group_targets(
+        rule_trip_id=trip.trip_id,
+        trip_group_ids=next_trip_group_ids if parsed_trip_kind == TripKind.WEEKLY else [],
+        data_scope=trip.data_scope,
+        existing_targets=[target for target in existing_rule_targets if target.rule_trip_id == trip.trip_id],
+    )
 
     with repository.transaction():
         repository.upsert_trip(trip)
         repository.replace_route_options_for_trip(trip.trip_id, built_route_options)
+        repository.replace_rule_group_targets_for_rule(trip.trip_id, next_rule_targets)
     return trip
 
 
