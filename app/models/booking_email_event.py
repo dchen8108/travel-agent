@@ -19,6 +19,8 @@ class BookingEmailEvent(CsvModel):
     processing_status: BookingEmailEventStatus = BookingEmailEventStatus.IGNORED
     email_kind: str = "unknown"
     extraction_confidence: float = 0.0
+    extraction_attempt_count: int = 0
+    retryable: bool = True
     extracted_payload_json: str = ""
     result_booking_ids: str = ""
     result_unmatched_booking_ids: str = ""
@@ -38,4 +40,3 @@ class BookingEmailEvent(CsvModel):
     @classmethod
     def normalize_id_pipe(cls, value: str) -> str:
         return join_pipe(split_pipe(value))
-

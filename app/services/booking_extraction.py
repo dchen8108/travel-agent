@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import re
 from typing import Literal
 
 from openai import OpenAI
@@ -83,6 +84,83 @@ Rules:
 - confidence should reflect extraction reliability, not whether the email is desirable.
 """
 
+BOOKING_RELEVANCE_MARKERS: tuple[str, ...] = (
+    "confirmation",
+    "confirmation code",
+    "record locator",
+    "reservation",
+    "itinerary",
+    "flight",
+    "depart",
+    "arriv",
+    "passenger",
+    "traveler",
+    "booking",
+    "ticket",
+    "fare",
+    "total",
+    "receipt",
+    "baggage",
+    "cancel",
+    "change",
+)
+
+
+def prepare_booking_email_body(body_text: str, *, max_chars: int) -> str:
+    normalized_lines = [
+        re.sub(r"\s+", " ", line).strip()
+        for line in body_text.replace("\r", "").splitlines()
+    ]
+    normalized_lines = [line for line in normalized_lines if line]
+    if not normalized_lines:
+        return ""
+
+    def add_line(line: str, selected: list[str], seen: set[str]) -> None:
+        if line in seen:
+            return
+        seen.add(line)
+        selected.append(line)
+
+    selected_priority: list[str] = []
+    selected_context: list[str] = []
+    seen: set[str] = set()
+
+    for line in normalized_lines:
+        lowered = line.lower()
+        if any(marker in lowered for marker in BOOKING_RELEVANCE_MARKERS):
+            add_line(line, selected_priority, seen)
+            continue
+        if re.search(r"\b[A-Z]{3}\b", line):
+            add_line(line, selected_priority, seen)
+            continue
+        if re.search(r"\$\s*\d", line):
+            add_line(line, selected_priority, seen)
+            continue
+        if re.search(r"\b\d{1,2}:\d{2}\b", line):
+            add_line(line, selected_priority, seen)
+            continue
+
+    for line in normalized_lines[:24]:
+        add_line(line, selected_context, seen)
+
+    selected = selected_priority + selected_context
+    prepared = "\n".join(selected) if selected else "\n".join(normalized_lines[:40])
+    if len(prepared) <= max_chars:
+        return prepared
+
+    trimmed_lines: list[str] = []
+    current_length = 0
+    for line in selected:
+        candidate_length = current_length + len(line) + (1 if trimmed_lines else 0)
+        if candidate_length > max_chars:
+            break
+        trimmed_lines.append(line)
+        current_length = candidate_length
+    prepared = "\n".join(trimmed_lines)
+    if prepared:
+        return prepared
+    return "\n".join(normalized_lines)[:max_chars]
+
 
 def extract_booking_email(
     *,
@@ -91,6 +169,7 @@ def extract_booking_email(
     from_address: str,
     subject: str,
     body_text: str,
+    max_body_chars: int,
 ) -> BookingEmailExtraction:
     api_key = openai_api_key(settings)
     if not api_key:
@@ -109,7 +188,7 @@ def extract_booking_email(
                     "Parse this email into the schema.\n\n"
                     f"From: {from_address}\n"
                     f"Subject: {subject}\n\n"
-                    f"{body_text}"
+                    f"{prepare_booking_email_body(body_text, max_chars=max_body_chars)}"
                 ),
             },
         ],

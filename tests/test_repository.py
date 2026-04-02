@@ -185,7 +185,7 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 5
+    assert user_version == 6
     assert "price_text" not in columns
     assert "summary" not in columns
     assert "request_offer_count" not in columns
@@ -295,9 +295,12 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
         booked_price = connection.execute("SELECT booked_price FROM bookings WHERE booking_id = 'book_bad'").fetchone()[0]
         booked_price_type = connection.execute("PRAGMA table_info(bookings)").fetchall()[10][2]
         user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+        booking_email_event_columns = {row[1] for row in connection.execute("PRAGMA table_info(booking_email_events)").fetchall()}
     finally:
         connection.close()
 
     assert booked_price == 78.4
     assert booked_price_type == "REAL"
-    assert user_version == 5
+    assert user_version == 6
+    assert "extraction_attempt_count" in booking_email_event_columns
+    assert "retryable" in booking_email_event_columns

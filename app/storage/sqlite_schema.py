@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -173,6 +173,8 @@ DDL_STATEMENTS: tuple[str, ...] = (
         processing_status TEXT NOT NULL,
         email_kind TEXT NOT NULL DEFAULT 'unknown',
         extraction_confidence REAL NOT NULL DEFAULT 0,
+        extraction_attempt_count INTEGER NOT NULL DEFAULT 0,
+        retryable INTEGER NOT NULL DEFAULT 1,
         extracted_payload_json TEXT NOT NULL DEFAULT '',
         result_booking_ids TEXT NOT NULL DEFAULT '',
         result_unmatched_booking_ids TEXT NOT NULL DEFAULT '',

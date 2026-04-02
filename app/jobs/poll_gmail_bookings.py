@@ -54,11 +54,13 @@ def _dedupe_message_ids(message_ids: list[str]) -> list[str]:
     return ordered
 
 
-def _retry_message_ids(repository: Repository, *, limit: int) -> list[str]:
+def _retry_message_ids(repository: Repository, *, limit: int, max_retry_attempts: int) -> list[str]:
     errored_events = [
         event
         for event in repository.load_booking_email_events()
         if event.processing_status == BookingEmailEventStatus.ERROR
+        and event.retryable
+        and event.extraction_attempt_count < max_retry_attempts
     ]
     errored_events.sort(key=lambda item: item.received_at)
     return [event.gmail_message_id for event in errored_events[:limit]]
@@ -71,9 +73,10 @@ def _select_message_ids_for_poll(
     inbox_label_ids: list[str],
     sync_state_last_history_id: str,
     retry_limit: int,
+    max_retry_attempts: int,
 ) -> tuple[list[str], str, str]:
     existing_events = {event.gmail_message_id: event for event in repository.load_booking_email_events()}
-    retry_ids = _retry_message_ids(repository, limit=retry_limit)
+    retry_ids = _retry_message_ids(repository, limit=retry_limit, max_retry_attempts=max_retry_attempts)
 
     if sync_state_last_history_id:
         latest_history_id = sync_state_last_history_id
@@ -131,6 +134,7 @@ def main() -> None:
             inbox_label_ids=config.inbox_label_ids,
             sync_state_last_history_id=sync_state.last_history_id,
             retry_limit=min(args.max_messages, config.max_messages_per_poll),
+            max_retry_attempts=config.max_retry_attempts,
         )
         _emit_log(
             "run_started",

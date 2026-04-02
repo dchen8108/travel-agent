@@ -10,7 +10,14 @@ from app.models.base import BookingEmailEventStatus
 from app.models.booking_email_event import BookingEmailEvent
 
 
-def _event(message_id: str, status: str, *, hour: int) -> BookingEmailEvent:
+def _event(
+    message_id: str,
+    status: str,
+    *,
+    hour: int,
+    extraction_attempt_count: int = 0,
+    retryable: bool = True,
+) -> BookingEmailEvent:
     return BookingEmailEvent(
         email_event_id=f"mail-{message_id}",
         gmail_message_id=message_id,
@@ -20,6 +27,8 @@ def _event(message_id: str, status: str, *, hour: int) -> BookingEmailEvent:
         subject=f"Subject {message_id}",
         received_at=datetime(2026, 4, 1, hour, 0).astimezone(),
         processing_status=BookingEmailEventStatus(status),
+        extraction_attempt_count=extraction_attempt_count,
+        retryable=retryable,
     )
 
 
@@ -46,6 +55,7 @@ def test_select_message_ids_for_poll_backfills_unseen_and_retries_errors(reposit
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="",
         retry_limit=5,
+        max_retry_attempts=2,
     )
 
     assert message_ids == ["msg-new", "msg-retry"]
@@ -72,6 +82,7 @@ def test_select_message_ids_for_poll_uses_incremental_history(repository, monkey
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="250",
         retry_limit=5,
+        max_retry_attempts=2,
     )
 
     assert message_ids == ["msg-fresh", "msg-retry"]
@@ -104,8 +115,41 @@ def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(r
         inbox_label_ids=["INBOX"],
         sync_state_last_history_id="350",
         retry_limit=5,
+        max_retry_attempts=2,
     )
 
     assert message_ids == ["msg-backfill"]
     assert latest_history_id == "400"
     assert mode == "history_reset_backfill"
+
+
+def test_select_message_ids_for_poll_skips_nonretryable_and_exhausted_errors(repository, monkeypatch) -> None:
+    repository.save_booking_email_events(
+        [
+            _event("msg-transient", "error", hour=8, extraction_attempt_count=1, retryable=True),
+            _event("msg-terminal", "error", hour=7, extraction_attempt_count=1, retryable=False),
+            _event("msg-exhausted", "error", hour=6, extraction_attempt_count=2, retryable=True),
+        ]
+    )
+
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.list_all_inbox_message_ids",
+        lambda service, *, label_ids: [],
+    )
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.get_mailbox_profile",
+        lambda service: {"email_address": "booking@example.com", "history_id": "200"},
+    )
+
+    message_ids, latest_history_id, mode = _select_message_ids_for_poll(
+        repository,
+        object(),
+        inbox_label_ids=["INBOX"],
+        sync_state_last_history_id="",
+        retry_limit=5,
+        max_retry_attempts=2,
+    )
+
+    assert message_ids == ["msg-transient"]
+    assert latest_history_id == "200"
+    assert mode == "backfill"

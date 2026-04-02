@@ -44,6 +44,13 @@ def process_gmail_booking_message(
             created_unmatched_bookings=[],
             state_changed=False,
         )
+    if existing_event is not None and not _event_should_retry(existing_event, config):
+        return BookingEmailProcessResult(
+            event=existing_event,
+            created_bookings=[],
+            created_unmatched_bookings=[],
+            state_changed=False,
+        )
 
     event = existing_event or BookingEmailEvent(
         email_event_id=new_id("mail"),
@@ -59,6 +66,7 @@ def process_gmail_booking_message(
     event.from_address = message.from_address
     event.subject = message.subject
     event.received_at = message.received_at
+    event.retryable = True
     lowered = _message_search_text(message)
     if _looks_like_non_booking(lowered, config):
         event.processing_status = BookingEmailEventStatus.IGNORED
@@ -74,17 +82,23 @@ def process_gmail_booking_message(
         )
 
     try:
+        event.extraction_attempt_count += 1
         extraction = extract_booking_email(
             settings=repository.settings,
             model=config.model,
             from_address=message.from_address,
             subject=message.subject,
             body_text=message.body_text,
+            max_body_chars=config.max_body_chars,
         )
     except Exception as exc:
+        retryable = _is_retryable_extraction_error(exc)
         event.processing_status = BookingEmailEventStatus.ERROR
         event.email_kind = "unknown"
+        event.retryable = retryable
         event.notes = f"Extraction failed: {type(exc).__name__}: {exc}"
+        if not retryable:
+            event.notes = f"{event.notes} This email will not be retried automatically."
         event.updated_at = utcnow()
         _upsert_booking_email_event(repository, event)
         return BookingEmailProcessResult(
@@ -96,6 +110,7 @@ def process_gmail_booking_message(
 
     event.email_kind = extraction.email_kind
     event.extraction_confidence = extraction.confidence
+    event.retryable = True
     event.extracted_payload_json = extraction.model_dump_json(indent=2)
 
     if extraction.email_kind != "booking_confirmation":
@@ -206,6 +221,38 @@ def _non_booking_reason(extraction: BookingEmailExtraction) -> str:
     if extraction.email_kind == "itinerary_change":
         return "Ignored for now: itinerary change handling is not implemented yet."
     return "Ignored after model classification."
+
+
+def _event_should_retry(event: BookingEmailEvent, config: GmailIntegrationConfig) -> bool:
+    if event.processing_status != BookingEmailEventStatus.ERROR:
+        return False
+    if not event.retryable:
+        return False
+    return event.extraction_attempt_count < config.max_retry_attempts
+
+
+def _is_retryable_extraction_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    if (
+        "request too large" in message
+        or "input or output tokens must be reduced" in message
+        or "maximum context length" in message
+        or "context length" in message
+    ):
+        return False
+    retryable_names = {
+        "APIConnectionError",
+        "APITimeoutError",
+        "InternalServerError",
+        "RateLimitError",
+    }
+    if type(exc).__name__ in retryable_names:
+        return True
+    return (
+        "quota exceeded" in message
+        or "insufficient_quota" in message
+        or "rate limit" in message
+    )
 
 
 def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[BookingCandidate]:

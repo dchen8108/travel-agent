@@ -22,6 +22,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_to_v5(connection)
+    _migrate_booking_email_events_to_v6(connection)
     _migrate_price_records_to_v3(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
@@ -265,6 +266,33 @@ def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:
         )
         connection.execute("DROP TABLE bookings_old")
     _repair_gmail_booking_prices_to_v5(connection)
+
+
+def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "booking_email_events"):
+        return
+    columns = _table_columns(connection, "booking_email_events")
+    if "extraction_attempt_count" not in columns:
+        connection.execute(
+            "ALTER TABLE booking_email_events ADD COLUMN extraction_attempt_count INTEGER NOT NULL DEFAULT 0"
+        )
+    if "retryable" not in columns:
+        connection.execute(
+            "ALTER TABLE booking_email_events ADD COLUMN retryable INTEGER NOT NULL DEFAULT 1"
+        )
+    connection.execute(
+        """
+        UPDATE booking_email_events
+        SET retryable = 0
+        WHERE processing_status = 'error'
+          AND (
+            LOWER(notes) LIKE '%request too large%'
+            OR LOWER(notes) LIKE '%input or output tokens must be reduced%'
+            OR LOWER(notes) LIKE '%maximum context length%'
+            OR LOWER(notes) LIKE '%context length%'
+          )
+        """
+    )
 
 
 def _repair_gmail_booking_prices_to_v5(connection: sqlite3.Connection) -> None:

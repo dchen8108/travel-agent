@@ -14,7 +14,9 @@
   "inbox_label_ids": [
     "INBOX"
   ],
+  "max_body_chars": 12000,
   "max_messages_per_poll": 20,
+  "max_retry_attempts": 2,
   "min_auto_create_confidence": 0.85,
   "model": "gpt-5.4",
   "spam_keywords": [

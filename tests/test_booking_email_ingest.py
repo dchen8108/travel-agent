@@ -6,7 +6,7 @@ from app.models.base import BookingEmailEventStatus
 from app.services.bookings import BookingCandidate, record_booking
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.booking_email_ingest import process_gmail_booking_message
-from app.services.booking_extraction import BookingEmailExtraction, BookingEmailLeg
+from app.services.booking_extraction import BookingEmailExtraction, BookingEmailLeg, prepare_booking_email_body
 from app.services.gmail_client import GmailMessage
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -229,6 +229,55 @@ def test_booking_email_ingest_records_retryable_error_event(repository: Reposito
 
     assert second.event.processing_status == BookingEmailEventStatus.IGNORED
     assert len(repository.load_booking_email_events()) == 1
+
+
+def test_booking_email_ingest_does_not_retry_terminal_extraction_error(repository: Repository, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: (_ for _ in ()).throw(
+            RuntimeError("Request too large for gpt-5.4. The input or output tokens must be reduced.")
+        ),
+    )
+
+    message = _gmail_message(
+        message_id="msg-terminal-error",
+        subject="Fwd: You're going to Burbank",
+        body_text="Very long forwarded body",
+    )
+    first = process_gmail_booking_message(repository, message=message, config=GmailIntegrationConfig())
+
+    assert first.event.processing_status == BookingEmailEventStatus.ERROR
+    assert first.event.retryable is False
+    assert first.event.extraction_attempt_count == 1
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(email_kind="booking_confirmation", confidence=0.99),
+    )
+    second = process_gmail_booking_message(repository, message=message, config=GmailIntegrationConfig())
+
+    assert second.event.processing_status == BookingEmailEventStatus.ERROR
+    assert second.event.extraction_attempt_count == 1
+    assert len(repository.load_booking_email_events()) == 1
+
+
+def test_prepare_booking_email_body_limits_size_and_keeps_relevant_lines() -> None:
+    large_body = "\n".join(
+        [f"noise line {index}" for index in range(120)]
+        + [
+            "Confirmation code ABC123",
+            "LAX to BUR",
+            "Flight WN 123 departs 09:10 arrives 10:35",
+            "Total paid $78.40",
+        ]
+        + [f"footer line {index}" for index in range(120)]
+    )
+
+    prepared = prepare_booking_email_body(large_body, max_chars=180)
+
+    assert len(prepared) <= 180
+    assert "Confirmation code ABC123" in prepared
+    assert "Total paid $78.40" in prepared
 
 
 def test_booking_email_ingest_cancels_existing_booking(repository: Repository, monkeypatch) -> None:

@@ -33,6 +33,8 @@ class GmailIntegrationConfig(BaseModel):
         ]
     )
     model: str = "gpt-5.4"
+    max_body_chars: int = 12000
+    max_retry_attempts: int = 2
     min_auto_create_confidence: float = 0.85
 
     @field_validator("max_messages_per_poll")
@@ -40,6 +42,20 @@ class GmailIntegrationConfig(BaseModel):
     def validate_message_limit(cls, value: int) -> int:
         if value < 1:
             raise ValueError("max_messages_per_poll must be at least 1.")
+        return value
+
+    @field_validator("max_body_chars")
+    @classmethod
+    def validate_max_body_chars(cls, value: int) -> int:
+        if value < 1000:
+            raise ValueError("max_body_chars must be at least 1000.")
+        return value
+
+    @field_validator("max_retry_attempts")
+    @classmethod
+    def validate_max_retry_attempts(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("max_retry_attempts must be at least 0.")
         return value
 
     @field_validator("min_auto_create_confidence")
