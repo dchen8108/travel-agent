@@ -25,6 +25,7 @@ from app.services.dashboard import (
     trip_for_instance,
 )
 from app.services.refresh_queue import queued_refresh_message, queue_refresh_for_trip_instance
+from app.services.data_scope import include_test_data_for_processing
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates, redirect_with_message
@@ -264,7 +265,12 @@ def queue_tracker_refresh(
     if trip_instance is None:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
 
-    queued_count = queue_refresh_for_trip_instance(snapshot, repository, trip_instance_id=trip_instance_id)
+    queued_count = queue_refresh_for_trip_instance(
+        snapshot,
+        repository,
+        trip_instance_id=trip_instance_id,
+        include_test_data=include_test_data_for_processing(snapshot.app_state),
+    )
     if queued_count == 0:
         return redirect_with_message(tracker_detail_url(trip_instance_id), "Nothing to refresh yet.")
     return redirect_with_message(

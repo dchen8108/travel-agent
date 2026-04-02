@@ -24,6 +24,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_to_v5(connection)
     _migrate_booking_email_events_to_v6(connection)
     _migrate_price_records_to_v3(connection)
+    _migrate_data_scope_to_v7(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -293,6 +294,116 @@ def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:
           )
         """
     )
+
+
+def _migrate_data_scope_to_v7(connection: sqlite3.Connection) -> None:
+    scope_tables = (
+        "trips",
+        "route_options",
+        "trip_instances",
+        "trackers",
+        "tracker_fetch_targets",
+        "bookings",
+        "booking_email_events",
+        "price_records",
+    )
+    for table in scope_tables:
+        if not _table_exists(connection, table):
+            continue
+        columns = _table_columns(connection, table)
+        if "data_scope" not in columns:
+            connection.execute(
+                f"ALTER TABLE {table} ADD COLUMN data_scope TEXT NOT NULL DEFAULT 'live'"
+            )
+
+    if _table_exists(connection, "trips"):
+        connection.execute(
+            """
+            UPDATE trips
+            SET data_scope = 'test'
+            WHERE label LIKE 'QA %'
+               OR label LIKE 'SQLite E2E %'
+               OR label LIKE 'E2E %'
+            """
+        )
+    if _table_exists(connection, "route_options") and _table_exists(connection, "trips"):
+        connection.execute(
+            """
+            UPDATE route_options
+            SET data_scope = 'test'
+            WHERE trip_id IN (SELECT trip_id FROM trips WHERE data_scope = 'test')
+            """
+        )
+    if _table_exists(connection, "trip_instances") and _table_exists(connection, "trips"):
+        connection.execute(
+            """
+            UPDATE trip_instances
+            SET data_scope = 'test'
+            WHERE trip_id IN (SELECT trip_id FROM trips WHERE data_scope = 'test')
+            """
+        )
+    if _table_exists(connection, "trackers") and _table_exists(connection, "trip_instances"):
+        connection.execute(
+            """
+            UPDATE trackers
+            SET data_scope = 'test'
+            WHERE trip_instance_id IN (
+                SELECT trip_instance_id FROM trip_instances WHERE data_scope = 'test'
+            )
+            """
+        )
+    if _table_exists(connection, "tracker_fetch_targets") and _table_exists(connection, "trackers"):
+        connection.execute(
+            """
+            UPDATE tracker_fetch_targets
+            SET data_scope = 'test'
+            WHERE tracker_id IN (
+                SELECT tracker_id FROM trackers WHERE data_scope = 'test'
+            )
+            """
+        )
+    if _table_exists(connection, "price_records") and _table_exists(connection, "trips"):
+        connection.execute(
+            """
+            UPDATE price_records
+            SET data_scope = 'test'
+            WHERE trip_id IN (SELECT trip_id FROM trips WHERE data_scope = 'test')
+            """
+        )
+    if _table_exists(connection, "bookings"):
+        conditions = ["record_locator LIKE 'E2E%'", "raw_summary LIKE '%E2E%'"]
+        if _table_exists(connection, "trip_instances"):
+            conditions.insert(
+                0,
+                """
+                trip_instance_id IN (
+                    SELECT trip_instance_id FROM trip_instances WHERE data_scope = 'test'
+                )
+                """.strip(),
+            )
+        connection.execute(
+            f"""
+            UPDATE bookings
+            SET data_scope = 'test'
+            WHERE {' OR '.join(conditions)}
+            """
+        )
+    if _table_exists(connection, "booking_email_events") and _table_exists(connection, "bookings"):
+        connection.execute(
+            """
+            UPDATE booking_email_events
+            SET data_scope = 'test'
+            WHERE EXISTS (
+                SELECT 1
+                FROM bookings
+                WHERE bookings.data_scope = 'test'
+                  AND (
+                    instr('|' || booking_email_events.result_booking_ids || '|', '|' || bookings.booking_id || '|') > 0
+                    OR instr('|' || booking_email_events.result_unmatched_booking_ids || '|', '|' || bookings.booking_id || '|') > 0
+                  )
+            )
+            """
+        )
 
 
 def _repair_gmail_booking_prices_to_v5(connection: sqlite3.Connection) -> None:

@@ -5,13 +5,14 @@ from datetime import datetime
 from pydantic import Field, field_validator
 
 from app.catalog import normalize_airport_code
-from app.models.base import CsvModel, FetchTargetStatus, utcnow
+from app.models.base import CsvModel, DataScope, FetchTargetStatus, utcnow
 
 
 class TrackerFetchTarget(CsvModel):
     fetch_target_id: str
     tracker_id: str
     trip_instance_id: str
+    data_scope: DataScope = DataScope.LIVE
     tracker_definition_signature: str = ""
     origin_airport: str
     destination_airport: str

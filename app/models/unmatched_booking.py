@@ -7,13 +7,14 @@ from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
 from app.money import parse_money
-from app.models.base import CsvModel, UnmatchedBookingStatus, utcnow
+from app.models.base import CsvModel, DataScope, UnmatchedBookingStatus, utcnow
 from app.route_options import join_pipe, parse_time, split_pipe
 
 
 class UnmatchedBooking(CsvModel):
     unmatched_booking_id: str
     source: str = "manual"
+    data_scope: DataScope = DataScope.LIVE
     airline: str
     origin_airport: str
     destination_airport: str

@@ -7,13 +7,14 @@ import json
 
 from app.catalog import normalize_airline_code
 from app.money import format_money
-from app.models.base import BookingEmailEventStatus, BookingStatus, utcnow
+from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, utcnow
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.models.unmatched_booking import UnmatchedBooking
 from app.services.booking_extraction import BookingEmailExtraction, extract_booking_email
 from app.services.bookings import BookingCandidate, record_booking
+from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.gmail_client import GmailMessage
 from app.services.ids import new_id
 from app.storage.repository import Repository
@@ -55,6 +56,7 @@ def process_gmail_booking_message(
     event = existing_event or BookingEmailEvent(
         email_event_id=new_id("mail"),
         gmail_message_id=message.gmail_message_id,
+        data_scope=DataScope.LIVE,
         gmail_thread_id=message.gmail_thread_id,
         gmail_history_id=message.gmail_history_id,
         from_address=message.from_address,
@@ -295,10 +297,11 @@ def _normalize_airline_code(value: str) -> str:
 
 
 def _booking_candidate_exists(repository: Repository, candidate: BookingCandidate) -> bool:
-    for booking in repository.load_bookings():
+    include_test_data = include_test_data_for_processing(repository.load_app_state())
+    for booking in filter_items(repository.load_bookings(), include_test_data=include_test_data):
         if _same_booking(booking, candidate):
             return True
-    for unmatched in repository.load_unmatched_bookings():
+    for unmatched in filter_items(repository.load_unmatched_bookings(), include_test_data=include_test_data):
         if (
             unmatched.airline == candidate.airline
             and unmatched.origin_airport == candidate.origin_airport
@@ -335,7 +338,9 @@ def _upsert_booking_email_event(repository: Repository, event: BookingEmailEvent
 
 
 def _apply_cancellation(repository: Repository, extraction: BookingEmailExtraction) -> list[Booking]:
-    bookings = repository.load_bookings()
+    include_test_data = include_test_data_for_processing(repository.load_app_state())
+    all_bookings = repository.load_bookings()
+    bookings = filter_items(all_bookings, include_test_data=include_test_data)
     updated: list[Booking] = []
     matched_ids: set[str] = set()
     if not extraction.legs and extraction.record_locator:
@@ -348,7 +353,7 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
             booking.updated_at = utcnow()
             updated.append(booking)
         if updated:
-            repository.save_bookings(bookings)
+            repository.save_bookings(all_bookings)
         return updated
     for leg in extraction.legs:
         if not (leg.departure_date or extraction.record_locator):
@@ -408,5 +413,5 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
             updated.append(booking)
             matched_ids.add(booking.booking_id)
     if updated:
-        repository.save_bookings(bookings)
+        repository.save_bookings(all_bookings)
     return updated

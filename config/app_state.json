@@ -1,6 +1,8 @@
 {
   "enable_background_fetcher": true,
   "future_weeks": 12,
+  "process_test_data": false,
+  "show_test_data": false,
   "timezone": "America/Los_Angeles",
-  "version": 4
+  "version": 5
 }

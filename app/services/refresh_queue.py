@@ -21,6 +21,7 @@ def queue_refresh_for_trip(
     *,
     trip_id: str,
     today: date | None = None,
+    include_test_data: bool = True,
 ) -> int:
     today = today or date.today()
     trip_instance_ids = {
@@ -28,7 +29,12 @@ def queue_refresh_for_trip(
         for instance in horizon_instances_for_trip(snapshot, trip_id, today=today)
         if instance.travel_state != "skipped"
     }
-    return queue_refresh_for_trip_instances(snapshot, repository, trip_instance_ids=trip_instance_ids)
+    return queue_refresh_for_trip_instances(
+        snapshot,
+        repository,
+        trip_instance_ids=trip_instance_ids,
+        include_test_data=include_test_data,
+    )
 
 
 def queue_refresh_for_trip_instance(
@@ -36,8 +42,14 @@ def queue_refresh_for_trip_instance(
     repository: Repository,
     *,
     trip_instance_id: str,
+    include_test_data: bool = True,
 ) -> int:
-    return queue_refresh_for_trip_instances(snapshot, repository, trip_instance_ids={trip_instance_id})
+    return queue_refresh_for_trip_instances(
+        snapshot,
+        repository,
+        trip_instance_ids={trip_instance_id},
+        include_test_data=include_test_data,
+    )
 
 
 def queue_refresh_for_trip_instances(
@@ -45,6 +57,7 @@ def queue_refresh_for_trip_instances(
     repository: Repository,
     *,
     trip_instance_ids: set[str],
+    include_test_data: bool = True,
 ) -> int:
     if not trip_instance_ids:
         return 0
@@ -53,6 +66,7 @@ def queue_refresh_for_trip_instances(
         snapshot.trip_instances,
         snapshot.tracker_fetch_targets,
         trip_instance_ids=trip_instance_ids,
+        include_test_data=include_test_data,
     )
     if queued_count:
         repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)

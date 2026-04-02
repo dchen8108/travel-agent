@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import Field, field_validator, model_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import CsvModel, FareClassPolicy, utcnow
+from app.models.base import CsvModel, DataScope, FareClassPolicy, utcnow
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
@@ -13,6 +13,7 @@ class RouteOption(CsvModel):
     route_option_id: str
     trip_id: str
     rank: int
+    data_scope: DataScope = DataScope.LIVE
     savings_needed_vs_previous: int = 0
     origin_airports: str
     destination_airports: str

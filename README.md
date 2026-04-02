@@ -26,6 +26,7 @@ This version is intentionally local and simple:
 - at most 3 origin airports and 3 destination airports per route option
 - append-only fetched offer history in the `price_records` SQLite table
 - Gmail inbox booking automation with OpenAI-backed extraction
+- first-class `live` vs `test` data scoping in SQLite
 - no paid fare APIs
 - no credits or hotels
 
@@ -201,7 +202,16 @@ That file is the source of truth for:
 - `timezone`
 - `future_weeks`
 - `enable_background_fetcher`
+- `show_test_data`
+- `process_test_data`
 - config schema `version`
+
+Runtime behavior:
+
+- every main domain row carries `data_scope = 'live' | 'test'`
+- the UI hides `test` rows by default
+- background fetch, Gmail booking matching, and refresh queueing ignore `test` rows by default
+- obvious QA/E2E artifacts are backfilled to `test` during migration
 
 The main logical tables are:
 

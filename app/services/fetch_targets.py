@@ -54,6 +54,7 @@ def reconcile_fetch_targets(
                 definition_changed = existing.tracker_definition_signature != tracker.definition_signature
                 offset_changed = existing.schedule_offset_seconds != schedule_offset_seconds
                 existing.trip_instance_id = tracker.trip_instance_id
+                existing.data_scope = tracker.data_scope
                 existing.tracker_definition_signature = tracker.definition_signature
                 existing.google_flights_url = google_flights_url
                 existing.updated_at = utcnow()
@@ -80,6 +81,7 @@ def reconcile_fetch_targets(
                     fetch_target_id=fetch_target_id,
                     tracker_id=tracker.tracker_id,
                     trip_instance_id=tracker.trip_instance_id,
+                    data_scope=tracker.data_scope,
                     tracker_definition_signature=tracker.definition_signature,
                     origin_airport=origin_airport,
                     destination_airport=destination_airport,

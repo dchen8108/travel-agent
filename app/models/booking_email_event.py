@@ -4,13 +4,14 @@ from datetime import datetime
 
 from pydantic import Field, field_validator
 
-from app.models.base import BookingEmailEventStatus, CsvModel, utcnow
+from app.models.base import BookingEmailEventStatus, CsvModel, DataScope, utcnow
 from app.route_options import join_pipe, split_pipe
 
 
 class BookingEmailEvent(CsvModel):
     email_event_id: str
     gmail_message_id: str
+    data_scope: DataScope = DataScope.LIVE
     gmail_thread_id: str = ""
     gmail_history_id: str = ""
     from_address: str = ""

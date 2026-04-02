@@ -8,6 +8,7 @@ import traceback
 
 from app.models.base import utcnow
 from app.services.background_fetch import run_fetch_batch, select_due_fetch_targets
+from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import trip_for_instance
 from app.services.ids import new_id
 from app.services.price_records import build_price_records
@@ -49,6 +50,7 @@ def main() -> None:
     total_due_target_count = 0
     try:
         snapshot = sync_and_persist(repository)
+        include_test_data = include_test_data_for_processing(snapshot.app_state)
         if not snapshot.app_state.enable_background_fetcher:
             _emit_log("run_disabled", run_id=run_id, pid=os.getpid())
             return
@@ -60,6 +62,7 @@ def main() -> None:
             snapshot.tracker_fetch_targets,
             now=selection_now,
             max_targets=len(snapshot.tracker_fetch_targets),
+            include_test_data=include_test_data,
         )
         due_targets = select_due_fetch_targets(
             snapshot.trackers,
@@ -67,6 +70,7 @@ def main() -> None:
             snapshot.tracker_fetch_targets,
             now=selection_now,
             max_targets=args.max_targets,
+            include_test_data=include_test_data,
         )
         selected_target_ids = [target.fetch_target_id for target in due_targets]
         total_due_target_count = len(all_due_targets)
@@ -94,6 +98,7 @@ def main() -> None:
             sleep_between_requests=not args.no_sleep,
             startup_jitter_seconds=max(args.startup_jitter_seconds, 0.0),
             due_targets=due_targets,
+            include_test_data=include_test_data,
         )
         trip_label_by_instance_id = {}
         for instance in snapshot.trip_instances:

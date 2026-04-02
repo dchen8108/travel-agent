@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from app.models.base import CsvModel, TravelState, TripInstanceKind, utcnow
+from app.models.base import CsvModel, DataScope, TravelState, TripInstanceKind, utcnow
 
 
 class TripInstance(CsvModel):
@@ -12,6 +12,7 @@ class TripInstance(CsvModel):
     trip_id: str
     display_label: str
     anchor_date: date
+    data_scope: DataScope = DataScope.LIVE
     instance_kind: TripInstanceKind = TripInstanceKind.STANDALONE
     travel_state: TravelState = TravelState.OPEN
     booking_id: str = ""

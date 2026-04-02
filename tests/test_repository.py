@@ -185,7 +185,8 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 6
+    assert user_version == 7
+    assert "data_scope" in columns
     assert "price_text" not in columns
     assert "summary" not in columns
     assert "request_offer_count" not in columns
@@ -293,14 +294,75 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
     connection = sqlite3.connect(repository.db_path)
     try:
         booked_price = connection.execute("SELECT booked_price FROM bookings WHERE booking_id = 'book_bad'").fetchone()[0]
-        booked_price_type = connection.execute("PRAGMA table_info(bookings)").fetchall()[10][2]
+        booking_columns = {row[1]: row[2] for row in connection.execute("PRAGMA table_info(bookings)").fetchall()}
         user_version = connection.execute("PRAGMA user_version").fetchone()[0]
         booking_email_event_columns = {row[1] for row in connection.execute("PRAGMA table_info(booking_email_events)").fetchall()}
     finally:
         connection.close()
 
     assert booked_price == 78.4
-    assert booked_price_type == "REAL"
-    assert user_version == 6
+    assert booking_columns["booked_price"] == "REAL"
+    assert user_version == 7
     assert "extraction_attempt_count" in booking_email_event_columns
     assert "retryable" in booking_email_event_columns
+    assert "data_scope" in booking_email_event_columns
+
+
+def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    connection = sqlite3.connect(repository.db_path)
+    try:
+        connection.execute(
+            """
+            INSERT INTO trips (
+                trip_id, label, trip_kind, preference_mode, data_scope, active, anchor_date, anchor_weekday, created_at, updated_at
+            ) VALUES (
+                'trip_test', 'SQLite E2E Trip abc123', 'one_time', 'equal', 'live', 1, '2026-04-15', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO trip_instances (
+                trip_instance_id, trip_id, display_label, anchor_date, data_scope, instance_kind, travel_state, booking_id, last_signal_at, created_at, updated_at
+            ) VALUES (
+                'inst_test', 'trip_test', 'SQLite E2E Trip abc123', '2026-04-15', 'live', 'standalone', 'open', '', NULL, '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO bookings (
+                booking_id, source, trip_instance_id, data_scope, tracker_id, airline, origin_airport, destination_airport,
+                departure_date, departure_time, arrival_time, booked_price, record_locator, booked_at, booking_status,
+                match_status, raw_summary, candidate_trip_instance_ids, resolution_status, notes, created_at, updated_at
+            ) VALUES (
+                'book_test', 'manual', 'inst_test', 'live', NULL, 'AS', 'BUR', 'SFO',
+                '2026-04-15', '07:00', '08:30', 145.0, 'E2EX123', '2026-04-01T12:00:00+00:00', 'active',
+                'matched', '', '', 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute("PRAGMA user_version = 6")
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    trip = next(item for item in repository.load_trips() if item.trip_id == "trip_test")
+    trip_instance = next(item for item in repository.load_trip_instances() if item.trip_instance_id == "inst_test")
+    booking = next(item for item in repository.load_bookings() if item.booking_id == "book_test")
+
+    assert trip.data_scope == "test"
+    assert trip_instance.data_scope == "test"
+    assert booking.data_scope == "test"

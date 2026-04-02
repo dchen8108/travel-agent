@@ -16,6 +16,8 @@ The migration strategy is pragmatic:
 - `timezone`
 - `future_weeks`
 - `enable_background_fetcher`
+- `show_test_data`
+- `process_test_data`
 - config schema `version`
 
 SQLite itself carries its schema version through `PRAGMA user_version`.
@@ -32,6 +34,7 @@ Key columns:
 - `label`
 - `trip_kind`
 - `preference_mode`
+- `data_scope`
 - `active`
 - `anchor_date`
 - `anchor_weekday`
@@ -47,6 +50,7 @@ Key columns:
 - `route_option_id`
 - `trip_id`
 - `rank`
+- `data_scope`
 - `savings_needed_vs_previous`
 - `origin_airports`
 - `destination_airports`
@@ -156,6 +160,7 @@ Key columns:
 - `booking_id`
 - `source`
 - `trip_instance_id`
+- `data_scope`
 - `tracker_id`
 - `airline`
 - `origin_airport`
@@ -188,6 +193,7 @@ Key columns:
 - `price_record_id`
 - `fetch_event_id`
 - `observed_at`
+- `data_scope`
 - `fetch_target_id`
 - `tracker_id`
 - `trip_instance_id`

@@ -146,6 +146,7 @@ class Repository:
                 booking_id,
                 source,
                 COALESCE(trip_instance_id, '') AS trip_instance_id,
+                data_scope,
                 COALESCE(tracker_id, '') AS tracker_id,
                 airline,
                 origin_airport,
@@ -174,6 +175,7 @@ class Repository:
                     "booking_id": booking.booking_id,
                     "source": booking.source,
                     "trip_instance_id": booking.trip_instance_id,
+                    "data_scope": booking.data_scope,
                     "tracker_id": booking.tracker_id or None,
                     "airline": booking.airline,
                     "origin_airport": booking.origin_airport,
@@ -201,6 +203,7 @@ class Repository:
             SELECT
                 booking_id AS unmatched_booking_id,
                 source,
+                data_scope,
                 airline,
                 origin_airport,
                 destination_airport,
@@ -227,6 +230,7 @@ class Repository:
                 {
                     "booking_id": unmatched.unmatched_booking_id,
                     "source": unmatched.source,
+                    "data_scope": unmatched.data_scope,
                     "trip_instance_id": None,
                     "tracker_id": None,
                     "airline": unmatched.airline,

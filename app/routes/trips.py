@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
-from app.models.base import FareClassPolicy, TravelState
+from app.models.base import DataScope, FareClassPolicy, TravelState
+from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
     archived_one_time_trips,
     best_tracker,
@@ -394,9 +395,16 @@ async def save_trip_action(
             anchor_date=date.fromisoformat(anchor_date_value) if anchor_date_value else None,
             anchor_weekday=anchor_weekday,
             route_option_payloads=route_options,
+            data_scope=str(form.get("data_scope", existing_trip.data_scope if existing_trip else DataScope.LIVE)).strip()
+            or (existing_trip.data_scope if existing_trip else DataScope.LIVE),
         )
         snapshot = sync_and_persist(repository)
-        queued_count = queue_refresh_for_trip(snapshot, repository, trip_id=trip.trip_id)
+        queued_count = queue_refresh_for_trip(
+            snapshot,
+            repository,
+            trip_id=trip.trip_id,
+            include_test_data=include_test_data_for_processing(snapshot.app_state),
+        )
         message = queued_refresh_message("Trip saved", queued_count)
         return redirect_with_message(f"/trips/{trip.trip_id}", message)
     except ValueError as exc:
@@ -445,7 +453,12 @@ def activate_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = sync_and_persist(repository)
-    queued_count = queue_refresh_for_trip(snapshot, repository, trip_id=trip_id)
+    queued_count = queue_refresh_for_trip(
+        snapshot,
+        repository,
+        trip_id=trip_id,
+        include_test_data=include_test_data_for_processing(snapshot.app_state),
+    )
     return redirect_back(
         request,
         fallback_url="/trips",
@@ -532,7 +545,12 @@ def restore_trip_instance(
     trip_instance.travel_state = TravelState.OPEN
     repository.save_trip_instances(trip_instances)
     snapshot = sync_and_persist(repository)
-    queued_count = queue_refresh_for_trip_instance(snapshot, repository, trip_instance_id=trip_instance_id)
+    queued_count = queue_refresh_for_trip_instance(
+        snapshot,
+        repository,
+        trip_instance_id=trip_instance_id,
+        include_test_data=include_test_data_for_processing(snapshot.app_state),
+    )
     return redirect_back(
         request,
         fallback_url=f"/trip-instances/{trip_instance_id}",

@@ -55,6 +55,7 @@ def build_price_records(
                     price_record_id=new_id("price"),
                     fetch_event_id=fetch_event_id,
                     observed_at=fetch.fetched_at,
+                    data_scope=tracker.data_scope,
                     fetch_target_id=target.fetch_target_id,
                     tracker_id=tracker.tracker_id,
                     trip_instance_id=trip_instance.trip_instance_id,

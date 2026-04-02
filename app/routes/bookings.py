@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.catalog import catalogs_json
 from app.money import parse_money
+from app.models.base import DataScope
 from app.services.gmail_client import gmail_auth_status
 from app.services.gmail_config import load_gmail_integration_config
 from app.services.bookings import BookingCandidate, record_booking, unlink_booking
@@ -165,6 +166,7 @@ async def save_booking(
             candidate,
             trip_instance_id=booking_state["trip_instance_id"],
             tracker_id=str(form.get("tracker_id", "")).strip(),
+            data_scope=str(form.get("data_scope", DataScope.LIVE)).strip() or DataScope.LIVE,
         )
         sync_and_persist(repository)
         if unmatched is not None:

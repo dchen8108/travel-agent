@@ -80,11 +80,18 @@ class BookingEmailEventStatus(StrEnum):
     ERROR = "error"
 
 
+class DataScope(StrEnum):
+    LIVE = "live"
+    TEST = "test"
+
+
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
     future_weeks: int = 12
     enable_background_fetcher: bool = True
-    version: int = 4
+    show_test_data: bool = False
+    process_test_data: bool = False
+    version: int = 5
 
 
 def utcnow() -> datetime:

@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pydantic import field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import CsvModel, FareClassPolicy
+from app.models.base import CsvModel, DataScope, FareClassPolicy
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
@@ -13,6 +13,7 @@ class PriceRecord(CsvModel):
     price_record_id: str
     fetch_event_id: str
     observed_at: datetime
+    data_scope: DataScope = DataScope.LIVE
     fetch_target_id: str
     tracker_id: str
     trip_instance_id: str

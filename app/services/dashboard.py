@@ -12,6 +12,7 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.services.recommendations import best_tracker_for_instance
+from app.services.data_scope import filter_snapshot, include_test_data_for_ui
 from app.services.snapshots import AppSnapshot
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -19,20 +20,23 @@ from app.storage.repository import Repository
 
 def load_snapshot(repository: Repository, *, recompute: bool = True) -> AppSnapshot:
     repository.ensure_data_dir()
+    app_state = repository.load_app_state()
     if recompute:
-        return sync_and_persist(repository)
-    return AppSnapshot(
-        trips=repository.load_trips(),
-        route_options=repository.load_route_options(),
-        trip_instances=repository.load_trip_instances(),
-        trackers=repository.load_trackers(),
-        tracker_fetch_targets=repository.load_tracker_fetch_targets(),
-        bookings=repository.load_bookings(),
-        unmatched_bookings=repository.load_unmatched_bookings(),
-        booking_email_events=repository.load_booking_email_events(),
-        price_records=repository.load_price_records(),
-        app_state=repository.load_app_state(),
-    )
+        snapshot = sync_and_persist(repository)
+    else:
+        snapshot = AppSnapshot(
+            trips=repository.load_trips(),
+            route_options=repository.load_route_options(),
+            trip_instances=repository.load_trip_instances(),
+            trackers=repository.load_trackers(),
+            tracker_fetch_targets=repository.load_tracker_fetch_targets(),
+            bookings=repository.load_bookings(),
+            unmatched_bookings=repository.load_unmatched_bookings(),
+            booking_email_events=repository.load_booking_email_events(),
+            price_records=repository.load_price_records(),
+            app_state=app_state,
+        )
+    return filter_snapshot(snapshot, include_test_data=include_test_data_for_ui(app_state))
 
 
 def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Booking | None:

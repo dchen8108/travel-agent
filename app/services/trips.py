@@ -4,7 +4,7 @@ from datetime import date
 
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
-from app.models.base import FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
+from app.models.base import DataScope, FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
 from app.services.ids import new_id
 from app.storage.repository import Repository
 
@@ -35,6 +35,7 @@ def build_trip(
     anchor_date: date | None,
     anchor_weekday: str,
     preference_mode: str = RoutePreferenceMode.EQUAL,
+    data_scope: str = DataScope.LIVE,
 ) -> Trip:
     now = utcnow()
     return Trip(
@@ -42,6 +43,7 @@ def build_trip(
         label=label,
         trip_kind=parse_trip_kind(trip_kind),
         preference_mode=parse_preference_mode(preference_mode),
+        data_scope=DataScope(data_scope),
         active=active,
         anchor_date=anchor_date,
         anchor_weekday=anchor_weekday,
@@ -53,6 +55,7 @@ def build_trip(
 def build_route_options(
     *,
     trip_id: str,
+    data_scope: str,
     payloads: list[dict[str, object]],
     existing_route_options: list[RouteOption] | None = None,
 ) -> list[RouteOption]:
@@ -66,6 +69,7 @@ def build_route_options(
             route_option_id=route_option_id,
             trip_id=trip_id,
             rank=index,
+            data_scope=DataScope(data_scope),
             savings_needed_vs_previous=0 if index == 1 else int(payload.get("savings_needed_vs_previous", 0)),
             origin_airports=str(payload.get("origin_airports", "")),
             destination_airports=str(payload.get("destination_airports", "")),
@@ -106,6 +110,7 @@ def save_trip(
     anchor_weekday: str,
     route_option_payloads: list[dict[str, object]],
     preference_mode: str = RoutePreferenceMode.EQUAL,
+    data_scope: str = DataScope.LIVE,
 ) -> Trip:
     trips = repository.load_trips()
     route_options = repository.load_route_options()
@@ -117,6 +122,7 @@ def save_trip(
         label=label,
         trip_kind=trip_kind,
         preference_mode=preference_mode,
+        data_scope=data_scope,
         active=active,
         anchor_date=anchor_date,
         anchor_weekday=anchor_weekday,
@@ -124,10 +130,13 @@ def save_trip(
     if existing_trip:
         trip.created_at = existing_trip.created_at
         trip.updated_at = utcnow()
+        if not data_scope:
+            trip.data_scope = existing_trip.data_scope
 
     existing_route_options = [option for option in route_options if option.trip_id == trip.trip_id]
     built_route_options = build_route_options(
         trip_id=trip.trip_id,
+        data_scope=trip.data_scope,
         payloads=route_option_payloads,
         existing_route_options=existing_route_options,
     )

@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pydantic import Field, field_validator, model_validator
 
 from app.catalog import WEEKDAYS
-from app.models.base import CsvModel, RoutePreferenceMode, TripKind, utcnow
+from app.models.base import CsvModel, DataScope, RoutePreferenceMode, TripKind, utcnow
 
 
 class Trip(CsvModel):
@@ -13,6 +13,7 @@ class Trip(CsvModel):
     label: str
     trip_kind: TripKind
     preference_mode: RoutePreferenceMode = RoutePreferenceMode.EQUAL
+    data_scope: DataScope = DataScope.LIVE
     active: bool = True
     anchor_date: date | None = None
     anchor_weekday: str = ""

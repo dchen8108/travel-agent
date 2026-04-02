@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     booking_id TEXT PRIMARY KEY,
     source TEXT NOT NULL DEFAULT 'manual',
     trip_instance_id TEXT NULL,
+    data_scope TEXT NOT NULL DEFAULT 'live',
     tracker_id TEXT NULL,
     airline TEXT NOT NULL,
     origin_airport TEXT NOT NULL,
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS price_records (
     price_record_id TEXT PRIMARY KEY,
     fetch_event_id TEXT NOT NULL,
     observed_at TEXT NOT NULL,
+    data_scope TEXT NOT NULL DEFAULT 'live',
     fetch_target_id TEXT NOT NULL,
     tracker_id TEXT NOT NULL,
     trip_instance_id TEXT NOT NULL,
@@ -68,6 +70,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         label TEXT NOT NULL UNIQUE,
         trip_kind TEXT NOT NULL,
         preference_mode TEXT NOT NULL,
+        data_scope TEXT NOT NULL DEFAULT 'live',
         active INTEGER NOT NULL,
         anchor_date TEXT NULL,
         anchor_weekday TEXT NOT NULL DEFAULT '',
@@ -80,6 +83,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         route_option_id TEXT PRIMARY KEY,
         trip_id TEXT NOT NULL,
         rank INTEGER NOT NULL,
+        data_scope TEXT NOT NULL DEFAULT 'live',
         savings_needed_vs_previous INTEGER NOT NULL,
         origin_airports TEXT NOT NULL,
         destination_airports TEXT NOT NULL,
@@ -98,6 +102,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         trip_id TEXT NOT NULL,
         display_label TEXT NOT NULL,
         anchor_date TEXT NOT NULL,
+        data_scope TEXT NOT NULL DEFAULT 'live',
         instance_kind TEXT NOT NULL,
         travel_state TEXT NOT NULL,
         booking_id TEXT NOT NULL DEFAULT '',
@@ -112,6 +117,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         trip_instance_id TEXT NOT NULL,
         route_option_id TEXT NOT NULL,
         rank INTEGER NOT NULL,
+        data_scope TEXT NOT NULL DEFAULT 'live',
         preference_bias_dollars INTEGER NOT NULL,
         origin_airports TEXT NOT NULL,
         destination_airports TEXT NOT NULL,
@@ -139,6 +145,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         fetch_target_id TEXT PRIMARY KEY,
         tracker_id TEXT NOT NULL,
         trip_instance_id TEXT NOT NULL,
+        data_scope TEXT NOT NULL DEFAULT 'live',
         tracker_definition_signature TEXT NOT NULL DEFAULT '',
         origin_airport TEXT NOT NULL,
         destination_airport TEXT NOT NULL,
@@ -165,6 +172,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     CREATE TABLE IF NOT EXISTS booking_email_events (
         email_event_id TEXT PRIMARY KEY,
         gmail_message_id TEXT NOT NULL UNIQUE,
+        data_scope TEXT NOT NULL DEFAULT 'live',
         gmail_thread_id TEXT NOT NULL DEFAULT '',
         gmail_history_id TEXT NOT NULL DEFAULT '',
         from_address TEXT NOT NULL DEFAULT '',

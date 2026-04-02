@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date, datetime
 
-from app.models.base import UnmatchedBookingStatus, utcnow
+from app.models.base import DataScope, UnmatchedBookingStatus, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.unmatched_booking import UnmatchedBooking
 from app.route_options import time_in_window
+from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.ids import new_id
 from app.services.trips import save_trip
 from app.storage.repository import Repository
@@ -32,6 +33,7 @@ def _build_booking(
     *,
     source: str,
     trip_instance_id: str,
+    data_scope: str,
     tracker_id: str = "",
     notes: str | None = None,
 ) -> Booking:
@@ -39,6 +41,7 @@ def _build_booking(
         booking_id=new_id("book"),
         source=source,
         trip_instance_id=trip_instance_id,
+        data_scope=DataScope(data_scope),
         tracker_id=tracker_id,
         airline=candidate.airline,
         origin_airport=candidate.origin_airport,
@@ -63,6 +66,7 @@ def _booking_to_unmatched(booking: Booking) -> UnmatchedBooking:
     return UnmatchedBooking(
         unmatched_booking_id=booking.booking_id,
         source=booking.source,
+        data_scope=booking.data_scope,
         airline=booking.airline,
         origin_airport=booking.origin_airport,
         destination_airport=booking.destination_airport,
@@ -107,9 +111,12 @@ def record_booking(
     trip_instance_id: str = "",
     tracker_id: str = "",
     source: str = "manual",
+    data_scope: str = DataScope.LIVE,
 ) -> tuple[Booking | None, UnmatchedBooking | None]:
-    trip_instances = repository.load_trip_instances()
-    trackers = repository.load_trackers()
+    app_state = repository.load_app_state()
+    include_test_data = include_test_data_for_processing(app_state) or str(data_scope) == DataScope.TEST
+    trip_instances = filter_items(repository.load_trip_instances(), include_test_data=include_test_data)
+    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
 
     selected_trip = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None) if trip_instance_id else None
     selected_tracker = next((item for item in trackers if item.tracker_id == tracker_id), None) if tracker_id else None
@@ -122,6 +129,7 @@ def record_booking(
             candidate,
             source=source,
             trip_instance_id=selected_tracker.trip_instance_id,
+            data_scope=selected_tracker.data_scope,
             tracker_id=selected_tracker.tracker_id,
         )
         return _save_booking(repository, booking), None
@@ -138,6 +146,7 @@ def record_booking(
             candidate,
             source=source,
             trip_instance_id=selected_trip.trip_instance_id,
+            data_scope=selected_trip.data_scope,
             tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         )
         return _save_booking(repository, booking), None
@@ -149,6 +158,7 @@ def record_booking(
             candidate,
             source=source,
             trip_instance_id=matched.trip_instance_id,
+            data_scope=matched.data_scope,
             tracker_id=matched.tracker_id,
         )
         return _save_booking(repository, booking), None
@@ -156,6 +166,7 @@ def record_booking(
     unmatched = UnmatchedBooking(
         unmatched_booking_id=new_id("ub"),
         source=source,
+        data_scope=DataScope(data_scope),
         airline=candidate.airline,
         origin_airport=candidate.origin_airport,
         destination_airport=candidate.destination_airport,
@@ -206,6 +217,7 @@ def resolve_unmatched_booking_to_trip_instance(
         candidate,
         source=unmatched.source,
         trip_instance_id=trip_instance_id,
+        data_scope=unmatched.data_scope,
         tracker_id=matching_trackers[0].tracker_id if len(matching_trackers) == 1 else "",
         notes="Resolved from unmatched booking",
     )
@@ -241,6 +253,7 @@ def create_one_time_trip_from_unmatched_booking(
         label=trip_label,
         trip_kind="one_time",
         active=True,
+        data_scope=unmatched.data_scope,
         anchor_date=unmatched.departure_date,
         anchor_weekday="",
         route_option_payloads=[

@@ -84,6 +84,7 @@ def reconcile_trackers(
             if existing:
                 definition_changed = bool(existing.definition_signature) and existing.definition_signature != definition_signature
                 existing.rank = option.rank
+                existing.data_scope = instance.data_scope
                 existing.preference_bias_dollars = preference_bias_dollars
                 existing.origin_airports = option.origin_airports
                 existing.destination_airports = option.destination_airports
@@ -111,6 +112,7 @@ def reconcile_trackers(
                     trip_instance_id=instance.trip_instance_id,
                     route_option_id=option.route_option_id,
                     rank=option.rank,
+                    data_scope=instance.data_scope,
                     preference_bias_dollars=preference_bias_dollars,
                     origin_airports=option.origin_airports,
                     destination_airports=option.destination_airports,

@@ -7,7 +7,7 @@ from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
 from app.money import parse_money
-from app.models.base import BookingStatus, CsvModel, utcnow
+from app.models.base import BookingStatus, CsvModel, DataScope, utcnow
 from app.route_options import parse_time
 
 
@@ -15,6 +15,7 @@ class Booking(CsvModel):
     booking_id: str
     source: str = "manual"
     trip_instance_id: str
+    data_scope: DataScope = DataScope.LIVE
     tracker_id: str = ""
     airline: str
     origin_airport: str

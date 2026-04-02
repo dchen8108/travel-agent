@@ -64,6 +64,7 @@ def queue_rolling_refresh(
     *,
     now: datetime | None = None,
     trip_instance_ids: set[str] | None = None,
+    include_test_data: bool = True,
 ) -> int:
     now = now or utcnow()
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
@@ -78,6 +79,12 @@ def queue_rolling_refresh(
         tracker = tracker_by_id.get(target.tracker_id)
         instance = instance_by_id.get(target.trip_instance_id)
         if not tracker or not instance:
+            continue
+        if not include_test_data and (
+            str(getattr(target, "data_scope", "live")) == "test"
+            or str(getattr(tracker, "data_scope", "live")) == "test"
+            or str(getattr(instance, "data_scope", "live")) == "test"
+        ):
             continue
         if trip_instance_ids and target.trip_instance_id not in trip_instance_ids:
             continue
@@ -97,6 +104,7 @@ def select_due_fetch_targets(
     *,
     now: datetime | None = None,
     max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
+    include_test_data: bool = True,
 ) -> list[TrackerFetchTarget]:
     now = now or utcnow()
     if max_targets <= 0:
@@ -114,6 +122,12 @@ def select_due_fetch_targets(
         tracker = tracker_by_id.get(target.tracker_id)
         instance = instance_by_id.get(target.trip_instance_id)
         if not tracker or not instance:
+            continue
+        if not include_test_data and (
+            str(getattr(target, "data_scope", "live")) == "test"
+            or str(getattr(tracker, "data_scope", "live")) == "test"
+            or str(getattr(instance, "data_scope", "live")) == "test"
+        ):
             continue
         if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
             continue
@@ -138,6 +152,7 @@ def run_fetch_batch(
     sleep_between_requests: bool = True,
     startup_jitter_seconds: float = 0.0,
     due_targets: list[TrackerFetchTarget] | None = None,
+    include_test_data: bool = True,
 ) -> FetchBatchResult:
     now = now or utcnow()
     if max_targets <= 0 and due_targets is None:
@@ -158,6 +173,7 @@ def run_fetch_batch(
             fetch_targets,
             now=now,
             max_targets=max_targets,
+            include_test_data=include_test_data,
         )
     if not due_targets:
         return FetchBatchResult(
@@ -181,6 +197,12 @@ def run_fetch_batch(
             tracker = tracker_by_id.get(target.tracker_id)
             instance = instance_by_id.get(target.trip_instance_id)
             if not tracker or not instance:
+                continue
+            if not include_test_data and (
+                str(getattr(target, "data_scope", "live")) == "test"
+                or str(getattr(tracker, "data_scope", "live")) == "test"
+                or str(getattr(instance, "data_scope", "live")) == "test"
+            ):
                 continue
             fetch_started_at = utcnow()
             offers = []
