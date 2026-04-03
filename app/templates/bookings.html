@@ -97,6 +97,7 @@
     {% set booking = card.booking %}
     {% set trip_instance = card.trip_instance %}
     {% set parent_trip = card.parent_trip %}
+    {% set route_tracking = card.route_tracking %}
     <article class="card booking-card compact-surface-card">
       <div class="card-header">
         <div>
@@ -110,9 +111,13 @@
       </div>
       <div class="meta-grid">
         <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else 'Unlinked' }}</dd></div>
+        <div><dt>Route tracking</dt><dd>{{ route_tracking.summary_label }}</dd></div>
         <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
         <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
       </div>
+      {% if route_tracking.warning %}
+      <p class="muted top-gap-small"><strong>{{ route_tracking.summary_label }}.</strong> {{ route_tracking.warning }}</p>
+      {% endif %}
       <div class="actions">
         {% if trip_instance %}
         <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
@@ -144,6 +149,7 @@
     {% set booking = card.booking %}
     {% set trip_instance = card.trip_instance %}
     {% set parent_trip = card.parent_trip %}
+    {% set route_tracking = card.route_tracking %}
     <article class="card booking-card is-muted-card compact-surface-card">
       <div class="card-header">
         <div>
@@ -160,6 +166,7 @@
       </div>
       <div class="meta-grid">
         <div><dt>Scheduled trip</dt><dd>{{ trip_instance.display_label if trip_instance else '—' }}</dd></div>
+        <div><dt>Route tracking</dt><dd>{{ route_tracking.summary_label if route_tracking.summary_label else '—' }}</dd></div>
         <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
         <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
       </div>

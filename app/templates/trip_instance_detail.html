@@ -76,7 +76,9 @@
     </div>
   </div>
   <div class="stack">
-    {% for linked_booking in bookings %}
+    {% for booking_card in booking_views %}
+    {% set linked_booking = booking_card.booking %}
+    {% set route_tracking = booking_card.route_tracking %}
     <article class="card booking-card {{ 'is-muted-card' if linked_booking.status != 'active' else '' }}">
       <div class="card-header">
         <div>
@@ -93,10 +95,14 @@
       </div>
       <div class="meta-grid">
         <div><dt>Record locator</dt><dd>{{ linked_booking.record_locator or '—' }}</dd></div>
+        <div><dt>Route tracking</dt><dd>{{ route_tracking.summary_label }}</dd></div>
         <div><dt>Booked on</dt><dd>{{ linked_booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
         <div><dt>Source</dt><dd>{{ linked_booking.source.replace('_', ' ') }}</dd></div>
         <div><dt>Notes</dt><dd>{{ linked_booking.notes or '—' }}</dd></div>
       </div>
+      {% if route_tracking.warning %}
+      <p class="muted top-gap-small"><strong>{{ route_tracking.summary_label }}.</strong> {{ route_tracking.warning }}</p>
+      {% endif %}
       {% if linked_booking.status == 'active' %}
       <div class="actions">
         <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">

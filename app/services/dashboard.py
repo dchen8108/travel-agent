@@ -142,6 +142,10 @@ def route_options_for_trip(snapshot: AppSnapshot, trip_id: str) -> list[RouteOpt
     )
 
 
+def route_option_by_id(snapshot: AppSnapshot, route_option_id: str) -> RouteOption | None:
+    return next((option for option in snapshot.route_options if option.route_option_id == route_option_id), None)
+
+
 def instances_for_trip(snapshot: AppSnapshot, trip_id: str, *, include_deleted: bool = False) -> list[TripInstance]:
     return sorted(
         [
@@ -273,6 +277,35 @@ def tracker_fetch_state(snapshot: AppSnapshot, trip_instance_id: str) -> dict[st
 
 def comparison_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
     return best_tracker(snapshot, trip_instance_id)
+
+
+def booking_route_tracking_state(snapshot: AppSnapshot, booking: Booking) -> dict[str, object]:
+    trip_instance = trip_instance_by_id(snapshot, booking.trip_instance_id)
+    if trip_instance is None:
+        return {
+            "route_option": None,
+            "summary_label": "—",
+            "warning": "",
+        }
+    trackers = trackers_for_instance(snapshot, booking.trip_instance_id)
+    matched_route_option = route_option_by_id(snapshot, booking.route_option_id) if booking.route_option_id else None
+    if matched_route_option is not None:
+        return {
+            "route_option": matched_route_option,
+            "summary_label": f"Matches option {matched_route_option.rank}",
+            "warning": "",
+        }
+    if trackers:
+        return {
+            "route_option": None,
+            "summary_label": "No tracked route match",
+            "warning": "This booking is linked to the trip, but it does not match any tracked route on this date yet.",
+        }
+    return {
+        "route_option": None,
+        "summary_label": "No tracked routes",
+        "warning": "This trip does not have any tracked routes yet, so Milemark cannot monitor this exact itinerary.",
+    }
 
 
 def rebook_savings(snapshot: AppSnapshot, trip_instance_id: str) -> int | None:

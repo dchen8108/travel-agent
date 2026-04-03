@@ -34,6 +34,7 @@ def _build_booking(
     *,
     source: str,
     trip_instance_id: str,
+    route_option_id: str = "",
     data_scope: str,
     notes: str | None = None,
 ) -> Booking:
@@ -41,6 +42,7 @@ def _build_booking(
         booking_id=new_id("book"),
         source=source,
         trip_instance_id=trip_instance_id,
+        route_option_id=route_option_id,
         data_scope=DataScope(data_scope),
         airline=candidate.airline,
         origin_airport=candidate.origin_airport,
@@ -107,6 +109,36 @@ def _matching_trip_instance_ids_for_booking(candidate: BookingCandidate, tracker
     return sorted({tracker.trip_instance_id for tracker in matching_trackers})
 
 
+def _matching_route_option_ids_for_booking(
+    candidate: BookingCandidate,
+    trackers: list[Tracker],
+    *,
+    trip_instance_id: str,
+) -> list[str]:
+    matching_trackers = [
+        tracker
+        for tracker in _matching_trackers_for_booking(candidate, trackers)
+        if tracker.trip_instance_id == trip_instance_id
+    ]
+    return sorted({tracker.route_option_id for tracker in matching_trackers if tracker.route_option_id})
+
+
+def _route_option_id_for_booking(
+    candidate: BookingCandidate,
+    trackers: list[Tracker],
+    *,
+    trip_instance_id: str,
+) -> str:
+    matching_route_option_ids = _matching_route_option_ids_for_booking(
+        candidate,
+        trackers,
+        trip_instance_id=trip_instance_id,
+    )
+    if len(matching_route_option_ids) == 1:
+        return matching_route_option_ids[0]
+    return ""
+
+
 def matching_trip_instance_ids_for_booking(
     repository: Repository,
     candidate: BookingCandidate,
@@ -129,6 +161,38 @@ def _candidate_from_unmatched(unmatched: UnmatchedBooking) -> BookingCandidate:
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
     )
+
+
+def _candidate_from_booking(booking: Booking) -> BookingCandidate:
+    return BookingCandidate(
+        airline=booking.airline,
+        origin_airport=booking.origin_airport,
+        destination_airport=booking.destination_airport,
+        departure_date=booking.departure_date,
+        departure_time=booking.departure_time,
+        arrival_time=booking.arrival_time,
+        booked_price=booking.booked_price,
+        record_locator=booking.record_locator,
+        notes=booking.notes,
+    )
+
+
+def reconcile_booking_route_options(
+    *,
+    bookings: list[Booking],
+    trackers: list[Tracker],
+) -> list[Booking]:
+    for booking in bookings:
+        next_route_option_id = _route_option_id_for_booking(
+            _candidate_from_booking(booking),
+            trackers,
+            trip_instance_id=booking.trip_instance_id,
+        )
+        if booking.route_option_id == next_route_option_id:
+            continue
+        booking.route_option_id = next_route_option_id
+        booking.updated_at = utcnow()
+    return bookings
 
 
 def reconcile_unmatched_bookings(
@@ -179,6 +243,11 @@ def reconcile_unmatched_bookings(
                 candidate,
                 source=unmatched.source,
                 trip_instance_id=matched_trip_instance.trip_instance_id,
+                route_option_id=_route_option_id_for_booking(
+                    candidate,
+                    trackers,
+                    trip_instance_id=matched_trip_instance.trip_instance_id,
+                ),
                 data_scope=matched_trip_instance.data_scope,
                 notes=notes,
             )
@@ -208,6 +277,11 @@ def record_booking(
             candidate,
             source=source,
             trip_instance_id=selected_trip.trip_instance_id,
+            route_option_id=_route_option_id_for_booking(
+                candidate,
+                trackers,
+                trip_instance_id=selected_trip.trip_instance_id,
+            ),
             data_scope=selected_trip.data_scope,
         )
         return _save_booking(repository, booking), None
@@ -222,6 +296,11 @@ def record_booking(
             candidate,
             source=source,
             trip_instance_id=matched_trip_instance.trip_instance_id,
+            route_option_id=_route_option_id_for_booking(
+                candidate,
+                trackers,
+                trip_instance_id=matched_trip_instance.trip_instance_id,
+            ),
             data_scope=matched_trip_instance.data_scope,
         )
         return _save_booking(repository, booking), None
@@ -274,6 +353,11 @@ def resolve_unmatched_booking_to_trip_instance(
         candidate,
         source=unmatched.source,
         trip_instance_id=trip_instance_id,
+        route_option_id=_route_option_id_for_booking(
+            candidate,
+            repository.load_trackers(),
+            trip_instance_id=trip_instance_id,
+        ),
         data_scope=unmatched.data_scope,
         notes="Resolved from unmatched booking",
     )

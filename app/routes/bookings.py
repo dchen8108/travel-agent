@@ -16,7 +16,12 @@ from app.services.bookings import (
     resolve_unmatched_booking_to_trip_instance,
     unlink_booking,
 )
-from app.services.dashboard import load_snapshot, trip_for_instance, trip_instance_by_id
+from app.services.dashboard import (
+    booking_route_tracking_state,
+    load_snapshot,
+    trip_for_instance,
+    trip_instance_by_id,
+)
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
@@ -56,6 +61,7 @@ def _booking_views(snapshot):
                 "booking": booking,
                 "trip_instance": trip_instance,
                 "parent_trip": parent_trip,
+                "route_tracking": booking_route_tracking_state(snapshot, booking),
             }
         )
     return cards
@@ -76,6 +82,7 @@ def _booking_history_views(snapshot):
                 "booking": booking,
                 "trip_instance": trip_instance,
                 "parent_trip": parent_trip,
+                "route_tracking": booking_route_tracking_state(snapshot, booking),
             }
         )
     return cards

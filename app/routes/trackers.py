@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.money import format_money
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
+    booking_route_tracking_state,
     bookings_for_instance,
     best_tracker,
     booking_for_instance,
@@ -209,6 +210,13 @@ def trackers_detail(
     ]
     booking = booking_for_instance(snapshot, trip_instance_id)
     bookings = bookings_for_instance(snapshot, trip_instance_id)
+    booking_views = [
+        {
+            "booking": linked_booking,
+            "route_tracking": booking_route_tracking_state(snapshot, linked_booking),
+        }
+        for linked_booking in bookings
+    ]
     active_bookings = [item for item in bookings if item.status == "active"]
     best_current_tracker = best_tracker(snapshot, trip_instance_id)
     comparison = comparison_tracker(snapshot, trip_instance_id)
@@ -287,6 +295,7 @@ def trackers_detail(
             total_fetch_targets=total_fetch_targets,
             sibling_instances=sibling_instances,
             bookings=bookings,
+            booking_views=booking_views,
             active_bookings=active_bookings,
             booking=booking,
             can_archive_parent_trip=can_archive_parent_trip,

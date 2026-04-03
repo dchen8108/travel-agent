@@ -10,7 +10,7 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.route_options import join_pipe, split_pipe
-from app.services.bookings import reconcile_unmatched_bookings
+from app.services.bookings import reconcile_booking_route_options, reconcile_unmatched_bookings
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.group_memberships import reconcile_trip_instance_group_memberships
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
@@ -102,7 +102,10 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         if booking.trip_instance_id not in valid_trip_instance_ids:
             continue
         filtered_bookings.append(booking)
-    bookings = filtered_bookings
+    bookings = reconcile_booking_route_options(
+        bookings=filtered_bookings,
+        trackers=trackers,
+    )
     bookings, unmatched_bookings = reconcile_unmatched_bookings(
         bookings=bookings,
         unmatched_bookings=unmatched_bookings,

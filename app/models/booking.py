@@ -15,6 +15,7 @@ class Booking(CsvModel):
     booking_id: str
     source: str = "manual"
     trip_instance_id: str
+    route_option_id: str = ""
     data_scope: DataScope = DataScope.LIVE
     airline: str
     origin_airport: str
@@ -54,6 +55,11 @@ class Booking(CsvModel):
     @classmethod
     def normalize_record_locator(cls, value: str) -> str:
         return value.strip().upper()
+
+    @field_validator("route_option_id")
+    @classmethod
+    def normalize_route_option_id(cls, value: str) -> str:
+        return value.strip()
 
     @field_validator("booked_price")
     @classmethod

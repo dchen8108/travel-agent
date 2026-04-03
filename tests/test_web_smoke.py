@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.models.base import FetchTargetStatus, utcnow
+from app.services.bookings import BookingCandidate, record_booking
 from app.services.groups import save_trip_group
 from app.services.trips import save_trip
 from app.settings import Settings
@@ -1362,3 +1363,64 @@ def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Pa
     assert 'id="past-' not in trips_page.text
     assert "Showing 0 scheduled trips." in trips_page.text
     assert "No scheduled trips match these filters." in trips_page.text
+
+
+def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Warning Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    from app.services.workflows import sync_and_persist
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 20),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="WARN01",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    assert booking is not None
+    assert unmatched is None
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    client = TestClient(create_app(settings))
+    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    bookings_page = client.get("/bookings")
+
+    assert detail.status_code == 200
+    assert "No tracked route match" in detail.text
+    assert "does not match any tracked route on this date yet" in detail.text
+    assert bookings_page.status_code == 200
+    assert "No tracked route match" in bookings_page.text

@@ -33,6 +33,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_group_memberships_to_v13(connection)
     _migrate_weekly_rule_legacy_groups_to_v14(connection)
     _migrate_fetch_target_claims_to_v15(connection)
+    _migrate_bookings_route_options_to_v16(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -373,6 +374,17 @@ def _migrate_bookings_to_v8(connection: sqlite3.Connection) -> None:
         """
     )
     connection.execute("DROP TABLE bookings_old_v8")
+
+
+def _migrate_bookings_route_options_to_v16(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "route_option_id" in columns:
+        return
+    connection.execute(
+        "ALTER TABLE bookings ADD COLUMN route_option_id TEXT NOT NULL DEFAULT ''"
+    )
 
 
 def _migrate_unmatched_bookings_to_v9(connection: sqlite3.Connection) -> None:

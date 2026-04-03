@@ -120,6 +120,7 @@ def test_booking_email_ingest_auto_creates_booking(repository: Repository, monke
     assert len(result.created_bookings) == 1
     booking = result.created_bookings[0]
     assert booking.trip_instance_id == trip_instance_id
+    assert booking.route_option_id != ""
     assert booking.source == "gmail"
     assert booking.record_locator == "ABC123"
     assert repository.load_booking_email_events()[0].gmail_message_id == "msg-1"

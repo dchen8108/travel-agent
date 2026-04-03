@@ -40,6 +40,7 @@ def seed_trip(repository: Repository) -> str:
 
 def test_record_booking_auto_matches_unique_trip_instance(repository: Repository) -> None:
     trip_instance_id = seed_trip(repository)
+    route_option_id = repository.load_route_options()[0].route_option_id
 
     booking, unmatched = record_booking(
         repository,
@@ -58,6 +59,7 @@ def test_record_booking_auto_matches_unique_trip_instance(repository: Repository
     assert unmatched is None
     assert booking is not None
     assert booking.trip_instance_id == trip_instance_id
+    assert booking.route_option_id == route_option_id
 
 
 def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: Repository) -> None:
@@ -87,6 +89,7 @@ def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: R
     )
 
     assert linked.trip_instance_id == trip_instance_id
+    assert linked.route_option_id == ""
     assert repository.load_unmatched_bookings()[0].resolution_status == "resolved"
 
 
@@ -116,6 +119,7 @@ def test_unmatched_booking_can_create_new_one_time_trip(repository: Repository) 
     snapshot = sync_and_persist(repository, today=date(2026, 5, 1))
 
     assert created_booking.record_locator == "ZZZ999"
+    assert created_booking.route_option_id != ""
     assert any(trip.label == "Conference Arrival" for trip in snapshot.trips)
 
 
@@ -197,6 +201,7 @@ def test_unmatched_booking_auto_links_when_matching_trip_is_created_later(reposi
     )
 
     assert saved_booking.trip_instance_id == trip_instance.trip_instance_id
+    assert saved_booking.route_option_id != ""
     assert updated_unmatched.resolution_status == "resolved"
     assert updated_unmatched.candidate_trip_instance_ids == trip_instance.trip_instance_id
 
@@ -253,3 +258,123 @@ def test_unmatched_booking_stays_open_when_multiple_matching_trips_exist(reposit
     assert not repository.load_bookings()
     assert updated_unmatched.resolution_status == "open"
     assert set(updated_unmatched.candidate_trip_instance_ids.split("|")) == candidate_ids
+
+
+def test_linked_booking_can_gain_route_match_after_trip_is_updated(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Route Healing Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="HEAL01",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+
+    assert unmatched is None
+    assert booking is not None
+    assert booking.route_option_id == ""
+
+    save_trip(
+        repository,
+        trip_id=trip.trip_id,
+        label=trip.label,
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    refreshed = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
+
+    assert refreshed.route_option_id != ""
+
+
+def test_linked_booking_route_match_clears_when_trip_route_changes(repository: Repository) -> None:
+    trip_instance_id = seed_trip(repository)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="CLEAR01",
+        ),
+    )
+
+    assert unmatched is None
+    assert booking is not None
+    assert booking.route_option_id != ""
+
+    trip = next(item for item in repository.load_trips() if item.trip_id == next(
+        instance.trip_id
+        for instance in repository.load_trip_instances()
+        if instance.trip_instance_id == trip_instance_id
+    ))
+    save_trip(
+        repository,
+        trip_id=trip.trip_id,
+        label=trip.label,
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    refreshed = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
+
+    assert refreshed.route_option_id == ""
