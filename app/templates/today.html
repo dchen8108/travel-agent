@@ -252,7 +252,11 @@
 
         {% if item.upcoming_trip_views %}
         <div class="collection-trip-cluster" data-collection-cluster>
-          <div class="collection-trip-strip" data-collection-preview>
+          <div
+            class="collection-trip-strip"
+            data-collection-preview
+            id="group-trips-{{ item.group.trip_group_id }}"
+          >
           {% for upcoming in item.upcoming_trip_views %}
           <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}" data-collection-pill>
             {{ upcoming.label }}
@@ -262,9 +266,7 @@
             type="button"
             class="collection-trip-pill more"
             data-collection-expand
-            id="group-expand-{{ item.group.trip_group_id }}"
-            data-collection-target="group-overflow-{{ item.group.trip_group_id }}"
-            aria-controls="group-overflow-{{ item.group.trip_group_id }}"
+            aria-controls="group-trips-{{ item.group.trip_group_id }}"
             aria-expanded="false"
             title="Show the remaining trips in this collection"
             hidden
@@ -272,15 +274,12 @@
             +0 more
           </button>
           </div>
-          <div class="collection-trip-strip collection-trip-strip-overflow" id="group-overflow-{{ item.group.trip_group_id }}" data-collection-overflow hidden></div>
           <div class="collection-trip-disclosure collection-trip-disclosure-overflow" data-collection-collapse-row hidden>
           <button
             type="button"
             class="collection-trip-pill more"
             data-collection-collapse
-            data-collection-target="group-overflow-{{ item.group.trip_group_id }}"
-            data-collection-trigger="group-expand-{{ item.group.trip_group_id }}"
-            aria-controls="group-overflow-{{ item.group.trip_group_id }}"
+            aria-controls="group-trips-{{ item.group.trip_group_id }}"
             aria-expanded="true"
             title="Collapse the remaining trips in this collection"
           >

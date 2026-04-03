@@ -140,13 +140,11 @@
         return;
       }
       const preview = cluster.querySelector("[data-collection-preview]");
-      const overflow = cluster.querySelector("[data-collection-overflow]");
       const collapseRow = cluster.querySelector("[data-collection-collapse-row]");
       const expandButton = cluster.querySelector("[data-collection-expand]");
       const collapseButton = cluster.querySelector("[data-collection-collapse]");
       if (
         !(preview instanceof HTMLElement) ||
-        !(overflow instanceof HTMLElement) ||
         !(collapseRow instanceof HTMLElement) ||
         !(expandButton instanceof HTMLButtonElement) ||
         !(collapseButton instanceof HTMLButtonElement)
@@ -189,12 +187,10 @@
 
       function render() {
         preview.replaceChildren();
-        overflow.replaceChildren();
-
-        overflow.hidden = true;
         collapseRow.hidden = true;
         expandButton.hidden = true;
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+        collapseButton.setAttribute("aria-expanded", expanded ? "true" : "false");
 
         if (!allPills.length) {
           return;
@@ -214,9 +210,7 @@
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
 
         if (expanded) {
-          preview.replaceChildren(...previewPills);
-          overflow.replaceChildren(...overflowPills);
-          overflow.hidden = false;
+          preview.replaceChildren(...allPills);
           collapseRow.hidden = false;
         } else {
           expandButton.hidden = false;

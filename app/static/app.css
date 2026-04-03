@@ -2217,8 +2217,7 @@ textarea {
   justify-content: flex-start;
 }
 
-.collection-trip-disclosure[hidden],
-.collection-trip-strip-overflow[hidden] {
+.collection-trip-disclosure[hidden] {
   display: none;
 }
 
