@@ -2204,7 +2204,8 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  justify-content: center;
+  justify-content: flex-start;
+  max-inline-size: 100%;
 }
 
 .collection-trip-cluster {

@@ -183,12 +183,45 @@
         return 0;
       }
 
+      function centerPreviewBlock() {
+        preview.style.inlineSize = "";
+        preview.style.marginInline = "";
+
+        const children = Array.from(preview.children).filter(
+          (node) => node instanceof HTMLElement && !node.hidden,
+        );
+        if (!children.length) {
+          return;
+        }
+
+        const rows = [];
+        children.forEach((node) => {
+          const top = node.offsetTop;
+          const left = node.offsetLeft;
+          const right = left + node.offsetWidth;
+          let row = rows.find((candidate) => Math.abs(candidate.top - top) <= 2);
+          if (!row) {
+            row = { top, left, right };
+            rows.push(row);
+            return;
+          }
+          row.left = Math.min(row.left, left);
+          row.right = Math.max(row.right, right);
+        });
+
+        const widestRow = Math.max(...rows.map((row) => row.right - row.left));
+        preview.style.inlineSize = `${Math.ceil(widestRow)}px`;
+        preview.style.marginInline = "auto";
+      }
+
       function render() {
         preview.replaceChildren();
         expandButton.hidden = true;
         collapseButton.hidden = true;
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
         collapseButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+        preview.style.inlineSize = "";
+        preview.style.marginInline = "";
 
         if (!allPills.length) {
           return;
@@ -201,6 +234,7 @@
         if (!overflowPills.length) {
           expanded = false;
           preview.replaceChildren(...previewPills);
+          centerPreviewBlock();
           return;
         }
 
@@ -214,6 +248,7 @@
           expandButton.hidden = false;
           preview.replaceChildren(...previewPills, expandButton);
         }
+        centerPreviewBlock();
       }
 
       expandButton.addEventListener("click", () => {
