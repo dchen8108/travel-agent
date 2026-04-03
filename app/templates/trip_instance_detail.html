@@ -4,7 +4,7 @@
   {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
-      <a class="inline-back-link" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id, show_skipped=trip_instance.travel_state == 'skipped') }}">Back to trips</a>
+      <a class="inline-back-link" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id) }}">Back to trips</a>
     </p>
     <p class="eyebrow">Scheduled trip</p>
     <h2>{{ trip_instance.display_label }}</h2>
@@ -39,9 +39,7 @@
     {% else %}
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
-    {% if trip_instance.travel_state != 'skipped' %}
     <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
-    {% endif %}
   </div>
 </section>
 
@@ -130,19 +128,12 @@
     <span class="badge is-best">{{ trip_instance.anchor_date.strftime('%b %d') }}</span>
     {% for instance in sibling_instances %}
     <a
-      class="badge horizon-badge {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}"
+      class="badge horizon-badge"
       href="{{ tracker_detail_url(instance.trip_instance_id) }}"
-      title="{{ 'Skipped trip' if instance.travel_state == 'skipped' else 'Scheduled trip' }}"
+      title="Scheduled trip"
     >{{ instance.anchor_date.strftime('%b %d') }}</a>
     {% endfor %}
   </div>
-</section>
-{% endif %}
-
-{% if trip_instance.travel_state == 'skipped' %}
-<section class="callout-card muted-callout">
-  <strong>This trip is skipped.</strong>
-  <p>Restore it to resume normal booking flow and background price checks for this date. The tracker details below stay available for reference.</p>
 </section>
 {% endif %}
 
@@ -152,7 +143,7 @@
       <p class="eyebrow">Current options</p>
       <h3>Searches being monitored for this date</h3>
     </div>
-    {% if total_fetch_targets and trip_instance.travel_state != 'skipped' %}
+    {% if total_fetch_targets %}
     <div class="section-actions">
       <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/trackers/queue-refresh">
         <button type="submit" class="button secondary">Check now</button>
@@ -162,7 +153,7 @@
   </div>
   <div class="stack">
     {% for card in tracker_cards %}
-    <article class="card tracker-card {{ 'is-muted-card' if trip_instance.travel_state == 'skipped' else '' }}">
+    <article class="card tracker-card">
       <div class="card-header">
         <div>
           <p class="eyebrow tracker-option-label">Option {{ card.rank }}</p>
@@ -251,7 +242,7 @@
     {% endfor %}
   </div>
 </section>
-{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip or trip_instance.travel_state == 'skipped' or active_bookings|length == 0 %}
+{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip or active_bookings|length == 0 %}
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
@@ -259,15 +250,6 @@
     </div>
   </div>
   <div class="actions">
-    {% if trip_instance.travel_state != 'skipped' and active_bookings|length == 0 %}
-    <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
-      <button class="button ghost" type="submit">Skip trip</button>
-    </form>
-    {% elif trip_instance.travel_state == 'skipped' %}
-    <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/restore">
-      <button class="button secondary" type="submit">Unskip trip</button>
-    </form>
-    {% endif %}
     {% if can_detach_trip_instance %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/detach">
       <button class="button ghost" type="submit">Detach trip</button>

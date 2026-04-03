@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from app.models.base import TravelState, utcnow
+from app.models.base import utcnow
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.trip import Trip
@@ -55,7 +55,7 @@ def reconcile_trackers(
     desired_ids: set[str] = set()
 
     for instance in trip_instances:
-        if instance.deleted or instance.travel_state == TravelState.SKIPPED:
+        if instance.deleted:
             continue
         trip = trip_by_id.get(instance.trip_id)
         if trip is not None and trip.trip_kind == "one_time" and not trip.active:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from app.models.base import TravelState, utcnow
+from app.models.base import utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -121,13 +121,7 @@ def recompute_trip_states(
             default=None,
         )
 
-        if instance.travel_state != TravelState.SKIPPED:
-            instance.travel_state = TravelState.ACTIVE
-            instance.booking_id = booking.booking_id if booking is not None else ""
-
-        if instance.travel_state == TravelState.SKIPPED:
-            instance.updated_at = utcnow()
-            continue
+        instance.booking_id = booking.booking_id if booking is not None else ""
 
         if booking:
             instance.updated_at = utcnow()

@@ -32,14 +32,14 @@ def today(
         instance
         for instance in snapshot.trip_instances
         if instance.anchor_date >= today
-        and instance.travel_state != "skipped"
+        and not instance.deleted
         and active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
     ]
     booked_instances = [
         instance
         for instance in snapshot.trip_instances
         if instance.anchor_date >= today
-        and instance.travel_state != "skipped"
+        and not instance.deleted
         and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     ]
     planned_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))

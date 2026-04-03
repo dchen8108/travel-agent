@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 
 import httpx
 
-from app.models.base import FetchTargetStatus, TravelState, utcnow
+from app.models.base import FetchTargetStatus, utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
@@ -90,7 +90,7 @@ def queue_rolling_refresh(
             continue
         if trip_instance_ids and target.trip_instance_id not in trip_instance_ids:
             continue
-        if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
+        if instance.deleted or tracker.travel_date < now.date():
             continue
         target.next_fetch_not_before = next_scheduled_at
         target.updated_at = now
@@ -171,7 +171,7 @@ def select_due_fetch_targets(
             or str(getattr(instance, "data_scope", "live")) == "test"
         ):
             continue
-        if instance.travel_state == TravelState.SKIPPED or tracker.travel_date < now.date():
+        if instance.deleted or tracker.travel_date < now.date():
             continue
         if target.tracker_id in active_claimed_tracker_ids:
             continue

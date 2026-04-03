@@ -11,7 +11,7 @@
     {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}" id="scheduled-{{ instance.trip_instance_id }}">
+    <article class="card scheduled-card" id="scheduled-{{ instance.trip_instance_id }}">
       <div class="scheduled-card-head">
         <div class="scheduled-date">
           <small>{{ instance.anchor_date.strftime('%a') }}</small>
@@ -47,9 +47,6 @@
       <p class="muted card-note">{{ trip_status_detail(snapshot, instance.trip_instance_id) }}</p>
       <div class="actions">
         <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
-        {% if instance.travel_state == 'skipped' %}
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore"><button class="button secondary" type="submit">Unskip</button></form>
-        {% endif %}
       </div>
     </article>
     {% else %}

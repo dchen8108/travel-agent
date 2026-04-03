@@ -1451,7 +1451,7 @@ def test_recompute_trip_states_uses_explicit_today_without_calling_date_today(mo
 
     recompute_trip_states([trip_instance], [], [], today=date(2026, 3, 31))
 
-    assert trip_instance.travel_state == "active"
+    assert trip_instance.booking_id == ""
 
 
 def test_run_fetch_batch_reraises_unexpected_exceptions(repository: Repository, monkeypatch) -> None:

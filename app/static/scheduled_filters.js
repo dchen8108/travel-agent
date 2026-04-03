@@ -21,12 +21,10 @@
     const groupRoot = form.querySelector("[data-group-filter-root]");
     const hiddenInputsRoot = form.querySelector("[data-group-hidden-inputs]");
     let resultsShell = panel.querySelector("[data-scheduled-results-shell]");
-    const skippedToggle = form.querySelector("[data-skipped-toggle]");
-    const skippedInput = form.querySelector("[data-skipped-input]");
     const clearLink = form.querySelector("[data-clear-filters]");
     let debounceTimer = null;
 
-    if (!searchInput || !groupRoot || !hiddenInputsRoot || !skippedToggle || !skippedInput) {
+    if (!searchInput || !groupRoot || !hiddenInputsRoot) {
       return;
     }
 
@@ -47,20 +45,11 @@
       });
     }
 
-    function setSkippedState(enabled) {
-      skippedInput.value = enabled ? "true" : "";
-      skippedToggle.classList.toggle("is-on", enabled);
-      skippedToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-    }
-
     function buildQuery() {
       const params = new URLSearchParams();
       const query = (searchInput.value || "").trim();
       if (query) {
         params.set("q", query);
-      }
-      if (skippedInput.value) {
-        params.set("show_skipped", "true");
       }
       selectedTripGroupIds().forEach((value) => {
         params.append("trip_group_id", value);
@@ -153,17 +142,11 @@
       }
     });
 
-    skippedToggle.addEventListener("click", () => {
-      setSkippedState(!skippedInput.value);
-      submitFilters();
-    });
-
     clearLink?.addEventListener("click", (event) => {
       event.preventDefault();
       window.clearTimeout(debounceTimer);
       searchInput.value = "";
       setSelectedTripGroupIds([]);
-      setSkippedState(false);
       submitFilters();
     });
   }

@@ -5,7 +5,6 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.models.base import TravelState
 from app.services.dashboard import (
     active_booking_count_for_instance,
     best_tracker,
@@ -91,24 +90,18 @@ def group_detail(
 
     today = date.today()
     recurring_rules = recurring_rules_for_group(snapshot, trip_group_id)
-    grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, include_skipped=True, today=today)
+    grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, today=today)
     planned_count = sum(
         1
         for instance in grouped_instances
-        if instance.travel_state != TravelState.SKIPPED
-        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
     )
     booked_count = sum(
         1
         for instance in grouped_instances
-        if instance.travel_state != TravelState.SKIPPED
-        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     )
-    skipped_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.SKIPPED)
-    next_instance = next(
-        (instance for instance in grouped_instances if instance.travel_state != TravelState.SKIPPED),
-        None,
-    )
+    next_instance = next(iter(grouped_instances), None)
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -122,7 +115,6 @@ def group_detail(
             grouped_instances=grouped_instances,
             planned_count=planned_count,
             booked_count=booked_count,
-            skipped_count=skipped_count,
             next_instance=next_instance,
             today=today,
             best_tracker=best_tracker,

@@ -73,7 +73,6 @@
       <div><dt>Next active date</dt><dd>{{ next_open_instance.anchor_date.isoformat() if next_open_instance else 'None' }}</dd></div>
       <div><dt>Planned</dt><dd>{{ planned_count }}</dd></div>
       <div><dt>Booked</dt><dd>{{ booked_count }}</dd></div>
-      <div><dt>Skipped</dt><dd>{{ skipped_count }}</dd></div>
     </div>
   </div>
 </section>
@@ -151,7 +150,7 @@
     {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set instance_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
-    <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}">
+    <article class="card scheduled-card">
       <div class="scheduled-card-head">
         <div class="scheduled-date">
           <small>{{ instance.anchor_date.strftime('%a') }}</small>
@@ -195,15 +194,8 @@
           <button class="button danger-outline" type="submit">Delete</button>
         </form>
         {% endif %}
-        {% if instance.travel_state != 'skipped' and active_booking_count == 0 %}
+        {% if active_booking_count == 0 %}
         <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip">
-          <button class="button danger" type="submit">Skip</button>
-        </form>
-        {% elif instance.travel_state == 'skipped' %}
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/restore">
-          <button class="button secondary" type="submit">Unskip</button>
-        </form>
         {% endif %}
       </div>
     </article>

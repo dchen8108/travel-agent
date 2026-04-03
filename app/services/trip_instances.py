@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from app.models.base import TravelState, TripInstanceInheritanceMode, TripInstanceKind, TripKind, utcnow
+from app.models.base import TripInstanceInheritanceMode, TripInstanceKind, TripKind, utcnow
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
@@ -198,7 +198,7 @@ def reconcile_trip_instances(
             instance.updated_at = utcnow()
             kept.append(instance)
             continue
-        if instance.anchor_date < today or instance.travel_state == TravelState.SKIPPED or instance.booking_id:
+        if instance.anchor_date < today or instance.booking_id:
             if trip is not None:
                 instance.data_scope = trip.data_scope
                 instance.instance_kind = instance_kind_for_trip(trip)

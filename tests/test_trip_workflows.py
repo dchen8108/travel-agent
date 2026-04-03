@@ -92,7 +92,7 @@ def test_weekly_trip_generates_sixteen_future_instances(repository: Repository) 
     assert len([tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instances[0].trip_instance_id]) == 1
 
 
-def test_skipped_occurrence_survives_reconciliation(repository: Repository) -> None:
+def test_deleted_generated_occurrence_stays_suppressed_after_reconciliation(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -115,12 +115,12 @@ def test_skipped_occurrence_survives_reconciliation(repository: Repository) -> N
 
     snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
     trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
-    trip_instance.travel_state = "skipped"
-    repository.save_trip_instances(snapshot.trip_instances)
+    deleted = delete_generated_trip_instance(repository, trip_instance.trip_instance_id)
+    assert deleted.deleted is True
 
     refreshed = sync_and_persist(repository, today=date(2026, 4, 2))
     same_instance = next(item for item in refreshed.trip_instances if item.trip_instance_id == trip_instance.trip_instance_id)
-    assert same_instance.travel_state == "skipped"
+    assert same_instance.deleted is True
 
 
 def test_deactivating_weekly_trip_preserves_existing_instances_without_growing_frontier(repository: Repository) -> None:

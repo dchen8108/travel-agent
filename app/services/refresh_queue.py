@@ -27,7 +27,6 @@ def queue_refresh_for_trip(
     trip_instance_ids = {
         instance.trip_instance_id
         for instance in horizon_instances_for_trip(snapshot, trip_id, today=today)
-        if instance.travel_state != "skipped"
     }
     return queue_refresh_for_trip_instances(
         snapshot,

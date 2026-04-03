@@ -31,10 +31,9 @@
     {% for group in group_items %}
     {% set recurring_rules = group_rule_map[group.trip_group_id] %}
     {% set instances = group_scheduled_map[group.trip_group_id] %}
-    {% set active_preview_instances = instances|rejectattr('travel_state', 'equalto', 'skipped')|list %}
-    {% set next_active_instance = active_preview_instances|first %}
+    {% set next_active_instance = instances|first %}
     {% set counts = namespace(planned=0) %}
-    {% for instance in active_preview_instances %}
+    {% for instance in instances %}
       {% if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0 %}
         {% set counts.planned = counts.planned + 1 %}
       {% endif %}
@@ -57,10 +56,7 @@
       {% if instances %}
       <div class="inline-badge-row">
         {% for instance in instances %}
-        <span
-          class="badge horizon-badge {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}"
-          title="{{ 'Skipped trip' if instance.travel_state == 'skipped' else 'Scheduled trip' }}"
-        >{{ instance.anchor_date.strftime('%b %d') }}</span>
+        <span class="badge horizon-badge" title="Scheduled trip">{{ instance.anchor_date.strftime('%b %d') }}</span>
         {% endfor %}
       </div>
       {% endif %}

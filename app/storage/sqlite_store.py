@@ -35,6 +35,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_fetch_target_claims_to_v15(connection)
     _migrate_bookings_route_options_to_v16(connection)
     _migrate_trip_state_override_to_v17(connection)
+    _migrate_trip_instances_remove_skip_state_to_v18(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -482,7 +483,7 @@ def _migrate_trips_to_v10(connection: sqlite3.Connection) -> None:
 
 
 def _migrate_status_enums_to_v12(connection: sqlite3.Connection) -> None:
-    if _table_exists(connection, "trip_instances"):
+    if _table_exists(connection, "trip_instances") and "travel_state" in _table_columns(connection, "trip_instances"):
         connection.execute(
             """
             UPDATE trip_instances
@@ -503,6 +504,8 @@ def _migrate_status_enums_to_v12(connection: sqlite3.Connection) -> None:
 def _migrate_trip_state_override_to_v17(connection: sqlite3.Connection) -> None:
     if not _table_exists(connection, "trip_instances"):
         return
+    if "travel_state" not in _table_columns(connection, "trip_instances"):
+        return
     connection.execute(
         """
         UPDATE trip_instances
@@ -510,6 +513,72 @@ def _migrate_trip_state_override_to_v17(connection: sqlite3.Connection) -> None:
         WHERE COALESCE(travel_state, '') IN ('', 'open', 'planned', 'booked')
         """
     )
+
+
+def _migrate_trip_instances_remove_skip_state_to_v18(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trip_instances"):
+        return
+    columns = _table_columns(connection, "trip_instances")
+    if "travel_state" not in columns:
+        return
+    connection.execute("ALTER TABLE trip_instances RENAME TO trip_instances_old_v18")
+    connection.execute(
+        """
+        CREATE TABLE trip_instances (
+            trip_instance_id TEXT PRIMARY KEY,
+            trip_id TEXT NOT NULL,
+            display_label TEXT NOT NULL,
+            anchor_date TEXT NOT NULL,
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            instance_kind TEXT NOT NULL,
+            recurring_rule_trip_id TEXT NOT NULL DEFAULT '',
+            rule_occurrence_date TEXT NULL,
+            inheritance_mode TEXT NOT NULL DEFAULT 'manual',
+            deleted INTEGER NOT NULL DEFAULT 0,
+            booking_id TEXT NOT NULL DEFAULT '',
+            last_signal_at TEXT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO trip_instances (
+            trip_instance_id,
+            trip_id,
+            display_label,
+            anchor_date,
+            data_scope,
+            instance_kind,
+            recurring_rule_trip_id,
+            rule_occurrence_date,
+            inheritance_mode,
+            deleted,
+            booking_id,
+            last_signal_at,
+            created_at,
+            updated_at
+        )
+        SELECT
+            trip_instance_id,
+            trip_id,
+            display_label,
+            anchor_date,
+            COALESCE(data_scope, 'live'),
+            instance_kind,
+            COALESCE(recurring_rule_trip_id, ''),
+            rule_occurrence_date,
+            COALESCE(inheritance_mode, 'manual'),
+            COALESCE(deleted, 0),
+            COALESCE(booking_id, ''),
+            last_signal_at,
+            created_at,
+            updated_at
+        FROM trip_instances_old_v18
+        """
+    )
+    connection.execute("DROP TABLE trip_instances_old_v18")
 
 
 def _migrate_group_memberships_to_v13(connection: sqlite3.Connection) -> None:

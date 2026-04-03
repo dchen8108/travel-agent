@@ -1102,7 +1102,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     assert "Past trips" not in trips_page.text
 
 
-def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_path: Path) -> None:
+def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1114,69 +1114,40 @@ def test_skipped_trip_moves_out_of_main_scheduled_list_and_can_be_restored(tmp_p
     create = client.post(
         "/trips",
         data={
-            "label": "Doctor Visit Flight",
-            "trip_kind": "one_time",
-            "anchor_date": "2026-05-10",
-            "anchor_weekday": "",
+            "label": "Doctor Visit Rule",
+            "trip_kind": "weekly",
+            "anchor_date": "",
+            "anchor_weekday": "Sunday",
             "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
         },
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_location = create.headers["location"]
-    trip_id = trip_location.split("/trips/")[1].split("?")[0]
-    trips_page = client.get(f"/trips?q=Doctor+Visit+Flight")
+    trips_page = client.get(f"/trips?q=Doctor+Visit+Rule")
     assert trips_page.status_code == 200
     marker = 'id="scheduled-'
     assert marker in trips_page.text
     trip_instance_id = trips_page.text.split(marker, 1)[1].split('"', 1)[0]
 
-    skip = client.post(
-        f"/trip-instances/{trip_instance_id}/skip",
-        headers={"referer": "http://testserver/trips?q=Doctor+Visit+Flight"},
+    delete_response = client.post(
+        f"/trip-instances/{trip_instance_id}/delete-generated",
+        headers={"referer": "http://testserver/trips?q=Doctor+Visit+Rule"},
         follow_redirects=False,
     )
-    assert skip.status_code == 303
-    assert skip.headers["location"] == "/trips?q=Doctor+Visit+Flight&message=Trip+skipped"
+    assert delete_response.status_code == 303
+    assert delete_response.headers["location"].startswith("/groups/")
+    assert delete_response.headers["location"].endswith("?message=Trip+deleted")
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert "Unskip" not in trips_page.text
-    assert "No scheduled trips match these filters." in trips_page.text
-
-    skipped_page = client.get("/trips?show_skipped=true")
-    assert skipped_page.status_code == 200
-    assert "Doctor Visit Flight" in skipped_page.text
-    assert "Unskip" in skipped_page.text
-
-    repository = Repository(settings)
-    fetch_targets = repository.load_tracker_fetch_targets()
-    delayed_until = utcnow() + timedelta(hours=6)
-    for target in fetch_targets:
-        target.next_fetch_not_before = delayed_until
-    repository.save_tracker_fetch_targets(fetch_targets)
-
-    restore = client.post(
-        f"/trip-instances/{trip_instance_id}/restore",
-        headers={"referer": "http://testserver/trips?show_skipped=true"},
-        follow_redirects=False,
-    )
-    assert restore.status_code == 303
-    assert (
-        restore.headers["location"]
-        == "/trips?show_skipped=true&message=Trip+restored.+Refresh+queued+for+1+airport-pair+search."
-    )
-
-    restored_page = client.get("/trips")
-    assert restored_page.status_code == 200
-    assert "Doctor Visit Flight" in restored_page.text
-    refreshed_targets = repository.load_tracker_fetch_targets()
-    assert len(refreshed_targets) == 1
-    assert refreshed_targets[0].next_fetch_not_before is not None
-    assert refreshed_targets[0].next_fetch_not_before < delayed_until
+    assert "Doctor Visit Rule" in trips_page.text
+    assert "No scheduled trips match these filters." not in trips_page.text
+    filtered_page = client.get("/trips?q=Doctor+Visit+Rule")
+    assert filtered_page.status_code == 200
+    assert f'id="scheduled-{trip_instance_id}"' not in filtered_page.text
 
 
-def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_path: Path) -> None:
+def test_recurring_trip_preview_shows_full_horizon_after_deleting_an_occurrence(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1213,18 +1184,18 @@ def test_recurring_trip_preview_shows_full_horizon_and_marks_skipped_dates(tmp_p
     assert marker in trips_page.text
     trip_instance_id = trips_page.text.split(marker, 1)[1].split('"', 1)[0]
 
-    skip = client.post(
-        f"/trip-instances/{trip_instance_id}/skip",
+    delete_response = client.post(
+        f"/trip-instances/{trip_instance_id}/delete-generated",
         headers={"referer": f"http://testserver/trips?trip_group_id={group.trip_group_id}"},
         follow_redirects=False,
     )
-    assert skip.status_code == 303
-    assert skip.headers["location"] == f"/trips?trip_group_id={group.trip_group_id}&message=Trip+skipped"
+    assert delete_response.status_code == 303
+    assert delete_response.headers["location"] == f"/groups/{group.trip_group_id}?message=Trip+deleted"
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert trips_page.text.count('class="badge horizon-badge') >= 16
-    assert 'class="badge horizon-badge is-skipped"' in trips_page.text
+    assert trips_page.text.count('class="badge horizon-badge"') >= 15
+    assert 'is-skipped' not in trips_page.text
 
 
 def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
@@ -1452,10 +1423,10 @@ def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
         follow_redirects=False,
     )
 
-    partial = client.get("/trips?partial=scheduled&show_skipped=true")
+    partial = client.get("/trips?partial=scheduled")
     assert partial.status_code == 200
     assert 'data-scheduled-filter-form' in partial.text
-    assert "Show skipped" in partial.text
+    assert "Show skipped" not in partial.text
     assert "Apply filters" in partial.text
 
 
@@ -1657,7 +1628,7 @@ def test_unmatched_booking_can_be_linked_from_bookings_page(tmp_path: Path) -> N
     assert resolve_response.headers["location"].startswith("/trip-instances/")
 
 
-def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Path) -> None:
+def test_past_trips_remain_hidden_from_filtered_scheduled_lists(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1670,7 +1641,7 @@ def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Pa
     create = client.post(
         "/trips",
         data={
-            "label": "Skip me later",
+            "label": "Hide me later",
             "trip_kind": "one_time",
             "anchor_date": (today - timedelta(days=1)).isoformat(),
             "anchor_weekday": "",
@@ -1680,7 +1651,7 @@ def test_past_trips_remain_hidden_even_when_show_skipped_is_enabled(tmp_path: Pa
     )
     assert create.status_code == 303
 
-    trips_page = client.get("/trips?show_skipped=true&q=Skip+me+later")
+    trips_page = client.get("/trips?q=Hide+me+later")
     assert 'id="past-' not in trips_page.text
     assert "Showing 0 scheduled trips." in trips_page.text
     assert "No scheduled trips match these filters." in trips_page.text

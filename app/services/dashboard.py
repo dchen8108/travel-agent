@@ -4,7 +4,7 @@ from datetime import date
 from urllib.parse import urlencode
 
 from app.money import format_money
-from app.models.base import BookingStatus, FetchTargetStatus, TravelState
+from app.models.base import BookingStatus, FetchTargetStatus
 from app.models.booking import Booking
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
@@ -325,8 +325,6 @@ def trip_lifecycle_status_key(snapshot: AppSnapshot, trip_instance_id: str) -> s
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
         return "unknown"
-    if instance.travel_state == TravelState.SKIPPED:
-        return "skipped"
     if active_booking_count_for_instance(snapshot, trip_instance_id) > 0:
         return "booked"
     return "planned"
@@ -336,14 +334,11 @@ def trip_lifecycle_status_label(snapshot: AppSnapshot, trip_instance_id: str) ->
     return {
         "planned": "Planned",
         "booked": "Booked",
-        "skipped": "Skipped",
     }.get(trip_lifecycle_status_key(snapshot, trip_instance_id), "Unknown")
 
 
 def trip_lifecycle_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     lifecycle = trip_lifecycle_status_key(snapshot, trip_instance_id)
-    if lifecycle == "skipped":
-        return "neutral"
     if lifecycle == "booked":
         return "success"
     if lifecycle == "planned":
@@ -355,8 +350,6 @@ def trip_monitoring_status_label(snapshot: AppSnapshot, trip_instance_id: str) -
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
         return "Unknown"
-    if instance.travel_state == TravelState.SKIPPED:
-        return "Paused"
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
     if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
         return "Tracking"
@@ -369,7 +362,7 @@ def trip_monitoring_status_label(snapshot: AppSnapshot, trip_instance_id: str) -
 
 def trip_recommended_action(snapshot: AppSnapshot, trip_instance_id: str) -> str | None:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
-    if instance is None or instance.travel_state == TravelState.SKIPPED:
+    if instance is None:
         return None
     active_bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
     if active_bookings:
@@ -384,8 +377,6 @@ def trip_status_detail(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
         return ""
-    if instance.travel_state == TravelState.SKIPPED:
-        return "Monitoring is paused for this date. Restore the trip to resume price checks."
     booking = booking_for_instance(snapshot, trip_instance_id)
     active_bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
     active_count = len(active_bookings)
@@ -501,19 +492,10 @@ def trip_focus_url(
     trip_id: str,
     *,
     trip_instance_id: str | None = None,
-    show_skipped: bool | None = None,
 ) -> str:
     trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
     if trip is None:
         return "/trips"
-
-    trip_instance = (
-        next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
-        if trip_instance_id
-        else None
-    )
-    if show_skipped is None and trip_instance is not None:
-        show_skipped = trip_instance.travel_state == "skipped"
 
     params: list[tuple[str, str]] = []
     anchor = ""
@@ -524,9 +506,8 @@ def trip_focus_url(
         anchor = f"group-{trip_group.trip_group_id}"
     else:
         params.append(("q", trip.label))
-    if show_skipped:
-        params.append(("show_skipped", "true"))
     if trip_instance_id:
+        trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
         if not (trip_instance and is_past_instance(trip_instance)):
             anchor = f"scheduled-{trip_instance_id}"
 
@@ -604,7 +585,6 @@ def archived_one_time_trips(snapshot: AppSnapshot) -> list[Trip]:
 def scheduled_instances(
     snapshot: AppSnapshot,
     *,
-    include_skipped: bool = False,
     trip_group_ids: set[str] | None = None,
     recurring_trip_ids: set[str] | None = None,
     today: date | None = None,
@@ -622,8 +602,6 @@ def scheduled_instances(
             and not trip.active
         )
     ]
-    if not include_skipped:
-        items = [item for item in items if item.travel_state != "skipped"]
     if trip_group_ids:
         items = [
             item
@@ -648,15 +626,12 @@ def scheduled_instances(
 def past_instances(
     snapshot: AppSnapshot,
     *,
-    include_skipped: bool = False,
     trip_group_ids: set[str] | None = None,
     recurring_trip_ids: set[str] | None = None,
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
     items = [item for item in snapshot.trip_instances if not item.deleted and is_past_instance(item, today=today)]
-    if not include_skipped:
-        items = [item for item in items if item.travel_state != "skipped"]
     if trip_group_ids:
         items = [
             item

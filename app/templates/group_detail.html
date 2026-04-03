@@ -101,7 +101,7 @@
     {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
-    <article class="card scheduled-card {{ 'is-skipped' if instance.travel_state == 'skipped' else '' }}">
+    <article class="card scheduled-card">
       <div class="scheduled-card-head">
         <div class="scheduled-date">
           <small>{{ instance.anchor_date.strftime('%a') }}</small>

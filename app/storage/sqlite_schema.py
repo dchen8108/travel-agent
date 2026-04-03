@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -130,7 +130,6 @@ DDL_STATEMENTS: tuple[str, ...] = (
         rule_occurrence_date TEXT NULL,
         inheritance_mode TEXT NOT NULL DEFAULT 'manual',
         deleted INTEGER NOT NULL DEFAULT 0,
-        travel_state TEXT NOT NULL,
         booking_id TEXT NOT NULL DEFAULT '',
         last_signal_at TEXT NULL,
         created_at TEXT NOT NULL,
@@ -253,7 +252,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_trip_instance_group_memberships_group_instance ON trip_instance_group_memberships(trip_group_id, trip_instance_id)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instance_group_memberships_instance ON trip_instance_group_memberships(trip_instance_id)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instance_group_memberships_rule_instance ON trip_instance_group_memberships(source_rule_trip_id, trip_instance_id)",
-    "CREATE INDEX IF NOT EXISTS idx_trip_instances_anchor_state ON trip_instances(anchor_date, travel_state)",
+    "CREATE INDEX IF NOT EXISTS idx_trip_instances_anchor_date ON trip_instances(anchor_date)",
     "CREATE INDEX IF NOT EXISTS idx_trackers_trip_instance_rank ON trackers(trip_instance_id, rank)",
     "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_due ON tracker_fetch_targets(next_fetch_not_before, last_fetch_status)",
     "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_claim_due ON tracker_fetch_targets(fetch_claim_expires_at, next_fetch_not_before)",

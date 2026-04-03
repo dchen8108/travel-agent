@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
-from app.models.base import BookingStatus, DataScope, FareClassPolicy, TravelState
+from app.models.base import BookingStatus, DataScope, FareClassPolicy
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
     active_booking_count_for_instance,
@@ -169,12 +169,10 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
         if group.trip_group_id in request.query_params.getlist("trip_group_id") and group.trip_group_id in group_ids
     ]
     selected_trip_group_id_set = set(selected_trip_group_ids)
-    show_skipped = str(request.query_params.get("show_skipped", "")).lower() in {"1", "true", "on", "yes"}
     search_query = str(request.query_params.get("q", "")).strip()
 
     scheduled_items = scheduled_instances(
         snapshot,
-        include_skipped=show_skipped,
         trip_group_ids=selected_trip_group_id_set or None,
         today=today,
     )
@@ -194,13 +192,12 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
         ]
 
     total_active_scheduled = len(scheduled_instances(snapshot, today=today))
-    total_skipped_scheduled = len(scheduled_instances(snapshot, include_skipped=True, today=today)) - total_active_scheduled
     total_booked_scheduled = len(
         [
             instance
             for instance in snapshot.trip_instances
             if instance.anchor_date >= today
-            and instance.travel_state != TravelState.SKIPPED
+            and not instance.deleted
             and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
         ]
     )
@@ -210,10 +207,8 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
         "group_items": group_items,
         "scheduled_items": scheduled_items,
         "selected_trip_group_ids": selected_trip_group_ids,
-        "show_skipped": show_skipped,
         "search_query": search_query,
         "total_active_scheduled": total_active_scheduled,
-        "total_skipped_scheduled": total_skipped_scheduled,
         "total_booked_scheduled": total_booked_scheduled,
         "group_filter_options": group_filter_options,
         "today": today,
@@ -236,15 +231,10 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
     booked_count = sum(
         1
         for instance in future_instances
-        if instance.travel_state != TravelState.SKIPPED
-        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     )
-    skipped_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.SKIPPED)
-    planned_count = len(future_instances) - booked_count - skipped_count
-    next_open_instance = next(
-        (instance for instance in future_instances if instance.travel_state != TravelState.SKIPPED),
-        None,
-    )
+    planned_count = len(future_instances) - booked_count
+    next_open_instance = next(iter(future_instances), None)
     return {
         "trip": trip,
         "route_options": route_options,
@@ -252,7 +242,6 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
         "future_instances": future_instances,
         "planned_count": planned_count,
         "booked_count": booked_count,
-        "skipped_count": skipped_count,
         "next_open_instance": next_open_instance,
         "today": today,
     }
@@ -329,7 +318,6 @@ def trips_index(
         group.trip_group_id: scheduled_instances(
             snapshot,
             trip_group_ids={group.trip_group_id},
-            include_skipped=True,
             today=scheduled_view["today"],
         )
         for group in scheduled_view["group_items"]
@@ -666,62 +654,6 @@ def delete_trip_action(
     delete_trip(repository, trip_id)
     sync_and_persist(repository)
     return redirect_with_message("/trips", "Trip deleted")
-
-
-@router.post("/trip-instances/{trip_instance_id}/skip")
-def skip_trip_instance(
-    trip_instance_id: str,
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
-    trip_instances = repository.load_trip_instances()
-    booking = next(
-        (
-            item
-            for item in repository.load_bookings()
-            if item.trip_instance_id == trip_instance_id and item.status == "active"
-        ),
-        None,
-    )
-    if booking is not None:
-        raise HTTPException(status_code=400, detail="Cannot skip an occurrence with an active booking.")
-    trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
-    if trip_instance is None:
-        raise HTTPException(status_code=404, detail="Trip instance not found")
-    trip_instance.travel_state = TravelState.SKIPPED
-    repository.save_trip_instances(trip_instances)
-    sync_and_persist(repository)
-    return redirect_back(
-        request,
-        fallback_url=f"/trip-instances/{trip_instance_id}",
-        message="Trip skipped",
-    )
-
-
-@router.post("/trip-instances/{trip_instance_id}/restore")
-def restore_trip_instance(
-    trip_instance_id: str,
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
-    trip_instances = repository.load_trip_instances()
-    trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
-    if trip_instance is None:
-        raise HTTPException(status_code=404, detail="Trip instance not found")
-    trip_instance.travel_state = TravelState.ACTIVE
-    repository.save_trip_instances(trip_instances)
-    snapshot = sync_and_persist(repository)
-    queued_count = queue_refresh_for_trip_instance(
-        snapshot,
-        repository,
-        trip_instance_id=trip_instance_id,
-        include_test_data=include_test_data_for_processing(snapshot.app_state),
-    )
-    return redirect_back(
-        request,
-        fallback_url=f"/trip-instances/{trip_instance_id}",
-        message=queued_refresh_message("Trip restored", queued_count),
-    )
 
 
 @router.post("/trip-instances/{trip_instance_id}/detach")

@@ -59,11 +59,6 @@ class TripInstanceGroupMembershipSource(StrEnum):
     INHERITED = "inherited"
     FROZEN = "frozen"
 
-
-class TravelState(StrEnum):
-    ACTIVE = "active"
-    SKIPPED = "skipped"
-
 class FetchTargetStatus(StrEnum):
     PENDING = "pending"
     SUCCESS = "success"

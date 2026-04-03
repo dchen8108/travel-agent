@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from app.models.base import AppState, DataScope, TripInstanceKind, TravelState, utcnow
+from app.models.base import AppState, DataScope, TripInstanceKind, utcnow
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.trip import Trip
@@ -66,7 +66,6 @@ def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path:
                 anchor_date=date(2026, 4, 20),
                 data_scope=DataScope.TEST,
                 instance_kind=TripInstanceKind.STANDALONE,
-                travel_state=TravelState.ACTIVE,
             )
         ]
     )

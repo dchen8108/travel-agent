@@ -597,14 +597,6 @@ small,
   align-content: start;
 }
 
-.horizon-badge.is-skipped {
-  text-decoration: line-through;
-  text-decoration-thickness: 2px;
-  background: rgba(139, 64, 54, 0.1);
-  color: rgba(139, 64, 54, 0.88);
-  border: 1px solid rgba(139, 64, 54, 0.18);
-}
-
 .section {
   margin-bottom: 28px;
 }
@@ -1565,11 +1557,6 @@ textarea {
   border-radius: 30px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(247, 243, 235, 0.96));
-}
-
-.scheduled-card.is-skipped {
-  border-style: dashed;
-  background: rgba(247, 243, 236, 0.86);
 }
 
 .past-card {
