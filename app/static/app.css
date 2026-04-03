@@ -2211,6 +2211,10 @@ textarea {
   gap: 10px;
 }
 
+.collection-trip-cluster[data-expanded="true"] .collection-trip-strip {
+  justify-content: center;
+}
+
 .collection-trip-pill {
   display: inline-flex;
   align-items: center;

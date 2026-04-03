@@ -189,6 +189,7 @@
         collapseButton.hidden = true;
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
         collapseButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+        cluster.dataset.expanded = expanded ? "true" : "false";
 
         if (!allPills.length) {
           return;
@@ -200,6 +201,7 @@
 
         if (!overflowPills.length) {
           expanded = false;
+          cluster.dataset.expanded = "false";
           preview.replaceChildren(...previewPills);
           return;
         }
