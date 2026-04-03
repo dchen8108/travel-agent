@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
-from app.models.base import DataScope, FareClassPolicy, TravelState
+from app.models.base import BookingStatus, DataScope, FareClassPolicy, TravelState
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
     best_tracker,
@@ -19,6 +19,7 @@ from app.services.dashboard import (
     groups_for_rule,
     horizon_instances_for_rule,
     horizon_instances_for_trip,
+    instances_for_rule,
     instances_for_trip,
     load_snapshot,
     recurring_rules_for_group,
@@ -283,6 +284,28 @@ def _render_trip_form(
     )
 
 
+def _linked_booking_route_warning_count(snapshot, trip) -> int:
+    if trip.trip_kind == "weekly":
+        trip_instance_ids = {
+            instance.trip_instance_id
+            for instance in instances_for_rule(snapshot, trip.trip_id)
+            if not instance.deleted
+        }
+    else:
+        trip_instance_ids = {
+            instance.trip_instance_id
+            for instance in instances_for_trip(snapshot, trip.trip_id)
+            if not instance.deleted
+        }
+    return sum(
+        1
+        for booking in snapshot.bookings
+        if booking.status == BookingStatus.ACTIVE
+        and booking.trip_instance_id in trip_instance_ids
+        and not booking.route_option_id
+    )
+
+
 @router.get("/trips", response_class=HTMLResponse)
 def trips_index(
     request: Request,
@@ -527,6 +550,14 @@ async def save_trip_action(
             include_test_data=include_test_data_for_processing(snapshot.app_state),
         )
         message = queued_refresh_message("Trip saved", queued_count)
+        warning_count = _linked_booking_route_warning_count(snapshot, trip)
+        if warning_count:
+            booking_noun = "booking" if warning_count == 1 else "bookings"
+            verb = "does" if warning_count == 1 else "do"
+            message = (
+                f"{message} {warning_count} linked {booking_noun} "
+                f"{verb} not match a unique tracked route."
+            )
         return redirect_with_message(f"/trips/{trip.trip_id}", message)
     except ValueError as exc:
         snapshot = load_snapshot(repository)

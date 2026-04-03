@@ -95,3 +95,21 @@ def find_or_create_trip_group(
         description=description,
         data_scope=data_scope,
     )
+
+
+def delete_trip_group(
+    repository: Repository,
+    *,
+    trip_group_id: str,
+) -> TripGroup:
+    trip_groups = repository.load_trip_groups()
+    group = next((item for item in trip_groups if item.trip_group_id == trip_group_id), None)
+    if group is None:
+        raise KeyError("Trip group not found")
+    if any(target.trip_group_id == trip_group_id for target in repository.load_rule_group_targets()):
+        raise ValueError("Remove or retarget recurring rules before deleting this group.")
+
+    with repository.transaction():
+        repository.delete_trip_instance_group_memberships_by_group_id(trip_group_id)
+        repository.delete_trip_group_by_id(trip_group_id)
+    return group

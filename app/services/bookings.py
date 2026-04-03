@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date, datetime
 
-from app.models.base import DataScope, UnmatchedBookingStatus, utcnow
+from app.models.base import BookingStatus, DataScope, UnmatchedBookingStatus, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.unmatched_booking import UnmatchedBooking
@@ -456,3 +456,86 @@ def unlink_booking(
         repository.delete_unmatched_bookings_by_ids([booking_id])
         repository.upsert_unmatched_bookings([replacement])
     return replacement
+
+
+def update_booking(
+    repository: Repository,
+    *,
+    booking_id: str,
+    trip_instance_id: str,
+    candidate: BookingCandidate,
+) -> Booking:
+    bookings = repository.load_bookings()
+    existing = next((item for item in bookings if item.booking_id == booking_id), None)
+    if existing is None:
+        raise KeyError("Booking not found")
+    if existing.status != BookingStatus.ACTIVE:
+        raise ValueError("Only active bookings can be edited.")
+    if not trip_instance_id:
+        raise ValueError("Choose a scheduled trip or unlink the booking instead.")
+
+    app_state = repository.load_app_state()
+    include_test_data = include_test_data_for_processing(app_state) or str(existing.data_scope) == DataScope.TEST
+    trip_instances = filter_items(repository.load_trip_instances(), include_test_data=include_test_data)
+    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
+    selected_trip = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if selected_trip is None or selected_trip.deleted:
+        raise ValueError("Choose a valid scheduled trip.")
+
+    updated = Booking(
+        booking_id=existing.booking_id,
+        source=existing.source,
+        trip_instance_id=selected_trip.trip_instance_id,
+        route_option_id=_route_option_id_for_booking(
+            candidate,
+            trackers,
+            trip_instance_id=selected_trip.trip_instance_id,
+        ),
+        data_scope=selected_trip.data_scope,
+        airline=candidate.airline,
+        origin_airport=candidate.origin_airport,
+        destination_airport=candidate.destination_airport,
+        departure_date=candidate.departure_date,
+        departure_time=candidate.departure_time,
+        arrival_time=candidate.arrival_time,
+        booked_price=candidate.booked_price,
+        record_locator=candidate.record_locator,
+        booked_at=existing.booked_at,
+        status=existing.status,
+        notes=candidate.notes,
+        created_at=existing.created_at,
+        updated_at=utcnow(),
+    )
+    repository.upsert_bookings([updated])
+    return updated
+
+
+def cancel_booking(
+    repository: Repository,
+    *,
+    booking_id: str,
+) -> Booking:
+    bookings = repository.load_bookings()
+    booking = next((item for item in bookings if item.booking_id == booking_id), None)
+    if booking is None:
+        raise KeyError("Booking not found")
+    if booking.status != BookingStatus.ACTIVE:
+        raise ValueError("Only active bookings can be cancelled.")
+    booking.status = BookingStatus.CANCELLED
+    booking.updated_at = utcnow()
+    repository.upsert_bookings([booking])
+    return booking
+
+
+def delete_booking_record(
+    repository: Repository,
+    *,
+    booking_id: str,
+) -> None:
+    if any(item.booking_id == booking_id for item in repository.load_bookings()):
+        repository.delete_bookings_by_ids([booking_id])
+        return
+    if any(item.unmatched_booking_id == booking_id for item in repository.load_unmatched_bookings()):
+        repository.delete_unmatched_bookings_by_ids([booking_id])
+        return
+    raise KeyError("Booking not found")

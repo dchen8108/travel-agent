@@ -105,6 +105,10 @@
       {% endif %}
       {% if linked_booking.status == 'active' %}
       <div class="actions">
+        <a class="button secondary" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
+        <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
+          <button class="button ghost" type="submit">Cancel booking</button>
+        </form>
         <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
           <button class="button danger-outline" type="submit">Unlink booking</button>
         </form>

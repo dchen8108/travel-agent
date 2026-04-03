@@ -130,6 +130,13 @@ class Repository:
     def upsert_trip_group(self, trip_group: TripGroup) -> None:
         self._upsert_table("trip_groups", [trip_group.model_dump(mode="json")], conflict_columns=("trip_group_id",))
 
+    def delete_trip_group_by_id(self, trip_group_id: str) -> None:
+        self._delete_from_table(
+            "trip_groups",
+            where_sql="trip_group_id = ?",
+            where_params=(trip_group_id,),
+        )
+
     def load_route_options(self) -> list[RouteOption]:
         return self._load_models("SELECT * FROM route_options ORDER BY rowid", RouteOption)
 
@@ -206,6 +213,13 @@ class Repository:
                 )
             if own_connection:
                 connection.commit()
+
+    def delete_trip_instance_group_memberships_by_group_id(self, trip_group_id: str) -> None:
+        self._delete_from_table(
+            "trip_instance_group_memberships",
+            where_sql="trip_group_id = ?",
+            where_params=(trip_group_id,),
+        )
 
     def load_trackers(self) -> list[Tracker]:
         return self._load_models("SELECT * FROM trackers ORDER BY rowid", Tracker)

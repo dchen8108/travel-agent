@@ -589,6 +589,327 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     assert "View plan" not in detail.text
 
 
+def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Edit Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    save = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "EDIT01",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+    booking = next(item for item in repository.load_bookings() if item.record_locator == "EDIT01")
+
+    edit_page = client.get(f"/bookings/{booking.booking_id}/edit")
+    assert edit_page.status_code == 200
+    assert "Edit booking" in edit_page.text
+
+    edited = client.post(
+        "/bookings",
+        data={
+            "booking_id": booking.booking_id,
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "LAX",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "EDIT01",
+            "notes": "Changed airport",
+        },
+        follow_redirects=False,
+    )
+    assert edited.status_code == 303
+    assert edited.headers["location"].startswith("/trip-instances/")
+
+    updated_booking = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
+    assert updated_booking.trip_instance_id == trip_instance_id
+    assert updated_booking.route_option_id == ""
+
+    detail = client.get(edited.headers["location"])
+    assert detail.status_code == 200
+    assert "No tracked route match" in detail.text
+    assert "does not match any tracked route on this date yet" in detail.text
+
+
+def test_cancelling_booking_returns_trip_to_planned(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Cancel Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "CANCEL1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    booking = next(item for item in repository.load_bookings() if item.record_locator == "CANCEL1")
+
+    cancel = client.post(
+        f"/bookings/{booking.booking_id}/cancel",
+        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        follow_redirects=False,
+    )
+    assert cancel.status_code == 303
+    assert "Booking+cancelled" in cancel.headers["location"]
+
+    snapshot_page = client.get(f"/trip-instances/{trip_instance_id}")
+    assert snapshot_page.status_code == 200
+    assert ">Planned<" in snapshot_page.text
+    assert ">cancelled<" in snapshot_page.text
+
+
+def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Delete Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "DELETE1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    booking = next(item for item in repository.load_bookings() if item.record_locator == "DELETE1")
+
+    delete = client.post(
+        f"/bookings/{booking.booking_id}/delete",
+        headers={"referer": "http://testserver/bookings"},
+        follow_redirects=False,
+    )
+    assert delete.status_code == 303
+    assert delete.headers["location"] == "/bookings?message=Booking+deleted"
+    assert repository.load_bookings() == []
+
+    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    assert detail.status_code == 200
+    assert ">Planned<" in detail.text
+
+
+def test_editing_trip_surfaces_warning_when_linked_bookings_stop_matching_routes(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Warning Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "preference_mode": "equal",
+            "route_options_json": '[{"route_option_id":"opt_warning","origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    trip_id = create.headers["location"].split("/trips/")[1].split("?", 1)[0]
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "WARN01",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    edit = client.post(
+        "/trips",
+        data={
+            "trip_id": trip_id,
+            "label": "Warning Trip",
+            "trip_kind": "one_time",
+            "trip_group_ids_json": "[]",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "preference_mode": "equal",
+            "route_options_json": '[{"route_option_id":"opt_warning","origin_airports":["LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00","fare_class_policy":"include_basic","savings_needed_vs_previous":0}]',
+        },
+        follow_redirects=False,
+    )
+    assert edit.status_code == 303
+    assert "linked+booking+does+not+match+a+unique+tracked+route" in edit.headers["location"]
+
+    booking = next(item for item in repository.load_bookings() if item.record_locator == "WARN01")
+    assert booking.route_option_id == ""
+
+
+def test_group_delete_requires_rules_to_be_removed_first(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Delete Protected Group")
+
+    client.post(
+        "/trips",
+        data={
+            "label": "Protected Rule",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    delete = client.post(
+        f"/groups/{group.trip_group_id}/delete",
+        headers={"referer": f"http://testserver/groups/{group.trip_group_id}"},
+        follow_redirects=False,
+    )
+    assert delete.status_code == 303
+    assert "Remove+or+retarget+recurring+rules+before+deleting+this+group." in delete.headers["location"]
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_groups())
+
+
+def test_group_delete_removes_manual_memberships(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Delete Manual Group")
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Grouped One-Off",
+            "trip_kind": "one_time",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
+            "anchor_date": "2026-05-10",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_groups())
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_instance_group_memberships())
+
+    delete = client.post(
+        f"/groups/{group.trip_group_id}/delete",
+        headers={"referer": f"http://testserver/groups/{group.trip_group_id}"},
+        follow_redirects=False,
+    )
+    assert delete.status_code == 303
+    assert delete.headers["location"] == "/trips?message=Trip+group+deleted"
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_groups())
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_instance_group_memberships())
+
+
 def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

@@ -22,6 +22,31 @@
   <div class="summary-pill"><span>{{ next_instance.anchor_date.isoformat() if next_instance else '—' }}</span><small>next trip</small></div>
 </section>
 
+<section class="section section-tight">
+  <div class="section-header compact">
+    <div>
+      <p class="eyebrow">Group controls</p>
+      {% if recurring_rules %}
+      <p class="muted">Remove or retarget recurring rules before deleting this group.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% if not recurring_rules %}
+    <form
+      method="post"
+      action="/groups/{{ group.trip_group_id }}/delete"
+      data-confirm-title="Delete this trip group?"
+      data-confirm-description="Trips will stay in Milemark, but this group will disappear and any manual memberships in it will be removed."
+      data-confirm-action="Delete group"
+      data-confirm-cancel="Keep group"
+    >
+      <button class="button ghost danger-outline" type="submit">Delete group</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
 <section class="section">
   <div class="section-header">
     <div>

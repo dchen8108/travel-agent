@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.base import TravelState
 from app.services.dashboard import (
@@ -18,9 +18,9 @@ from app.services.dashboard import (
     trip_groups,
     trip_for_instance,
 )
-from app.services.groups import save_trip_group
+from app.services.groups import delete_trip_group, save_trip_group
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_with_message
+from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["groups"])
 
@@ -173,3 +173,23 @@ async def save_group_action(
             status_code=400,
         )
     return redirect_with_message(f"/groups/{group.trip_group_id}", "Trip group saved")
+
+
+@router.post("/groups/{trip_group_id}/delete")
+def delete_group_action(
+    trip_group_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    try:
+        delete_trip_group(repository, trip_group_id=trip_group_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        return redirect_back(
+            request,
+            fallback_url=f"/groups/{trip_group_id}",
+            message=str(exc),
+            message_kind="error",
+        )
+    return redirect_with_message("/trips", "Trip group deleted")
