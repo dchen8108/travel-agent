@@ -2116,6 +2116,7 @@ textarea {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
 }
 
 .collection-card {
@@ -2127,6 +2128,7 @@ textarea {
   background:
     linear-gradient(180deg, rgba(255, 255, 253, 0.98), rgba(249, 244, 237, 0.96));
   box-shadow: 0 14px 34px rgba(18, 32, 44, 0.04);
+  align-self: start;
 }
 
 .collection-card-head {
@@ -2235,6 +2237,10 @@ button.collection-trip-pill {
   appearance: none;
   cursor: pointer;
   font-family: inherit;
+}
+
+button.collection-trip-pill[hidden] {
+  display: none;
 }
 
 .collection-trip-pill:hover {

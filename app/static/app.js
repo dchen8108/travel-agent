@@ -128,7 +128,7 @@
   }
 
   function initCollectionOverflowToggles() {
-    document.querySelectorAll("[data-collection-toggle]").forEach((button) => {
+    document.querySelectorAll("[data-collection-expand]").forEach((button) => {
       if (!(button instanceof HTMLButtonElement)) {
         return;
       }
@@ -140,18 +140,33 @@
       if (!target) {
         return;
       }
-      const expandLabel = button.dataset.expandLabel || button.textContent?.trim() || "Show more";
-      const collapseLabel = button.dataset.collapseLabel || "Show less";
 
       button.addEventListener("click", () => {
-        const nextExpanded = target.hasAttribute("hidden");
-        if (nextExpanded) {
-          target.removeAttribute("hidden");
-        } else {
-          target.setAttribute("hidden", "");
-        }
-        button.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
-        button.textContent = nextExpanded ? collapseLabel : expandLabel;
+        target.removeAttribute("hidden");
+        button.hidden = true;
+        button.setAttribute("aria-expanded", "true");
+      });
+    });
+
+    document.querySelectorAll("[data-collection-collapse]").forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+      const targetId = button.dataset.targetId;
+      const triggerId = button.dataset.triggerId;
+      if (!targetId || !triggerId) {
+        return;
+      }
+      const target = document.getElementById(targetId);
+      const trigger = document.getElementById(triggerId);
+      if (!target || !(trigger instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      button.addEventListener("click", () => {
+        target.setAttribute("hidden", "");
+        trigger.hidden = false;
+        trigger.setAttribute("aria-expanded", "false");
       });
     });
   }

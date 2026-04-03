@@ -261,12 +261,11 @@
           <button
             type="button"
             class="collection-trip-pill more"
-            data-collection-toggle
-            data-expand-label="+{{ item.overflow_count }} more"
-            data-collapse-label="Show less"
+            data-collection-expand
+            id="group-expand-{{ item.group.trip_group_id }}"
             data-target-id="group-overflow-{{ item.group.trip_group_id }}"
-            aria-expanded="false"
             aria-controls="group-overflow-{{ item.group.trip_group_id }}"
+            aria-expanded="false"
             title="Show the remaining trips in this collection"
           >
             +{{ item.overflow_count }} more
@@ -280,6 +279,18 @@
             {{ upcoming.label }}
           </a>
           {% endfor %}
+          <button
+            type="button"
+            class="collection-trip-pill more"
+            data-collection-collapse
+            data-target-id="group-overflow-{{ item.group.trip_group_id }}"
+            data-trigger-id="group-expand-{{ item.group.trip_group_id }}"
+            aria-controls="group-overflow-{{ item.group.trip_group_id }}"
+            aria-expanded="true"
+            title="Collapse the remaining trips in this collection"
+          >
+            Show less
+          </button>
         </div>
         {% endif %}
         {% else %}
