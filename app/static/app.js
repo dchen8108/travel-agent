@@ -140,12 +140,10 @@
         return;
       }
       const preview = cluster.querySelector("[data-collection-preview]");
-      const collapseRow = cluster.querySelector("[data-collection-collapse-row]");
       const expandButton = cluster.querySelector("[data-collection-expand]");
       const collapseButton = cluster.querySelector("[data-collection-collapse]");
       if (
         !(preview instanceof HTMLElement) ||
-        !(collapseRow instanceof HTMLElement) ||
         !(expandButton instanceof HTMLButtonElement) ||
         !(collapseButton instanceof HTMLButtonElement)
       ) {
@@ -187,8 +185,8 @@
 
       function render() {
         preview.replaceChildren();
-        collapseRow.hidden = true;
         expandButton.hidden = true;
+        collapseButton.hidden = true;
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
         collapseButton.setAttribute("aria-expanded", expanded ? "true" : "false");
 
@@ -210,8 +208,8 @@
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
 
         if (expanded) {
-          preview.replaceChildren(...allPills);
-          collapseRow.hidden = false;
+          collapseButton.hidden = false;
+          preview.replaceChildren(...allPills, collapseButton);
         } else {
           expandButton.hidden = false;
           preview.replaceChildren(...previewPills, expandButton);

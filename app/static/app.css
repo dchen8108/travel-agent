@@ -2211,16 +2211,6 @@ textarea {
   gap: 10px;
 }
 
-.collection-trip-disclosure {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.collection-trip-disclosure[hidden] {
-  display: none;
-}
-
 .collection-trip-pill {
   display: inline-flex;
   align-items: center;
