@@ -174,6 +174,7 @@
           return allPills.length;
         }
 
+        expandButton.hidden = false;
         for (let count = allPills.length - 1; count >= 0; count -= 1) {
           const overflowCount = allPills.length - count;
           expandButton.textContent = `+${overflowCount} more`;
