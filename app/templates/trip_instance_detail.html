@@ -105,18 +105,13 @@
       <div class="actions action-row">
         <div class="action-cluster">
           <a class="button secondary" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
+          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
+            <button class="button ghost" type="submit">Cancel</button>
+          </form>
+          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
+            <button class="button danger-outline" type="submit">Unlink</button>
+          </form>
         </div>
-        <details class="action-menu">
-          <summary>More</summary>
-          <div class="action-menu-panel">
-            <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
-              <button class="button ghost" type="submit">Cancel</button>
-            </form>
-            <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-              <button class="button danger-outline" type="submit">Unlink</button>
-            </form>
-          </div>
-        </details>
       </div>
       {% endif %}
     </article>

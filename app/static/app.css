@@ -1755,15 +1755,25 @@ textarea {
 
 .booking-section-warning {
   margin-bottom: 18px;
+  background: linear-gradient(180deg, rgba(251, 230, 226, 0.98), rgba(255, 248, 246, 0.96));
+  border-color: rgba(163, 75, 63, 0.18);
 }
 
 .booking-warning-callout {
   margin-top: 16px;
+  margin-bottom: 8px;
   padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(251, 230, 226, 0.98), rgba(255, 248, 246, 0.96));
+  border-color: rgba(163, 75, 63, 0.18);
 }
 
+.booking-section-warning strong,
 .booking-warning-callout strong {
-  color: #8a5b1a;
+  color: var(--danger);
+}
+
+.booking-card .actions {
+  margin-top: 18px;
 }
 
 .form-section + .form-section {
@@ -1856,50 +1866,6 @@ textarea {
   cursor: pointer;
   color: var(--muted);
   font-weight: 600;
-}
-
-.action-menu {
-  position: relative;
-}
-
-.action-menu summary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(200, 209, 204, 0.9);
-  background: rgba(255, 254, 251, 0.68);
-  color: var(--muted);
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-}
-
-.action-menu summary::-webkit-details-marker {
-  display: none;
-}
-
-.action-menu[open] summary {
-  color: var(--ink);
-  border-color: rgba(161, 174, 167, 0.92);
-  box-shadow: 0 10px 20px rgba(26, 29, 24, 0.08);
-}
-
-.action-menu-panel {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(200, 209, 204, 0.76);
-  background: rgba(255, 252, 246, 0.92);
-  box-shadow: var(--shadow-soft);
-}
-
-.action-menu-panel form {
-  display: contents;
 }
 
 .tracker-details[open] summary {
