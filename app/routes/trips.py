@@ -54,7 +54,7 @@ def _trip_form_state(trip, route_options, *, trip_group_ids=None):
         return {
             "trip_id": "",
             "label": "",
-            "trip_kind": "weekly",
+            "trip_kind": "one_time",
             "trip_group_ids": [],
             "preference_mode": "equal",
             "anchor_date": "",
@@ -367,7 +367,7 @@ def new_trip(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    trip_kind = str(request.query_params.get("trip_kind", "weekly")).strip() or "weekly"
+    trip_kind = str(request.query_params.get("trip_kind", "one_time")).strip() or "one_time"
     trip_group_id = str(request.query_params.get("trip_group_id", "")).strip()
     return _render_trip_form(
         request,
@@ -376,7 +376,7 @@ def new_trip(
         route_options=[],
         trip_form_state={
             **_trip_form_state(None, []),
-            "trip_kind": trip_kind if trip_kind in {"one_time", "weekly"} else "weekly",
+            "trip_kind": trip_kind if trip_kind in {"one_time", "weekly"} else "one_time",
             "trip_group_ids": [trip_group_id] if trip_group_id else [],
         },
         route_option_state=_route_option_state([]),

@@ -1194,6 +1194,100 @@ textarea {
   line-height: 1.45;
 }
 
+.weekday-segmented {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  border-radius: 20px;
+  border: 1px solid rgba(200, 209, 204, 0.86);
+  background: rgba(255, 254, 251, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+.weekday-pill,
+.offset-pill {
+  position: relative;
+  display: block;
+}
+
+.weekday-pill input,
+.offset-pill input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.weekday-pill > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 14px;
+  color: #51606d;
+  font-size: 0.94rem;
+  font-weight: 700;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.weekday-pill:hover > span,
+.offset-pill:hover > span {
+  background: rgba(241, 236, 225, 0.84);
+}
+
+.weekday-pill:has(input:checked) > span,
+.offset-pill:has(input:checked) > span {
+  background: rgba(216, 235, 230, 0.82);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(13, 122, 109, 0.18);
+}
+
+.weekday-pill:focus-within > span,
+.offset-pill:focus-within > span {
+  box-shadow:
+    0 0 0 4px rgba(13, 122, 109, 0.12),
+    inset 0 0 0 1px rgba(13, 122, 109, 0.18);
+}
+
+.offset-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.offset-pill > span {
+  display: grid;
+  gap: 2px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(200, 209, 204, 0.88);
+  background: rgba(255, 254, 251, 0.94);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.offset-pill strong {
+  font-size: 0.95rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.offset-pill small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .choice-card:has(input:checked) {
   border-color: rgba(31, 92, 82, 0.28);
   background: rgba(216, 235, 230, 0.46);
@@ -1939,6 +2033,14 @@ code {
 
   .trip-type-segmented {
     grid-template-columns: 1fr;
+  }
+
+  .weekday-segmented {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .offset-segmented {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .filter-toolbar {

@@ -68,7 +68,7 @@
   </div>
   <div class="card travel-overview-card">
     <div class="meta-grid">
-      <div><dt>{{ 'Anchor weekday' if trip.trip_kind == 'weekly' else 'Anchor date' }}</dt><dd>{{ trip.anchor_weekday if trip.trip_kind == 'weekly' else trip.anchor_date.isoformat() }}</dd></div>
+      <div><dt>{{ 'Repeat on' if trip.trip_kind == 'weekly' else 'Travel date' }}</dt><dd>{{ trip.anchor_weekday if trip.trip_kind == 'weekly' else trip.anchor_date.isoformat() }}</dd></div>
       <div><dt>Selection style</dt><dd>{{ 'Preferred order' if trip.preference_mode == 'ranked_bias' else 'Cheapest wins' }}</dd></div>
       <div><dt>Next active date</dt><dd>{{ next_open_instance.anchor_date.isoformat() if next_open_instance else 'None' }}</dd></div>
       <div><dt>Planned</dt><dd>{{ planned_count }}</dd></div>

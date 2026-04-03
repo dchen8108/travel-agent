@@ -3,8 +3,8 @@
 <section class="hero compact form-hero">
   <div>
     <p class="eyebrow">{{ 'Edit trip' if trip else 'Design trip' }}</p>
-    <h2>{{ trip.label if trip else 'Build a trip around ranked options.' }}</h2>
-    <p>Set the dates, order the routes, and let price decide what wins.</p>
+    <h2>{{ trip.label if trip else 'Build a trip Milemark can actually track.' }}</h2>
+    <p>Choose the schedule, define the acceptable routes, and let price decide what wins.</p>
   </div>
 </section>
 
@@ -54,19 +54,20 @@
         </small>
       </label>
       <label class="kind-one-time {{ '' if trip_form_state.trip_kind == 'one_time' else 'is-hidden' }}" data-anchor-date-field>
-        <span>Anchor date</span>
+        <span>Travel date</span>
         <input type="date" name="anchor_date" value="{{ trip_form_state.anchor_date }}">
       </label>
-      <label class="kind-weekly {{ '' if trip_form_state.trip_kind == 'weekly' else 'is-hidden' }}" data-anchor-weekday-field>
-        <span>Anchor weekday</span>
-        <div class="select-shell">
-          <select name="anchor_weekday" data-anchor-weekday>
-            {% for weekday in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-            <option value="{{ weekday }}" {{ 'selected' if trip_form_state.anchor_weekday == weekday else '' }}>{{ weekday }}</option>
-            {% endfor %}
-          </select>
+      <div class="field kind-weekly {{ '' if trip_form_state.trip_kind == 'weekly' else 'is-hidden' }}" data-anchor-weekday-field>
+        <span>Repeat on</span>
+        <div class="weekday-segmented">
+          {% for weekday in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+          <label class="weekday-pill">
+            <input type="radio" name="anchor_weekday" value="{{ weekday }}" data-anchor-weekday {{ 'checked' if trip_form_state.anchor_weekday == weekday else '' }}>
+            <span>{{ weekday[:3] }}</span>
+          </label>
+          {% endfor %}
         </div>
-      </label>
+      </div>
     </div>
 
     <section class="preference-card top-gap-small">
@@ -99,6 +100,7 @@
         <div>
           <p class="eyebrow">Route options</p>
           <h3>Ranked route definitions</h3>
+          <p class="muted">Each option is one acceptable itinerary for this trip. Keep at least one route so Milemark knows what to track.</p>
         </div>
         <button type="button" class="button secondary" data-add-route-option>Add route option</button>
       </div>

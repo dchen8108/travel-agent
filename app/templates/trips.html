@@ -8,8 +8,7 @@
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="/groups/new">New group</a>
-    <a class="button secondary" href="/trips/new?trip_kind=weekly">New recurring rule</a>
-    <a class="button primary" href="/trips/new?trip_kind=one_time">New one-time trip</a>
+    <a class="button primary" href="/trips/new">New trip</a>
   </div>
 </section>
 
@@ -62,8 +61,7 @@
       {% endif %}
       <div class="actions top-gap-small">
         <a class="button primary" href="/groups/{{ group.trip_group_id }}">Open group</a>
-        <a class="button secondary" href="/trips/new?trip_kind=one_time&trip_group_id={{ group.trip_group_id }}">New trip</a>
-        <a class="button ghost" href="/trips/new?trip_kind=weekly&trip_group_id={{ group.trip_group_id }}">New rule</a>
+        <a class="button secondary" href="/trips/new?trip_group_id={{ group.trip_group_id }}">New trip</a>
       </div>
     </article>
     {% else %}

@@ -29,9 +29,37 @@ def test_core_pages_render(tmp_path: Path) -> None:
         assert response.status_code == 200
     trips_page = client.get("/trips")
     assert "Independent rules" not in trips_page.text
+    assert "New recurring rule" not in trips_page.text
+    assert "New one-time trip" not in trips_page.text
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/trips"
+
+
+def test_trip_form_requires_at_least_one_route_option(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "No Routes Yet",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "preference_mode": "equal",
+            "route_options_json": "[]",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Trips require at least one route option." in response.text
 
 
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:

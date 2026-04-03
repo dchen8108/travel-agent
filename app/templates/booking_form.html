@@ -4,7 +4,7 @@
   <div>
     <p class="eyebrow">{{ 'Edit booking' if editing_booking else 'Add booking' }}</p>
     <h2>{{ 'Update a flight already in Milemark.' if editing_booking else 'Capture a flight you already booked.' }}</h2>
-    <p>{% if editing_booking %}Change the itinerary or placement, then Milemark will re-check whether the trip is tracking this exact route.{% else %}If it cannot be placed confidently, it stays in Bookings until you link it.{% endif %}</p>
+    <p>{% if editing_booking %}Change the itinerary or trip link, then Milemark will re-check whether this exact route is being tracked.{% else %}Record the itinerary first. If Milemark can place it confidently, it will attach it automatically.{% endif %}</p>
   </div>
 </section>
 
@@ -88,16 +88,16 @@
     <section class="form-section">
       <div class="section-header compact">
         <div>
-          <p class="eyebrow">Placement</p>
-          <h3>Trip placement</h3>
+          <p class="eyebrow">Trip link</p>
+          <h3>Attach to a trip</h3>
         </div>
       </div>
       <div class="form-grid">
         <label class="full-width">
-          <span>Trip instance</span>
+          <span>Scheduled trip</span>
           <div class="select-shell">
             <select name="trip_instance_id">
-              <option value="">{{ 'Choose a scheduled trip' if editing_booking else 'Auto-match if possible' }}</option>
+              <option value="">{{ 'Choose a scheduled trip' if editing_booking else 'Let Milemark match it automatically' }}</option>
               {% for trip_instance in trip_instances %}
               <option value="{{ trip_instance.trip_instance_id }}" {{ 'selected' if booking_form_state.trip_instance_id == trip_instance.trip_instance_id else '' }}>{{ trip_instance.display_label }}</option>
               {% endfor %}

@@ -11,14 +11,14 @@
   const tripGroupIdsHidden = form?.querySelector('input[name="trip_group_ids_json"]');
   const tripKindInputs = Array.from(form?.querySelectorAll('input[data-trip-kind]') || []);
   const preferenceModeInputs = Array.from(form?.querySelectorAll('input[name="preference_mode"]') || []);
-  const anchorWeekdaySelect = form?.querySelector("[data-anchor-weekday]");
+  const anchorWeekdayInputs = Array.from(form?.querySelectorAll("[data-anchor-weekday]") || []);
   const tripGroupPickerRoot = form?.querySelector("[data-trip-group-picker]");
   const tripGroupLabel = form?.querySelector("[data-trip-group-label]");
   const tripGroupHelp = form?.querySelector("[data-trip-group-help]");
   const anchorDateField = form?.querySelector("[data-anchor-date-field]");
   const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
   const addRouteOptionButton = document.querySelector("[data-add-route-option]");
-  if (!form || !root || !hidden || !tripGroupIdsHidden || !tripKindInputs.length || !anchorWeekdaySelect || !tripGroupPickerRoot || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
+  if (!form || !root || !hidden || !tripGroupIdsHidden || !tripKindInputs.length || !anchorWeekdayInputs.length || !tripGroupPickerRoot || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
     return;
   }
 
@@ -55,12 +55,12 @@
   }
 
   function currentTripKind() {
-    return tripKindInputs.find((input) => input.checked)?.value || tripState.trip?.trip_kind || "weekly";
+    return tripKindInputs.find((input) => input.checked)?.value || tripState.trip?.trip_kind || "one_time";
   }
 
   function currentAnchorWeekday() {
     if (currentTripKind() === "weekly") {
-      return anchorWeekdaySelect.value || "Monday";
+      return anchorWeekdayInputs.find((input) => input.checked)?.value || "Monday";
     }
     const anchorDateValue = form.querySelector('input[name="anchor_date"]').value;
     if (!anchorDateValue) {
@@ -74,7 +74,8 @@
     const index = weekdays.indexOf(anchorWeekday);
     return [-1, 0, 1].map((offset) => ({
       value: offset,
-      label: `${weekdays[(index + offset + weekdays.length) % weekdays.length]} (${offset === 0 ? "T" : `T${offset > 0 ? `+${offset}` : offset}`})`,
+      title: offset === 0 ? "Same day" : (offset < 0 ? "Day before" : "Day after"),
+      subtitle: weekdays[(index + offset + weekdays.length) % weekdays.length],
     }));
   }
 
@@ -158,9 +159,9 @@
           <div class="field"><span>Origin airports</span><div data-field="origin_airports"></div></div>
           <div class="field"><span>Destination airports</span><div data-field="destination_airports"></div></div>
           <div class="field"><span>Airlines</span><div data-field="airlines"></div></div>
-          <div class="field"><span>Relative day</span><div class="select-shell"><select data-field="day_offset"></select></div></div>
-          <div class="field"><span>Departure range start</span><input type="time" data-field="start_time" value="${option.start_time}"></div>
-          <div class="field"><span>Departure range end</span><input type="time" data-field="end_time" value="${option.end_time}"></div>
+          <div class="field"><span>Travel day</span><div class="offset-segmented" data-field="day_offset"></div></div>
+          <div class="field"><span>Window start</span><input type="time" step="900" data-field="start_time" value="${option.start_time}"></div>
+          <div class="field"><span>Window end</span><input type="time" step="900" data-field="end_time" value="${option.end_time}"></div>
           <div class="field full-width fare-policy-field">
             <span>Fare policy</span>
             <div class="fare-policy-grid" data-field="fare_class_policy">
@@ -193,19 +194,23 @@
           ` : ""}
         </div>
       `;
-      const daySelect = card.querySelector('[data-field="day_offset"]');
+      const dayOffsetRoot = card.querySelector('[data-field="day_offset"]');
       dayOptions(anchorWeekday).forEach((choice) => {
-        const optionEl = document.createElement("option");
-        optionEl.value = String(choice.value);
-        optionEl.textContent = choice.label;
-        if (Number(option.day_offset) === choice.value) {
-          optionEl.selected = true;
-        }
-        daySelect.appendChild(optionEl);
-      });
-      daySelect.addEventListener("change", () => {
-        option.day_offset = Number(daySelect.value);
-        serialize();
+        const choiceLabel = document.createElement("label");
+        choiceLabel.className = "offset-pill";
+        choiceLabel.innerHTML = `
+          <input type="radio" name="day_offset_${index}" value="${choice.value}" ${Number(option.day_offset) === choice.value ? "checked" : ""}>
+          <span><strong>${choice.title}</strong><small>${choice.subtitle}</small></span>
+        `;
+        const input = choiceLabel.querySelector("input");
+        input.addEventListener("change", () => {
+          if (!input.checked) {
+            return;
+          }
+          option.day_offset = Number(input.value);
+          serialize();
+        });
+        dayOffsetRoot.appendChild(choiceLabel);
       });
       card.querySelector('[data-field="start_time"]').addEventListener("input", (event) => {
         option.start_time = event.target.value;
@@ -269,12 +274,17 @@
         },
       });
       card.querySelector("[data-remove]").addEventListener("click", () => {
-        routeOptions = routeOptions.filter((_, itemIndex) => itemIndex !== index);
-        if (!routeOptions.length) {
-          routeOptions = [blankRouteOption()];
+        if (routeOptions.length === 1) {
+          return;
         }
+        routeOptions = routeOptions.filter((_, itemIndex) => itemIndex !== index);
         render();
       });
+      const removeButton = card.querySelector("[data-remove]");
+      if (routeOptions.length === 1) {
+        removeButton.disabled = true;
+        removeButton.title = "Trips need at least one route option.";
+      }
       card.querySelector("[data-move-up]").addEventListener("click", () => {
         if (index === 0) {
           return;
@@ -306,7 +316,9 @@
     input.addEventListener("change", render);
   });
   form.querySelector('input[name="anchor_date"]').addEventListener("change", render);
-  anchorWeekdaySelect.addEventListener("change", render);
+  anchorWeekdayInputs.forEach((input) => {
+    input.addEventListener("change", render);
+  });
   syncTripGroupPicker();
   syncKindVisibility();
 })();
