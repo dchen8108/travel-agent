@@ -188,17 +188,17 @@
           <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
           <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
           <div><dt>Status</dt><dd>Needs linking</dd></div>
-          <div><dt>Matching signal</dt><dd>{% if card.suggested_trip_instances %}{{ card.suggested_trip_instances|length }} possible trip{{ '' if card.suggested_trip_instances|length == 1 else 's' }}{% else %}No strong match yet{% endif %}</dd></div>
+          <div><dt>Suggested trips</dt><dd>{% if card.suggested_trip_instances %}{{ card.suggested_trip_instances|length }} possible match{{ '' if card.suggested_trip_instances|length == 1 else 'es' }}{% else %}No strong match yet{% endif %}</dd></div>
         </div>
-        {% if unmatched.raw_summary %}
-        <p class="muted top-gap-small">{{ unmatched.raw_summary }}</p>
-        {% endif %}
         {% if card.suggested_trip_instances %}
+        <p class="muted top-gap-small"><strong>Suggested trips only.</strong> This booking is currently unlinked.</p>
         <div class="inline-badge-row top-gap-small">
           {% for trip_instance in card.suggested_trip_instances %}
           <span class="badge">{{ trip_instance.display_label }}</span>
           {% endfor %}
         </div>
+        {% else %}
+        <p class="muted top-gap-small">This booking is currently unlinked, and Milemark does not see a strong trip match yet.</p>
         {% endif %}
         <div class="two-column top-gap-small">
           <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
