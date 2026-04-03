@@ -233,28 +233,38 @@
       </div>
       <a class="section-link" href="/trips">All plans</a>
     </div>
-    <div class="dashboard-list">
+    <div class="dashboard-card-grid">
       {% for item in recurring_rule_views %}
-      <article class="dashboard-item">
-        <div class="dashboard-item-main">
-          <div class="dashboard-item-head">
-            <a class="dashboard-item-title" href="/trips/{{ item.rule.trip_id }}">{{ item.rule.label }}</a>
-            <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
+      <article class="card compact-surface-card dashboard-rich-card">
+        <div class="card-header">
+          <div>
+            <strong><a class="dashboard-item-title" href="/trips/{{ item.rule.trip_id }}">{{ item.rule.label }}</a></strong>
+            <p class="muted">
+              {% if item.groups %}
+              {{ item.groups|map(attribute='label')|join(' · ') }}
+              {% else %}
+              No collection
+              {% endif %}
+            </p>
           </div>
-          <p class="compact-meta">
-            {% if item.groups %}
-            {{ item.groups|map(attribute='label')|join(' · ') }}
-            {% else %}
-            No collection
-            {% endif %}
-          </p>
-          <p class="dashboard-item-detail">
-            {% if item.next_instance %}
-            Next trip {{ item.next_instance.anchor_date.strftime('%a, %b %d') }} · {{ item.upcoming_count }} upcoming · {{ item.route_count }} route option{{ '' if item.route_count == 1 else 's' }}
-            {% else %}
-            No upcoming trips in the current horizon · {{ item.route_count }} route option{{ '' if item.route_count == 1 else 's' }}
-            {% endif %}
-          </p>
+          <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
+        </div>
+        <div class="meta-grid">
+          <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
+          <div><dt>Upcoming</dt><dd>{{ item.upcoming_count }}</dd></div>
+          <div><dt>Planned</dt><dd>{{ item.planned_count }}</dd></div>
+          <div><dt>Routes</dt><dd>{{ item.route_count }}</dd></div>
+        </div>
+        {% if item.upcoming_dates %}
+        <div class="inline-badge-row">
+          {% for item_date in item.upcoming_dates %}
+          <span class="badge horizon-badge">{{ item_date.strftime('%b %d') }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="actions top-gap-small">
+          <a class="button primary" href="/trips/{{ item.rule.trip_id }}">Open plan</a>
+          <a class="button secondary" href="/trips/{{ item.rule.trip_id }}/edit">Edit</a>
         </div>
       </article>
       {% else %}
@@ -274,24 +284,34 @@
       </div>
       <a class="section-link" href="/trips">All groups</a>
     </div>
-    <div class="dashboard-list">
+    <div class="dashboard-card-grid">
       {% for item in group_views %}
-      <article class="dashboard-item">
-        <div class="dashboard-item-main">
-          <div class="dashboard-item-head">
-            <a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a>
-            <span class="signal-badge">{{ item.upcoming_count }} upcoming</span>
-          </div>
-          {% if item.group.description %}
-          <p class="compact-meta">{{ item.group.description }}</p>
-          {% endif %}
-          <p class="dashboard-item-detail">
-            {% if item.next_instance %}
-            Next trip {{ item.next_instance.anchor_date.strftime('%a, %b %d') }} · {{ item.rule_count }} recurring rule{{ '' if item.rule_count == 1 else 's' }}
-            {% else %}
-            No upcoming trips · {{ item.rule_count }} recurring rule{{ '' if item.rule_count == 1 else 's' }}
+      <article class="card compact-surface-card dashboard-rich-card">
+        <div class="card-header">
+          <div>
+            <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
+            {% if item.group.description %}
+            <p class="muted">{{ item.group.description }}</p>
             {% endif %}
-          </p>
+          </div>
+          <span class="badge">{{ item.upcoming_count }} upcoming</span>
+        </div>
+        <div class="meta-grid">
+          <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
+          <div><dt>Recurring rules</dt><dd>{{ item.rule_count }}</dd></div>
+          <div><dt>Planned</dt><dd>{{ item.planned_count }}</dd></div>
+          <div><dt>Booked</dt><dd>{{ item.booked_count }}</dd></div>
+        </div>
+        {% if item.upcoming_dates %}
+        <div class="inline-badge-row">
+          {% for item_date in item.upcoming_dates %}
+          <span class="badge horizon-badge">{{ item_date.strftime('%b %d') }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="actions top-gap-small">
+          <a class="button primary" href="/groups/{{ item.group.trip_group_id }}">Open group</a>
+          <a class="button secondary" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
         </div>
       </article>
       {% else %}

@@ -139,31 +139,36 @@ def _rule_dashboard_view(snapshot, rule, *, today: date) -> dict[str, object]:
         if instance.recurring_rule_trip_id == rule.trip_id
     ]
     next_instance = future_instances[0] if future_instances else None
+    booked_count = sum(
+        1
+        for instance in future_instances
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+    )
     return {
         "rule": rule,
         "groups": groups_for_rule(snapshot, rule),
         "route_count": len(route_options_for_trip(snapshot, rule.trip_id)),
         "upcoming_count": len(future_instances),
         "next_instance": next_instance,
-        "booked_count": sum(
-            1
-            for instance in future_instances
-            if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
-        ),
+        "booked_count": booked_count,
+        "planned_count": max(0, len(future_instances) - booked_count),
+        "upcoming_dates": [instance.anchor_date for instance in future_instances[:8]],
     }
 
 
 def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
+    booked_count = sum(
+        1
+        for instance in upcoming
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+    )
     return {
         "group": group,
         "upcoming_count": len(upcoming),
         "next_instance": upcoming[0] if upcoming else None,
-        "booked_count": sum(
-            1
-            for instance in upcoming
-            if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
-        ),
+        "booked_count": booked_count,
+        "planned_count": max(0, len(upcoming) - booked_count),
         "rule_count": len(
             [
                 rule
@@ -171,6 +176,7 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
                 if any(target_group.trip_group_id == group.trip_group_id for target_group in groups_for_rule(snapshot, rule))
             ]
         ),
+        "upcoming_dates": [instance.anchor_date for instance in upcoming[:10]],
     }
 
 

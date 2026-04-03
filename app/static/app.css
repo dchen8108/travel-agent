@@ -2105,6 +2105,12 @@ textarea {
   gap: 10px;
 }
 
+.dashboard-card-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
 .quiet-state-row {
   display: flex;
   align-items: center;
@@ -2215,6 +2221,15 @@ textarea {
 .dashboard-item,
 .travel-row {
   padding: 13px 14px;
+}
+
+.dashboard-rich-card {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-rich-card .meta-grid {
+  margin: 0;
 }
 
 .dashboard-item-main,
