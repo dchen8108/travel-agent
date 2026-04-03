@@ -2229,6 +2229,10 @@ textarea {
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
 }
 
+a.collection-trip-pill {
+  inline-size: 5.6rem;
+}
+
 button.collection-trip-pill {
   appearance: none;
   cursor: pointer;
