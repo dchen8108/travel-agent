@@ -49,9 +49,13 @@ def _selectable_trip_instances(snapshot):
     )
 
 
-def _booking_views(snapshot):
+def _booking_views(snapshot, *, today: date):
     active_bookings = sorted(
-        [booking for booking in snapshot.bookings if booking.status == "active"],
+        [
+            booking
+            for booking in snapshot.bookings
+            if booking.status == "active" and booking.departure_date >= today
+        ],
         key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
     )
     cards: list[dict[str, object]] = []
@@ -69,9 +73,13 @@ def _booking_views(snapshot):
     return cards
 
 
-def _booking_history_views(snapshot):
+def _booking_history_views(snapshot, *, today: date):
     history = sorted(
-        [booking for booking in snapshot.bookings if booking.status != "active"],
+        [
+            booking
+            for booking in snapshot.bookings
+            if booking.status != "active" or booking.departure_date < today
+        ],
         key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
         reverse=True,
     )
@@ -85,6 +93,7 @@ def _booking_history_views(snapshot):
                 "trip_instance": trip_instance,
                 "parent_trip": parent_trip,
                 "route_tracking": booking_route_tracking_state(snapshot, booking),
+                "history_label": "Past" if booking.status == "active" and booking.departure_date < today else booking.status,
             }
         )
     return cards
@@ -192,8 +201,9 @@ def bookings_index(
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    booking_views = _booking_views(snapshot)
-    history_views = _booking_history_views(snapshot)
+    today = date.today()
+    booking_views = _booking_views(snapshot, today=today)
+    history_views = _booking_history_views(snapshot, today=today)
     unmatched_views = _unmatched_booking_views(snapshot)
     return get_templates(request).TemplateResponse(
         request=request,

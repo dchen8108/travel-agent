@@ -423,6 +423,56 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert "Booked" not in trips_page.text
 
 
+def test_bookings_page_moves_past_active_bookings_into_history(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    past_date = date.today() - timedelta(days=3)
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Past Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": past_date.isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    save = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": past_date.isoformat(),
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "PAST01",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+
+    page = client.get("/bookings")
+    assert page.status_code == 200
+    assert "Upcoming flights currently attached to trips" in page.text
+    assert "No upcoming bookings." in page.text
+    assert "Past and inactive bookings" in page.text
+    assert "PAST01" in page.text
+    assert ">Past<" in page.text
+
+
 def test_one_time_trip_delete_removes_trip_from_user_visible_ui(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
