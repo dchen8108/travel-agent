@@ -168,8 +168,13 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     )
     assert booking_response.status_code == 303
 
-    bookings_page = client.get("/bookings")
-    assert "ABC123" in bookings_page.text
+    dashboard_page = client.get("/")
+    assert "ABC123" not in dashboard_page.text
+
+    repository = Repository(settings)
+    booking = repository.load_bookings()[0]
+    trip_page = client.get(f"/trip-instances/{booking.trip_instance_id}")
+    assert "ABC123" in trip_page.text
 
 
 def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
@@ -277,8 +282,9 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "Every upcoming trip in one place" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
-    assert "Match booking" in page.text
-    assert "/bookings#needs-linking" in page.text
+    assert "Unlinked bookings" in page.text
+    assert "Bookings Milemark could not place automatically" in page.text
+    assert "/bookings/unmatched/" in page.text
 
 
 def test_new_weekly_rule_without_groups_creates_matching_group(tmp_path: Path) -> None:
@@ -411,7 +417,7 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert unlink.status_code == 303
-    assert unlink.headers["location"].startswith("/bookings?message=Booking+moved+to+Resolve")
+    assert unlink.headers["location"].startswith("/bookings?message=Booking+needs+linking")
 
     repository = Repository(settings)
     assert not repository.load_bookings()
@@ -423,7 +429,7 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert "Booked" not in trips_page.text
 
 
-def test_bookings_page_moves_past_active_bookings_into_history(tmp_path: Path) -> None:
+def test_past_active_bookings_are_not_exposed_as_a_top_level_dashboard_surface(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -464,13 +470,15 @@ def test_bookings_page_moves_past_active_bookings_into_history(tmp_path: Path) -
     )
     assert save.status_code == 303
 
-    page = client.get("/bookings")
+    page = client.get("/")
     assert page.status_code == 200
-    assert "Upcoming bookings already attached to trips" in page.text
-    assert "No upcoming bookings." in page.text
-    assert "Past and cancelled bookings" in page.text
-    assert "PAST01" in page.text
-    assert ">Past<" in page.text
+    assert "PAST01" not in page.text
+
+    repository = Repository(settings)
+    booking = repository.load_bookings()[0]
+    detail = client.get(f"/trip-instances/{booking.trip_instance_id}")
+    assert detail.status_code == 200
+    assert "PAST01" in detail.text
 
 
 def test_one_time_trip_delete_removes_trip_from_user_visible_ui(tmp_path: Path) -> None:
@@ -1750,10 +1758,10 @@ def test_unmatched_booking_can_be_linked_from_bookings_page(tmp_path: Path) -> N
         follow_redirects=False,
     )
     assert booking_response.status_code == 303
-    assert booking_response.headers["location"] == "/bookings?message=Booking+needs+linking#needs-linking"
+    assert booking_response.headers["location"] == "/?message=Booking+needs+linking#needs-linking"
 
-    bookings_page = client.get("/bookings")
-    unmatched_id = bookings_page.text.split('/bookings/unmatched/', 1)[1].split('/link', 1)[0]
+    dashboard_page = client.get("/")
+    unmatched_id = dashboard_page.text.split('/bookings/unmatched/', 1)[1].split('/link', 1)[0]
 
     trips_page = client.get("/trips?q=Resolve+Redirect+Trip")
     trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
@@ -1847,10 +1855,7 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
 
     client = TestClient(create_app(settings))
     detail = client.get(f"/trip-instances/{trip_instance_id}")
-    bookings_page = client.get("/bookings")
 
     assert detail.status_code == 200
     assert "No tracked route match" in detail.text
     assert "does not match any tracked route on this date yet" in detail.text
-    assert bookings_page.status_code == 200
-    assert "No tracked route match" in bookings_page.text

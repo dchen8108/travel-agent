@@ -128,7 +128,7 @@ Known-good on this machine after the latest cleanup pass:
 - Playwright/browser smoke on:
   - `/`
   - `/trips`
-  - `/bookings`
+  - `/bookings/new`
   - `/groups/{id}`
   - `/trip-instances/{id}`
 

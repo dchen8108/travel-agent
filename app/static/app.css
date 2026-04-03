@@ -2036,6 +2036,12 @@ textarea {
   padding: 18px 18px 20px;
 }
 
+.dashboard-full-panel {
+  grid-column: 1 / -1;
+  gap: 16px;
+  padding: 18px;
+}
+
 .dashboard-lower-panel {
   gap: 12px;
   padding: 14px 16px;

@@ -17,7 +17,7 @@ router = APIRouter(tags=["resolve"])
 def resolve_index(
     request: Request,
 ) -> RedirectResponse:
-    return RedirectResponse(url="/bookings#needs-linking", status_code=303)
+    return RedirectResponse(url="/#needs-linking", status_code=303)
 
 
 @router.post("/resolve/{unmatched_booking_id}/link")
@@ -28,6 +28,8 @@ async def resolve_link(
 ) -> RedirectResponse:
     form = await request.form()
     trip_instance_id = str(form.get("trip_instance_id", "")).strip()
+    if not trip_instance_id:
+        return redirect_with_message("/#needs-linking", "Choose a scheduled trip first.", message_kind="error")
     try:
         booking = resolve_unmatched_booking_to_trip_instance(
             repository,
@@ -42,7 +44,7 @@ async def resolve_link(
         None,
     )
     if trip_instance is None:
-        return redirect_with_message("/bookings", "Booking linked")
+        return redirect_with_message("/", "Booking linked")
     return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", "Booking linked")
 
 

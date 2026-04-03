@@ -10,7 +10,6 @@ from app.services.dashboard import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
-    booking_route_tracking_state,
     groups_for_instance,
     recurring_rules_for_group,
     scheduled_instances,
@@ -25,6 +24,7 @@ from app.services.dashboard import (
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
     trip_recommended_action,
+    unmatched_booking_resolution_views,
 )
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -124,6 +124,8 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
         "phase_tone": phase_tone,
         "href": f"/trip-instances/{instance.trip_instance_id}",
     }
+
+
 def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
     booked_count = sum(
@@ -139,21 +141,6 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
         "planned_count": max(0, len(upcoming) - booked_count),
         "rule_count": len(recurring_rules_for_group(snapshot, group.trip_group_id)),
         "upcoming_dates": [instance.anchor_date for instance in upcoming[:6]],
-    }
-
-
-def _booking_dashboard_view(snapshot, booking) -> dict[str, object]:
-    trip = trip_for_instance(snapshot, booking.trip_instance_id)
-    route_tracking = booking_route_tracking_state(snapshot, booking)
-    return {
-        "booking": booking,
-        "trip": trip,
-        "route_tracking": route_tracking,
-        "href": (
-            f"/trip-instances/{booking.trip_instance_id}"
-            if booking.trip_instance_id
-            else "/bookings"
-        ),
     }
 
 
@@ -190,7 +177,7 @@ def today(
                 **scheduled_view,
             ),
         )
-    open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
+    unmatched_views = unmatched_booking_resolution_views(snapshot)
     upcoming_instances = scheduled_instances(snapshot, today=today)
     planned_instances = [
         instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
@@ -201,8 +188,6 @@ def today(
     rebook_instances = [
         instance for instance in booked_instances if rebook_savings(snapshot, instance.trip_instance_id) is not None
     ]
-    action_count = len(open_unmatched) + len(rebook_instances)
-    open_savings_total = sum(rebook_savings(snapshot, instance.trip_instance_id) or 0 for instance in rebook_instances)
     next_trip = upcoming_instances[0] if upcoming_instances else None
 
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances[:6]]
@@ -212,13 +197,7 @@ def today(
         for instance in planned_instances
         if instance.anchor_date <= action_window_cutoff
     ][:4]
-    booking_views = [
-        _booking_dashboard_view(snapshot, booking)
-        for booking in sorted(
-            [item for item in snapshot.bookings if item.status == "active"],
-            key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
-        )[:4]
-    ]
+    action_count = len(unmatched_views) + len(rebook_views) + len(book_now_views)
 
     monitoring_labels = [
         trip_monitoring_status_label(snapshot, instance.trip_instance_id)
@@ -251,12 +230,10 @@ def today(
             request,
             page="dashboard",
             snapshot=snapshot,
-            open_unmatched=open_unmatched,
+            unmatched_views=unmatched_views,
             planned_instances=planned_instances,
-            booked_instances=booked_instances,
             rebook_views=rebook_views,
             book_now_views=book_now_views,
-            booking_views=booking_views,
             group_views=group_views,
             scheduled_filter_action_path="/",
             scheduled_filter_clear_path="/#all-travel",
@@ -264,7 +241,6 @@ def today(
             next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
             total_booked_monitoring=len(booked_instances),
-            open_savings_total=open_savings_total,
             tracking_count=tracking_count,
             initializing_count=initializing_count,
             no_match_count=no_match_count,

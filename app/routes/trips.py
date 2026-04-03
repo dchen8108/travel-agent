@@ -595,7 +595,7 @@ async def save_trip_action(
             )
         if source_unmatched_booking_id and linked_booking is None:
             message = f"{message} Booking still needs linking."
-            return redirect_with_message("/bookings#needs-linking", message)
+            return redirect_with_message("/#needs-linking", message)
         if linked_booking is not None:
             return redirect_with_message(f"/trip-instances/{linked_booking.trip_instance_id}", message)
         return redirect_with_message(f"/trips/{trip.trip_id}", message)

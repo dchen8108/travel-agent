@@ -8,7 +8,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.catalog import catalogs_json
 from app.money import parse_money
 from app.models.base import DataScope
-from app.route_options import split_pipe
 from app.services.bookings import (
     BookingCandidate,
     cancel_booking,
@@ -21,6 +20,7 @@ from app.services.bookings import (
 from app.services.dashboard import (
     booking_route_tracking_state,
     load_snapshot,
+    selectable_trip_instances_for_booking_link,
     trip_for_instance,
     trip_instance_by_id,
 )
@@ -29,74 +29,6 @@ from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["bookings"])
-
-
-def _selectable_trip_instances(snapshot):
-    return sorted(
-        [
-            item
-            for item in snapshot.trip_instances
-            if not item.deleted and (
-                (parent_trip := trip_for_instance(snapshot, item.trip_instance_id)) is None
-                or parent_trip.trip_kind != "one_time"
-                or parent_trip.active
-            )
-        ],
-        key=lambda item: (
-            item.anchor_date,
-            item.display_label.lower(),
-        ),
-    )
-
-
-def _booking_views(snapshot, *, today: date):
-    active_bookings = sorted(
-        [
-            booking
-            for booking in snapshot.bookings
-            if booking.status == "active" and booking.departure_date >= today
-        ],
-        key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
-    )
-    cards: list[dict[str, object]] = []
-    for booking in active_bookings:
-        trip_instance = trip_instance_by_id(snapshot, booking.trip_instance_id)
-        parent_trip = trip_for_instance(snapshot, booking.trip_instance_id) if trip_instance else None
-        cards.append(
-            {
-                "booking": booking,
-                "trip_instance": trip_instance,
-                "parent_trip": parent_trip,
-                "route_tracking": booking_route_tracking_state(snapshot, booking),
-            }
-        )
-    return cards
-
-
-def _booking_history_views(snapshot, *, today: date):
-    history = sorted(
-        [
-            booking
-            for booking in snapshot.bookings
-            if booking.status != "active" or booking.departure_date < today
-        ],
-        key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
-        reverse=True,
-    )
-    cards: list[dict[str, object]] = []
-    for booking in history:
-        trip_instance = trip_instance_by_id(snapshot, booking.trip_instance_id)
-        parent_trip = trip_for_instance(snapshot, booking.trip_instance_id) if trip_instance else None
-        cards.append(
-            {
-                "booking": booking,
-                "trip_instance": trip_instance,
-                "parent_trip": parent_trip,
-                "route_tracking": booking_route_tracking_state(snapshot, booking),
-                "history_label": "Past" if booking.status == "active" and booking.departure_date < today else booking.status,
-            }
-        )
-    return cards
 
 
 def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str, str]:
@@ -129,6 +61,14 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
     }
 
 
+def _booking_form_cancel_url(*, selected_trip_instance=None, editing_booking=None) -> str:
+    if selected_trip_instance is not None:
+        return f"/trip-instances/{selected_trip_instance.trip_instance_id}"
+    if editing_booking is not None and editing_booking.trip_instance_id:
+        return f"/trip-instances/{editing_booking.trip_instance_id}"
+    return "/"
+
+
 def _render_booking_form(
     request: Request,
     *,
@@ -138,6 +78,7 @@ def _render_booking_form(
     selected_trip_instance=None,
     selected_parent_trip=None,
     editing_booking=None,
+    cancel_url: str = "/",
     error_message: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -152,6 +93,7 @@ def _render_booking_form(
             selected_trip_instance=selected_trip_instance,
             selected_parent_trip=selected_parent_trip,
             editing_booking=editing_booking,
+            cancel_url=cancel_url,
             catalogs_json=catalogs_json(),
             error_message=error_message or "",
             booking_form_state=booking_form_state,
@@ -170,53 +112,17 @@ def _booking_redirect_response(snapshot, booking, *, message: str) -> RedirectRe
     if route_tracking.get("warning"):
         message = f"{message}. {route_tracking['warning']}"
     if trip_instance is None:
-        return redirect_with_message("/bookings", message)
+        return redirect_with_message("/#needs-linking", message)
     return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", message)
-
-
-def _unmatched_booking_views(snapshot):
-    selectable_trip_instances = _selectable_trip_instances(snapshot)
-    trip_instances_by_id = {item.trip_instance_id: item for item in selectable_trip_instances}
-    cards: list[dict[str, object]] = []
-    for unmatched in sorted(
-        [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"],
-        key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
-    ):
-        candidate_ids = [item for item in split_pipe(unmatched.candidate_trip_instance_ids) if item in trip_instances_by_id]
-        suggested_trip_instances = [trip_instances_by_id[item] for item in candidate_ids]
-        trip_options = suggested_trip_instances or selectable_trip_instances
-        cards.append(
-            {
-                "unmatched": unmatched,
-                "trip_options": trip_options,
-                "suggested_trip_instances": suggested_trip_instances,
-            }
-        )
-    return cards
 
 
 @router.get("/bookings", response_class=HTMLResponse)
 def bookings_index(
     request: Request,
-    repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
-    today = date.today()
-    booking_views = _booking_views(snapshot, today=today)
-    history_views = _booking_history_views(snapshot, today=today)
-    unmatched_views = _unmatched_booking_views(snapshot)
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="bookings.html",
-        context=base_context(
-            request,
-            page="bookings",
-            snapshot=snapshot,
-            booking_views=booking_views,
-            history_views=history_views,
-            unmatched_views=unmatched_views,
-        ),
-    )
+) -> RedirectResponse:
+    query = request.url.query
+    redirect_url = f"/?{query}#needs-linking" if query else "/#needs-linking"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @router.get("/bookings/new", response_class=HTMLResponse)
@@ -226,7 +132,7 @@ def new_booking(
     trip_instance_id: str | None = None,
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
-    selectable_trip_instances = _selectable_trip_instances(snapshot)
+    selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
     selected_trip_instance = next(
         (item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id),
         None,
@@ -238,6 +144,7 @@ def new_booking(
         trip_instances=selectable_trip_instances,
         selected_trip_instance=selected_trip_instance,
         selected_parent_trip=selected_parent_trip,
+        cancel_url=_booking_form_cancel_url(selected_trip_instance=selected_trip_instance),
         booking_form_state=_booking_form_state(
             None,
             trip_instance_id=selected_trip_instance.trip_instance_id if selected_trip_instance else "",
@@ -255,7 +162,7 @@ def edit_booking(
     booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
     if booking is None or booking.status != "active":
         raise HTTPException(status_code=404, detail="Booking not found")
-    selectable_trip_instances = _selectable_trip_instances(snapshot)
+    selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
     selected_trip_instance = next(
         (item for item in selectable_trip_instances if item.trip_instance_id == booking.trip_instance_id),
         None,
@@ -268,6 +175,7 @@ def edit_booking(
         selected_trip_instance=selected_trip_instance,
         selected_parent_trip=selected_parent_trip,
         editing_booking=booking,
+        cancel_url=_booking_form_cancel_url(selected_trip_instance=selected_trip_instance, editing_booking=booking),
         booking_form_state=_booking_form_state(booking),
     )
 
@@ -323,14 +231,14 @@ async def save_booking(
             )
         sync_and_persist(repository)
         if unmatched is not None:
-            return redirect_with_message("/bookings#needs-linking", "Booking needs linking")
+            return redirect_with_message("/#needs-linking", "Booking needs linking")
         if booking is None:
             raise HTTPException(status_code=500, detail="Booking was not saved.")
         snapshot = load_snapshot(repository)
         return _booking_redirect_response(snapshot, booking, message="Booking saved")
     except ValueError as exc:
         snapshot = load_snapshot(repository)
-        selectable_trip_instances = _selectable_trip_instances(snapshot)
+        selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
         selected_trip_instance = next(
             (item for item in snapshot.trip_instances if item.trip_instance_id == booking_state["trip_instance_id"]),
             None,
@@ -347,6 +255,10 @@ async def save_booking(
             selected_trip_instance=selected_trip_instance,
             selected_parent_trip=selected_parent_trip,
             editing_booking=editing_booking,
+            cancel_url=_booking_form_cancel_url(
+                selected_trip_instance=selected_trip_instance,
+                editing_booking=editing_booking,
+            ),
             error_message=str(exc),
             booking_form_state=booking_state,
             status_code=400,
@@ -364,7 +276,7 @@ async def link_unmatched_booking(
     if not trip_instance_id:
         return redirect_back(
             request,
-            fallback_url="/bookings#needs-linking",
+            fallback_url="/#needs-linking",
             message="Choose a scheduled trip first.",
             message_kind="error",
         )
@@ -415,8 +327,8 @@ def unlink_booking_action(
     sync_and_persist(repository)
     return redirect_back(
         request,
-        fallback_url="/bookings",
-        message="Booking moved to Resolve",
+        fallback_url="/#needs-linking",
+        message="Booking needs linking",
     )
 
 
@@ -433,14 +345,14 @@ def cancel_booking_action(
     except ValueError as exc:
         return redirect_back(
             request,
-            fallback_url="/bookings",
+            fallback_url="/",
             message=str(exc),
             message_kind="error",
         )
     sync_and_persist(repository)
     return redirect_back(
         request,
-        fallback_url="/bookings",
+        fallback_url="/",
         message="Booking cancelled",
     )
 
@@ -458,6 +370,6 @@ def delete_booking_action(
     sync_and_persist(repository)
     return redirect_back(
         request,
-        fallback_url="/bookings",
+        fallback_url="/",
         message="Booking deleted",
     )

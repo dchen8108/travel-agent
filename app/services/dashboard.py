@@ -12,6 +12,7 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
+from app.route_options import split_pipe
 from app.services.recommendations import best_tracker_for_instance
 from app.services.data_scope import filter_snapshot, include_test_data_for_ui
 from app.services.snapshots import AppSnapshot
@@ -519,6 +520,47 @@ def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
 
 def trip_groups(snapshot: AppSnapshot) -> list[TripGroup]:
     return sorted(snapshot.trip_groups, key=lambda item: item.label.lower())
+
+
+def selectable_trip_instances_for_booking_link(snapshot: AppSnapshot) -> list[TripInstance]:
+    return sorted(
+        [
+            item
+            for item in snapshot.trip_instances
+            if not item.deleted and (
+                (parent_trip := trip_for_instance(snapshot, item.trip_instance_id)) is None
+                or parent_trip.trip_kind != "one_time"
+                or parent_trip.active
+            )
+        ],
+        key=lambda item: (
+            item.anchor_date,
+            item.display_label.lower(),
+        ),
+    )
+
+
+def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, object]]:
+    selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
+    trip_instances_by_id = {item.trip_instance_id: item for item in selectable_trip_instances}
+    cards: list[dict[str, object]] = []
+    for unmatched in sorted(
+        [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"],
+        key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
+    ):
+        candidate_ids = [
+            item for item in split_pipe(unmatched.candidate_trip_instance_ids) if item in trip_instances_by_id
+        ]
+        suggested_trip_instances = [trip_instances_by_id[item] for item in candidate_ids]
+        trip_options = suggested_trip_instances or selectable_trip_instances
+        cards.append(
+            {
+                "unmatched": unmatched,
+                "trip_options": trip_options,
+                "suggested_trip_instances": suggested_trip_instances,
+            }
+        )
+    return cards
 
 
 def scheduled_ledger_view(
