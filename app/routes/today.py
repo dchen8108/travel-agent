@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -99,6 +99,16 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
         else:
             detail = "Still gathering current prices"
 
+    if booking is not None and savings is not None:
+        phase_label = "Rebook"
+        phase_tone = "accent"
+    elif booking is not None:
+        phase_label = "Booked"
+        phase_tone = "success"
+    else:
+        phase_label = "To book"
+        phase_tone = "warning"
+
     return {
         "instance": instance,
         "trip": trip,
@@ -113,6 +123,8 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
         "recommended_action": recommended_action,
         "detail": detail,
         "savings": savings,
+        "phase_label": phase_label,
+        "phase_tone": phase_tone,
         "href": f"/trip-instances/{instance.trip_instance_id}",
     }
 
@@ -202,14 +214,36 @@ def today(
     open_savings_total = sum(rebook_savings(snapshot, instance.trip_instance_id) or 0 for instance in rebook_instances)
     next_trip = upcoming_instances[0] if upcoming_instances else None
 
-    planned_views = [_instance_dashboard_view(snapshot, instance) for instance in planned_instances[:10]]
-    booked_views = [_instance_dashboard_view(snapshot, instance) for instance in booked_instances[:10]]
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances[:6]]
+    timeline_views = [_instance_dashboard_view(snapshot, instance) for instance in upcoming_instances[:18]]
+    this_week_cutoff = today + timedelta(days=6)
+    action_window_cutoff = today + timedelta(days=10)
+    near_term_views = [view for view in timeline_views if view["instance"].anchor_date <= this_week_cutoff]
+    later_views = [view for view in timeline_views if view["instance"].anchor_date > this_week_cutoff]
+    book_now_views = [
+        _instance_dashboard_view(snapshot, instance)
+        for instance in planned_instances
+        if instance.anchor_date <= action_window_cutoff
+    ][:4]
 
-    recent_booking_views = [
-        _recent_booking_view(snapshot, booking)
-        for booking in sorted(snapshot.bookings, key=lambda item: item.booked_at, reverse=True)[:4]
+    latest_booking = next(
+        iter(sorted(snapshot.bookings, key=lambda item: item.booked_at, reverse=True)),
+        None,
+    )
+    latest_booking_view = (
+        _recent_booking_view(snapshot, latest_booking)
+        if latest_booking is not None
+        else None
+    )
+
+    monitoring_labels = [
+        trip_monitoring_status_label(snapshot, instance.trip_instance_id)
+        for instance in upcoming_instances
     ]
+    tracking_count = sum(1 for label in monitoring_labels if label == "Tracking")
+    initializing_count = sum(1 for label in monitoring_labels if label == "Initializing")
+    no_match_count = sum(1 for label in monitoring_labels if label == "No matches")
+    no_search_count = sum(1 for label in monitoring_labels if label == "No searches")
 
     recurring_rule_views = [
         _rule_dashboard_view(snapshot, rule, today=today)
@@ -256,19 +290,22 @@ def today(
             open_unmatched=open_unmatched,
             planned_instances=planned_instances,
             booked_instances=booked_instances,
-            planned_views=planned_views,
-            booked_views=booked_views,
             rebook_views=rebook_views,
-            recent_booking_views=recent_booking_views,
+            near_term_views=near_term_views,
+            later_views=later_views,
+            book_now_views=book_now_views,
+            latest_booking_view=latest_booking_view,
             recurring_rule_views=recurring_rule_views,
             group_views=group_views,
             action_count=action_count,
             next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
             total_booked_monitoring=len(booked_instances),
-            total_groups=len(snapshot.trip_groups),
-            total_rules=len([trip for trip in snapshot.trips if trip.trip_kind == "weekly"]),
             open_savings_total=open_savings_total,
+            tracking_count=tracking_count,
+            initializing_count=initializing_count,
+            no_match_count=no_match_count,
+            no_search_count=no_search_count,
             booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
             trip_for_instance=trip_for_instance,
