@@ -2209,6 +2209,10 @@ textarea {
   padding-top: 2px;
 }
 
+.collection-trip-strip-overflow[hidden] {
+  display: none;
+}
+
 .collection-trip-pill {
   display: inline-flex;
   align-items: center;
