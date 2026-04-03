@@ -8,25 +8,18 @@
     <script src="{{ url_for('static', path='/app.js') }}?v={{ asset_version }}" defer></script>
   </head>
   <body>
-    {% set resolve_count = snapshot.unmatched_bookings|selectattr('resolution_status', 'equalto', 'open')|list|length if snapshot is defined else 0 %}
     <div class="app-shell">
       <aside class="sidebar">
         <a href="/" class="brand-lockup">
           <div class="brand-mark" aria-hidden="true">M</div>
           <div class="brand">
-            <p class="eyebrow">Flight desk</p>
             <h1>Milemark</h1>
+            <p>Travel, bookings, and better fares in one place.</p>
           </div>
         </a>
         <nav class="nav nav-primary">
-          <a href="/" class="{{ 'active' if page in ['today', 'dashboard'] else '' }}">Dashboard</a>
+          <a href="/" class="{{ 'active' if page in ['today', 'dashboard'] else '' }}">Overview</a>
         </nav>
-        {% if resolve_count %}
-        <div class="sidebar-note">
-          <span class="nav-badge">{{ resolve_count }}</span>
-          <p>{{ resolve_count }} booking{{ '' if resolve_count == 1 else 's' }} still need linking.</p>
-        </div>
-        {% endif %}
       </aside>
       <main class="content">
         <div class="content-inner">

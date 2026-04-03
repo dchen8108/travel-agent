@@ -3,13 +3,13 @@
 <section class="mission-control">
   <div class="mission-head">
     <div class="mission-copy">
-      <p class="eyebrow">Dashboard</p>
-      <h2>Run every upcoming flight from one calm operating view.</h2>
+      <p class="eyebrow">Overview</p>
+      <h2>See every upcoming trip, booking, and fare change in one place.</h2>
       <p class="mission-digest">
         {% if action_count %}
-        {{ action_count }} decision{{ '' if action_count == 1 else 's' }} waiting
+        {{ action_count }} thing{{ '' if action_count == 1 else 's' }} worth a look
         {% else %}
-        No urgent changes right now
+        Nothing urgent right now
         {% endif %}
         {% if next_trip %}
         · Next departure {{ next_trip.anchor_date.strftime('%a, %b %d') }}
@@ -19,25 +19,25 @@
       </p>
     </div>
     <div class="mission-actions">
-      <a class="button secondary" href="/bookings/new">Record booking</a>
-      <a class="button primary" href="/trips/new">Add trip</a>
+      <a class="button secondary" href="/bookings/new">Add a booking</a>
+      <a class="button primary" href="/trips/new">Create trip</a>
     </div>
   </div>
   <div class="mission-kpis">
     <article class="mission-kpi">
-      <small>Attention</small>
+      <small>Needs attention</small>
       <strong>{{ action_count }}</strong>
-      <span>{% if action_count %}Immediate calls to make{% else %}Queue is clear{% endif %}</span>
+      <span>{% if action_count %}Worth reviewing now{% else %}Everything is in order{% endif %}</span>
     </article>
     <article class="mission-kpi">
-      <small>Upcoming</small>
+      <small>Upcoming trips</small>
       <strong>{{ total_upcoming }}</strong>
       <span>{{ planned_instances|length }} planned · {{ booked_instances|length }} booked</span>
     </article>
     <article class="mission-kpi">
-      <small>Lower fares</small>
+      <small>Live savings</small>
       <strong>{{ money(open_savings_total) }}</strong>
-      <span>{% if open_savings_total %}Available to recover now{% else %}No better fares today{% endif %}</span>
+      <span>{% if open_savings_total %}Available if you want to rebook{% else %}No better fares right now{% endif %}</span>
     </article>
   </div>
 </section>
@@ -46,18 +46,18 @@
   <section class="dashboard-panel dashboard-primary-panel">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Action queue</p>
-        <h3>What actually needs a decision now</h3>
+        <p class="eyebrow">Needs attention</p>
+        <h3>What needs a decision right now</h3>
       </div>
-      <a class="section-link" href="/bookings">Bookings ledger</a>
+      <a class="section-link" href="/bookings">All bookings</a>
     </div>
     {% if not open_unmatched and not rebook_views and not book_now_views %}
     <div class="quiet-state-row mission-quiet-state">
       <div>
-        <strong>Nothing urgent right now.</strong>
-        <p>Imports are resolved, nearer trips are in shape, and current booked fares do not have better comparable alternatives.</p>
+        <strong>Everything looks in order.</strong>
+        <p>Bookings are matched, nearer trips are covered, and nothing is currently worth rebooking.</p>
       </div>
-      <a class="button secondary" href="/#all-travel">Review trips</a>
+      <a class="button secondary" href="/#all-travel">Browse trips</a>
     </div>
     {% else %}
     <div class="signal-list">
@@ -65,23 +65,23 @@
       <article class="signal-item signal-item-warning">
         <div class="signal-copy">
           <div class="signal-headline">
-            <strong>Link booking</strong>
+            <strong>Match booking</strong>
             <span class="signal-badge">{{ money(unmatched.booked_price) }}</span>
           </div>
           <a class="signal-title" href="/bookings#needs-linking">{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</a>
           <p class="compact-meta">
             {{ unmatched.departure_date.strftime('%a, %b %d') }} · {{ unmatched.departure_time }}{% if unmatched.arrival_time %}–{{ unmatched.arrival_time }}{% endif %} · {{ airline_label(unmatched.airline) }}
           </p>
-          <p class="signal-detail">Imported booking still needs to be attached to the right scheduled trip.</p>
+          <p class="signal-detail">This booking is in Milemark, but it still needs the right trip.</p>
         </div>
-        <a class="button primary" href="/bookings#needs-linking">Link</a>
+        <a class="button primary" href="/bookings#needs-linking">Match</a>
       </article>
       {% endfor %}
       {% for card in book_now_views %}
       <article class="signal-item">
         <div class="signal-copy">
           <div class="signal-headline">
-            <strong>Book trip</strong>
+            <strong>Needs booking</strong>
             <span class="signal-badge">{{ card.instance.anchor_date.strftime('%b %d') }}</span>
           </div>
           <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
@@ -89,14 +89,14 @@
             {% if card.context_label %}{{ card.context_label }} · {% endif %}{{ card.detail }}
           </p>
         </div>
-        <a class="button secondary" href="{{ card.href }}">Open</a>
+        <a class="button secondary" href="{{ card.href }}">View trip</a>
       </article>
       {% endfor %}
       {% for card in rebook_views %}
       <article class="signal-item signal-item-accent">
         <div class="signal-copy">
           <div class="signal-headline">
-            <strong>Rebook opportunity</strong>
+            <strong>Price drop</strong>
             {% if card.savings %}
             <span class="signal-badge">{{ money(card.savings) }} lower</span>
             {% endif %}
@@ -107,7 +107,7 @@
           </p>
           <p class="signal-detail">{{ card.detail }}</p>
         </div>
-        <a class="button secondary" href="{{ card.href }}">Review</a>
+        <a class="button secondary" href="{{ card.href }}">See savings</a>
       </article>
       {% endfor %}
     </div>
@@ -118,35 +118,35 @@
     <section class="dashboard-panel dashboard-rail-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">System status</p>
-          <h3>Everything else under control</h3>
+          <p class="eyebrow">Travel status</p>
+          <h3>What is already in good shape</h3>
         </div>
       </div>
       <div class="status-stack">
         <article class="status-stat">
           <div>
-            <strong>Imports waiting</strong>
-            <p>Bookings that still need to be attached.</p>
+            <strong>Bookings to match</strong>
+            <p>Trips still waiting for the right imported booking.</p>
           </div>
           <span class="status-stat-value">{{ open_unmatched|length }}</span>
         </article>
         <article class="status-stat">
           <div>
-            <strong>Actively tracking</strong>
-            <p>Trips with current comparable fares in hand.</p>
+            <strong>Trips with live fares</strong>
+            <p>Dates where Milemark already has current alternatives.</p>
           </div>
           <span class="status-stat-value">{{ tracking_count }}</span>
         </article>
         <article class="status-stat">
           <div>
-            <strong>Still initializing</strong>
-            <p>Dates where searches are still settling.</p>
+            <strong>Still gathering prices</strong>
+            <p>Trips where fare checks have started but are still settling.</p>
           </div>
           <span class="status-stat-value">{{ initializing_count }}</span>
         </article>
         <article class="status-stat">
           <div>
-            <strong>Uncovered dates</strong>
+            <strong>Trips needing coverage</strong>
             <p>{{ no_match_count }} with no matches · {{ no_search_count }} with no searches</p>
           </div>
           <span class="status-stat-value">{{ no_match_count + no_search_count }}</span>
@@ -154,7 +154,7 @@
       </div>
       {% if latest_booking_view %}
       <div class="status-footnote">
-        <p class="eyebrow">Latest booking</p>
+        <p class="eyebrow">Recently added</p>
         <a class="dashboard-item-title" href="{{ latest_booking_view.href }}">{{ latest_booking_view.trip.label if latest_booking_view.trip else latest_booking_view.booking.origin_airport ~ ' → ' ~ latest_booking_view.booking.destination_airport }}</a>
         <p class="compact-meta">{{ latest_booking_view.booking.departure_date.strftime('%a, %b %d') }} · {{ airline_label(latest_booking_view.booking.airline) }} · {{ money(latest_booking_view.booking.booked_price) }}</p>
       </div>
@@ -165,15 +165,15 @@
   <section class="dashboard-panel timeline-panel">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Upcoming travel</p>
-        <h3>The full sequence of what is coming next</h3>
+        <p class="eyebrow">Upcoming trips</p>
+        <h3>Everything coming up next</h3>
       </div>
-      <a class="section-link" href="/#all-travel">All travel</a>
+      <a class="section-link" href="/#all-travel">Browse all travel</a>
     </div>
 
     <div class="timeline-section">
       <div class="timeline-section-header">
-        <h4>This week</h4>
+        <h4>Coming up soon</h4>
         <span class="board-count">{{ near_term_views|length }}</span>
       </div>
       <div class="timeline-list">
@@ -204,8 +204,8 @@
         </article>
         {% else %}
         <article class="compact-empty-state">
-          <strong>No trips in the next week.</strong>
-          <p>Near-term scheduled travel will surface here automatically.</p>
+          <strong>No trips coming up soon.</strong>
+          <p>Your near-term travel will appear here automatically.</p>
         </article>
         {% endfor %}
       </div>
@@ -213,7 +213,7 @@
 
     <div class="timeline-section">
       <div class="timeline-section-header">
-        <h4>Later</h4>
+        <h4>Later in the horizon</h4>
         <span class="board-count">{{ later_views|length }}</span>
       </div>
       <div class="timeline-list">
@@ -244,8 +244,8 @@
         </article>
         {% else %}
         <article class="compact-empty-state">
-          <strong>No later trips in the current horizon.</strong>
-          <p>Longer-range trips and recurring dates will appear here.</p>
+          <strong>No later trips right now.</strong>
+          <p>Longer-range travel and recurring dates will show up here.</p>
         </article>
         {% endfor %}
       </div>
@@ -258,9 +258,8 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">Recurring plans</p>
-        <h3>Rules that are quietly generating future dates</h3>
+        <h3>Rules that keep your regular travel in place</h3>
       </div>
-      <a class="section-link" href="/#dashboard-plans">All plans</a>
     </div>
     <div class="dashboard-card-grid">
       {% for item in recurring_rule_views %}
@@ -292,7 +291,7 @@
         </div>
         {% endif %}
         <div class="dashboard-link-row">
-          <a class="section-link" href="/trips/{{ item.rule.trip_id }}">Open plan</a>
+          <a class="section-link" href="/trips/{{ item.rule.trip_id }}">View plan</a>
           <a class="section-link" href="/trips/{{ item.rule.trip_id }}/edit">Edit</a>
         </div>
       </article>
@@ -309,9 +308,8 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">Collections</p>
-        <h3>Shared collections for related travel</h3>
+        <h3>Collections that keep related travel together</h3>
       </div>
-      <a class="section-link" href="/#dashboard-groups">All groups</a>
     </div>
     <div class="dashboard-card-grid">
       {% for item in group_views %}
@@ -339,7 +337,7 @@
         </div>
         {% endif %}
         <div class="dashboard-link-row">
-          <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">Open group</a>
+          <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">View group</a>
           <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
         </div>
       </article>

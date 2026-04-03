@@ -1,11 +1,11 @@
 :root {
   --font-sans: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-display: "Iowan Old Style", "Baskerville", Georgia, serif;
-  --bg: #f4efe8;
-  --bg-elevated: #ede6db;
-  --surface: rgba(255, 252, 247, 0.9);
-  --surface-strong: rgba(255, 254, 251, 0.98);
-  --panel: rgba(255, 252, 247, 0.92);
+  --bg: #f5f0e8;
+  --bg-elevated: #eee6da;
+  --surface: rgba(255, 253, 249, 0.92);
+  --surface-strong: rgba(255, 255, 253, 0.98);
+  --panel: rgba(255, 253, 249, 0.94);
   --ink: #12202c;
   --muted: #677582;
   --line: #dde3df;
@@ -18,10 +18,10 @@
   --warning-soft: #f8ecd6;
   --danger: #a34b3f;
   --danger-soft: #f9e4df;
-  --shadow: 0 24px 64px rgba(18, 32, 44, 0.08);
-  --shadow-soft: 0 12px 30px rgba(18, 32, 44, 0.05);
-  --radius: 24px;
-  --radius-large: 32px;
+  --shadow: 0 22px 54px rgba(18, 32, 44, 0.08);
+  --shadow-soft: 0 14px 34px rgba(18, 32, 44, 0.045);
+  --radius: 22px;
+  --radius-large: 28px;
 }
 
 * {
@@ -47,10 +47,9 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.75), transparent 26%),
-    radial-gradient(circle at top right, rgba(226, 242, 237, 0.9), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(241, 231, 212, 0.6), transparent 22%),
-    linear-gradient(180deg, #fbf7f1 0%, var(--bg) 56%, #ebe4d9 100%);
+    radial-gradient(circle at top right, rgba(221, 241, 235, 0.55), transparent 28%),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.5), transparent 24%),
+    linear-gradient(180deg, #fbf8f3 0%, var(--bg) 60%, #ede5da 100%);
 }
 
 a {
@@ -82,47 +81,48 @@ p {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px 16px 20px;
+  gap: 18px;
+  padding: 24px 18px 22px;
   background:
-    linear-gradient(180deg, #101a25 0%, #162535 58%, #1a2d3d 100%);
+    linear-gradient(180deg, #0f1822 0%, #142130 62%, #18293a 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(239, 245, 248, 0.92);
 }
 
 .brand-lockup {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   color: inherit;
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   color: #f6fbff;
   background:
     linear-gradient(135deg, rgba(144, 219, 206, 0.92), rgba(13, 122, 109, 0.92)),
     rgba(255, 255, 255, 0.1);
-  box-shadow: 0 18px 32px rgba(8, 19, 27, 0.28);
+  box-shadow: 0 14px 28px rgba(8, 19, 27, 0.24);
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 2.15rem;
   color: #f8fbfd;
   text-wrap: balance;
 }
 
 .brand p {
   margin: 0;
-  color: rgba(224, 233, 239, 0.74);
-  font-size: 0.95rem;
+  color: rgba(224, 233, 239, 0.72);
+  font-size: 0.92rem;
+  line-height: 1.45;
   text-wrap: pretty;
 }
 
@@ -130,8 +130,8 @@ p {
   margin: 0;
   color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.11em;
-  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  font-size: 0.69rem;
   font-weight: 700;
 }
 
@@ -143,7 +143,7 @@ p {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .nav a {
@@ -151,10 +151,10 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 13px;
+  padding: 10px 13px;
   border-radius: 14px;
   color: rgba(236, 244, 248, 0.8);
-  font-weight: 600;
+  font-weight: 700;
   transition: background 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
@@ -177,21 +177,6 @@ p {
   color: #d9fff8;
   font-size: 0.84rem;
   font-weight: 700;
-}
-
-.sidebar-note {
-  display: grid;
-  gap: 8px;
-  padding: 11px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sidebar-note p {
-  color: rgba(224, 233, 239, 0.78);
-  font-size: 0.92rem;
-  line-height: 1.4;
 }
 
 .content {
@@ -1978,10 +1963,10 @@ textarea {
 }
 
 .dashboard-panel {
-  border: 1px solid rgba(200, 209, 204, 0.84);
+  border: 1px solid rgba(205, 212, 206, 0.68);
   background: var(--panel);
-  border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(18, 32, 44, 0.05);
+  border-radius: 22px;
+  box-shadow: 0 12px 30px rgba(18, 32, 44, 0.04);
 }
 
 .dashboard-panel {
@@ -1999,12 +1984,12 @@ textarea {
   display: grid;
   gap: 14px;
   align-items: start;
-  padding: 16px 18px;
-  border: 1px solid rgba(200, 209, 204, 0.9);
-  border-radius: 20px;
+  padding: 20px 22px;
+  border: 1px solid rgba(199, 209, 203, 0.82);
+  border-radius: 24px;
   background:
-    linear-gradient(135deg, rgba(255, 254, 251, 0.98), rgba(239, 247, 243, 0.86) 45%, rgba(248, 243, 236, 0.98));
-  box-shadow: 0 10px 28px rgba(18, 32, 44, 0.05);
+    linear-gradient(180deg, rgba(255, 255, 252, 0.98), rgba(248, 244, 237, 0.96));
+  box-shadow: 0 18px 42px rgba(18, 32, 44, 0.05);
 }
 
 .mission-head {
@@ -2015,8 +2000,8 @@ textarea {
 }
 
 .mission-copy h2 {
-  font-size: clamp(1.95rem, 3.3vw, 2.65rem);
-  max-width: 18ch;
+  font-size: clamp(2.1rem, 3.6vw, 3rem);
+  max-width: 20ch;
   margin: 2px 0 4px;
   text-wrap: balance;
 }
@@ -2024,8 +2009,9 @@ textarea {
 .mission-digest {
   max-width: 60ch;
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 0.96rem;
+  line-height: 1.52;
+  text-wrap: pretty;
 }
 
 .mission-actions {
@@ -2040,24 +2026,24 @@ textarea {
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .mission-kpi {
   display: grid;
   gap: 3px;
   min-height: 84px;
-  padding: 12px 13px 11px;
-  border-radius: 14px;
-  border: 1px solid rgba(203, 212, 207, 0.82);
-  background: rgba(255, 252, 247, 0.72);
+  padding: 13px 14px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(214, 220, 214, 0.68);
+  background: rgba(255, 255, 252, 0.8);
 }
 
 .mission-kpi small {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
@@ -2081,8 +2067,8 @@ textarea {
 
 .dashboard-primary-panel {
   grid-column: 1;
-  border-color: rgba(143, 184, 174, 0.72);
-  box-shadow: 0 14px 34px rgba(18, 32, 44, 0.07);
+  border-color: rgba(164, 194, 184, 0.66);
+  box-shadow: 0 18px 38px rgba(18, 32, 44, 0.06);
 }
 
 .dashboard-rail {
@@ -2094,7 +2080,7 @@ textarea {
 .dashboard-rail-panel {
   gap: 14px;
   padding: 14px;
-  background: rgba(247, 243, 237, 0.72);
+  background: rgba(250, 246, 240, 0.84);
   box-shadow: none;
 }
 
@@ -2106,8 +2092,8 @@ textarea {
 .dashboard-lower-panel {
   gap: 14px;
   padding: 15px;
-  background: rgba(255, 253, 249, 0.95);
-  box-shadow: 0 6px 18px rgba(18, 32, 44, 0.04);
+  background: rgba(255, 253, 249, 0.92);
+  box-shadow: 0 10px 24px rgba(18, 32, 44, 0.03);
 }
 
 .dashboard-ledger-section {
@@ -2122,12 +2108,12 @@ textarea {
 }
 
 .panel-header h3 {
-  font-size: 1.08rem;
+  font-size: 1.12rem;
   margin-top: 4px;
   font-family: var(--font-sans);
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .panel-header h4 {
@@ -2139,7 +2125,7 @@ textarea {
 
 .section-link {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2167,9 +2153,9 @@ textarea {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border: 1px dashed rgba(200, 209, 204, 0.84);
+  border: 1px dashed rgba(206, 214, 208, 0.76);
   border-radius: 18px;
-  background: rgba(253, 251, 247, 0.82);
+  background: rgba(255, 254, 250, 0.82);
 }
 
 .quiet-state-row strong {
@@ -2191,9 +2177,9 @@ textarea {
   display: grid;
   gap: 12px;
   align-items: start;
-  border: 1px solid rgba(200, 209, 204, 0.64);
+  border: 1px solid rgba(212, 218, 212, 0.52);
   border-radius: 18px;
-  background: rgba(255, 253, 248, 0.92);
+  background: rgba(255, 254, 250, 0.92);
 }
 
 .signal-item {
@@ -2202,11 +2188,11 @@ textarea {
 }
 
 .signal-item-warning {
-  background: linear-gradient(180deg, rgba(249, 238, 217, 0.96), rgba(255, 252, 246, 0.96));
+  background: linear-gradient(180deg, rgba(252, 244, 229, 0.98), rgba(255, 252, 247, 0.96));
 }
 
 .signal-item-accent {
-  background: linear-gradient(180deg, rgba(229, 244, 239, 0.92), rgba(255, 253, 248, 0.96));
+  background: linear-gradient(180deg, rgba(235, 246, 241, 0.96), rgba(255, 253, 249, 0.96));
 }
 
 .signal-copy {
@@ -2252,8 +2238,8 @@ textarea {
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(247, 239, 228, 0.95);
-  border: 1px solid rgba(200, 209, 204, 0.84);
+  background: rgba(247, 240, 230, 0.94);
+  border: 1px solid rgba(208, 215, 208, 0.72);
   color: #4d5f70;
   font-weight: 800;
   white-space: nowrap;
@@ -2264,8 +2250,8 @@ textarea {
 .signal-detail,
 .travel-detail {
   color: var(--muted);
-  font-size: 0.86rem;
-  line-height: 1.4;
+  font-size: 0.88rem;
+  line-height: 1.46;
 }
 
 .dashboard-item,
@@ -2312,13 +2298,13 @@ textarea {
   gap: 12px;
   align-items: start;
   padding: 12px 13px;
-  border: 1px solid rgba(200, 209, 204, 0.74);
+  border: 1px solid rgba(211, 218, 212, 0.58);
   border-radius: 14px;
-  background: rgba(255, 253, 249, 0.94);
+  background: rgba(255, 254, 250, 0.94);
 }
 
 .timeline-row-subtle {
-  background: rgba(248, 244, 238, 0.8);
+  background: rgba(249, 245, 239, 0.78);
 }
 
 .timeline-date {
@@ -2327,7 +2313,7 @@ textarea {
   min-width: 82px;
   padding: 8px 10px;
   border-radius: 14px;
-  border: 1px solid rgba(200, 209, 204, 0.84);
+  border: 1px solid rgba(210, 216, 210, 0.72);
   background: rgba(247, 239, 228, 0.95);
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -2385,10 +2371,9 @@ textarea {
   gap: 6px;
   padding: 5px 10px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.77rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
@@ -2409,7 +2394,7 @@ textarea {
 
 .status-stack {
   display: grid;
-  gap: 10px;
+  gap: 9px;
 }
 
 .status-stat {
@@ -2418,9 +2403,9 @@ textarea {
   gap: 12px;
   align-items: start;
   padding: 11px 12px;
-  border: 1px solid rgba(200, 209, 204, 0.64);
+  border: 1px solid rgba(213, 219, 212, 0.54);
   border-radius: 14px;
-  background: rgba(255, 253, 249, 0.78);
+  background: rgba(255, 255, 252, 0.74);
 }
 
 .status-stat strong {
