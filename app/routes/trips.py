@@ -297,57 +297,49 @@ def trips_index(
                 **scheduled_view,
             ),
         )
-    if request.query_params.get("q") or request.query_params.getlist("trip_group_id"):
-        group_rule_map = {
-            group.trip_group_id: recurring_rules_for_group(snapshot, group.trip_group_id)
-            for group in scheduled_view["group_items"]
-        }
-        group_scheduled_map = {
-            group.trip_group_id: scheduled_instances(
-                snapshot,
-                trip_group_ids={group.trip_group_id},
-                today=scheduled_view["today"],
-            )
-            for group in scheduled_view["group_items"]
-        }
-        return get_templates(request).TemplateResponse(
-            request=request,
-            name="trips.html",
-            context=base_context(
-                request,
-                page="trips",
-                snapshot=snapshot,
-                horizon_instances_for_trip=horizon_instances_for_trip,
-                horizon_instances_for_rule=horizon_instances_for_rule,
-                instances_for_trip=instances_for_trip,
-                trip_groups=trip_groups,
-                recurring_rules_for_group=recurring_rules_for_group,
-                route_options_for_trip=route_options_for_trip,
-                booking_for_instance=booking_for_instance,
-                best_tracker=best_tracker,
-                trackers_for_instance=trackers_for_instance,
-                trip_for_instance=trip_for_instance,
-                group_for_trip=group_for_trip,
-                groups_for_trip=groups_for_trip,
-                group_for_instance=group_for_instance,
-                groups_for_instance=groups_for_instance,
-                recurring_rule_for_instance=recurring_rule_for_instance,
-                groups_for_rule=groups_for_rule,
-                trip_focus_url=trip_focus_url,
-                group_rule_map=group_rule_map,
-                group_scheduled_map=group_scheduled_map,
-                scheduled_filter_action_path="/trips",
-                scheduled_filter_clear_path="/trips",
-                **scheduled_view,
-            ),
+    group_rule_map = {
+        group.trip_group_id: recurring_rules_for_group(snapshot, group.trip_group_id)
+        for group in scheduled_view["group_items"]
+    }
+    group_scheduled_map = {
+        group.trip_group_id: scheduled_instances(
+            snapshot,
+            trip_group_ids={group.trip_group_id},
+            today=scheduled_view["today"],
         )
-    target = "/"
-    query = request.url.query
-    if query:
-        target = f"/?{query}"
-    if "#all-travel" not in target:
-        target = f"{target}#all-travel"
-    return RedirectResponse(url=target, status_code=303)
+        for group in scheduled_view["group_items"]
+    }
+    return get_templates(request).TemplateResponse(
+        request=request,
+        name="trips.html",
+        context=base_context(
+            request,
+            page="trips",
+            snapshot=snapshot,
+            horizon_instances_for_trip=horizon_instances_for_trip,
+            horizon_instances_for_rule=horizon_instances_for_rule,
+            instances_for_trip=instances_for_trip,
+            trip_groups=trip_groups,
+            recurring_rules_for_group=recurring_rules_for_group,
+            route_options_for_trip=route_options_for_trip,
+            booking_for_instance=booking_for_instance,
+            best_tracker=best_tracker,
+            trackers_for_instance=trackers_for_instance,
+            trip_for_instance=trip_for_instance,
+            group_for_trip=group_for_trip,
+            groups_for_trip=groups_for_trip,
+            group_for_instance=group_for_instance,
+            groups_for_instance=groups_for_instance,
+            recurring_rule_for_instance=recurring_rule_for_instance,
+            groups_for_rule=groups_for_rule,
+            trip_focus_url=trip_focus_url,
+            group_rule_map=group_rule_map,
+            group_scheduled_map=group_scheduled_map,
+            scheduled_filter_action_path="/trips",
+            scheduled_filter_clear_path="/trips",
+            **scheduled_view,
+        ),
+    )
 
 
 @router.get("/trips/new", response_class=HTMLResponse)

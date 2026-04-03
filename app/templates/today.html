@@ -3,7 +3,6 @@
 <section class="mission-control">
   <div class="mission-head">
     <div class="mission-copy">
-      <p class="eyebrow">Overview</p>
       <h2>See every upcoming trip, booking, and fare change in one place.</h2>
       <p class="mission-digest">
         {% if action_count %}
@@ -17,6 +16,13 @@
         · {{ planned_instances|length }} still to book
         · {{ total_booked_monitoring }} already booked
       </p>
+      <div class="mission-links">
+        <a href="#needs-attention">Needs attention</a>
+        <a href="#upcoming-trips">Upcoming trips</a>
+        <a href="#dashboard-plans">Plans</a>
+        <a href="/bookings">All bookings</a>
+        <a href="/trips">Browse trips</a>
+      </div>
     </div>
     <div class="mission-actions">
       <a class="button secondary" href="/bookings/new">Add a booking</a>
@@ -43,13 +49,12 @@
 </section>
 
 <div class="dashboard-grid-v4">
-  <section class="dashboard-panel dashboard-primary-panel">
+  <section class="dashboard-panel dashboard-primary-panel" id="needs-attention">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Needs attention</p>
         <h3>What needs a decision right now</h3>
       </div>
-      <a class="section-link" href="/bookings">All bookings</a>
     </div>
     {% if not open_unmatched and not rebook_views and not book_now_views %}
     <div class="quiet-state-row mission-quiet-state">
@@ -57,7 +62,7 @@
         <strong>Everything looks in order.</strong>
         <p>Bookings are matched, nearer trips are covered, and nothing is currently worth rebooking.</p>
       </div>
-      <a class="button secondary" href="/#all-travel">Browse trips</a>
+      <a class="button secondary" href="/trips">Browse trips</a>
     </div>
     {% else %}
     <div class="signal-list">
@@ -152,23 +157,15 @@
           <span class="status-stat-value">{{ no_match_count + no_search_count }}</span>
         </article>
       </div>
-      {% if latest_booking_view %}
-      <div class="status-footnote">
-        <p class="eyebrow">Recently added</p>
-        <a class="dashboard-item-title" href="{{ latest_booking_view.href }}">{{ latest_booking_view.trip.label if latest_booking_view.trip else latest_booking_view.booking.origin_airport ~ ' → ' ~ latest_booking_view.booking.destination_airport }}</a>
-        <p class="compact-meta">{{ latest_booking_view.booking.departure_date.strftime('%a, %b %d') }} · {{ airline_label(latest_booking_view.booking.airline) }} · {{ money(latest_booking_view.booking.booked_price) }}</p>
-      </div>
-      {% endif %}
     </section>
   </aside>
 
-  <section class="dashboard-panel timeline-panel">
+  <section class="dashboard-panel timeline-panel" id="upcoming-trips">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Upcoming trips</p>
         <h3>Everything coming up next</h3>
       </div>
-      <a class="section-link" href="/#all-travel">Browse all travel</a>
     </div>
 
     <div class="timeline-section">
@@ -252,19 +249,18 @@
     </div>
   </section>
 
-  {% include "partials/scheduled_trips_section.html" %}
-
   <section class="dashboard-panel dashboard-lower-panel" id="dashboard-plans">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Recurring plans</p>
         <h3>Rules that keep your regular travel in place</h3>
       </div>
+      <a class="section-link" href="/trips">Browse trips</a>
     </div>
-    <div class="dashboard-card-grid">
+    <div class="dashboard-plan-list">
       {% for item in recurring_rule_views %}
-      <article class="card compact-surface-card dashboard-rich-card">
-        <div class="card-header">
+      <article class="dashboard-plan-row">
+        <div class="dashboard-plan-copy">
           <div>
             <strong><a class="dashboard-item-title" href="/trips/{{ item.rule.trip_id }}">{{ item.rule.label }}</a></strong>
             <p class="muted">
@@ -274,22 +270,19 @@
               No collection
               {% endif %}
             </p>
+            </p>
           </div>
-          <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
+          <div class="dashboard-plan-meta">
+            <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
+            <span class="plan-inline-metric">Next {{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</span>
+            <span class="plan-inline-metric">{{ item.route_count }} route{{ '' if item.route_count == 1 else 's' }}</span>
+          </div>
         </div>
-        <div class="meta-grid">
-          <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
-          <div><dt>Upcoming</dt><dd>{{ item.upcoming_count }}</dd></div>
-          <div><dt>Planned</dt><dd>{{ item.planned_count }}</dd></div>
-          <div><dt>Routes</dt><dd>{{ item.route_count }}</dd></div>
+        <div class="dashboard-plan-stats">
+          <span>{{ item.upcoming_count }} upcoming</span>
+          <span>{{ item.planned_count }} planned</span>
+          <span>{{ item.booked_count }} booked</span>
         </div>
-        {% if item.upcoming_dates %}
-        <div class="inline-badge-row">
-          {% for item_date in item.upcoming_dates %}
-          <span class="badge horizon-badge">{{ item_date.strftime('%b %d') }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
         <div class="dashboard-link-row">
           <a class="section-link" href="/trips/{{ item.rule.trip_id }}">View plan</a>
           <a class="section-link" href="/trips/{{ item.rule.trip_id }}/edit">Edit</a>
@@ -303,56 +296,5 @@
       {% endfor %}
     </div>
   </section>
-
-  <section class="dashboard-panel dashboard-lower-panel" id="dashboard-groups">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Collections</p>
-        <h3>Collections that keep related travel together</h3>
-      </div>
-    </div>
-    <div class="dashboard-card-grid">
-      {% for item in group_views %}
-      <article class="card compact-surface-card dashboard-rich-card">
-        <div class="card-header">
-          <div>
-            <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
-            {% if item.group.description %}
-            <p class="muted">{{ item.group.description }}</p>
-            {% endif %}
-          </div>
-          <span class="badge">{{ item.upcoming_count }} upcoming</span>
-        </div>
-        <div class="meta-grid">
-          <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
-          <div><dt>Rules</dt><dd>{{ item.rule_count }}</dd></div>
-          <div><dt>Planned</dt><dd>{{ item.planned_count }}</dd></div>
-          <div><dt>Booked</dt><dd>{{ item.booked_count }}</dd></div>
-        </div>
-        {% if item.upcoming_dates %}
-        <div class="inline-badge-row">
-          {% for item_date in item.upcoming_dates %}
-          <span class="badge horizon-badge">{{ item_date.strftime('%b %d') }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
-        <div class="dashboard-link-row">
-          <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">View group</a>
-          <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
-        </div>
-      </article>
-      {% else %}
-      <article class="compact-empty-state">
-        <strong>No collections yet.</strong>
-        <p>Create a group when you want related trips and recurring plans to live together.</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
 </div>
-<script id="scheduled-filters-data" type="application/json">
-  {{ {"groupOptions": group_filter_options}|tojson }}
-</script>
-<script src="{{ url_for('static', path='/pickers.js') }}?v={{ asset_version }}" defer></script>
-<script src="{{ url_for('static', path='/scheduled_filters.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}
