@@ -2204,6 +2204,11 @@ textarea {
   gap: 10px;
 }
 
+.collection-trip-strip-overflow {
+  margin-top: -2px;
+  padding-top: 2px;
+}
+
 .collection-trip-pill {
   display: inline-flex;
   align-items: center;
@@ -2220,6 +2225,12 @@ textarea {
   letter-spacing: -0.01em;
   box-shadow: 0 8px 18px rgba(18, 32, 44, 0.025);
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+button.collection-trip-pill {
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .collection-trip-pill:hover {

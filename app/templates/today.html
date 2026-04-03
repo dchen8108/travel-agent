@@ -250,19 +250,38 @@
           </div>
         </div>
 
-        {% if item.upcoming_trip_views %}
+        {% if item.preview_trip_views %}
         <div class="collection-trip-strip">
-          {% for upcoming in item.upcoming_trip_views %}
+          {% for upcoming in item.preview_trip_views %}
           <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}">
             {{ upcoming.label }}
           </a>
           {% endfor %}
           {% if item.overflow_count %}
-          <a class="collection-trip-pill more" href="/groups/{{ item.group.trip_group_id }}" title="View the rest of this collection">
+          <button
+            type="button"
+            class="collection-trip-pill more"
+            data-collection-toggle
+            data-expand-label="+{{ item.overflow_count }} more"
+            data-collapse-label="Show less"
+            data-target-id="group-overflow-{{ item.group.trip_group_id }}"
+            aria-expanded="false"
+            aria-controls="group-overflow-{{ item.group.trip_group_id }}"
+            title="Show the remaining trips in this collection"
+          >
             +{{ item.overflow_count }} more
-          </a>
+          </button>
           {% endif %}
         </div>
+        {% if item.overflow_trip_views %}
+        <div class="collection-trip-strip collection-trip-strip-overflow" id="group-overflow-{{ item.group.trip_group_id }}" hidden>
+          {% for upcoming in item.overflow_trip_views %}
+          <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}">
+            {{ upcoming.label }}
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
         {% else %}
         <div class="quiet-state-row collection-empty-row">
           <div>

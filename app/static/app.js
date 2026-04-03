@@ -127,9 +127,39 @@
     });
   }
 
+  function initCollectionOverflowToggles() {
+    document.querySelectorAll("[data-collection-toggle]").forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+      const targetId = button.dataset.targetId;
+      if (!targetId) {
+        return;
+      }
+      const target = document.getElementById(targetId);
+      if (!target) {
+        return;
+      }
+      const expandLabel = button.dataset.expandLabel || button.textContent?.trim() || "Show more";
+      const collapseLabel = button.dataset.collapseLabel || "Show less";
+
+      button.addEventListener("click", () => {
+        const nextExpanded = target.hasAttribute("hidden");
+        if (nextExpanded) {
+          target.removeAttribute("hidden");
+        } else {
+          target.setAttribute("hidden", "");
+        }
+        button.setAttribute("aria-expanded", nextExpanded ? "true" : "false");
+        button.textContent = nextExpanded ? collapseLabel : expandLabel;
+      });
+    });
+  }
+
   travelAgentApp.readJsonScript = readJsonScript;
   window.travelAgentApp = travelAgentApp;
 
   initToast();
   initConfirmModal();
+  initCollectionOverflowToggles();
 })();

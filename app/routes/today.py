@@ -126,6 +126,29 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
     }
 
 
+def _group_trip_pill_view(snapshot, instance) -> dict[str, object]:
+    trip = trip_for_instance(snapshot, instance.trip_instance_id)
+    active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
+    savings = rebook_savings(snapshot, instance.trip_instance_id)
+    if active_booking_count > 0 and savings is not None:
+        tone = "accent"
+        status_label = "Rebook"
+    elif active_booking_count > 0:
+        tone = "success"
+        status_label = "Booked"
+    else:
+        tone = "warning"
+        status_label = "Planned"
+    title = trip.label if trip is not None else instance.display_label
+    return {
+        "instance": instance,
+        "href": f"/trip-instances/{instance.trip_instance_id}",
+        "label": instance.anchor_date.strftime("%b %d"),
+        "title": f"{title} · {status_label} · {instance.anchor_date.strftime('%a, %b %d')}",
+        "tone": tone,
+    }
+
+
 def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
     preview_limit = 7
@@ -135,30 +158,7 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
         for instance in upcoming
         if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     )
-    upcoming_trip_views = []
-    for instance in upcoming[:preview_limit]:
-        trip = trip_for_instance(snapshot, instance.trip_instance_id)
-        active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
-        savings = rebook_savings(snapshot, instance.trip_instance_id)
-        if active_booking_count > 0 and savings is not None:
-            tone = "accent"
-            status_label = "Rebook"
-        elif active_booking_count > 0:
-            tone = "success"
-            status_label = "Booked"
-        else:
-            tone = "warning"
-            status_label = "Planned"
-        title = trip.label if trip is not None else instance.display_label
-        upcoming_trip_views.append(
-            {
-                "instance": instance,
-                "href": f"/trip-instances/{instance.trip_instance_id}",
-                "label": instance.anchor_date.strftime("%b %d"),
-                "title": f"{title} · {status_label} · {instance.anchor_date.strftime('%a, %b %d')}",
-                "tone": tone,
-            }
-        )
+    all_upcoming_trip_views = [_group_trip_pill_view(snapshot, instance) for instance in upcoming]
     if group.description:
         summary = group.description
     elif upcoming:
@@ -184,7 +184,8 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
         "planned_count": max(0, len(upcoming) - booked_count),
         "rule_count": rule_count,
         "summary": summary,
-        "upcoming_trip_views": upcoming_trip_views,
+        "preview_trip_views": all_upcoming_trip_views[:preview_limit],
+        "overflow_trip_views": all_upcoming_trip_views[preview_limit:],
     }
 
 
