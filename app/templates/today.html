@@ -188,18 +188,7 @@
           <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
           <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
           <div><dt>Status</dt><dd>Needs linking</dd></div>
-          <div><dt>Suggested trips</dt><dd>{% if card.suggested_trip_instances %}{{ card.suggested_trip_instances|length }} possible match{{ '' if card.suggested_trip_instances|length == 1 else 'es' }}{% else %}No strong match yet{% endif %}</dd></div>
         </div>
-        {% if card.suggested_trip_instances %}
-        <p class="muted top-gap-small"><strong>Suggested trips only.</strong> This booking is currently unlinked.</p>
-        <div class="inline-badge-row top-gap-small">
-          {% for trip_instance in card.suggested_trip_instances %}
-          <span class="badge">{{ trip_instance.display_label }}</span>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="muted top-gap-small">This booking is currently unlinked, and Milemark does not see a strong trip match yet.</p>
-        {% endif %}
         <div class="two-column top-gap-small">
           <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
             <h4>Link to an existing scheduled trip</h4>
@@ -208,9 +197,20 @@
               <div class="select-shell">
                 <select name="trip_instance_id" required>
                   <option value="">Choose one</option>
-                  {% for trip_instance in card.trip_options %}
-                  <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
-                  {% endfor %}
+                  {% if card.suggested_trip_instances %}
+                  <optgroup label="Suggested matches">
+                    {% for trip_instance in card.suggested_trip_instances %}
+                    <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                    {% endfor %}
+                  </optgroup>
+                  {% endif %}
+                  {% if card.other_trip_instances %}
+                  <optgroup label="{{ 'Other upcoming trips' if card.suggested_trip_instances else 'Upcoming trips' }}">
+                    {% for trip_instance in card.other_trip_instances %}
+                    <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                    {% endfor %}
+                  </optgroup>
+                  {% endif %}
                 </select>
               </div>
             </label>

@@ -553,14 +553,14 @@ def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, 
         ]
         suggested_trip_instances = [trip_instances_by_id[item] for item in candidate_ids]
         suggested_ids = {item.trip_instance_id for item in suggested_trip_instances}
-        trip_options = suggested_trip_instances + [
+        other_trip_instances = [
             item for item in selectable_trip_instances if item.trip_instance_id not in suggested_ids
         ]
         cards.append(
             {
                 "unmatched": unmatched,
-                "trip_options": trip_options,
                 "suggested_trip_instances": suggested_trip_instances,
+                "other_trip_instances": other_trip_instances,
             }
         )
     return cards
