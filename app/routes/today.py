@@ -10,6 +10,7 @@ from app.services.dashboard import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
+    booking_route_tracking_state,
     groups_for_instance,
     groups_for_rule,
     recurring_trips,
@@ -18,7 +19,10 @@ from app.services.dashboard import (
     load_snapshot,
     rebook_savings,
     recurring_rule_for_instance,
+    scheduled_ledger_view,
+    trip_groups,
     trip_for_instance,
+    trip_focus_url,
     trip_lifecycle_status_label,
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
@@ -150,6 +154,45 @@ def _rule_dashboard_view(snapshot, rule, *, today: date) -> dict[str, object]:
     }
 
 
+def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
+    upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
+    booked_count = sum(
+        1
+        for instance in upcoming
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+    )
+    return {
+        "group": group,
+        "upcoming_count": len(upcoming),
+        "next_instance": upcoming[0] if upcoming else None,
+        "booked_count": booked_count,
+        "planned_count": max(0, len(upcoming) - booked_count),
+        "rule_count": len(
+            [
+                rule
+                for rule in recurring_trips(snapshot)
+                if any(target_group.trip_group_id == group.trip_group_id for target_group in groups_for_rule(snapshot, rule))
+            ]
+        ),
+        "upcoming_dates": [instance.anchor_date for instance in upcoming[:6]],
+    }
+
+
+def _booking_dashboard_view(snapshot, booking) -> dict[str, object]:
+    trip = trip_for_instance(snapshot, booking.trip_instance_id)
+    route_tracking = booking_route_tracking_state(snapshot, booking)
+    return {
+        "booking": booking,
+        "trip": trip,
+        "route_tracking": route_tracking,
+        "href": (
+            f"/trip-instances/{booking.trip_instance_id}"
+            if booking.trip_instance_id
+            else "/bookings"
+        ),
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
 def today(
     request: Request,
@@ -157,6 +200,32 @@ def today(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     today = date.today()
+    scheduled_view = scheduled_ledger_view(
+        snapshot,
+        today=today,
+        selected_trip_group_ids=request.query_params.getlist("trip_group_id"),
+        search_query=str(request.query_params.get("q", "")),
+    )
+    partial = request.query_params.get("partial")
+    if partial in {"scheduled", "scheduled-results"}:
+        template_name = (
+            "partials/scheduled_trips_section.html"
+            if partial == "scheduled"
+            else "partials/scheduled_trips_results.html"
+        )
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name=template_name,
+            context=base_context(
+                request,
+                page="dashboard",
+                snapshot=snapshot,
+                trip_focus_url=trip_focus_url,
+                scheduled_filter_action_path="/",
+                scheduled_filter_clear_path="/#all-travel",
+                **scheduled_view,
+            ),
+        )
     open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
     upcoming_instances = scheduled_instances(snapshot, today=today)
     planned_instances = [
@@ -183,6 +252,13 @@ def today(
         for instance in planned_instances
         if instance.anchor_date <= action_window_cutoff
     ][:4]
+    booking_views = [
+        _booking_dashboard_view(snapshot, booking)
+        for booking in sorted(
+            [item for item in snapshot.bookings if item.status == "active"],
+            key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
+        )[:6]
+    ]
 
     monitoring_labels = [
         trip_monitoring_status_label(snapshot, instance.trip_instance_id)
@@ -211,6 +287,22 @@ def today(
             ),
         )[:6]
     ]
+    group_views = [
+        _group_dashboard_view(snapshot, group, today=today)
+        for group in sorted(
+            trip_groups(snapshot),
+            key=lambda item: (
+                next(
+                    (
+                        instance.anchor_date
+                        for instance in scheduled_instances(snapshot, trip_group_ids={item.trip_group_id}, today=today)
+                    ),
+                    date.max,
+                ),
+                item.label.lower(),
+            ),
+        )[:4]
+    ]
     return get_templates(request).TemplateResponse(
         request=request,
         name="today.html",
@@ -225,7 +317,11 @@ def today(
             near_term_views=near_term_views,
             later_views=later_views,
             book_now_views=book_now_views,
+            booking_views=booking_views,
             recurring_rule_views=recurring_rule_views,
+            group_views=group_views,
+            scheduled_filter_action_path="/",
+            scheduled_filter_clear_path="/#all-travel",
             action_count=action_count,
             next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
@@ -238,5 +334,7 @@ def today(
             booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
             trip_for_instance=trip_for_instance,
+            trip_focus_url=trip_focus_url,
+            **scheduled_view,
         ),
     )
