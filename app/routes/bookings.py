@@ -14,6 +14,7 @@ from app.services.bookings import (
     delete_booking_record,
     record_booking,
     resolve_unmatched_booking_to_trip_instance,
+    restore_booking,
     unlink_booking,
     update_booking,
 )
@@ -354,6 +355,31 @@ def cancel_booking_action(
         request,
         fallback_url="/",
         message="Booking cancelled",
+    )
+
+
+@router.post("/bookings/{booking_id}/restore")
+def restore_booking_action(
+    booking_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+) -> RedirectResponse:
+    try:
+        restore_booking(repository, booking_id=booking_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        return redirect_back(
+            request,
+            fallback_url="/",
+            message=str(exc),
+            message_kind="error",
+        )
+    sync_and_persist(repository)
+    return redirect_back(
+        request,
+        fallback_url="/",
+        message="Booking restored",
     )
 
 

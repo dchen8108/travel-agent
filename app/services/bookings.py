@@ -514,6 +514,23 @@ def cancel_booking(
     return booking
 
 
+def restore_booking(
+    repository: Repository,
+    *,
+    booking_id: str,
+) -> Booking:
+    bookings = repository.load_bookings()
+    booking = next((item for item in bookings if item.booking_id == booking_id), None)
+    if booking is None:
+        raise KeyError("Booking not found")
+    if booking.status != BookingStatus.CANCELLED:
+        raise ValueError("Only cancelled bookings can be restored.")
+    booking.status = BookingStatus.ACTIVE
+    booking.updated_at = utcnow()
+    repository.upsert_bookings([booking])
+    return booking
+
+
 def delete_booking_record(
     repository: Repository,
     *,

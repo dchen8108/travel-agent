@@ -868,6 +868,70 @@ def test_cancelling_booking_returns_trip_to_planned(tmp_path: Path) -> None:
     assert ">cancelled<" in snapshot_page.text
 
 
+def test_restoring_cancelled_booking_returns_trip_to_booked(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    client.post(
+        "/trips",
+        data={
+            "label": "Restore Booking Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "RESTORE1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    booking = next(item for item in repository.load_bookings() if item.record_locator == "RESTORE1")
+
+    client.post(
+        f"/bookings/{booking.booking_id}/cancel",
+        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        follow_redirects=False,
+    )
+
+    restore = client.post(
+        f"/bookings/{booking.booking_id}/restore",
+        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        follow_redirects=False,
+    )
+    assert restore.status_code == 303
+    assert "Booking+restored" in restore.headers["location"]
+
+    restored_booking = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
+    assert restored_booking.status == "active"
+
+    snapshot_page = client.get(f"/trip-instances/{trip_instance_id}")
+    assert snapshot_page.status_code == 200
+    assert ">Booked<" in snapshot_page.text
+    assert ">active<" in snapshot_page.text
+
+
 def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
