@@ -681,7 +681,7 @@ textarea {
 
 .horizon-badge,
 .badge.is-best {
-  min-width: 7.25rem;
+  min-width: 6.2rem;
   justify-content: center;
   font-variant-numeric: tabular-nums;
 }
