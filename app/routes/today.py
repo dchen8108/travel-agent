@@ -128,6 +128,7 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
 
 def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
+    preview_limit = 7
     rule_count = len(recurring_rules_for_group(snapshot, group.trip_group_id))
     booked_count = sum(
         1
@@ -135,7 +136,7 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
         if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     )
     upcoming_trip_views = []
-    for instance in upcoming[:8]:
+    for instance in upcoming[:preview_limit]:
         trip = trip_for_instance(snapshot, instance.trip_instance_id)
         active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
         savings = rebook_savings(snapshot, instance.trip_instance_id)
@@ -177,6 +178,7 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     return {
         "group": group,
         "upcoming_count": len(upcoming),
+        "overflow_count": max(0, len(upcoming) - preview_limit),
         "next_instance": upcoming[0] if upcoming else None,
         "booked_count": booked_count,
         "planned_count": max(0, len(upcoming) - booked_count),

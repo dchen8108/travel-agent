@@ -2245,6 +2245,12 @@ textarea {
   color: var(--accent-strong);
 }
 
+.collection-trip-pill.more {
+  background: rgba(255, 253, 249, 0.98);
+  border-style: dashed;
+  color: var(--muted);
+}
+
 .collection-empty-row {
   padding: 14px 16px;
 }

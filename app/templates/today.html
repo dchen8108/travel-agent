@@ -257,6 +257,11 @@
             {{ upcoming.label }}
           </a>
           {% endfor %}
+          {% if item.overflow_count %}
+          <a class="collection-trip-pill more" href="/groups/{{ item.group.trip_group_id }}" title="View the rest of this collection">
+            +{{ item.overflow_count }} more
+          </a>
+          {% endif %}
         </div>
         {% else %}
         <div class="quiet-state-row collection-empty-row">
