@@ -426,6 +426,49 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert "Booked" not in trips_page.text
 
 
+def test_unlinked_booking_can_be_deleted_from_dashboard(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    save = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "DELETEUNLINK",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+
+    repository = Repository(settings)
+    unmatched = repository.load_unmatched_bookings()
+    assert len(unmatched) == 1
+
+    delete = client.post(
+        f"/bookings/{unmatched[0].booking_id}/delete",
+        headers={"referer": "http://testserver/#needs-linking"},
+        follow_redirects=False,
+    )
+    assert delete.status_code == 303
+    assert delete.headers["location"] == "/?message=Booking+deleted"
+
+    repository = Repository(settings)
+    assert repository.load_unmatched_bookings() == []
+
+
 def test_past_active_bookings_are_not_exposed_as_a_top_level_dashboard_surface(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

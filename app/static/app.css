@@ -1776,6 +1776,11 @@ textarea {
   margin-top: 18px;
 }
 
+.booking-card-footer-actions {
+  margin-top: 18px;
+  padding-top: 2px;
+}
+
 .form-section + .form-section {
   margin-top: 28px;
   padding-top: 24px;

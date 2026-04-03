@@ -109,7 +109,10 @@
             <button class="button ghost" type="submit">Cancel</button>
           </form>
           <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-            <button class="button danger-outline" type="submit">Unlink</button>
+            <button class="button ghost" type="submit">Unlink</button>
+          </form>
+          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
+            <button class="button danger-outline" type="submit">Delete</button>
           </form>
         </div>
       </div>
@@ -118,6 +121,9 @@
         <div class="action-cluster">
           <form method="post" action="/bookings/{{ linked_booking.booking_id }}/restore">
             <button class="button secondary" type="submit">Restore</button>
+          </form>
+          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
+            <button class="button danger-outline" type="submit">Delete</button>
           </form>
         </div>
       </div>

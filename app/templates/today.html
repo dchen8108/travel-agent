@@ -234,6 +234,13 @@
             <button type="submit" class="button secondary">Create trip from booking</button>
           </form>
         </div>
+        <div class="actions action-row booking-card-footer-actions">
+          <div class="action-cluster">
+            <form method="post" action="/bookings/{{ unmatched.unmatched_booking_id }}/delete">
+              <button type="submit" class="button danger-outline">Delete</button>
+            </form>
+          </div>
+        </div>
       </article>
       {% endfor %}
     </div>

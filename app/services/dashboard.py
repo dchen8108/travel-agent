@@ -546,7 +546,11 @@ def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, 
     today = date.today()
     cards: list[dict[str, object]] = []
     for unmatched in sorted(
-        [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"],
+        [
+            item
+            for item in snapshot.unmatched_bookings
+            if item.status == BookingStatus.ACTIVE and item.needs_linking
+        ],
         key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
     ):
         candidate_ids = [
