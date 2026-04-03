@@ -369,6 +369,17 @@ p {
   flex-wrap: wrap;
 }
 
+.action-row {
+  justify-content: space-between;
+}
+
+.action-cluster {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .summary-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1769,6 +1780,50 @@ textarea {
   cursor: pointer;
   color: var(--muted);
   font-weight: 600;
+}
+
+.action-menu {
+  position: relative;
+}
+
+.action-menu summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 209, 204, 0.9);
+  background: rgba(255, 254, 251, 0.68);
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu[open] summary {
+  color: var(--ink);
+  border-color: rgba(161, 174, 167, 0.92);
+  box-shadow: 0 10px 20px rgba(26, 29, 24, 0.08);
+}
+
+.action-menu-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(200, 209, 204, 0.76);
+  background: rgba(255, 252, 246, 0.92);
+  box-shadow: var(--shadow-soft);
+}
+
+.action-menu-panel form {
+  display: contents;
 }
 
 .tracker-details[open] summary {

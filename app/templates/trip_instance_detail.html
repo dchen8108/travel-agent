@@ -34,28 +34,13 @@
     <p>{{ fare_snapshot_note or status_detail }}</p>
   </div>
   <div class="hero-actions">
-    {% if primary_trip_group %}
-    <a class="button ghost" href="/groups/{{ primary_trip_group.trip_group_id }}">Open group</a>
-    {% endif %}
     {% if recurring_rule and parent_trip.trip_kind == 'weekly' %}
     <a class="button secondary" href="/trips/{{ recurring_rule.trip_id }}">Open rule</a>
     {% else %}
-    {% if recurring_rule %}
-    <a class="button ghost" href="/trips/{{ recurring_rule.trip_id }}">Open rule</a>
-    {% endif %}
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
     {% if trip_instance.travel_state != 'skipped' %}
     <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
-    {% endif %}
-    {% if trip_instance.travel_state == 'planned' %}
-    <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
-      <button class="button danger" type="submit">Skip</button>
-    </form>
-    {% elif trip_instance.travel_state == 'skipped' %}
-    <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/restore">
-      <button class="button primary" type="submit">Unskip</button>
-    </form>
     {% endif %}
   </div>
 </section>
@@ -104,14 +89,21 @@
       <p class="muted top-gap-small"><strong>{{ route_tracking.summary_label }}.</strong> {{ route_tracking.warning }}</p>
       {% endif %}
       {% if linked_booking.status == 'active' %}
-      <div class="actions">
-        <a class="button secondary" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
-        <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
-          <button class="button ghost" type="submit">Cancel booking</button>
-        </form>
-        <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-          <button class="button danger-outline" type="submit">Unlink booking</button>
-        </form>
+      <div class="actions action-row">
+        <div class="action-cluster">
+          <a class="button secondary" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
+        </div>
+        <details class="action-menu">
+          <summary>More</summary>
+          <div class="action-menu-panel">
+            <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
+              <button class="button ghost" type="submit">Cancel</button>
+            </form>
+            <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
+              <button class="button danger-outline" type="submit">Unlink</button>
+            </form>
+          </div>
+        </details>
       </div>
       {% endif %}
     </article>
@@ -259,7 +251,7 @@
     {% endfor %}
   </div>
 </section>
-{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip %}
+{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip or trip_instance.travel_state in ['planned', 'skipped'] %}
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
@@ -267,6 +259,15 @@
     </div>
   </div>
   <div class="actions">
+    {% if trip_instance.travel_state == 'planned' %}
+    <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
+      <button class="button ghost" type="submit">Skip trip</button>
+    </form>
+    {% elif trip_instance.travel_state == 'skipped' %}
+    <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/restore">
+      <button class="button secondary" type="submit">Unskip trip</button>
+    </form>
+    {% endif %}
     {% if can_detach_trip_instance %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/detach">
       <button class="button ghost" type="submit">Detach trip</button>

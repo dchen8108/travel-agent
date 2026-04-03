@@ -118,17 +118,24 @@
       {% if route_tracking.warning %}
       <p class="muted top-gap-small"><strong>{{ route_tracking.summary_label }}.</strong> {{ route_tracking.warning }}</p>
       {% endif %}
-      <div class="actions">
-        {% if trip_instance %}
-        <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
-        {% endif %}
-        <a class="button secondary" href="/bookings/{{ booking.booking_id }}/edit">Edit</a>
-        <form method="post" action="/bookings/{{ booking.booking_id }}/cancel">
-          <button class="button ghost" type="submit">Cancel booking</button>
-        </form>
-        <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
-          <button class="button danger-outline" type="submit">Unlink</button>
-        </form>
+      <div class="actions action-row">
+        <div class="action-cluster">
+          {% if trip_instance %}
+          <a class="button primary" href="/trip-instances/{{ trip_instance.trip_instance_id }}">Open trip</a>
+          {% endif %}
+          <a class="button secondary" href="/bookings/{{ booking.booking_id }}/edit">Edit</a>
+        </div>
+        <details class="action-menu">
+          <summary>More</summary>
+          <div class="action-menu-panel">
+            <form method="post" action="/bookings/{{ booking.booking_id }}/cancel">
+              <button class="button ghost" type="submit">Cancel</button>
+            </form>
+            <form method="post" action="/bookings/{{ booking.booking_id }}/unlink">
+              <button class="button danger-outline" type="submit">Unlink</button>
+            </form>
+          </div>
+        </details>
       </div>
     </article>
     {% else %}
@@ -174,18 +181,21 @@
         <div><dt>Record locator</dt><dd>{{ booking.record_locator or '—' }}</dd></div>
         <div><dt>Booked on</dt><dd>{{ booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
       </div>
-      <div class="actions top-gap-small">
-        <form
-          method="post"
-          action="/bookings/{{ booking.booking_id }}/delete"
-          data-confirm-title="Delete this booking?"
-          data-confirm-description="This removes the booking record from Milemark."
-          data-confirm-action="Delete booking"
-          data-confirm-cancel="Keep booking"
-        >
-          <button class="button ghost danger-outline" type="submit">Delete booking</button>
-        </form>
-      </div>
+      <details class="action-menu top-gap-small">
+        <summary>More</summary>
+        <div class="action-menu-panel">
+          <form
+            method="post"
+            action="/bookings/{{ booking.booking_id }}/delete"
+            data-confirm-title="Delete this booking?"
+            data-confirm-description="This removes the booking record from Milemark."
+            data-confirm-action="Delete booking"
+            data-confirm-cancel="Keep booking"
+          >
+            <button class="button ghost danger-outline" type="submit">Delete booking</button>
+          </form>
+        </div>
+      </details>
     </article>
     {% endfor %}
   </div>
