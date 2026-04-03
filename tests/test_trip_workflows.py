@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 from app.services.groups import save_trip_group
 from app.services.google_flights import build_google_flights_query_url
 from app.services.dashboard import (
-    archived_one_time_trips,
+    deleted_one_time_trips,
     groups_for_rule,
     groups_for_instance,
     horizon_instances_for_rule,
@@ -428,7 +428,7 @@ def test_one_time_trip_creates_a_standalone_instance(repository: Repository) -> 
     assert trip_instances[0].instance_kind == "standalone"
 
 
-def test_archived_one_time_trip_is_hidden_from_active_scheduled_views(repository: Repository) -> None:
+def test_deleted_one_time_trip_is_hidden_from_active_scheduled_views(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -453,13 +453,13 @@ def test_archived_one_time_trip_is_hidden_from_active_scheduled_views(repository
     assert len(scheduled_instances(snapshot, today=date(2026, 4, 1))) == 1
 
     set_trip_active(repository, trip.trip_id, False)
-    archived = sync_and_persist(repository, today=date(2026, 4, 1))
+    deleted_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
 
-    assert not scheduled_instances(archived, today=date(2026, 4, 1))
-    assert [item.trip_id for item in archived_one_time_trips(archived)] == [trip.trip_id]
+    assert not scheduled_instances(deleted_snapshot, today=date(2026, 4, 1))
+    assert [item.trip_id for item in deleted_one_time_trips(deleted_snapshot)] == [trip.trip_id]
 
 
-def test_archived_one_time_trip_shuts_down_tracking_until_restored(repository: Repository) -> None:
+def test_deleted_one_time_trip_shuts_down_tracking_until_restored(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -488,10 +488,10 @@ def test_archived_one_time_trip_shuts_down_tracking_until_restored(repository: R
     assert any(target.trip_instance_id in active_instance_ids for target in active_snapshot.tracker_fetch_targets)
 
     set_trip_active(repository, trip.trip_id, False)
-    archived_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    deleted_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
 
-    assert not any(tracker.trip_instance_id in active_instance_ids for tracker in archived_snapshot.trackers)
-    assert not any(target.trip_instance_id in active_instance_ids for target in archived_snapshot.tracker_fetch_targets)
+    assert not any(tracker.trip_instance_id in active_instance_ids for tracker in deleted_snapshot.trackers)
+    assert not any(target.trip_instance_id in active_instance_ids for target in deleted_snapshot.tracker_fetch_targets)
 
     set_trip_active(repository, trip.trip_id, True)
     restored_snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
@@ -702,10 +702,6 @@ def test_weekly_rules_ignore_legacy_group_field_after_targets_are_removed(reposi
     assert [item.trip_group_id for item in groups_for_rule(snapshot, trip)] == [group.trip_group_id]
     assert [item.trip_id for item in recurring_rules_for_group(snapshot, group.trip_group_id)] == [trip.trip_id]
 
-    trips = repository.load_trips()
-    stored_trip = next(item for item in trips if item.trip_id == trip.trip_id)
-    stored_trip.trip_group_id = group.trip_group_id
-    repository.save_trips(trips)
     repository.replace_rule_group_targets_for_rule(trip.trip_id, [])
 
     refreshed = sync_and_persist(repository, today=date(2026, 3, 31))

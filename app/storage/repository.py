@@ -20,7 +20,6 @@ from app.models.trip_instance import TripInstance
 from app.models.trip_instance_group_membership import TripInstanceGroupMembership
 from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
-from app.storage.csv_store import load_csv_models
 from app.storage.json_store import load_json_model, save_json_model
 from app.storage.sqlite_store import (
     append_rows,
@@ -31,22 +30,6 @@ from app.storage.sqlite_store import (
     initialize_schema,
     replace_rows,
     upsert_rows,
-)
-
-
-LEGACY_CSV_MODELS: tuple[tuple[str, type], ...] = (
-    ("trip_groups.csv", TripGroup),
-    ("trips.csv", Trip),
-    ("rule_group_targets.csv", RuleGroupTarget),
-    ("route_options.csv", RouteOption),
-    ("trip_instances.csv", TripInstance),
-    ("trip_instance_group_memberships.csv", TripInstanceGroupMembership),
-    ("trackers.csv", Tracker),
-    ("tracker_fetch_targets.csv", TrackerFetchTarget),
-    ("bookings.csv", Booking),
-    ("unmatched_bookings.csv", UnmatchedBooking),
-    ("booking_email_events.csv", BookingEmailEvent),
-    ("price_records.csv", PriceRecord),
 )
 
 
@@ -79,9 +62,7 @@ class Repository:
 
         self._initialized = True
         try:
-            if not db_exists and self._legacy_storage_exists():
-                self._import_legacy_storage()
-            elif not self.app_state_path.exists():
+            if not self.app_state_path.exists():
                 self.save_app_state(db_app_state or AppState())
             if db_app_state is not None:
                 self._drop_db_app_state_table()
@@ -475,32 +456,6 @@ class Repository:
             yield connection, True
         finally:
             connection.close()
-
-    def _legacy_storage_exists(self) -> bool:
-        if (self.settings.data_dir / "app.json").exists():
-            return True
-        return any((self.settings.data_dir / name).exists() for name, _ in LEGACY_CSV_MODELS)
-
-    def _import_legacy_storage(self) -> None:
-        app_state = load_json_model(self.settings.data_dir / "app.json", AppState, AppState())
-        legacy_rows: dict[str, list[Any]] = {
-            name: load_csv_models(self.settings.data_dir / name, model_type)
-            for name, model_type in LEGACY_CSV_MODELS
-        }
-        with self.transaction():
-            self.save_trip_groups(legacy_rows["trip_groups.csv"])
-            self.save_trips(legacy_rows["trips.csv"])
-            self.save_rule_group_targets(legacy_rows["rule_group_targets.csv"])
-            self.save_route_options(legacy_rows["route_options.csv"])
-            self.save_trip_instances(legacy_rows["trip_instances.csv"])
-            self.save_trip_instance_group_memberships(legacy_rows["trip_instance_group_memberships.csv"])
-            self.save_trackers(legacy_rows["trackers.csv"])
-            self.save_tracker_fetch_targets(legacy_rows["tracker_fetch_targets.csv"])
-            self.save_bookings(legacy_rows["bookings.csv"])
-            self.save_unmatched_bookings(legacy_rows["unmatched_bookings.csv"])
-            self.save_booking_email_events(legacy_rows["booking_email_events.csv"])
-            self.append_price_records(legacy_rows["price_records.csv"])
-        self.save_app_state(app_state)
 
     def _load_db_app_state(self, connection: sqlite3.Connection) -> AppState | None:
         try:

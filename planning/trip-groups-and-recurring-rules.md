@@ -30,7 +30,7 @@ The product needs two concepts instead of one:
    It decides which trips should exist on a cadence and what template they inherit.
 
 3. Concrete trips remain the operational object.
-   Booking, skip, tracking, rebook comparison, and Today-page status stay tied to the concrete dated trip.
+   Booking, tracking, rebook comparison, and Today-page status stay tied to the concrete dated trip.
 
 4. Users should be able to break a pattern without breaking organization.
    One odd Friday trip should still sit next to the rest of the work-travel series.
@@ -76,7 +76,7 @@ Suggested fields:
 Important design choice:
 
 - rules and groups should be linked through a join table, not a single foreign key
-- a rule can target zero or more groups
+- the data model can support zero or more groups, but the normal UI should require at least one
 - a group can receive trips from zero or more rules
 
 ### 3. `RecurringRuleRouteOption`
@@ -110,7 +110,6 @@ Suggested shape:
 
 - `trip_id`
 - `label`
-- `trip_group_id` nullable
 - `generated_by_rule_id` nullable
 - `rule_occurrence_date` nullable
 - `inheritance_mode`
@@ -204,7 +203,6 @@ Rule-owned fields:
 Operational fields remain per-trip:
 
 - bookings
-- skip state
 - current tracker/fetch state
 
 ### Detached Trips
@@ -239,19 +237,9 @@ The easiest way to do that is:
 
 That row continues to claim the occurrence, so the rule does not regenerate it until a manual restore in the backend.
 
-### Skipping
+### Deleting One Occurrence
 
-Skip remains an operational state on the concrete scheduled trip.
-
-It should **not** mean:
-
-- detach
-- remove from group
-- delete occurrence
-
-It just means:
-
-- do not actively price/book this date right now
+Deleting an attached occurrence should suppress regeneration for that rule/date without forcing a detach first.
 
 ## How Rule Edits Should Propagate
 

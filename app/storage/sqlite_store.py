@@ -36,6 +36,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_route_options_to_v16(connection)
     _migrate_trip_state_override_to_v17(connection)
     _migrate_trip_instances_remove_skip_state_to_v18(connection)
+    _migrate_trips_remove_legacy_group_column_to_v19(connection)
+    _migrate_trackers_remove_manual_import_signals_to_v20(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -579,6 +581,82 @@ def _migrate_trip_instances_remove_skip_state_to_v18(connection: sqlite3.Connect
         """
     )
     connection.execute("DROP TABLE trip_instances_old_v18")
+
+
+def _migrate_trips_remove_legacy_group_column_to_v19(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trips"):
+        return
+    columns = _table_columns(connection, "trips")
+    if "trip_group_id" not in columns:
+        return
+    connection.execute("ALTER TABLE trips RENAME TO trips_old_v19")
+    connection.execute(
+        """
+        CREATE TABLE trips (
+            trip_id TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            trip_kind TEXT NOT NULL,
+            preference_mode TEXT NOT NULL,
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            active INTEGER NOT NULL,
+            anchor_date TEXT NULL,
+            anchor_weekday TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO trips (
+            trip_id,
+            label,
+            trip_kind,
+            preference_mode,
+            data_scope,
+            active,
+            anchor_date,
+            anchor_weekday,
+            created_at,
+            updated_at
+        )
+        SELECT
+            trip_id,
+            label,
+            trip_kind,
+            preference_mode,
+            COALESCE(data_scope, 'live'),
+            active,
+            anchor_date,
+            anchor_weekday,
+            created_at,
+            updated_at
+        FROM trips_old_v19
+        """
+    )
+    connection.execute("DROP TABLE trips_old_v19")
+
+
+def _migrate_trackers_remove_manual_import_signals_to_v20(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trackers"):
+        return
+    columns = _table_columns(connection, "trackers")
+    if "latest_signal_source" not in columns:
+        return
+    connection.execute(
+        """
+        UPDATE trackers
+        SET
+            last_signal_at = NULL,
+            latest_observed_price = NULL,
+            latest_fetched_at = NULL,
+            latest_winning_origin_airport = '',
+            latest_winning_destination_airport = '',
+            latest_signal_source = '',
+            latest_match_summary = ''
+        WHERE latest_signal_source = 'manual_import'
+        """
+    )
 
 
 def _migrate_group_memberships_to_v13(connection: sqlite3.Connection) -> None:

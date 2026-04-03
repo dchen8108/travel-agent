@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 20
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -81,7 +81,6 @@ DDL_STATEMENTS: tuple[str, ...] = (
         label TEXT NOT NULL,
         trip_kind TEXT NOT NULL,
         preference_mode TEXT NOT NULL,
-        trip_group_id TEXT NOT NULL DEFAULT '',
         data_scope TEXT NOT NULL DEFAULT 'live',
         active INTEGER NOT NULL,
         anchor_date TEXT NULL,
@@ -233,7 +232,6 @@ DDL_STATEMENTS: tuple[str, ...] = (
     CREATE_PRICE_RECORDS_TABLE,
     "CREATE INDEX IF NOT EXISTS idx_trip_groups_label ON trip_groups(label)",
     "CREATE INDEX IF NOT EXISTS idx_trips_label ON trips(label)",
-    "CREATE INDEX IF NOT EXISTS idx_trips_group_id ON trips(trip_group_id)",
     "CREATE INDEX IF NOT EXISTS idx_rule_group_targets_group_rule ON rule_group_targets(trip_group_id, rule_trip_id)",
     "CREATE INDEX IF NOT EXISTS idx_rule_group_targets_rule ON rule_group_targets(rule_trip_id)",
     """

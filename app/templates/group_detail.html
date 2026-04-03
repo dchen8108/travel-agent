@@ -96,43 +96,15 @@
   </div>
   <div class="stack">
     {% for instance in grouped_instances %}
-    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
-    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
-    <article class="card scheduled-card">
-      <div class="scheduled-card-head">
-        <div class="scheduled-date">
-          <small>{{ instance.anchor_date.strftime('%a') }}</small>
-          <strong>{{ instance.anchor_date.strftime('%b %d') }}</strong>
-        </div>
-        <div class="scheduled-copy">
-          <strong>{{ instance.display_label }}</strong>
-          <p class="muted">
-            {% if recurring_rule %}
-            Rule · <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
-            {% elif parent_trip %}
-            Manual
-            {% else %}
-            Standalone
-            {% endif %}
-          </p>
-        </div>
-        <div class="badge-stack">
-          <span class="status-pill {{ trip_lifecycle_status_tone(snapshot, instance.trip_instance_id) }}">{{ trip_lifecycle_status_label(snapshot, instance.trip_instance_id) }}</span>
-        </div>
-      </div>
-      <div class="meta-grid">
-        <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Not booked{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
-        <div><dt>Monitoring</dt><dd>{{ trip_monitoring_status_label(snapshot, instance.trip_instance_id) }}</dd></div>
-      </div>
-      <p class="muted card-note">{{ trip_status_detail(snapshot, instance.trip_instance_id) }}</p>
-      <div class="actions">
-        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
-      </div>
-    </article>
+    {% set scheduled_instance = instance %}
+    {% set scheduled_parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_trip_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_subtitle_html = ('Rule · <a href="/trips/' ~ scheduled_recurring_rule.trip_id ~ '">' ~ scheduled_recurring_rule.label ~ '</a>') if scheduled_recurring_rule else ('Manual' if scheduled_parent_trip else 'Standalone') %}
+    {% include "partials/scheduled_trip_card.html" %}
     {% else %}
     <article class="empty-state">
       <strong>No upcoming trips in this group.</strong>

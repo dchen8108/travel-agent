@@ -24,19 +24,6 @@ def _filter_candidate_trip_ids(value: str, valid_ids: set[str]) -> str:
     return join_pipe([item for item in split_pipe(value) if item in valid_ids])
 
 
-def _clear_legacy_manual_signals(trackers: list[Tracker]) -> None:
-    for tracker in trackers:
-        if tracker.latest_signal_source != "manual_import":
-            continue
-        tracker.last_signal_at = None
-        tracker.latest_observed_price = None
-        tracker.latest_fetched_at = None
-        tracker.latest_winning_origin_airport = ""
-        tracker.latest_winning_destination_airport = ""
-        tracker.latest_signal_source = ""
-        tracker.latest_match_summary = ""
-
-
 def _preserve_active_fetch_claims(
     tracker_fetch_targets: list[TrackerFetchTarget],
     current_fetch_targets: list[TrackerFetchTarget],
@@ -88,7 +75,6 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         existing_memberships=existing_trip_instance_group_memberships,
     )
     trackers = reconcile_trackers(trips, trip_instances, route_options, existing_trackers)
-    _clear_legacy_manual_signals(trackers)
     tracker_fetch_targets = reconcile_fetch_targets(
         trackers,
         trips,

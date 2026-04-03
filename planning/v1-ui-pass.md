@@ -1,5 +1,7 @@
 ## V1 UI/Product Pass
 
+Historical note: this doc captures the first major UI consolidation pass. It is useful for intent, but some references below still predate the current group/rule model and the removal of the user-facing skip state.
+
 ### Product framing
 - `Today` is the action inbox.
 - `Trips` is the planning workspace.
@@ -24,7 +26,7 @@
 - Scheduled trip rows should focus on operational actions for one dated trip instance:
   - open trip
   - record booking
-  - skip / unskip
+  - delete occurrence or delete trip
 
 #### Trip detail
 - Parent trip page should show:
@@ -41,7 +43,7 @@
   - booking state
   - tracker cards for that dated trip
   - refresh sooner
-  - skip / unskip
+  - delete occurrence or delete trip
   - quick links to sibling dates in the same recurring series
 
 #### Bookings

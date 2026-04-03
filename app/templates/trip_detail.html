@@ -146,59 +146,19 @@
   </div>
   <div class="stack">
     {% for instance in future_instances %}
-    {% set tracker = best_tracker(snapshot, instance.trip_instance_id) %}
-    {% set booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set instance_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
-    <article class="card scheduled-card">
-      <div class="scheduled-card-head">
-        <div class="scheduled-date">
-          <small>{{ instance.anchor_date.strftime('%a') }}</small>
-          <strong>{{ instance.anchor_date.strftime('%b %d') }}</strong>
-        </div>
-        <div class="scheduled-copy">
-          <strong>{{ instance.display_label }}</strong>
-          <p class="muted">
-            {% if instance_groups %}
-            {{ instance_groups|map(attribute='label')|join(' · ') }}
-            {% endif %}
-            {% if trip.trip_kind == 'weekly' %}
-            {% if instance_groups %} · {% endif %}{{ trip.label }}
-            {% endif %}
-          </p>
-        </div>
-        <div class="badge-stack">
-          <span class="status-pill {{ trip_lifecycle_status_tone(snapshot, instance.trip_instance_id) }}">{{ trip_lifecycle_status_label(snapshot, instance.trip_instance_id) }}</span>
-        </div>
-      </div>
-      <div class="meta-grid">
-        <div><dt>Best fare</dt><dd>{{ money(tracker.latest_observed_price) if tracker and tracker.latest_observed_price is not none else 'None yet' }}</dd></div>
-        <div><dt>Bookings</dt><dd>{% if active_booking_count == 0 %}Not booked{% elif active_booking_count == 1 and booking %}{{ money(booking.booked_price) }}{% else %}{{ active_booking_count }} active{% endif %}</dd></div>
-        <div><dt>Monitoring</dt><dd>{{ trip_monitoring_status_label(snapshot, instance.trip_instance_id) }}</dd></div>
-      </div>
-      <p class="muted card-note">{{ trip_status_detail(snapshot, instance.trip_instance_id) }}</p>
-      <div class="actions">
-        <a class="button primary" href="/trip-instances/{{ instance.trip_instance_id }}">Open trip</a>
-        {% if trip.trip_kind == 'weekly' and active_booking_count == 0 %}
-        <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/detach">
-          <button class="button ghost" type="submit">Detach</button>
-        </form>
-        <form
-          method="post"
-          action="/trip-instances/{{ instance.trip_instance_id }}/delete-generated"
-          data-confirm-title="Delete this generated trip?"
-          data-confirm-description="This date will be removed from the recurring rule and stop background fare checks unless you recreate it later."
-          data-confirm-action="Delete trip"
-          data-confirm-cancel="Keep trip"
-        >
-          <button class="button danger-outline" type="submit">Delete</button>
-        </form>
-        {% endif %}
-        {% if active_booking_count == 0 %}
-        <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
-        {% endif %}
-      </div>
-    </article>
+    {% set scheduled_instance = instance %}
+    {% set scheduled_parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_trip_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
+    {% set scheduled_title = instance.display_label %}
+    {% set scheduled_subtitle_html = (scheduled_trip_groups|map(attribute='label')|join(' · ')) ~ ((scheduled_trip_groups and trip.trip_kind == 'weekly') and ' · ' or '') ~ (trip.label if trip.trip_kind == 'weekly' else '') %}
+    {% set scheduled_allow_detach = trip.trip_kind == 'weekly' and scheduled_active_booking_count == 0 %}
+    {% set scheduled_allow_delete_generated = scheduled_allow_detach %}
+    {% set scheduled_allow_add_booking = scheduled_active_booking_count == 0 %}
+    {% include "partials/scheduled_trip_card.html" %}
     {% else %}
     <article class="empty-state">
       <strong>No upcoming scheduled trips.</strong>

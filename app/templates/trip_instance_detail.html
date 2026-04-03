@@ -242,7 +242,7 @@
     {% endfor %}
   </div>
 </section>
-{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip or active_bookings|length == 0 %}
+{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip or active_bookings|length == 0 %}
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
@@ -267,7 +267,7 @@
       <button class="button ghost danger-outline" type="submit">Delete trip</button>
     </form>
     {% endif %}
-    {% if can_archive_parent_trip %}
+    {% if can_delete_parent_trip %}
     <form
       method="post"
       action="/trips/{{ parent_trip.trip_id }}/delete"

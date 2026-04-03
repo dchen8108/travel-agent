@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 from datetime import date, datetime, timedelta, timezone
 
 from app.models.base import utcnow
@@ -16,7 +15,7 @@ from app.services.background_fetch import (
     run_fetch_batch,
     select_due_fetch_targets,
 )
-from app.services.dashboard import factual_trip_status_label, factual_trip_status_reason
+from app.services.dashboard import trip_lifecycle_status_label, trip_status_detail
 from app.services.fetch_targets import (
     FETCH_INTERVAL_SECONDS,
     next_refresh_time,
@@ -1386,8 +1385,8 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
             "bookings": [booking],
         },
     )()
-    assert factual_trip_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"
-    assert "Current comparable price is $120" in factual_trip_status_reason(snapshot, trip_instance.trip_instance_id)
+    assert trip_lifecycle_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"
+    assert "Current comparable price is $120" in trip_status_detail(snapshot, trip_instance.trip_instance_id)
 
 
 def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(repository: Repository) -> None:
@@ -1571,226 +1570,3 @@ def test_successful_fetch_builds_price_records_for_all_offers(repository: Reposi
     assert saved_records[0].offer_rank == 1
     assert saved_records[1].offer_rank == 2
     assert all(item.search_fare_class_policy == "include_basic" for item in saved_records)
-
-
-def test_append_price_records_migrates_legacy_header(settings) -> None:
-    repository = Repository(settings)
-    path = repository.settings.data_dir / "price_records.csv"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    legacy_fieldnames = [
-        "price_record_id",
-        "fetch_event_id",
-        "observed_at",
-        "observed_date",
-        "source",
-        "provider",
-        "fetch_method",
-        "fetch_target_id",
-        "tracker_id",
-        "trip_instance_id",
-        "trip_id",
-        "route_option_id",
-        "tracker_definition_signature",
-        "trip_label",
-        "tracker_rank",
-        "search_origin_airports",
-        "search_destination_airports",
-        "search_airlines",
-        "search_day_offset",
-        "search_travel_date",
-        "search_start_time",
-        "search_end_time",
-        "query_origin_airport",
-        "query_destination_airport",
-        "google_flights_url",
-        "airline",
-        "departure_label",
-        "arrival_label",
-        "price",
-        "offer_rank",
-        "price_text",
-        "summary",
-        "request_offer_count",
-        "is_request_cheapest",
-        "record_signature",
-        "created_at",
-    ]
-    observed_at = utcnow()
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=legacy_fieldnames)
-        writer.writeheader()
-        writer.writerow(
-            {
-                "price_record_id": "price_old",
-                "fetch_event_id": "fetch_old",
-                "observed_at": observed_at.isoformat(),
-                "observed_date": observed_at.date().isoformat(),
-                "source": "background_fetch",
-                "provider": "google_flights",
-                "fetch_method": "generated_link",
-                "fetch_target_id": "ft_old",
-                "tracker_id": "trk_old",
-                "trip_instance_id": "inst_old",
-                "trip_id": "trip_old",
-                "route_option_id": "opt_old",
-                "tracker_definition_signature": "sig_old",
-                "trip_label": "Legacy trip",
-                "tracker_rank": 1,
-                "search_origin_airports": "BUR",
-                "search_destination_airports": "SFO",
-                "search_airlines": "Alaska",
-                "search_day_offset": 0,
-                "search_travel_date": date(2026, 4, 1).isoformat(),
-                "search_start_time": "06:00",
-                "search_end_time": "10:00",
-                "query_origin_airport": "BUR",
-                "query_destination_airport": "SFO",
-                "google_flights_url": "https://www.google.com/travel/flights/search?tfs=legacy",
-                "airline": "Alaska",
-                "departure_label": "6:00 AM",
-                "arrival_label": "7:30 AM",
-                "price": 199,
-                "offer_rank": 1,
-                "price_text": "$199",
-                "summary": "Legacy summary",
-                "request_offer_count": 1,
-                "is_request_cheapest": True,
-                "record_signature": "legacy_sig",
-                "created_at": observed_at.isoformat(),
-            }
-        )
-
-    repository.ensure_data_dir()
-    repository.append_price_records(
-        [
-            PriceRecord(
-                price_record_id="price_new",
-                fetch_event_id="fetch_new",
-                observed_at=observed_at,
-                fetch_target_id="ft_new",
-                tracker_id="trk_new",
-                trip_instance_id="inst_new",
-                trip_id="trip_new",
-                route_option_id="opt_new",
-                tracker_definition_signature="sig_new",
-                tracker_rank=1,
-                search_origin_airports="LAX",
-                search_destination_airports="SFO",
-                search_airlines="United",
-                search_day_offset=0,
-                search_travel_date=date(2026, 4, 2),
-                search_start_time="07:00",
-                search_end_time="11:00",
-                query_origin_airport="LAX",
-                query_destination_airport="SFO",
-                airline="United",
-                departure_label="7:05 AM",
-                arrival_label="8:35 AM",
-                price=209,
-                offer_rank=1,
-            )
-        ]
-    )
-
-    saved_records = repository.load_price_records()
-    assert len(saved_records) == 2
-    assert {item.price_record_id for item in saved_records} == {"price_old", "price_new"}
-    legacy = next(item for item in saved_records if item.price_record_id == "price_old")
-    assert legacy.price == 199
-    assert legacy.offer_rank == 1
-    assert legacy.query_origin_airport == "BUR"
-
-
-def test_load_price_records_ignores_removed_legacy_columns(settings) -> None:
-    repository = Repository(settings)
-    path = repository.settings.data_dir / "price_records.csv"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    legacy_fieldnames = [
-        "price_record_id",
-        "fetch_event_id",
-        "observed_at",
-        "observed_date",
-        "source",
-        "provider",
-        "fetch_method",
-        "fetch_target_id",
-        "tracker_id",
-        "trip_instance_id",
-        "trip_id",
-        "route_option_id",
-        "tracker_definition_signature",
-        "trip_label",
-        "tracker_rank",
-        "search_origin_airports",
-        "search_destination_airports",
-        "search_airlines",
-        "search_day_offset",
-        "search_travel_date",
-        "search_start_time",
-        "search_end_time",
-        "query_origin_airport",
-        "query_destination_airport",
-        "google_flights_url",
-        "airline",
-        "departure_label",
-        "arrival_label",
-        "price",
-        "offer_rank",
-        "price_text",
-        "summary",
-        "request_offer_count",
-        "is_request_cheapest",
-        "record_signature",
-        "created_at",
-    ]
-    observed_at = utcnow()
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=legacy_fieldnames)
-        writer.writeheader()
-        writer.writerow(
-            {
-                "price_record_id": "price_old",
-                "fetch_event_id": "fetch_old",
-                "observed_at": observed_at.isoformat(),
-                "observed_date": observed_at.date().isoformat(),
-                "source": "background_fetch",
-                "provider": "google_flights",
-                "fetch_method": "generated_link",
-                "fetch_target_id": "ft_old",
-                "tracker_id": "trk_old",
-                "trip_instance_id": "inst_old",
-                "trip_id": "trip_old",
-                "route_option_id": "opt_old",
-                "tracker_definition_signature": "sig_old",
-                "trip_label": "Legacy trip",
-                "tracker_rank": 1,
-                "search_origin_airports": "BUR",
-                "search_destination_airports": "SFO",
-                "search_airlines": "Alaska",
-                "search_day_offset": 0,
-                "search_travel_date": date(2026, 4, 1).isoformat(),
-                "search_start_time": "06:00",
-                "search_end_time": "10:00",
-                "query_origin_airport": "BUR",
-                "query_destination_airport": "SFO",
-                "google_flights_url": "https://www.google.com/travel/flights/search?tfs=legacy",
-                "airline": "Alaska",
-                "departure_label": "6:00 AM",
-                "arrival_label": "7:30 AM",
-                "price": 199,
-                "offer_rank": 1,
-                "price_text": "$199",
-                "summary": "Legacy summary",
-                "request_offer_count": 1,
-                "is_request_cheapest": True,
-                "record_signature": "legacy_sig",
-                "created_at": observed_at.isoformat(),
-            }
-        )
-
-    repository.ensure_data_dir()
-    saved_records = repository.load_price_records()
-    assert len(saved_records) == 1
-    assert saved_records[0].price_record_id == "price_old"
-    assert saved_records[0].price == 199
-    assert saved_records[0].offer_rank == 1

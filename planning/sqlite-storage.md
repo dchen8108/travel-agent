@@ -8,7 +8,6 @@ The migration strategy is pragmatic:
 
 - keep the current model and repository API stable
 - store the same logical objects in SQLite tables
-- import legacy CSV/JSON files automatically on first boot when the database does not exist yet
 - keep `price_records` append-only
 
 `config/app_state.json` is the source of truth for:
@@ -75,7 +74,10 @@ Key columns:
 - `display_label`
 - `anchor_date`
 - `instance_kind`
-- `travel_state`
+- `recurring_rule_trip_id`
+- `rule_occurrence_date`
+- `inheritance_mode`
+- `deleted`
 - `booking_id`
 - `last_signal_at`
 - `created_at`
@@ -160,6 +162,7 @@ Key columns:
 - `booking_id`
 - `source`
 - `trip_instance_id`
+- `route_option_id`
 - `data_scope`
 - `airline`
 - `origin_airport`
@@ -181,7 +184,7 @@ Key columns:
 
 The application still exposes `Booking` and `UnmatchedBooking` models separately through the repository for compatibility, but both are backed by this one table.
 
-Bookings are trip-scoped. They are no longer linked to a specific tracker, and booked-vs-current comparison logic is based on the trip's best current option after preferences are applied.
+Bookings are trip-scoped. They can optionally link to a uniquely matched route option, but booked-vs-current comparison logic is still based on the trip's best current option after preferences are applied.
 
 ### `price_records`
 

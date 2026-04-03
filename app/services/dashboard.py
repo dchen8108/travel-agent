@@ -435,18 +435,6 @@ def trip_status_detail(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     return "No searches. There are no searches configured for this date."
 
 
-def factual_trip_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
-    return trip_lifecycle_status_label(snapshot, trip_instance_id)
-
-
-def factual_trip_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> str:
-    return trip_lifecycle_status_tone(snapshot, trip_instance_id)
-
-
-def factual_trip_status_reason(snapshot: AppSnapshot, trip_instance_id: str) -> str:
-    return trip_status_detail(snapshot, trip_instance_id)
-
-
 def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
@@ -575,7 +563,7 @@ def standalone_trips(snapshot: AppSnapshot) -> list[Trip]:
     )
 
 
-def archived_one_time_trips(snapshot: AppSnapshot) -> list[Trip]:
+def deleted_one_time_trips(snapshot: AppSnapshot) -> list[Trip]:
     return sorted(
         [trip for trip in snapshot.trips if trip.trip_kind == "one_time" and not trip.active],
         key=lambda item: item.label.lower(),

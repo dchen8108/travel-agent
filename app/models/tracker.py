@@ -106,7 +106,7 @@ class Tracker(CsvModel):
     @classmethod
     def validate_signal_source(cls, value: str) -> str:
         value = value.strip()
-        if value and value not in {"manual_import", "background_fetch"}:
+        if value and value != "background_fetch":
             raise ValueError("Unsupported tracker signal source.")
         return value
 

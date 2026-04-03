@@ -460,10 +460,6 @@ async def save_trip_action(
         parsed_trip_group_ids = json.loads(trip_group_ids_json or "[]")
     except ValueError:
         parsed_trip_group_ids = []
-    if not parsed_trip_group_ids:
-        legacy_trip_group_id = str(form.get("trip_group_id", "")).strip()
-        if legacy_trip_group_id:
-            parsed_trip_group_ids = [legacy_trip_group_id]
     trip_group_ids = [
         str(item).strip()
         for item in parsed_trip_group_ids

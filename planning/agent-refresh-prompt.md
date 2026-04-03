@@ -31,18 +31,16 @@ Minimum reading list:
 
 Verification steps:
 - run `git status --short`
-- run `/.venv/bin/python -m pytest -q`
+- run `uv run pytest -q`
 
 What the refreshed checkpoint must include:
 - current product model
 - current architecture
 - important domain objects
-- notable recent changes
 - known-good verified behaviors
 - known risks / caveats
 - current dirty working tree files
 - key files to read first
-- an updated bootstrap prompt
 
 Constraints:
 - do not describe the old planning state as if it were still the live implementation

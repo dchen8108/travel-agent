@@ -135,10 +135,10 @@ def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
         summary = str(monitor["no_results_reason"] or "No matching flights returned right now.")
     elif monitor["is_retrying"]:
         headline = "Refreshing again soon"
-        summary = "A recent Google Flights request failed. Travel Agent will retry automatically."
+        summary = "A recent Google Flights request failed. Milemark will retry automatically."
     elif fetch_targets:
         headline = "Fetching current fares"
-        summary = "Travel Agent is still collecting the first live price for this option."
+        summary = "Milemark is still collecting the first live price for this option."
     else:
         headline = "No searches available"
         summary = "This option does not currently have any airport-pair searches to check."
@@ -168,11 +168,6 @@ def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
 @router.get("/trackers", response_class=HTMLResponse)
 def trackers_index() -> RedirectResponse:
     return RedirectResponse(url="/trips", status_code=303)
-
-
-@router.post("/trackers/queue-refresh")
-def queue_tracker_refresh_legacy() -> RedirectResponse:
-    return redirect_with_message("/trips", "Open a trip and use View trackers to refresh its searches.")
 
 
 @router.get("/trip-instances/{trip_instance_id}", response_class=HTMLResponse)
@@ -251,7 +246,7 @@ def trackers_detail(
         )
     elif booking and savings is not None and comparison and comparison.latest_observed_price is not None:
         fare_snapshot_note = (
-            f"Travel Agent found a better current trip option at {format_money(comparison.latest_observed_price)}, "
+            f"Milemark found a better current trip option at {format_money(comparison.latest_observed_price)}, "
             f"{format_money(savings)} below what you booked."
         )
     elif booking and comparison and comparison.latest_observed_price is not None:
@@ -265,8 +260,8 @@ def trackers_detail(
             "A current trip-level comparison fare is not available yet."
         )
     elif trackers and not (best_current_tracker and best_current_tracker.latest_observed_price is not None):
-        fare_snapshot_note = "Travel Agent is still checking the monitored searches for this date."
-    can_archive_parent_trip = (
+        fare_snapshot_note = "Milemark is still checking the monitored searches for this date."
+    can_delete_parent_trip = (
         parent_trip.trip_kind == "one_time"
         and parent_trip.active
         and booking is None
@@ -298,7 +293,7 @@ def trackers_detail(
             booking_views=booking_views,
             active_bookings=active_bookings,
             booking=booking,
-            can_archive_parent_trip=can_archive_parent_trip,
+            can_delete_parent_trip=can_delete_parent_trip,
             can_detach_trip_instance=can_detach_trip_instance,
             can_delete_generated_trip_instance=can_delete_generated_trip_instance,
             best_tracker=best_current_tracker,

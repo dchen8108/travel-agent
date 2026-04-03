@@ -13,7 +13,6 @@ class Trip(CsvModel):
     label: str
     trip_kind: TripKind
     preference_mode: RoutePreferenceMode = RoutePreferenceMode.EQUAL
-    trip_group_id: str = ""
     data_scope: DataScope = DataScope.LIVE
     active: bool = True
     anchor_date: date | None = None

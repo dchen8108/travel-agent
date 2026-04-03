@@ -57,7 +57,6 @@ def build_trip(
     active: bool,
     anchor_date: date | None,
     anchor_weekday: str,
-    trip_group_id: str = "",
     preference_mode: str = RoutePreferenceMode.EQUAL,
     data_scope: str = DataScope.LIVE,
 ) -> Trip:
@@ -67,7 +66,6 @@ def build_trip(
         label=label,
         trip_kind=parse_trip_kind(trip_kind),
         preference_mode=parse_preference_mode(preference_mode),
-        trip_group_id=trip_group_id,
         data_scope=DataScope(data_scope),
         active=active,
         anchor_date=anchor_date,
@@ -133,7 +131,6 @@ def save_trip(
     active: bool,
     anchor_date: date | None,
     anchor_weekday: str,
-    trip_group_id: str = "",
     trip_group_ids: list[str] | None = None,
     route_option_payloads: list[dict[str, object]],
     preference_mode: str = RoutePreferenceMode.EQUAL,
@@ -156,7 +153,6 @@ def save_trip(
         label=label,
         trip_kind=parsed_trip_kind,
         preference_mode=preference_mode,
-        trip_group_id="",
         data_scope=data_scope,
         active=active,
         anchor_date=anchor_date,
@@ -179,7 +175,7 @@ def save_trip(
     next_trip_group_ids = sorted(
         {
             trip_group
-            for trip_group in (trip_group_ids if trip_group_ids is not None else ([trip_group_id] if trip_group_id else []))
+            for trip_group in (trip_group_ids or [])
             if trip_group
         }
     )
@@ -219,7 +215,6 @@ def save_past_trip(
         label=label,
         trip_kind=TripKind.ONE_TIME,
         preference_mode=RoutePreferenceMode.EQUAL,
-        trip_group_id="",
         active=True,
         anchor_date=anchor_date,
         anchor_weekday="",
@@ -250,7 +245,7 @@ def delete_trip(repository: Repository, trip_id: str) -> None:
     if trip is None:
         raise KeyError("Trip not found")
     if trip.trip_kind != TripKind.ONE_TIME:
-        raise ValueError("Only one-time trips can be archived.")
+        raise ValueError("Only one-time trips can be deleted.")
     trip.active = False
     trip.updated_at = utcnow()
     repository.upsert_trip(trip)

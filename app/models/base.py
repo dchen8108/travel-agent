@@ -59,6 +59,7 @@ class TripInstanceGroupMembershipSource(StrEnum):
     INHERITED = "inherited"
     FROZEN = "frozen"
 
+
 class FetchTargetStatus(StrEnum):
     PENDING = "pending"
     SUCCESS = "success"

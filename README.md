@@ -5,15 +5,14 @@ Local-first tracker-of-trackers for recurring flight travel.
 This MVP is built around a simple idea:
 
 - you organize travel into named `Trip Groups`
-- you define optional recurring `Rules` that generate trips on a cadence
-- you organize travel into named `Trips`
+- you define recurring `Rules` that generate trips on a cadence
 - each trip owns one or more ranked `Route Options`
 - each route option corresponds to one Google Flights tracker/search definition, including whether Basic economy should be included or excluded
 - trips can treat route options equally or require lower-ranked options to clear user-defined savings thresholds
 - recurring rules generate dated `Trip Instances` that can stay attached or be detached later
 - the app keeps concrete `Trip Instances` and per-instance `Trackers`
 - the app fans each tracker out into concrete airport-pair Google Flights searches
-- a background job queries those links conservatively every 4 hours on trip-anchored refresh windows and rolls the best current price back onto the tracker
+- a background job queries those links conservatively on a queued cadence and rolls the best current price back onto the tracker
 - saving a trip pulls its affected airport-pair searches to the front of the refresh queue
 - the app stores tracker signals, organizes bookings, and tells you what still needs attention
 
@@ -33,21 +32,19 @@ This version is intentionally local and simple:
 - no paid fare APIs
 - no credits or hotels
 
-Legacy CSV/JSON files are imported automatically the first time the app boots on SQLite. After migration, they can be moved out of `data/` and kept only as manual backup artifacts if you still want them.
-
 Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) to distinguish current design notes from older historical planning docs.
 
 ## Core Objects
 
 - `Trip Group`: pure organization/display for concrete trips
-- `Recurring Rule`: cadence + route template that generates future trips
+- `Recurring Rule`: cadence + route template that generates future trips into one or more groups
 - `Trip`: the authoring object for a one-time trip or a recurring rule
 - `Route Option`: ranked tracker definition under a trip
 - `Trip Instance`: one dated scheduled trip, either standalone, attached to a recurring rule, or detached from it
 - `Tracker`: one Google Flights tracker/search envelope for a route option on a trip instance
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Price Record`: one append-only fetched offer row captured for analytics history
-- `Booking`: a purchased itinerary attached to a trip instance
+- `Booking`: a purchased itinerary attached to a trip instance and, when uniquely matchable, to one tracked route option
 - `Unmatched Booking`: a booking the system could not confidently place
 - `Booking Email Event`: one Gmail intake result, including ignored, auto-linked, duplicate, and needs-resolution outcomes
 
@@ -68,7 +65,7 @@ Then open `http://127.0.0.1:8000`.
 4. Add ranked `Route Options`.
 5. For each route option, choose whether Google Flights should include or exclude Basic economy fares.
 6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
-7. Use `Trips` to browse groups, independent rules, and standalone trips.
+7. Use `Trips` to browse groups and every scheduled date still in play.
 8. Open a recurring rule for template-level details, route options, and generated dates.
 9. Open any scheduled trip to review trackers, prices, Google Flights links, group memberships, and booking state.
 10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
@@ -199,7 +196,7 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 
 - `config/app_state.json`: checked-in runtime config such as timezone, horizon length, and whether test data is shown/processed
 - `config/gmail_integration.json`: checked-in Gmail poller behavior such as inbox labels, model choice, retry caps, and debug logging
-- `config/local/*`: machine-local secrets and state such as Gmail OAuth credentials, Gmail sync checkpoint, and optional OpenAI API key cache
+- `config/local/*`: machine-local secrets and state such as Gmail OAuth credentials, Gmail sync checkpoint, and optional OpenAI API key cache. These files are not product config and should not be checked in.
 
 ## Storage
 

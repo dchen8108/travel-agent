@@ -5,16 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from app.models.base import AppState
-from app.models.booking_email_event import BookingEmailEvent
-from app.models.route_option import RouteOption
-from app.models.rule_group_target import RuleGroupTarget
-from app.models.trip import Trip
-from app.models.trip_group import TripGroup
-from app.models.trip_instance import TripInstance
-from app.models.trip_instance_group_membership import TripInstanceGroupMembership
 from app.settings import Settings
-from app.storage.csv_store import save_csv_models
-from app.storage.json_store import save_json_model
 from app.storage.repository import Repository
 
 
@@ -194,7 +185,7 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
     finally:
         connection.close()
 
-    assert user_version == 18
+    assert user_version == 20
     assert "data_scope" in columns
     assert "price_text" not in columns
     assert "summary" not in columns
@@ -312,7 +303,7 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
     assert booked_price == 78.4
     assert booking_columns["booked_price"] == "REAL"
     assert booking_columns["route_option_id"] == "TEXT"
-    assert user_version == 18
+    assert user_version == 20
     assert "extraction_attempt_count" in booking_email_event_columns
     assert "retryable" in booking_email_event_columns
     assert "data_scope" in booking_email_event_columns
@@ -471,11 +462,11 @@ def test_repository_migrates_trips_table_to_relaxed_label_rules(tmp_path: Path) 
     finally:
         connection.close()
 
-    assert user_version == 18
+    assert user_version == 20
     assert duplicate_weekly_conflict is True
 
 
-def test_repository_imports_current_legacy_tables_when_bootstrapping_sqlite(tmp_path: Path) -> None:
+def test_repository_drops_legacy_trip_group_column_and_clears_manual_tracker_signals(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -483,64 +474,100 @@ def test_repository_imports_current_legacy_tables_when_bootstrapping_sqlite(tmp_
         static_dir=Path("app/static"),
     )
     settings.data_dir.mkdir(parents=True, exist_ok=True)
-    save_json_model(settings.data_dir / "app.json", AppState())
-
-    group = TripGroup(trip_group_id="grp_1", label="Work travel")
-    rule = Trip(
-        trip_id="trip_rule",
-        label="Weekly commute",
-        trip_kind="weekly",
-        anchor_weekday="Monday",
-    )
-    instance = TripInstance(
-        trip_instance_id="inst_1",
-        trip_id="trip_rule",
-        display_label="Weekly commute (2026-04-06)",
-        anchor_date="2026-04-06",
-        instance_kind="generated",
-        recurring_rule_trip_id="trip_rule",
-        rule_occurrence_date="2026-04-06",
-        inheritance_mode="attached",
-    )
-    target = RuleGroupTarget(rule_trip_id="trip_rule", trip_group_id="grp_1")
-    membership = TripInstanceGroupMembership(
-        trip_instance_id="inst_1",
-        trip_group_id="grp_1",
-        membership_source="inherited",
-        source_rule_trip_id="trip_rule",
-    )
-    event = BookingEmailEvent(
-        email_event_id="mail_1",
-        gmail_message_id="gmail_1",
-        subject="Booking confirmation",
-        processing_status="ignored",
-    )
-
-    save_csv_models(settings.data_dir / "trip_groups.csv", [group], list(TripGroup.model_fields))
-    save_csv_models(settings.data_dir / "trips.csv", [rule], list(Trip.model_fields))
-    save_csv_models(settings.data_dir / "route_options.csv", [], list(RouteOption.model_fields))
-    save_csv_models(settings.data_dir / "trip_instances.csv", [instance], list(TripInstance.model_fields))
-    save_csv_models(settings.data_dir / "rule_group_targets.csv", [target], list(RuleGroupTarget.model_fields))
-    save_csv_models(
-        settings.data_dir / "trip_instance_group_memberships.csv",
-        [membership],
-        list(TripInstanceGroupMembership.model_fields),
-    )
-    save_csv_models(
-        settings.data_dir / "booking_email_events.csv",
-        [event],
-        list(BookingEmailEvent.model_fields),
-    )
+    connection = sqlite3.connect(settings.data_dir / "travel_agent.sqlite3")
+    try:
+        connection.execute("PRAGMA user_version = 18")
+        connection.execute(
+            """
+            CREATE TABLE trips (
+                trip_id TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                trip_kind TEXT NOT NULL,
+                preference_mode TEXT NOT NULL,
+                trip_group_id TEXT NOT NULL DEFAULT '',
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                active INTEGER NOT NULL,
+                anchor_date TEXT NULL,
+                anchor_weekday TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO trips (
+                trip_id, label, trip_kind, preference_mode, trip_group_id, data_scope,
+                active, anchor_date, anchor_weekday, created_at, updated_at
+            ) VALUES (
+                'trip_rule', 'Weekly commute', 'weekly', 'equal', 'grp_legacy', 'live',
+                1, NULL, 'Monday', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE trackers (
+                tracker_id TEXT PRIMARY KEY,
+                trip_instance_id TEXT NOT NULL,
+                route_option_id TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                preference_bias_dollars INTEGER NOT NULL,
+                origin_airports TEXT NOT NULL,
+                destination_airports TEXT NOT NULL,
+                airlines TEXT NOT NULL,
+                day_offset INTEGER NOT NULL,
+                travel_date TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                fare_class_policy TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                last_signal_at TEXT NULL,
+                latest_observed_price INTEGER NULL,
+                latest_fetched_at TEXT NULL,
+                latest_winning_origin_airport TEXT NOT NULL DEFAULT '',
+                latest_winning_destination_airport TEXT NOT NULL DEFAULT '',
+                latest_signal_source TEXT NOT NULL DEFAULT '',
+                latest_match_summary TEXT NOT NULL DEFAULT '',
+                definition_signature TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO trackers (
+                tracker_id, trip_instance_id, route_option_id, rank, data_scope, preference_bias_dollars,
+                origin_airports, destination_airports, airlines, day_offset, travel_date, start_time,
+                end_time, fare_class_policy, provider, last_signal_at, latest_observed_price,
+                latest_fetched_at, latest_winning_origin_airport, latest_winning_destination_airport,
+                latest_signal_source, latest_match_summary, definition_signature, created_at, updated_at
+            ) VALUES (
+                'trk_1', 'inst_1', 'opt_1', 1, 'live', 0, 'BUR', 'SFO', 'AS', 0, '2026-04-06',
+                '06:00', '10:00', 'include_basic', 'google_flights', '2026-04-01T12:00:00+00:00',
+                199, '2026-04-01T12:00:00+00:00', 'BUR', 'SFO', 'manual_import', 'Legacy import',
+                'sig_1', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
 
     repository = Repository(settings)
     repository.ensure_data_dir()
+    assert [item.trip_id for item in repository.load_trips()] == ["trip_rule"]
+    assert repository.load_trackers()[0].latest_signal_source == ""
+    assert repository.load_trackers()[0].latest_observed_price is None
 
-    assert [item.trip_group_id for item in repository.load_trip_groups()] == ["grp_1"]
-    assert [(item.rule_trip_id, item.trip_group_id) for item in repository.load_rule_group_targets()] == [
-        ("trip_rule", "grp_1")
-    ]
-    assert [
-        (item.trip_instance_id, item.trip_group_id, item.membership_source)
-        for item in repository.load_trip_instance_group_memberships()
-    ] == [("inst_1", "grp_1", "inherited")]
-    assert [item.gmail_message_id for item in repository.load_booking_email_events()] == ["gmail_1"]
+    connection = sqlite3.connect(repository.db_path)
+    try:
+        trip_columns = [row[1] for row in connection.execute("PRAGMA table_info(trips)")]
+        user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        connection.close()
+
+    assert user_version == 20
+    assert "trip_group_id" not in trip_columns

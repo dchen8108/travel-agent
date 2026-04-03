@@ -1569,7 +1569,7 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
     assert "No matching flights returned right now." in trackers_page.text
-    assert "A recent Google Flights request failed. Travel Agent will retry automatically." not in trackers_page.text
+    assert "A recent Google Flights request failed. Milemark will retry automatically." not in trackers_page.text
     assert "is-unavailable" in trackers_page.text
 
 
