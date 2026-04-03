@@ -5,6 +5,7 @@ from datetime import date
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
 from app.models.base import DataScope, FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
+from app.route_options import time_windows_overlap
 from app.services.group_memberships import build_rule_group_targets
 from app.services.ids import new_id
 from app.storage.repository import Repository
@@ -75,6 +76,18 @@ def build_trip(
     )
 
 
+def _route_options_overlap(left: RouteOption, right: RouteOption) -> bool:
+    if left.day_offset != right.day_offset:
+        return False
+    if not set(left.origin_codes) & set(right.origin_codes):
+        return False
+    if not set(left.destination_codes) & set(right.destination_codes):
+        return False
+    if not set(left.airline_codes) & set(right.airline_codes):
+        return False
+    return time_windows_overlap(left.start_time, left.end_time, right.start_time, right.end_time)
+
+
 def build_route_options(
     *,
     trip_id: str,
@@ -116,6 +129,12 @@ def build_route_options(
         if signature in seen_signatures:
             raise ValueError("Duplicate route options are not allowed.")
         seen_signatures.add(signature)
+        for existing in built:
+            if _route_options_overlap(existing, option):
+                raise ValueError(
+                    f"Route options {existing.rank} and {option.rank} overlap. "
+                    "Each booking on a trip must match at most one route option."
+                )
         built.append(option)
     if not built:
         raise ValueError("Trips require at least one route option.")

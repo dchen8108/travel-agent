@@ -307,6 +307,44 @@ def test_recurring_trip_labels_must_stay_unique(repository: Repository) -> None:
         raise AssertionError("Expected duplicate recurring trip label to raise.")
 
 
+def test_route_options_for_a_trip_cannot_overlap(repository: Repository) -> None:
+    try:
+        save_trip(
+            repository,
+            trip_id=None,
+            label="Work Commute",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=date(2026, 5, 10),
+            anchor_weekday="",
+            route_option_payloads=[
+                {
+                    "origin_airports": "BUR|LAX",
+                    "destination_airports": "SFO",
+                    "airlines": "Alaska|United",
+                    "day_offset": 0,
+                    "start_time": "06:00",
+                    "end_time": "09:00",
+                },
+                {
+                    "origin_airports": "BUR",
+                    "destination_airports": "SFO|OAK",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "08:30",
+                    "end_time": "10:00",
+                },
+            ],
+        )
+    except ValueError as exc:
+        assert str(exc) == (
+            "Route options 1 and 2 overlap. "
+            "Each booking on a trip must match at most one route option."
+        )
+    else:
+        raise AssertionError("Expected overlapping route options to raise.")
+
+
 def test_one_time_trip_cannot_reuse_recurring_trip_label(repository: Repository) -> None:
     save_trip(
         repository,

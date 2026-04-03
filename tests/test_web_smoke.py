@@ -62,6 +62,37 @@ def test_trip_form_requires_at_least_one_route_option(tmp_path: Path) -> None:
     assert "Trips require at least one route option." in response.text
 
 
+def test_trip_form_rejects_overlapping_route_options(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Overlapping Routes",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "preference_mode": "equal",
+            "route_options_json": (
+                '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska","United"],'
+                '"day_offset":0,"start_time":"06:00","end_time":"09:00"},'
+                '{"origin_airports":["BUR"],"destination_airports":["SFO","OAK"],"airlines":["Alaska"],'
+                '"day_offset":0,"start_time":"08:30","end_time":"10:00"}]'
+            ),
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Route options 1 and 2 overlap." in response.text
+
+
 def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
