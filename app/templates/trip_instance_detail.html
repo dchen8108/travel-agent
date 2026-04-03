@@ -58,6 +58,18 @@
       <h3>Flights linked to this scheduled trip</h3>
     </div>
   </div>
+  {% if untracked_booking_count %}
+  <section class="warning-card slim-callout booking-section-warning">
+    <strong>
+      {% if untracked_booking_count == 1 %}
+      1 linked booking is not being tracked by any route on this trip yet
+      {% else %}
+      {{ untracked_booking_count }} linked bookings are not being tracked by any route on this trip yet
+      {% endif %}
+    </strong>
+    <p>These bookings stay linked to the trip, but Milemark cannot compare their exact itinerary until one of this trip’s tracked routes matches.</p>
+  </section>
+  {% endif %}
   <div class="stack">
     {% for booking_card in booking_views %}
     {% set linked_booking = booking_card.booking %}
@@ -84,7 +96,10 @@
         <div><dt>Notes</dt><dd>{{ linked_booking.notes or '—' }}</dd></div>
       </div>
       {% if route_tracking.warning %}
-      <p class="muted top-gap-small"><strong>{{ route_tracking.summary_label }}.</strong> {{ route_tracking.warning }}</p>
+      <section class="warning-card slim-callout booking-warning-callout">
+        <strong>{{ route_tracking.summary_label }}</strong>
+        <p>{{ route_tracking.warning }}</p>
+      </section>
       {% endif %}
       {% if linked_booking.status == 'active' %}
       <div class="actions action-row">

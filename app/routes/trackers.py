@@ -212,6 +212,9 @@ def trackers_detail(
         }
         for linked_booking in bookings
     ]
+    untracked_booking_count = sum(
+        1 for item in booking_views if item["route_tracking"].get("warning")
+    )
     active_bookings = [item for item in bookings if item.status == "active"]
     best_current_tracker = best_tracker(snapshot, trip_instance_id)
     comparison = comparison_tracker(snapshot, trip_instance_id)
@@ -291,6 +294,7 @@ def trackers_detail(
             sibling_instances=sibling_instances,
             bookings=bookings,
             booking_views=booking_views,
+            untracked_booking_count=untracked_booking_count,
             active_bookings=active_bookings,
             booking=booking,
             can_delete_parent_trip=can_delete_parent_trip,

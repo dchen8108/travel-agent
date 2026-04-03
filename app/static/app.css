@@ -1753,6 +1753,19 @@ textarea {
   color: var(--ink);
 }
 
+.booking-section-warning {
+  margin-bottom: 18px;
+}
+
+.booking-warning-callout {
+  margin-top: 16px;
+  padding: 14px 16px;
+}
+
+.booking-warning-callout strong {
+  color: #8a5b1a;
+}
+
 .form-section + .form-section {
   margin-top: 28px;
   padding-top: 24px;
