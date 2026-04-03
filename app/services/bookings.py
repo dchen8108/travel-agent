@@ -4,10 +4,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date, datetime
 
-from app.models.base import BookingStatus, DataScope, UnmatchedBookingStatus, utcnow
+from app.models.base import BookingMatchStatus, BookingStatus, DataScope, UnmatchedBookingStatus, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
-from app.models.unmatched_booking import UnmatchedBooking
 from app.route_options import time_in_window
 from app.route_options import join_pipe, split_pipe
 from app.services.data_scope import filter_items, include_test_data_for_processing
@@ -60,11 +59,13 @@ def _save_booking(repository: Repository, booking: Booking) -> Booking:
     return booking
 
 
-def _booking_to_unmatched(booking: Booking) -> UnmatchedBooking:
-    return UnmatchedBooking(
-        unmatched_booking_id=booking.booking_id,
+def _booking_to_unmatched(booking: Booking) -> Booking:
+    return Booking(
+        booking_id=booking.booking_id,
         source=booking.source,
         data_scope=booking.data_scope,
+        trip_instance_id="",
+        route_option_id="",
         airline=booking.airline,
         origin_airport=booking.origin_airport,
         destination_airport=booking.destination_airport,
@@ -76,7 +77,11 @@ def _booking_to_unmatched(booking: Booking) -> UnmatchedBooking:
         raw_summary="",
         candidate_trip_instance_ids="",
         auto_link_enabled=False,
+        booked_at=booking.booked_at,
+        status=booking.status,
+        match_status=BookingMatchStatus.UNMATCHED,
         resolution_status=UnmatchedBookingStatus.OPEN,
+        notes=booking.notes,
         created_at=booking.created_at,
         updated_at=utcnow(),
     )
@@ -145,7 +150,7 @@ def matching_trip_instance_ids_for_booking(
     return _matching_trip_instance_ids_for_booking(candidate, trackers)
 
 
-def _candidate_from_unmatched(unmatched: UnmatchedBooking) -> BookingCandidate:
+def _candidate_from_unmatched(unmatched: Booking) -> BookingCandidate:
     return BookingCandidate(
         airline=unmatched.airline,
         origin_airport=unmatched.origin_airport,
@@ -210,17 +215,19 @@ def reconcile_booking_route_options(
 def reconcile_unmatched_bookings(
     *,
     bookings: list[Booking],
-    unmatched_bookings: list[UnmatchedBooking],
+    unmatched_bookings: list[Booking],
     trip_instances: list,
     trackers: list[Tracker],
-) -> tuple[list[Booking], list[UnmatchedBooking]]:
+) -> tuple[list[Booking], list[Booking]]:
     trip_instances_by_id = {item.trip_instance_id: item for item in trip_instances}
+    remaining_unmatched: list[Booking] = []
     for unmatched in unmatched_bookings:
         valid_candidate_ids = {
             item for item in split_pipe(unmatched.candidate_trip_instance_ids) if item in trip_instances_by_id
         }
         if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
             unmatched.candidate_trip_instance_ids = join_pipe(sorted(valid_candidate_ids))
+            remaining_unmatched.append(unmatched)
             continue
 
         candidate = _candidate_from_unmatched(unmatched)
@@ -229,12 +236,15 @@ def reconcile_unmatched_bookings(
         unmatched.updated_at = utcnow()
 
         if not unmatched.auto_link_enabled:
+            remaining_unmatched.append(unmatched)
             continue
         if len(matching_trip_instance_ids) != 1:
+            remaining_unmatched.append(unmatched)
             continue
 
         matched_trip_instance = trip_instances_by_id.get(matching_trip_instance_ids[0])
         if matched_trip_instance is None:
+            remaining_unmatched.append(unmatched)
             continue
         if any(
             booking.trip_instance_id == matched_trip_instance.trip_instance_id
@@ -246,13 +256,20 @@ def reconcile_unmatched_bookings(
             and booking.record_locator == candidate.record_locator
             for booking in bookings
         ):
+            unmatched.match_status = BookingMatchStatus.MATCHED
+            unmatched.trip_instance_id = matched_trip_instance.trip_instance_id
+            unmatched.route_option_id = _route_option_id_for_booking(
+                candidate,
+                trackers,
+                trip_instance_id=matched_trip_instance.trip_instance_id,
+            )
             unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
             continue
 
         notes = "Automatically linked after a matching trip became available."
         bookings.append(
-            _build_booking(
-                candidate,
+            Booking(
+                booking_id=unmatched.booking_id,
                 source=unmatched.source,
                 trip_instance_id=matched_trip_instance.trip_instance_id,
                 route_option_id=_route_option_id_for_booking(
@@ -261,11 +278,27 @@ def reconcile_unmatched_bookings(
                     trip_instance_id=matched_trip_instance.trip_instance_id,
                 ),
                 data_scope=matched_trip_instance.data_scope,
+                airline=candidate.airline,
+                origin_airport=candidate.origin_airport,
+                destination_airport=candidate.destination_airport,
+                departure_date=candidate.departure_date,
+                departure_time=candidate.departure_time,
+                arrival_time=candidate.arrival_time,
+                booked_price=candidate.booked_price,
+                record_locator=candidate.record_locator,
+                booked_at=unmatched.booked_at,
+                status=unmatched.status,
+                match_status=BookingMatchStatus.MATCHED,
+                raw_summary="",
+                candidate_trip_instance_ids=join_pipe(matching_trip_instance_ids),
+                auto_link_enabled=unmatched.auto_link_enabled,
+                resolution_status=UnmatchedBookingStatus.RESOLVED,
                 notes=notes,
+                created_at=unmatched.created_at,
+                updated_at=utcnow(),
             )
         )
-        unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
-    return bookings, unmatched_bookings
+    return bookings, remaining_unmatched
 
 
 def record_booking(
@@ -276,7 +309,7 @@ def record_booking(
     source: str = "manual",
     data_scope: str = DataScope.LIVE,
     auto_link: bool = True,
-) -> tuple[Booking | None, UnmatchedBooking | None]:
+) -> tuple[Booking | None, Booking | None]:
     app_state = repository.load_app_state()
     include_test_data = include_test_data_for_processing(app_state) or str(data_scope) == DataScope.TEST
     trip_instances = filter_items(repository.load_trip_instances(), include_test_data=include_test_data)
@@ -317,9 +350,11 @@ def record_booking(
         )
         return _save_booking(repository, booking), None
 
-    unmatched = UnmatchedBooking(
-        unmatched_booking_id=new_id("ub"),
+    unmatched = Booking(
+        booking_id=new_id("ub"),
         source=source,
+        trip_instance_id="",
+        route_option_id="",
         data_scope=DataScope(data_scope),
         airline=candidate.airline,
         origin_airport=candidate.origin_airport,
@@ -329,11 +364,15 @@ def record_booking(
         arrival_time=candidate.arrival_time,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
+        booked_at=utcnow(),
+        status=BookingStatus.ACTIVE,
+        match_status=BookingMatchStatus.UNMATCHED,
         raw_summary=f"{candidate.airline} {candidate.origin_airport}->{candidate.destination_airport} {candidate.departure_date.isoformat()} {candidate.departure_time}",
         candidate_trip_instance_ids="|".join(
             matching_trip_instance_ids
         ),
         auto_link_enabled=auto_link,
+        resolution_status=UnmatchedBookingStatus.OPEN,
     )
     repository.upsert_unmatched_bookings([unmatched])
     return None, unmatched
@@ -347,7 +386,15 @@ def resolve_unmatched_booking_to_trip_instance(
 ) -> Booking:
     unmatched_bookings = repository.load_unmatched_bookings()
     unmatched = next((item for item in unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
-    if unmatched is None or unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+    if unmatched is None:
+        existing = next((item for item in repository.load_bookings() if item.booking_id == unmatched_booking_id), None)
+        if existing is not None and existing.trip_instance_id == trip_instance_id:
+            return existing
+        raise KeyError("Unmatched booking not found")
+    if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+        existing = next((item for item in repository.load_bookings() if item.booking_id == unmatched_booking_id), None)
+        if existing is not None and existing.trip_instance_id == trip_instance_id:
+            return existing
         raise KeyError("Unmatched booking not found")
 
     candidate = BookingCandidate(
@@ -361,8 +408,8 @@ def resolve_unmatched_booking_to_trip_instance(
         record_locator=unmatched.record_locator,
     )
 
-    booking = _build_booking(
-        candidate,
+    booking = Booking(
+        booking_id=unmatched.booking_id,
         source=unmatched.source,
         trip_instance_id=trip_instance_id,
         route_option_id=_route_option_id_for_booking(
@@ -371,13 +418,28 @@ def resolve_unmatched_booking_to_trip_instance(
             trip_instance_id=trip_instance_id,
         ),
         data_scope=unmatched.data_scope,
+        airline=candidate.airline,
+        origin_airport=candidate.origin_airport,
+        destination_airport=candidate.destination_airport,
+        departure_date=candidate.departure_date,
+        departure_time=candidate.departure_time,
+        arrival_time=candidate.arrival_time,
+        booked_price=candidate.booked_price,
+        record_locator=candidate.record_locator,
+        booked_at=unmatched.booked_at,
+        status=unmatched.status,
+        match_status=BookingMatchStatus.MATCHED,
+        raw_summary="",
+        candidate_trip_instance_ids=unmatched.candidate_trip_instance_ids,
+        auto_link_enabled=unmatched.auto_link_enabled,
+        resolution_status=UnmatchedBookingStatus.RESOLVED,
         notes="Resolved from unmatched booking",
+        created_at=unmatched.created_at,
+        updated_at=utcnow(),
     )
     with repository.transaction():
         _save_booking(repository, booking)
-        unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
-        unmatched.updated_at = utcnow()
-        repository.upsert_unmatched_bookings([unmatched])
+        repository.delete_unmatched_bookings_by_ids([unmatched.booking_id])
     return booking
 
 
@@ -389,14 +451,24 @@ def resolve_unmatched_booking_to_trip(
 ) -> Booking | None:
     unmatched_bookings = repository.load_unmatched_bookings()
     unmatched = next((item for item in unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
-    if unmatched is None:
-        raise KeyError("Unmatched booking not found")
-    candidate = _candidate_from_unmatched(unmatched)
     trip_instance_ids = {
         item.trip_instance_id
         for item in repository.load_trip_instances()
         if item.trip_id == trip_id and not item.deleted
     }
+    if unmatched is None:
+        existing = next(
+            (
+                item
+                for item in repository.load_bookings()
+                if item.booking_id == unmatched_booking_id and item.trip_instance_id in trip_instance_ids
+            ),
+            None,
+        )
+        if existing is not None:
+            return existing
+        raise KeyError("Unmatched booking not found")
+    candidate = _candidate_from_unmatched(unmatched)
     if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
         existing_bookings = [
             item
@@ -430,7 +502,7 @@ def unlink_booking(
     repository: Repository,
     *,
     booking_id: str,
-) -> UnmatchedBooking:
+) -> Booking:
     bookings = repository.load_bookings()
     booking = next((item for item in bookings if item.booking_id == booking_id), None)
     if booking is None or booking.status != "active":

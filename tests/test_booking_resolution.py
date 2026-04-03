@@ -90,7 +90,7 @@ def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: R
 
     assert linked.trip_instance_id == trip_instance_id
     assert linked.route_option_id == ""
-    assert repository.load_unmatched_bookings()[0].resolution_status == "resolved"
+    assert repository.load_unmatched_bookings() == []
 
 
 def test_unmatched_booking_can_be_resolved_to_a_new_trip(repository: Repository) -> None:
@@ -219,14 +219,10 @@ def test_unmatched_booking_auto_links_when_matching_trip_is_created_later(reposi
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
     saved_booking = next(item for item in repository.load_bookings() if item.record_locator == "LATE01")
-    updated_unmatched = next(
-        item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id
-    )
 
     assert saved_booking.trip_instance_id == trip_instance.trip_instance_id
     assert saved_booking.route_option_id != ""
-    assert updated_unmatched.resolution_status == "resolved"
-    assert updated_unmatched.candidate_trip_instance_ids == trip_instance.trip_instance_id
+    assert repository.load_unmatched_bookings() == []
 
 
 def test_unmatched_booking_stays_open_when_multiple_matching_trips_exist(repository: Repository) -> None:

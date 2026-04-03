@@ -7,14 +7,14 @@ from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
 from app.money import parse_money
-from app.models.base import BookingStatus, CsvModel, DataScope, utcnow
-from app.route_options import parse_time
+from app.models.base import BookingMatchStatus, BookingStatus, CsvModel, DataScope, UnmatchedBookingStatus, utcnow
+from app.route_options import join_pipe, parse_time, split_pipe
 
 
 class Booking(CsvModel):
     booking_id: str
     source: str = "manual"
-    trip_instance_id: str
+    trip_instance_id: str = ""
     route_option_id: str = ""
     data_scope: DataScope = DataScope.LIVE
     airline: str
@@ -27,6 +27,11 @@ class Booking(CsvModel):
     record_locator: str = ""
     booked_at: datetime = Field(default_factory=utcnow)
     status: BookingStatus = BookingStatus.ACTIVE
+    match_status: BookingMatchStatus = BookingMatchStatus.MATCHED
+    raw_summary: str = ""
+    candidate_trip_instance_ids: str = ""
+    auto_link_enabled: bool = True
+    resolution_status: UnmatchedBookingStatus = UnmatchedBookingStatus.RESOLVED
     notes: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -61,6 +66,16 @@ class Booking(CsvModel):
     def normalize_route_option_id(cls, value: str) -> str:
         return value.strip()
 
+    @field_validator("trip_instance_id")
+    @classmethod
+    def normalize_trip_instance_id(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("candidate_trip_instance_ids")
+    @classmethod
+    def normalize_candidates(cls, value: str) -> str:
+        return join_pipe(split_pipe(value))
+
     @field_validator("booked_price")
     @classmethod
     def validate_booked_price(cls, value: object) -> Decimal:
@@ -68,3 +83,19 @@ class Booking(CsvModel):
         if amount is None or amount < 0:
             raise ValueError("Booked price must be positive.")
         return amount
+
+    @property
+    def unmatched_booking_id(self) -> str:
+        return self.booking_id
+
+    @property
+    def is_linked(self) -> bool:
+        return self.match_status == BookingMatchStatus.MATCHED and bool(self.trip_instance_id)
+
+    @property
+    def is_unlinked(self) -> bool:
+        return self.match_status == BookingMatchStatus.UNMATCHED or not self.trip_instance_id
+
+    @property
+    def needs_linking(self) -> bool:
+        return self.is_unlinked and self.resolution_status == UnmatchedBookingStatus.OPEN

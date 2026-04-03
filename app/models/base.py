@@ -73,6 +73,11 @@ class BookingStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class BookingMatchStatus(StrEnum):
+    MATCHED = "matched"
+    UNMATCHED = "unmatched"
+
+
 class UnmatchedBookingStatus(StrEnum):
     OPEN = "open"
     RESOLVED = "resolved"

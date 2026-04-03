@@ -18,7 +18,6 @@ from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
 from app.models.trip_instance_group_membership import TripInstanceGroupMembership
-from app.models.unmatched_booking import UnmatchedBooking
 from app.settings import Settings
 from app.storage.json_store import load_json_model, save_json_model
 from app.storage.sqlite_store import (
@@ -249,6 +248,11 @@ class Repository:
                 record_locator,
                 booked_at,
                 booking_status AS status,
+                match_status,
+                raw_summary,
+                candidate_trip_instance_ids,
+                auto_link_enabled,
+                resolution_status,
                 notes,
                 created_at,
                 updated_at
@@ -276,11 +280,13 @@ class Repository:
             where_params=tuple(booking_ids),
         )
 
-    def load_unmatched_bookings(self) -> list[UnmatchedBooking]:
+    def load_unmatched_bookings(self) -> list[Booking]:
         query = """
             SELECT
-                booking_id AS unmatched_booking_id,
+                booking_id,
                 source,
+                COALESCE(trip_instance_id, '') AS trip_instance_id,
+                COALESCE(route_option_id, '') AS route_option_id,
                 data_scope,
                 airline,
                 origin_airport,
@@ -290,24 +296,28 @@ class Repository:
                 arrival_time,
                 booked_price,
                 record_locator,
+                booked_at,
+                booking_status AS status,
+                match_status,
                 raw_summary,
                 candidate_trip_instance_ids,
                 auto_link_enabled,
                 resolution_status,
+                notes,
                 created_at,
                 updated_at
             FROM bookings
             WHERE match_status = 'unmatched'
             ORDER BY rowid
         """
-        return self._load_models(query, UnmatchedBooking)
+        return self._load_models(query, Booking)
 
-    def save_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
-        rows = [self._unmatched_booking_row(unmatched) for unmatched in unmatched_bookings]
+    def save_unmatched_bookings(self, unmatched_bookings: list[Booking]) -> None:
+        rows = [self._booking_row(unmatched) for unmatched in unmatched_bookings]
         self._replace_table("bookings", rows, where_sql="match_status = 'unmatched'")
 
-    def upsert_unmatched_bookings(self, unmatched_bookings: list[UnmatchedBooking]) -> None:
-        rows = [self._unmatched_booking_row(unmatched) for unmatched in unmatched_bookings]
+    def upsert_unmatched_bookings(self, unmatched_bookings: list[Booking]) -> None:
+        rows = [self._booking_row(unmatched) for unmatched in unmatched_bookings]
         self._upsert_table("bookings", rows, conflict_columns=("booking_id",))
 
     def delete_unmatched_bookings_by_ids(self, unmatched_booking_ids: list[str]) -> None:
@@ -480,7 +490,7 @@ class Repository:
         return {
             "booking_id": booking.booking_id,
             "source": booking.source,
-            "trip_instance_id": booking.trip_instance_id,
+            "trip_instance_id": booking.trip_instance_id or None,
             "route_option_id": booking.route_option_id,
             "data_scope": booking.data_scope,
             "airline": booking.airline,
@@ -493,40 +503,12 @@ class Repository:
             "record_locator": booking.record_locator,
             "booked_at": booking.booked_at.isoformat(),
             "booking_status": booking.status,
-            "match_status": "matched",
-            "raw_summary": "",
-            "candidate_trip_instance_ids": "",
-            "auto_link_enabled": True,
-            "resolution_status": "resolved",
+            "match_status": booking.match_status,
+            "raw_summary": booking.raw_summary,
+            "candidate_trip_instance_ids": booking.candidate_trip_instance_ids,
+            "auto_link_enabled": booking.auto_link_enabled,
+            "resolution_status": booking.resolution_status,
             "notes": booking.notes,
             "created_at": booking.created_at.isoformat(),
             "updated_at": booking.updated_at.isoformat(),
-        }
-
-    @staticmethod
-    def _unmatched_booking_row(unmatched: UnmatchedBooking) -> dict[str, Any]:
-        return {
-            "booking_id": unmatched.unmatched_booking_id,
-            "source": unmatched.source,
-            "data_scope": unmatched.data_scope,
-            "trip_instance_id": None,
-            "route_option_id": "",
-            "airline": unmatched.airline,
-            "origin_airport": unmatched.origin_airport,
-            "destination_airport": unmatched.destination_airport,
-            "departure_date": unmatched.departure_date.isoformat(),
-            "departure_time": unmatched.departure_time,
-            "arrival_time": unmatched.arrival_time,
-            "booked_price": float(unmatched.booked_price),
-            "record_locator": unmatched.record_locator,
-            "booked_at": unmatched.created_at.isoformat(),
-            "booking_status": "active",
-            "match_status": "unmatched",
-            "raw_summary": unmatched.raw_summary,
-            "candidate_trip_instance_ids": unmatched.candidate_trip_instance_ids,
-            "auto_link_enabled": unmatched.auto_link_enabled,
-            "resolution_status": unmatched.resolution_status,
-            "notes": "",
-            "created_at": unmatched.created_at.isoformat(),
-            "updated_at": unmatched.updated_at.isoformat(),
         }

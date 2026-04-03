@@ -12,7 +12,6 @@ from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
 from app.models.trip_instance_group_membership import TripInstanceGroupMembership
-from app.models.unmatched_booking import UnmatchedBooking
 from app.models.rule_group_target import RuleGroupTarget
 
 
@@ -27,7 +26,7 @@ class AppSnapshot:
     trackers: list[Tracker]
     tracker_fetch_targets: list[TrackerFetchTarget]
     bookings: list[Booking]
-    unmatched_bookings: list[UnmatchedBooking]
+    unmatched_bookings: list[Booking]
     booking_email_events: list[BookingEmailEvent]
     price_records: list[PriceRecord]
     app_state: object

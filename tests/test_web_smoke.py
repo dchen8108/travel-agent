@@ -116,10 +116,7 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
 
     stored_booking = next(item for item in repository.load_bookings() if item.record_locator == "ZZZ999")
     assert stored_booking.route_option_id != ""
-    resolved_unmatched = next(
-        item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id
-    )
-    assert resolved_unmatched.resolution_status == "resolved"
+    assert repository.load_unmatched_bookings() == []
 
 
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:

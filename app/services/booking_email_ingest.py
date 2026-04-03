@@ -11,7 +11,6 @@ from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, u
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
-from app.models.unmatched_booking import UnmatchedBooking
 from app.services.booking_extraction import BookingEmailExtraction, extract_booking_email, prepare_booking_email_body
 from app.services.bookings import BookingCandidate, matching_trip_instance_ids_for_booking, record_booking
 from app.services.data_scope import filter_items, include_test_data_for_processing
@@ -24,7 +23,7 @@ from app.storage.repository import Repository
 class BookingEmailProcessResult:
     event: BookingEmailEvent
     created_bookings: list[Booking]
-    created_unmatched_bookings: list[UnmatchedBooking]
+    created_unmatched_bookings: list[Booking]
     state_changed: bool = False
     debug_fields: dict[str, object] = field(default_factory=dict)
 
@@ -228,7 +227,7 @@ def process_gmail_booking_message(
         )
 
     created_bookings: list[Booking] = []
-    created_unmatched_bookings: list[UnmatchedBooking] = []
+    created_unmatched_bookings: list[Booking] = []
     duplicate_count = 0
     auto_create_allowed = extraction.confidence >= config.min_auto_create_confidence
     candidate_summaries: list[dict[str, object]] = []

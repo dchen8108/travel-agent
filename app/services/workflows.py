@@ -117,8 +117,8 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         repository.save_trip_instance_group_memberships(trip_instance_group_memberships)
         repository.save_trackers(trackers)
         repository.save_tracker_fetch_targets(tracker_fetch_targets)
-        repository.save_bookings(bookings)
         repository.save_unmatched_bookings(unmatched_bookings)
+        repository.save_bookings(bookings)
 
     return AppSnapshot(
         trip_groups=trip_groups,
