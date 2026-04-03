@@ -22,23 +22,6 @@
       <a class="button primary" href="/trips/new">Create trip</a>
     </div>
   </div>
-  <div class="mission-kpis">
-    <article class="mission-kpi">
-      <small>Needs attention</small>
-      <strong>{{ action_count }}</strong>
-      <span>{% if action_count %}Worth reviewing now{% else %}Everything is in order{% endif %}</span>
-    </article>
-    <article class="mission-kpi">
-      <small>Upcoming trips</small>
-      <strong>{{ total_upcoming }}</strong>
-      <span>{{ planned_instances|length }} planned · {{ booked_instances|length }} booked</span>
-    </article>
-    <article class="mission-kpi">
-      <small>Live savings</small>
-      <strong>{{ money(open_savings_total) }}</strong>
-      <span>{% if open_savings_total %}Available if you want to rebook{% else %}No better fares right now{% endif %}</span>
-    </article>
-  </div>
 </section>
 
 <div class="dashboard-grid-v4">
@@ -116,35 +99,28 @@
     <section class="dashboard-panel dashboard-rail-panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Travel status</p>
-          <h3>What is already in good shape</h3>
+          <p class="eyebrow">Coverage</p>
+          <h3>How well Milemark is covering your trips</h3>
         </div>
       </div>
       <div class="status-stack">
         <article class="status-stat">
           <div>
-            <strong>Bookings to match</strong>
-            <p>Trips still waiting for the right imported booking.</p>
-          </div>
-          <span class="status-stat-value">{{ open_unmatched|length }}</span>
-        </article>
-        <article class="status-stat">
-          <div>
             <strong>Trips with live fares</strong>
-            <p>Dates where Milemark already has current alternatives.</p>
+            <p>Current comparable fares are already available.</p>
           </div>
           <span class="status-stat-value">{{ tracking_count }}</span>
         </article>
         <article class="status-stat">
           <div>
             <strong>Still gathering prices</strong>
-            <p>Trips where fare checks have started but are still settling.</p>
+            <p>Searches are running but not fully settled yet.</p>
           </div>
           <span class="status-stat-value">{{ initializing_count }}</span>
         </article>
         <article class="status-stat">
           <div>
-            <strong>Trips needing coverage</strong>
+            <strong>Need coverage</strong>
             <p>{{ no_match_count }} with no matches · {{ no_search_count }} with no searches</p>
           </div>
           <span class="status-stat-value">{{ no_match_count + no_search_count }}</span>
@@ -242,145 +218,146 @@
     </div>
   </section>
 
-  <section class="dashboard-panel dashboard-lower-panel" id="dashboard-plans">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Recurring plans</p>
-        <h3>Rules that keep your regular travel in place</h3>
+  <div class="dashboard-utility-grid">
+    <section class="dashboard-panel dashboard-lower-panel" id="dashboard-plans">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Recurring plans</p>
+          <h3>Rules that keep your regular travel in place</h3>
+        </div>
       </div>
-    </div>
-    <div class="dashboard-plan-list">
-      {% for item in recurring_rule_views %}
-      <article class="dashboard-plan-row">
-        <div class="dashboard-plan-copy">
-          <div>
-            <strong><a class="dashboard-item-title" href="/trips/{{ item.rule.trip_id }}">{{ item.rule.label }}</a></strong>
-            <p class="muted">
-              {% if item.groups %}
-              {{ item.groups|map(attribute='label')|join(' · ') }}
-              {% else %}
-              No collection
+      <div class="dashboard-plan-list">
+        {% for item in recurring_rule_views %}
+        <article class="dashboard-plan-row">
+          <div class="dashboard-plan-copy">
+            <div>
+              <strong><a class="dashboard-item-title" href="/trips/{{ item.rule.trip_id }}">{{ item.rule.label }}</a></strong>
+              <p class="muted">
+                {% if item.groups %}
+                {{ item.groups|map(attribute='label')|join(' · ') }}
+                {% else %}
+                No collection
+                {% endif %}
+              </p>
+            </div>
+            <div class="dashboard-plan-meta">
+              <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
+              <span class="plan-inline-metric">Next {{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</span>
+            </div>
+          </div>
+          <div class="dashboard-plan-stats">
+            <span>{{ item.upcoming_count }} upcoming</span>
+            <span>{{ item.route_count }} route{{ '' if item.route_count == 1 else 's' }}</span>
+          </div>
+          <div class="dashboard-link-row">
+            <a class="section-link" href="/trips/{{ item.rule.trip_id }}">View plan</a>
+            <a class="section-link" href="/trips/{{ item.rule.trip_id }}/edit">Edit</a>
+          </div>
+        </article>
+        {% else %}
+        <article class="compact-empty-state">
+          <strong>No recurring plans yet.</strong>
+          <p>Create a recurring trip to keep frequent travel dates populated automatically.</p>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="dashboard-panel dashboard-lower-panel" id="dashboard-bookings">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Bookings</p>
+          <h3>Recent bookings and what they are attached to</h3>
+        </div>
+        <a class="section-link" href="/bookings">All bookings</a>
+      </div>
+      <div class="dashboard-plan-list">
+        {% for item in booking_views %}
+        <article class="dashboard-plan-row">
+          <div class="dashboard-plan-copy">
+            <div>
+              <strong><a class="dashboard-item-title" href="{{ item.href }}">{{ item.booking.origin_airport }} → {{ item.booking.destination_airport }}</a></strong>
+              <p class="muted">
+                {{ item.booking.departure_date.strftime('%a, %b %d') }} · {{ airline_label(item.booking.airline) }}{% if item.trip %} · {{ item.trip.label }}{% endif %}
+              </p>
+            </div>
+            <div class="dashboard-plan-meta">
+              <span class="badge">{{ money(item.booking.booked_price) }}</span>
+            </div>
+          </div>
+          <div class="dashboard-plan-stats">
+            <span>{{ item.route_tracking.summary_label }}</span>
+            {% if item.booking.record_locator %}
+            <span>{{ item.booking.record_locator }}</span>
+            {% endif %}
+          </div>
+          <div class="dashboard-link-row">
+            <a class="section-link" href="{{ item.href }}">View trip</a>
+            <a class="section-link" href="/bookings/{{ item.booking.booking_id }}/edit">Edit</a>
+          </div>
+        </article>
+        {% else %}
+        <article class="compact-empty-state">
+          <strong>No bookings yet.</strong>
+          <p>Add a booking after purchase and Milemark will keep it tied to the right trip.</p>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="dashboard-panel dashboard-lower-panel" id="dashboard-groups">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Collections</p>
+          <h3>Shared collections for related travel</h3>
+        </div>
+        <a class="section-link" href="/trips">All groups</a>
+      </div>
+      <div class="dashboard-card-grid">
+        {% for item in group_views %}
+        <article class="card compact-surface-card dashboard-rich-card">
+          <div class="card-header">
+            <div>
+              <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
+              {% if item.group.description %}
+              <p class="muted">{{ item.group.description }}</p>
               {% endif %}
-            </p>
+            </div>
+            <span class="badge">{{ item.upcoming_count }} upcoming</span>
           </div>
-          <div class="dashboard-plan-meta">
-            <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
-            <span class="plan-inline-metric">Next {{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</span>
-            <span class="plan-inline-metric">{{ item.route_count }} route{{ '' if item.route_count == 1 else 's' }}</span>
+          <div class="meta-grid">
+            <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
+            <div><dt>Rules</dt><dd>{{ item.rule_count }}</dd></div>
+            <div><dt>Booked</dt><dd>{{ item.booked_count }}</dd></div>
           </div>
-        </div>
-        <div class="dashboard-plan-stats">
-          <span>{{ item.upcoming_count }} upcoming</span>
-          <span>{{ item.planned_count }} planned</span>
-          <span>{{ item.booked_count }} booked</span>
-        </div>
-        <div class="dashboard-link-row">
-          <a class="section-link" href="/trips/{{ item.rule.trip_id }}">View plan</a>
-          <a class="section-link" href="/trips/{{ item.rule.trip_id }}/edit">Edit</a>
-        </div>
-      </article>
-      {% else %}
-      <article class="compact-empty-state">
-        <strong>No recurring plans yet.</strong>
-        <p>Create a recurring trip to keep frequent travel dates populated automatically.</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="dashboard-panel dashboard-lower-panel" id="dashboard-bookings">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Bookings</p>
-        <h3>The bookings currently in your system</h3>
+          <div class="dashboard-link-row">
+            <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">View group</a>
+            <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
+          </div>
+        </article>
+        {% else %}
+        <article class="compact-empty-state">
+          <strong>No collections yet.</strong>
+          <p>Create a group when you want related trips and recurring plans to live together.</p>
+        </article>
+        {% endfor %}
       </div>
-      <a class="section-link" href="/bookings">All bookings</a>
-    </div>
-    <div class="dashboard-plan-list">
-      {% for item in booking_views %}
-      <article class="dashboard-plan-row">
-        <div class="dashboard-plan-copy">
-          <div>
-            <strong><a class="dashboard-item-title" href="{{ item.href }}">{{ item.booking.origin_airport }} → {{ item.booking.destination_airport }}</a></strong>
-            <p class="muted">
-              {{ item.booking.departure_date.strftime('%a, %b %d') }} · {{ item.booking.departure_time }}{% if item.booking.arrival_time %}–{{ item.booking.arrival_time }}{% endif %} · {{ airline_label(item.booking.airline) }}
-            </p>
-          </div>
-          <div class="dashboard-plan-meta">
-            <span class="badge">{{ money(item.booking.booked_price) }}</span>
-            {% if item.trip %}
-            <span class="plan-inline-metric">{{ item.trip.label }}</span>
-            {% endif %}
-          </div>
-        </div>
-        <div class="dashboard-plan-stats">
-          <span>{{ item.route_tracking.summary_label }}</span>
-          {% if item.booking.record_locator %}
-          <span>{{ item.booking.record_locator }}</span>
-          {% endif %}
-        </div>
-        <div class="dashboard-link-row">
-          <a class="section-link" href="{{ item.href }}">View trip</a>
-          <a class="section-link" href="/bookings/{{ item.booking.booking_id }}/edit">Edit</a>
-        </div>
-      </article>
-      {% else %}
-      <article class="compact-empty-state">
-        <strong>No bookings yet.</strong>
-        <p>Add a booking after purchase and Milemark will keep it tied to the right trip.</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
+    </section>
+  </div>
 
-  <section class="dashboard-panel dashboard-lower-panel" id="dashboard-groups">
-    <div class="panel-header">
+  <details class="dashboard-disclosure" id="all-travel-browser" {% if search_query or selected_trip_group_ids %}open{% endif %}>
+    <summary>
       <div>
-        <p class="eyebrow">Collections</p>
-        <h3>Shared collections for related travel</h3>
+        <p class="eyebrow">All travel</p>
+        <h3>Browse every scheduled date still in play</h3>
       </div>
-      <a class="section-link" href="/trips">All groups</a>
+      <span class="section-link">Expand</span>
+    </summary>
+    <div class="dashboard-disclosure-body">
+      {% include "partials/scheduled_trips_section.html" %}
     </div>
-    <div class="dashboard-card-grid">
-      {% for item in group_views %}
-      <article class="card compact-surface-card dashboard-rich-card">
-        <div class="card-header">
-          <div>
-            <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
-            {% if item.group.description %}
-            <p class="muted">{{ item.group.description }}</p>
-            {% endif %}
-          </div>
-          <span class="badge">{{ item.upcoming_count }} upcoming</span>
-        </div>
-        <div class="meta-grid">
-          <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
-          <div><dt>Rules</dt><dd>{{ item.rule_count }}</dd></div>
-          <div><dt>Planned</dt><dd>{{ item.planned_count }}</dd></div>
-          <div><dt>Booked</dt><dd>{{ item.booked_count }}</dd></div>
-        </div>
-        {% if item.upcoming_dates %}
-        <div class="inline-badge-row">
-          {% for item_date in item.upcoming_dates %}
-          <span class="badge horizon-badge">{{ item_date.strftime('%b %d') }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
-        <div class="dashboard-link-row">
-          <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">View group</a>
-          <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
-        </div>
-      </article>
-      {% else %}
-      <article class="compact-empty-state">
-        <strong>No collections yet.</strong>
-        <p>Create a group when you want related trips and recurring plans to live together.</p>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
+  </details>
 
-  {% include "partials/scheduled_trips_section.html" %}
 </div>
 <script id="scheduled-filters-data" type="application/json">
   {{ {"groupOptions": group_filter_options}|tojson }}

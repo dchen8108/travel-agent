@@ -257,7 +257,7 @@ def today(
         for booking in sorted(
             [item for item in snapshot.bookings if item.status == "active"],
             key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
-        )[:6]
+        )[:4]
     ]
 
     monitoring_labels = [
@@ -285,7 +285,7 @@ def today(
                 ),
                 item.label.lower(),
             ),
-        )[:6]
+        )[:4]
     ]
     group_views = [
         _group_dashboard_view(snapshot, group, today=today)
@@ -301,7 +301,7 @@ def today(
                 ),
                 item.label.lower(),
             ),
-        )[:4]
+        )[:3]
     ]
     return get_templates(request).TemplateResponse(
         request=request,
