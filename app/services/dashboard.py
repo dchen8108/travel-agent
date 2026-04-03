@@ -543,6 +543,7 @@ def selectable_trip_instances_for_booking_link(snapshot: AppSnapshot) -> list[Tr
 def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, object]]:
     selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
     trip_instances_by_id = {item.trip_instance_id: item for item in selectable_trip_instances}
+    today = date.today()
     cards: list[dict[str, object]] = []
     for unmatched in sorted(
         [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"],
@@ -556,11 +557,18 @@ def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, 
         other_trip_instances = [
             item for item in selectable_trip_instances if item.trip_instance_id not in suggested_ids
         ]
+        upcoming_trip_instances = [
+            item for item in other_trip_instances if item.anchor_date >= today
+        ]
+        past_trip_instances = [
+            item for item in other_trip_instances if item.anchor_date < today
+        ]
         cards.append(
             {
                 "unmatched": unmatched,
                 "suggested_trip_instances": suggested_trip_instances,
-                "other_trip_instances": other_trip_instances,
+                "upcoming_trip_instances": upcoming_trip_instances,
+                "past_trip_instances": past_trip_instances,
             }
         )
     return cards

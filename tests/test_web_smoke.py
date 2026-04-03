@@ -1774,6 +1774,56 @@ def test_unmatched_booking_can_be_linked_from_bookings_page(tmp_path: Path) -> N
     assert resolve_response.headers["location"].startswith("/trip-instances/")
 
 
+def test_unmatched_booking_dropdown_separates_past_trips(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    today = date.today()
+
+    for label, anchor_date in (
+        ("Past Choice", (today - timedelta(days=1)).isoformat()),
+        ("Upcoming Choice", (today + timedelta(days=3)).isoformat()),
+    ):
+        create = client.post(
+            "/trips",
+            data={
+                "label": label,
+                "trip_kind": "one_time",
+                "anchor_date": anchor_date,
+                "anchor_weekday": "",
+                "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+            },
+            follow_redirects=False,
+        )
+        assert create.status_code == 303
+
+    booking_response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "",
+            "airline": "United",
+            "origin_airport": "LAX",
+            "destination_airport": "SEA",
+            "departure_date": (today + timedelta(days=8)).isoformat(),
+            "departure_time": "09:10",
+            "arrival_time": "11:35",
+            "booked_price": "199",
+            "record_locator": "PASTOPT",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert booking_response.status_code == 303
+
+    page = client.get("/")
+    assert "Past trips" in page.text
+    assert "Upcoming trips" in page.text
+
+
 def test_past_trips_remain_hidden_from_filtered_scheduled_lists(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
