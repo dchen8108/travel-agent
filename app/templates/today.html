@@ -111,52 +111,6 @@
         </article>
       </div>
     </section>
-
-    <section class="dashboard-panel dashboard-rail-panel" id="dashboard-groups">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Collections</p>
-          <h3>Where related travel stays together</h3>
-        </div>
-        <a class="section-link" href="/groups/new">New group</a>
-      </div>
-      <div class="collection-list">
-        {% for item in group_views %}
-        <article class="collection-row" id="group-{{ item.group.trip_group_id }}">
-          <div class="collection-head">
-            <div>
-              <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
-              <p class="muted">
-                {% if item.next_instance %}
-                Next {{ item.next_instance.anchor_date.strftime('%b %d') }}
-                {% else %}
-                No upcoming travel
-                {% endif %}
-                · {{ item.rule_count }} plan{{ '' if item.rule_count == 1 else 's' }}
-              </p>
-            </div>
-            <span class="badge">{{ item.upcoming_count }}</span>
-          </div>
-          {% if item.upcoming_dates %}
-          <div class="inline-badge-row dashboard-date-pill-row">
-            {% for upcoming_date in item.upcoming_dates %}
-            <span class="badge horizon-badge">{{ upcoming_date.strftime('%b %d') }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-          <div class="dashboard-link-row">
-            <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">Open group</a>
-            <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
-          </div>
-        </article>
-        {% else %}
-        <article class="compact-empty-state">
-          <strong>No collections yet.</strong>
-          <p>Create a group when you want related trips and recurring plans to stay together.</p>
-        </article>
-        {% endfor %}
-      </div>
-    </section>
   </aside>
 
   {% if unmatched_views %}
@@ -246,6 +200,81 @@
     </div>
   </section>
   {% endif %}
+
+  <section class="dashboard-panel dashboard-full-panel dashboard-collections-panel" id="dashboard-groups">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Collections</p>
+        <h3>Where related travel stays together</h3>
+      </div>
+      <a class="section-link" href="/groups/new">New group</a>
+    </div>
+    <p class="dashboard-panel-intro">
+      Organize recurring plans and one-off trips around the way you actually travel, then jump straight into each scheduled date.
+    </p>
+    <div class="collection-board">
+      {% for item in group_views %}
+      <article class="collection-card" id="group-{{ item.group.trip_group_id }}">
+        <div class="collection-card-head">
+          <div class="collection-card-titleblock">
+            <div class="collection-card-titleline">
+              <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
+              <span class="badge">{{ item.upcoming_count }} upcoming</span>
+            </div>
+            <p class="collection-card-summary">
+              {{ item.summary }}
+            </p>
+          </div>
+          <div class="collection-card-actions">
+            <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">Open group</a>
+            <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
+          </div>
+        </div>
+
+        <div class="collection-metric-row">
+          <div class="collection-metric">
+            <span class="collection-metric-label">Next trip</span>
+            <strong>{{ item.next_instance.anchor_date.strftime('%a, %b %d') if item.next_instance else 'No upcoming travel' }}</strong>
+          </div>
+          <div class="collection-metric">
+            <span class="collection-metric-label">Recurring plans</span>
+            <strong>{{ item.rule_count }}</strong>
+          </div>
+          <div class="collection-metric">
+            <span class="collection-metric-label">Still to book</span>
+            <strong>{{ item.planned_count }}</strong>
+          </div>
+          <div class="collection-metric">
+            <span class="collection-metric-label">Already booked</span>
+            <strong>{{ item.booked_count }}</strong>
+          </div>
+        </div>
+
+        {% if item.upcoming_trip_views %}
+        <div class="collection-trip-strip">
+          {% for upcoming in item.upcoming_trip_views %}
+          <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}">
+            {{ upcoming.label }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="quiet-state-row collection-empty-row">
+          <div>
+            <strong>No upcoming travel yet.</strong>
+            <p>Add a trip or rule when you want this collection to start filling up.</p>
+          </div>
+        </div>
+        {% endif %}
+      </article>
+      {% else %}
+      <article class="compact-empty-state">
+        <strong>No collections yet.</strong>
+        <p>Create a group when you want related trips and recurring plans to stay together.</p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
 
   <section class="dashboard-panel dashboard-travel-panel" id="all-travel">
     <div class="panel-header">

@@ -128,19 +128,61 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
 
 def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
+    rule_count = len(recurring_rules_for_group(snapshot, group.trip_group_id))
     booked_count = sum(
         1
         for instance in upcoming
         if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     )
+    upcoming_trip_views = []
+    for instance in upcoming[:8]:
+        trip = trip_for_instance(snapshot, instance.trip_instance_id)
+        active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
+        savings = rebook_savings(snapshot, instance.trip_instance_id)
+        if active_booking_count > 0 and savings is not None:
+            tone = "accent"
+            status_label = "Rebook"
+        elif active_booking_count > 0:
+            tone = "success"
+            status_label = "Booked"
+        else:
+            tone = "warning"
+            status_label = "Planned"
+        title = trip.label if trip is not None else instance.display_label
+        upcoming_trip_views.append(
+            {
+                "instance": instance,
+                "href": f"/trip-instances/{instance.trip_instance_id}",
+                "label": instance.anchor_date.strftime("%b %d"),
+                "title": f"{title} · {status_label} · {instance.anchor_date.strftime('%a, %b %d')}",
+                "tone": tone,
+            }
+        )
+    if group.description:
+        summary = group.description
+    elif upcoming:
+        summary = (
+            f"Next on {upcoming[0].anchor_date.strftime('%a, %b %d')} · "
+            f"{len(upcoming)} upcoming trip{'s' if len(upcoming) != 1 else ''} across "
+            f"{rule_count} recurring "
+            f"plan{'s' if rule_count != 1 else ''}."
+        )
+    else:
+        summary = (
+            f"{rule_count} recurring "
+            f"plan{'s' if rule_count != 1 else ''} ready for future travel."
+            if rule_count
+            else "Ready for one-off trips or recurring plans when you need them."
+        )
     return {
         "group": group,
         "upcoming_count": len(upcoming),
         "next_instance": upcoming[0] if upcoming else None,
         "booked_count": booked_count,
         "planned_count": max(0, len(upcoming) - booked_count),
-        "rule_count": len(recurring_rules_for_group(snapshot, group.trip_group_id)),
-        "upcoming_dates": [instance.anchor_date for instance in upcoming[:6]],
+        "rule_count": rule_count,
+        "summary": summary,
+        "upcoming_trip_views": upcoming_trip_views,
     }
 
 
