@@ -167,9 +167,12 @@ def test_linked_booking_can_be_unlinked_back_to_resolve(repository: Repository) 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
 
     assert moved.unmatched_booking_id == booking.booking_id
-    assert moved.candidate_trip_instance_ids == trip_instance_id
+    assert moved.candidate_trip_instance_ids == ""
     assert not repository.load_bookings()
-    assert any(item.unmatched_booking_id == booking.booking_id for item in repository.load_unmatched_bookings())
+    unresolved = next(
+        item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == booking.booking_id
+    )
+    assert unresolved.candidate_trip_instance_ids == trip_instance_id
     instance = next(item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id)
     assert instance.booking_id == ""
 

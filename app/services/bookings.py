@@ -73,12 +73,8 @@ def _booking_to_unmatched(booking: Booking) -> UnmatchedBooking:
         arrival_time=booking.arrival_time,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
-        raw_summary=(
-            f"Unlinked booking {booking.airline} "
-            f"{booking.origin_airport}->{booking.destination_airport} "
-            f"{booking.departure_date.isoformat()} {booking.departure_time}"
-        ),
-        candidate_trip_instance_ids=booking.trip_instance_id,
+        raw_summary="",
+        candidate_trip_instance_ids="",
         auto_link_enabled=False,
         resolution_status=UnmatchedBookingStatus.OPEN,
         created_at=booking.created_at,
