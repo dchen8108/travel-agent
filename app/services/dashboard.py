@@ -355,9 +355,7 @@ def trip_monitoring_status_label(snapshot: AppSnapshot, trip_instance_id: str) -
         return "Tracking"
     if fetch_state["all_unavailable"] and fetch_state["all_trackers_resolved"]:
         return "No matches"
-    if fetch_state["has_trackers"]:
-        return "Initializing"
-    return "No searches"
+    return "Initializing"
 
 
 def trip_recommended_action(snapshot: AppSnapshot, trip_instance_id: str) -> str | None:
@@ -432,7 +430,7 @@ def trip_status_detail(snapshot: AppSnapshot, trip_instance_id: str) -> str:
         return "Initializing. A recent Google Flights request failed. Milemark will retry automatically."
     if fetch_state["has_trackers"]:
         return "Initializing. Milemark is still fetching current prices for this date."
-    return "No searches. There are no searches configured for this date."
+    return "Initializing. Milemark is still preparing this date for price tracking."
 
 
 def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:

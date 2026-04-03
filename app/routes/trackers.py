@@ -140,8 +140,8 @@ def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
         headline = "Fetching current fares"
         summary = "Milemark is still collecting the first live price for this option."
     else:
-        headline = "No searches available"
-        summary = "This option does not currently have any airport-pair searches to check."
+        headline = "Preparing searches"
+        summary = "Milemark is still setting up coverage for this option."
     return TrackerCardView(
         tracker=tracker,
         tracker_id=tracker.tracker_id,

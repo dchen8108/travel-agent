@@ -2,9 +2,31 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="eyebrow">{{ 'Edit trip' if trip else 'Design trip' }}</p>
-    <h2>{{ trip.label if trip else 'Build a trip Milemark can actually track.' }}</h2>
-    <p>Choose the schedule, define the acceptable routes, and let price decide what wins.</p>
+    <p class="eyebrow">
+      {% if source_unmatched_booking %}
+      Draft trip from booking
+      {% elif trip %}
+      Edit trip
+      {% else %}
+      Design trip
+      {% endif %}
+    </p>
+    <h2>
+      {% if trip %}
+      {{ trip.label }}
+      {% elif source_unmatched_booking %}
+      Turn this booking into a trip Milemark can track.
+      {% else %}
+      Build a trip Milemark can actually track.
+      {% endif %}
+    </h2>
+    <p>
+      {% if source_unmatched_booking %}
+      Confirm the schedule, adjust the route if needed, and save the trip to link the booking.
+      {% else %}
+      Choose the schedule, define the acceptable routes, and let price decide what wins.
+      {% endif %}
+    </p>
   </div>
 </section>
 
@@ -15,10 +37,24 @@
     <p>{{ error_message }}</p>
   </section>
   {% endif %}
+  {% if source_unmatched_booking %}
+  <section class="info-card top-gap-small">
+    <strong>Starting from booking {{ source_unmatched_booking.record_locator or source_unmatched_booking.unmatched_booking_id }}.</strong>
+    <p>
+      {{ source_unmatched_booking.origin_airport }} → {{ source_unmatched_booking.destination_airport }}
+      · {{ source_unmatched_booking.departure_date.isoformat() }}
+      · {{ source_unmatched_booking.departure_time }}{% if source_unmatched_booking.arrival_time %}–{{ source_unmatched_booking.arrival_time }}{% endif %}
+      · {{ airline_label(source_unmatched_booking.airline) }}
+    </p>
+    <p class="muted">Save this trip to link the booking. You can adjust the route before saving.</p>
+  </section>
+  {% endif %}
   <form method="post" action="/trips" id="trip-form" novalidate>
     <input type="hidden" name="trip_id" value="{{ trip.trip_id if trip else '' }}">
     <input type="hidden" name="route_options_json" value="">
     <input type="hidden" name="trip_group_ids_json" value='{{ trip_form_state.trip_group_ids|tojson }}'>
+    <input type="hidden" name="source_unmatched_booking_id" value="{{ source_unmatched_booking.unmatched_booking_id if source_unmatched_booking else '' }}">
+    <input type="hidden" name="data_scope" value="{{ trip_form_state.data_scope }}">
 
     <div class="form-grid">
       <label>

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.services.bookings import (
-    create_one_time_trip_from_unmatched_booking,
     resolve_unmatched_booking_to_trip_instance,
 )
 from app.services.workflows import sync_and_persist
@@ -55,21 +54,15 @@ async def resolve_create_trip(
 ) -> RedirectResponse:
     form = await request.form()
     trip_label = str(form.get("trip_label", "")).strip()
-    try:
-        booking = create_one_time_trip_from_unmatched_booking(
-            repository,
-            unmatched_booking_id=unmatched_booking_id,
-            trip_label=trip_label,
-        )
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError:
-        return redirect_with_message("/bookings#needs-linking", "Could not create trip")
-    snapshot = sync_and_persist(repository)
-    trip_instance = next(
-        (item for item in snapshot.trip_instances if item.trip_instance_id == booking.trip_instance_id),
+    unmatched = next(
+        (item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched_booking_id),
         None,
     )
-    if trip_instance is None:
-        return redirect_with_message("/bookings", "Trip created from booking")
-    return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", "Trip created from booking")
+    if unmatched is None:
+        raise HTTPException(status_code=404, detail="Unmatched booking not found")
+    redirect_url = f"/trips/new?unmatched_booking_id={unmatched_booking_id}"
+    if trip_label:
+        from urllib.parse import quote_plus
+
+        redirect_url = f"{redirect_url}&trip_label={quote_plus(trip_label)}"
+    return RedirectResponse(url=redirect_url, status_code=303)

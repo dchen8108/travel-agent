@@ -284,6 +284,22 @@ p {
   margin-bottom: 0;
 }
 
+.info-card {
+  padding: 18px 20px;
+  border: 1px solid rgba(154, 186, 181, 0.32);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(239, 248, 246, 0.96), rgba(251, 255, 254, 0.96));
+}
+
+.info-card strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.info-card p {
+  margin: 0;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;

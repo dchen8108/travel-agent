@@ -12,7 +12,6 @@ from app.route_options import time_in_window
 from app.route_options import join_pipe, split_pipe
 from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.ids import new_id
-from app.services.trips import save_trip
 from app.storage.repository import Repository
 
 
@@ -175,6 +174,23 @@ def _candidate_from_booking(booking: Booking) -> BookingCandidate:
         record_locator=booking.record_locator,
         notes=booking.notes,
     )
+
+
+def suggested_route_option_payload_for_booking(candidate: BookingCandidate) -> dict[str, object]:
+    departure = datetime.strptime(candidate.departure_time, "%H:%M")
+    departure_minutes = departure.hour * 60 + departure.minute
+    start_minutes = max(0, departure_minutes - 60)
+    end_minutes = min((23 * 60) + 59, departure_minutes + 120)
+    start_time = f"{start_minutes // 60:02d}:{start_minutes % 60:02d}"
+    end_time = f"{end_minutes // 60:02d}:{end_minutes % 60:02d}"
+    return {
+        "origin_airports": candidate.origin_airport,
+        "destination_airports": candidate.destination_airport,
+        "airlines": candidate.airline,
+        "day_offset": 0,
+        "start_time": start_time,
+        "end_time": end_time,
+    }
 
 
 def reconcile_booking_route_options(
@@ -369,74 +385,49 @@ def resolve_unmatched_booking_to_trip_instance(
     return booking
 
 
-def create_one_time_trip_from_unmatched_booking(
+def resolve_unmatched_booking_to_trip(
     repository: Repository,
     *,
     unmatched_booking_id: str,
-    trip_label: str,
-) -> Booking:
+    trip_id: str,
+) -> Booking | None:
     unmatched_bookings = repository.load_unmatched_bookings()
     unmatched = next((item for item in unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
-    if unmatched is None or unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+    if unmatched is None:
         raise KeyError("Unmatched booking not found")
-
-    departure = datetime.strptime(unmatched.departure_time, "%H:%M")
-    departure_minutes = departure.hour * 60 + departure.minute
-    start_minutes = max(0, departure_minutes - 60)
-    end_minutes = min((23 * 60) + 59, departure_minutes + 120)
-    start_time = f"{start_minutes // 60:02d}:{start_minutes % 60:02d}"
-    end_time = f"{end_minutes // 60:02d}:{end_minutes % 60:02d}"
-
-    trip = save_trip(
-        repository,
-        trip_id=None,
-        label=trip_label,
-        trip_kind="one_time",
-        active=True,
-        data_scope=unmatched.data_scope,
-        anchor_date=unmatched.departure_date,
-        anchor_weekday="",
-        route_option_payloads=[
-            {
-                "origin_airports": unmatched.origin_airport,
-                "destination_airports": unmatched.destination_airport,
-                "airlines": unmatched.airline,
-                "day_offset": 0,
-                "start_time": start_time,
-                "end_time": end_time,
-            }
-        ],
-    )
-    from app.services.workflows import sync_and_persist
-
-    snapshot = sync_and_persist(repository)
-    trip_instance = next(
-        item
-        for item in snapshot.trip_instances
-        if item.trip_id == trip.trip_id and item.anchor_date == unmatched.departure_date
-    )
-    auto_linked = next(
-        (
+    candidate = _candidate_from_unmatched(unmatched)
+    trip_instance_ids = {
+        item.trip_instance_id
+        for item in repository.load_trip_instances()
+        if item.trip_id == trip_id and not item.deleted
+    }
+    if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+        existing_bookings = [
             item
             for item in repository.load_bookings()
-            if item.trip_instance_id == trip_instance.trip_instance_id
-            and item.airline == unmatched.airline
-            and item.origin_airport == unmatched.origin_airport
-            and item.destination_airport == unmatched.destination_airport
-            and item.departure_date == unmatched.departure_date
-            and item.departure_time == unmatched.departure_time
-            and item.record_locator == unmatched.record_locator
-        ),
-        None,
-    )
-    if auto_linked is not None:
-        return auto_linked
-    booking = resolve_unmatched_booking_to_trip_instance(
+            if item.trip_instance_id in trip_instance_ids
+            and item.airline == candidate.airline
+            and item.origin_airport == candidate.origin_airport
+            and item.destination_airport == candidate.destination_airport
+            and item.departure_date == candidate.departure_date
+            and item.departure_time == candidate.departure_time
+            and item.record_locator == candidate.record_locator
+        ]
+        if len(existing_bookings) == 1:
+            return existing_bookings[0]
+        return None
+    matching_trip_instance_ids = [
+        item
+        for item in _matching_trip_instance_ids_for_booking(candidate, repository.load_trackers())
+        if item in trip_instance_ids
+    ]
+    if len(matching_trip_instance_ids) != 1:
+        return None
+    return resolve_unmatched_booking_to_trip_instance(
         repository,
         unmatched_booking_id=unmatched_booking_id,
-        trip_instance_id=trip_instance.trip_instance_id,
+        trip_instance_id=matching_trip_instance_ids[0],
     )
-    return booking
 
 
 def unlink_booking(

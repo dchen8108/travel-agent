@@ -95,8 +95,6 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
             detail = f"Best alternative {format_money(tracker.latest_observed_price)}"
         elif monitoring_label == "No matches":
             detail = "No matching flights right now"
-        elif monitoring_label == "No searches":
-            detail = "No tracked routes yet"
         else:
             detail = "Still gathering current prices"
 
@@ -267,7 +265,6 @@ def today(
     tracking_count = sum(1 for label in monitoring_labels if label == "Tracking")
     initializing_count = sum(1 for label in monitoring_labels if label == "Initializing")
     no_match_count = sum(1 for label in monitoring_labels if label == "No matches")
-    no_search_count = sum(1 for label in monitoring_labels if label == "No searches")
 
     recurring_rule_views = [
         _rule_dashboard_view(snapshot, rule, today=today)
@@ -330,7 +327,6 @@ def today(
             tracking_count=tracking_count,
             initializing_count=initializing_count,
             no_match_count=no_match_count,
-            no_search_count=no_search_count,
             booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
             trip_for_instance=trip_for_instance,

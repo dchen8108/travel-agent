@@ -70,8 +70,9 @@
           <button type="submit" class="button primary">Link booking</button>
         </form>
 
-        <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/create-trip" class="subcard">
+        <form method="get" action="/trips/new" class="subcard">
           <h4>Create a new one-time trip</h4>
+          <input type="hidden" name="unmatched_booking_id" value="{{ unmatched.unmatched_booking_id }}">
           <label>
             <span>New trip label</span>
             <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>

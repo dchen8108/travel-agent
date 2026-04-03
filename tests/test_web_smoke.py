@@ -62,6 +62,66 @@ def test_trip_form_requires_at_least_one_route_option(tmp_path: Path) -> None:
     assert "Trips require at least one route option." in response.text
 
 
+def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Delta",
+            origin_airport="LAX",
+            destination_airport="SEA",
+            departure_date=date(2026, 5, 10),
+            departure_time="00:30",
+            arrival_time="02:55",
+            booked_price=189,
+            record_locator="ZZZ999",
+        ),
+    )
+    assert booking is None
+    assert unmatched is not None
+
+    form_page = client.get(
+        f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}&trip_label=Conference%20Arrival"
+    )
+    assert form_page.status_code == 200
+    assert "Starting from booking ZZZ999." in form_page.text
+    assert 'name="source_unmatched_booking_id" value="' + unmatched.unmatched_booking_id + '"' in form_page.text
+    assert 'name="label" value="Conference Arrival"' in form_page.text
+    assert '"origin_airports": ["LAX"]' in form_page.text
+    assert '"destination_airports": ["SEA"]' in form_page.text
+
+    save = client.post(
+        "/trips",
+        data={
+            "label": "Conference Arrival",
+            "trip_kind": "one_time",
+            "source_unmatched_booking_id": unmatched.unmatched_booking_id,
+            "anchor_date": "2026-05-10",
+            "anchor_weekday": "",
+            "preference_mode": "equal",
+            "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"00:00","end_time":"02:30"}]',
+        },
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+    assert save.headers["location"].startswith("/trip-instances/")
+
+    stored_booking = next(item for item in repository.load_bookings() if item.record_locator == "ZZZ999")
+    assert stored_booking.route_option_id != ""
+    resolved_unmatched = next(
+        item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id
+    )
+    assert resolved_unmatched.resolution_status == "resolved"
+
+
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -565,7 +625,7 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
     assert response.status_code == 400
     assert "Trip not saved." in response.text
     assert "This Trip Label is already used by a recurring trip." in response.text
-    assert "<p class=\"eyebrow\">Edit trip</p>" in response.text
+    assert "Edit trip" in response.text
     assert f'name=\"trip_id\" value=\"{trip_id}\"' in response.text
 
 

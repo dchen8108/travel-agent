@@ -4,9 +4,9 @@ from datetime import date
 
 from app.services.bookings import (
     BookingCandidate,
-    create_one_time_trip_from_unmatched_booking,
     unlink_booking,
     record_booking,
+    resolve_unmatched_booking_to_trip,
     resolve_unmatched_booking_to_trip_instance,
 )
 from app.services.trips import save_trip
@@ -93,7 +93,7 @@ def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: R
     assert repository.load_unmatched_bookings()[0].resolution_status == "resolved"
 
 
-def test_unmatched_booking_can_create_new_one_time_trip(repository: Repository) -> None:
+def test_unmatched_booking_can_be_resolved_to_a_new_trip(repository: Repository) -> None:
     booking, unmatched = record_booking(
         repository,
         BookingCandidate(
@@ -111,13 +111,33 @@ def test_unmatched_booking_can_create_new_one_time_trip(repository: Repository) 
     assert booking is None
     assert unmatched is not None
 
-    created_booking = create_one_time_trip_from_unmatched_booking(
+    trip = save_trip(
         repository,
-        unmatched_booking_id=unmatched.unmatched_booking_id,
-        trip_label="Conference Arrival",
+        trip_id=None,
+        label="Conference Arrival",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SEA",
+                "airlines": "Delta",
+                "day_offset": 0,
+                "start_time": "00:00",
+                "end_time": "02:30",
+            }
+        ],
     )
     snapshot = sync_and_persist(repository, today=date(2026, 5, 1))
+    created_booking = resolve_unmatched_booking_to_trip(
+        repository,
+        unmatched_booking_id=unmatched.unmatched_booking_id,
+        trip_id=trip.trip_id,
+    )
 
+    assert created_booking is not None
     assert created_booking.record_locator == "ZZZ999"
     assert created_booking.route_option_id != ""
     assert any(trip.label == "Conference Arrival" for trip in snapshot.trips)

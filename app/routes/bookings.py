@@ -12,7 +12,6 @@ from app.route_options import split_pipe
 from app.services.bookings import (
     BookingCandidate,
     cancel_booking,
-    create_one_time_trip_from_unmatched_booking,
     delete_booking_record,
     record_booking,
     resolve_unmatched_booking_to_trip_instance,
@@ -379,23 +378,18 @@ async def create_trip_from_unmatched_booking(
 ) -> RedirectResponse:
     form = await request.form()
     trip_label = str(form.get("trip_label", "")).strip()
-    try:
-        booking = create_one_time_trip_from_unmatched_booking(
-            repository,
-            unmatched_booking_id=unmatched_booking_id,
-            trip_label=trip_label,
-        )
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError:
-        return redirect_back(
-            request,
-            fallback_url="/bookings#needs-linking",
-            message="Could not create trip from booking.",
-            message_kind="error",
-        )
-    snapshot = sync_and_persist(repository)
-    return _booking_redirect_response(snapshot, booking, message="Trip created from booking")
+    unmatched = next(
+        (item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched_booking_id),
+        None,
+    )
+    if unmatched is None:
+        raise HTTPException(status_code=404, detail="Unmatched booking not found")
+    redirect_url = f"/trips/new?unmatched_booking_id={unmatched_booking_id}"
+    if trip_label:
+        from urllib.parse import quote_plus
+
+        redirect_url = f"{redirect_url}&trip_label={quote_plus(trip_label)}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @router.post("/bookings/{booking_id}/unlink")

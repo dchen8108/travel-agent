@@ -8,6 +8,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
 from app.models.base import BookingStatus, DataScope, FareClassPolicy
+from app.services.bookings import (
+    BookingCandidate,
+    resolve_unmatched_booking_to_trip,
+    suggested_route_option_payload_for_booking,
+)
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
     active_booking_count_for_instance,
@@ -60,6 +65,7 @@ def _trip_form_state(trip, route_options, *, trip_group_ids=None):
             "preference_mode": "equal",
             "anchor_date": "",
             "anchor_weekday": "Monday",
+            "data_scope": DataScope.LIVE,
         }
     return {
         "trip_id": trip.trip_id,
@@ -69,6 +75,7 @@ def _trip_form_state(trip, route_options, *, trip_group_ids=None):
         "preference_mode": trip.preference_mode,
         "anchor_date": trip.anchor_date.isoformat() if trip.anchor_date else "",
         "anchor_weekday": trip.anchor_weekday or "Monday",
+        "data_scope": trip.data_scope,
         "created_at": trip.created_at.isoformat(),
     }
 
@@ -200,6 +207,7 @@ def _render_trip_form(
     route_options,
     trip_form_state,
     route_option_state,
+    source_unmatched_booking=None,
     error_message: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -215,6 +223,7 @@ def _render_trip_form(
             error_message=error_message or "",
             trip_form_state=trip_form_state,
             route_option_state=route_option_state,
+            source_unmatched_booking=source_unmatched_booking,
             trip_groups=trip_groups(snapshot),
             trip_group_picker_options=[
                 {"value": group.trip_group_id, "label": group.label}
@@ -350,17 +359,55 @@ def new_trip(
     snapshot = load_snapshot(repository)
     trip_kind = str(request.query_params.get("trip_kind", "one_time")).strip() or "one_time"
     trip_group_id = str(request.query_params.get("trip_group_id", "")).strip()
+    unmatched_booking_id = str(request.query_params.get("unmatched_booking_id", "")).strip()
+    trip_label = str(request.query_params.get("trip_label", "")).strip()
+    source_unmatched_booking = next(
+        (
+            item
+            for item in snapshot.unmatched_bookings
+            if item.unmatched_booking_id == unmatched_booking_id and item.resolution_status == "open"
+        ),
+        None,
+    ) if unmatched_booking_id else None
+    if unmatched_booking_id and source_unmatched_booking is None:
+        raise HTTPException(status_code=404, detail="Unmatched booking not found")
+    trip_form_state = {
+        **_trip_form_state(None, []),
+        "trip_kind": trip_kind if trip_kind in {"one_time", "weekly"} else "one_time",
+        "trip_group_ids": [trip_group_id] if trip_group_id else [],
+    }
+    route_option_state = _route_option_state([])
+    if source_unmatched_booking is not None:
+        candidate = BookingCandidate(
+            airline=source_unmatched_booking.airline,
+            origin_airport=source_unmatched_booking.origin_airport,
+            destination_airport=source_unmatched_booking.destination_airport,
+            departure_date=source_unmatched_booking.departure_date,
+            departure_time=source_unmatched_booking.departure_time,
+            arrival_time=source_unmatched_booking.arrival_time,
+            booked_price=source_unmatched_booking.booked_price,
+            record_locator=source_unmatched_booking.record_locator,
+        )
+        suggested_label = trip_label or f"Booking {source_unmatched_booking.record_locator or source_unmatched_booking.unmatched_booking_id}"
+        trip_form_state.update(
+            {
+                "label": suggested_label,
+                "trip_kind": "one_time",
+                "anchor_date": source_unmatched_booking.departure_date.isoformat(),
+                "data_scope": source_unmatched_booking.data_scope,
+            }
+        )
+        route_option_state = _route_option_state_from_payloads(
+            [suggested_route_option_payload_for_booking(candidate)]
+        )
     return _render_trip_form(
         request,
         snapshot=snapshot,
         trip=None,
         route_options=[],
-        trip_form_state={
-            **_trip_form_state(None, []),
-            "trip_kind": trip_kind if trip_kind in {"one_time", "weekly"} else "one_time",
-            "trip_group_ids": [trip_group_id] if trip_group_id else [],
-        },
-        route_option_state=_route_option_state([]),
+        trip_form_state=trip_form_state,
+        route_option_state=route_option_state,
+        source_unmatched_booking=source_unmatched_booking,
     )
 
 
@@ -434,6 +481,7 @@ async def save_trip_action(
     trip_kind = str(form.get("trip_kind", "weekly"))
     trip_group_ids_json = str(form.get("trip_group_ids_json", "[]") or "[]")
     preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
+    source_unmatched_booking_id = str(form.get("source_unmatched_booking_id", "")).strip()
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
     route_options_json = str(form.get("route_options_json", "[]"))
@@ -516,13 +564,27 @@ async def save_trip_action(
                 data_scope=trip.data_scope,
             )
             snapshot = load_snapshot(repository)
+        linked_booking = None
+        if source_unmatched_booking_id:
+            linked_booking = resolve_unmatched_booking_to_trip(
+                repository,
+                unmatched_booking_id=source_unmatched_booking_id,
+                trip_id=trip.trip_id,
+            )
+            if linked_booking is not None:
+                snapshot = sync_and_persist(repository)
+            else:
+                snapshot = load_snapshot(repository)
         queued_count = queue_refresh_for_trip(
             snapshot,
             repository,
             trip_id=trip.trip_id,
             include_test_data=include_test_data_for_processing(snapshot.app_state),
         )
-        message = queued_refresh_message("Trip saved", queued_count)
+        message = queued_refresh_message(
+            "Trip created from booking" if source_unmatched_booking_id else "Trip saved",
+            queued_count,
+        )
         warning_count = _linked_booking_route_warning_count(snapshot, trip)
         if warning_count:
             booking_noun = "booking" if warning_count == 1 else "bookings"
@@ -531,9 +593,22 @@ async def save_trip_action(
                 f"{message} {warning_count} linked {booking_noun} "
                 f"{verb} not match a unique tracked route."
             )
+        if source_unmatched_booking_id and linked_booking is None:
+            message = f"{message} Booking still needs linking."
+            return redirect_with_message("/bookings#needs-linking", message)
+        if linked_booking is not None:
+            return redirect_with_message(f"/trip-instances/{linked_booking.trip_instance_id}", message)
         return redirect_with_message(f"/trips/{trip.trip_id}", message)
     except ValueError as exc:
         snapshot = load_snapshot(repository)
+        source_unmatched_booking = next(
+            (
+                item
+                for item in snapshot.unmatched_bookings
+                if item.unmatched_booking_id == source_unmatched_booking_id and item.resolution_status == "open"
+            ),
+            None,
+        ) if source_unmatched_booking_id else None
         return _render_trip_form(
             request,
             snapshot=snapshot,
@@ -548,8 +623,10 @@ async def save_trip_action(
                 "preference_mode": preference_mode,
                 "anchor_date": anchor_date_value,
                 "anchor_weekday": anchor_weekday or "Monday",
+                "data_scope": data_scope,
             },
             route_option_state=_route_option_state_from_payloads(raw_route_option_state),
+            source_unmatched_booking=source_unmatched_booking,
             status_code=400,
         )
 
