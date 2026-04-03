@@ -180,33 +180,19 @@ p {
   font-weight: 700;
 }
 
-.sidebar-section {
+.sidebar-note {
   display: grid;
   gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-links {
-  display: grid;
-  gap: 6px;
-}
-
-.sidebar-links a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 40px;
-  padding: 9px 12px;
-  border-radius: 12px;
-  color: rgba(236, 244, 248, 0.76);
-  font-weight: 600;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.sidebar-links a:hover,
-.sidebar-links a.active {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f7fbfd;
+.sidebar-note p {
+  color: rgba(224, 233, 239, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.4;
 }
 
 .content {
@@ -2000,8 +1986,8 @@ textarea {
 }
 
 .dashboard-header h2 {
-  font-size: clamp(2.2rem, 4vw, 3.2rem);
-  max-width: 14ch;
+  font-size: clamp(2rem, 3.5vw, 2.9rem);
+  max-width: 16ch;
   margin: 6px 0 8px;
   text-wrap: balance;
 }
@@ -2071,6 +2057,11 @@ textarea {
   display: grid;
   gap: 14px;
   padding: 18px;
+  align-self: start;
+}
+
+.dashboard-panel.is-quiet-panel {
+  gap: 10px;
 }
 
 .panel-header {
@@ -2112,6 +2103,30 @@ textarea {
 .travel-list {
   display: grid;
   gap: 10px;
+}
+
+.quiet-state-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(200, 209, 204, 0.84);
+  border-radius: 18px;
+  background: rgba(253, 251, 247, 0.82);
+}
+
+.quiet-state-row strong {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.quiet-state-row p {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin-top: 4px;
 }
 
 .signal-item,
@@ -2363,10 +2378,6 @@ code {
     min-width: max-content;
   }
 
-  .sidebar-links {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  }
-
   .two-column {
     grid-template-columns: 1fr;
   }
@@ -2429,6 +2440,11 @@ code {
 
   .travel-date {
     justify-self: start;
+  }
+
+  .quiet-state-row {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .hero,

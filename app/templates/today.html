@@ -48,7 +48,7 @@
 </section>
 
 <div class="dashboard-top-grid">
-  <section class="dashboard-panel">
+  <section class="dashboard-panel {% if not open_unmatched and not rebook_views %}is-quiet-panel{% endif %}">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Action queue</p>
@@ -56,6 +56,15 @@
       </div>
       <a class="section-link" href="/bookings">Bookings ledger</a>
     </div>
+    {% if not open_unmatched and not rebook_views %}
+    <div class="quiet-state-row">
+      <div>
+        <strong>Nothing urgent right now.</strong>
+        <p>Imports are resolved and booked trips do not have lower comparable fares yet.</p>
+      </div>
+      <a class="button secondary" href="/trips">Review trips</a>
+    </div>
+    {% else %}
     <div class="signal-list">
       {% for unmatched in open_unmatched %}
       <article class="signal-item signal-item-warning">
@@ -94,14 +103,8 @@
         <a class="button secondary" href="{{ card.href }}">Open trip</a>
       </article>
       {% endfor %}
-
-      {% if not open_unmatched and not rebook_views %}
-      <article class="compact-empty-state">
-        <strong>Nothing urgent right now.</strong>
-        <p>Imports are resolved and booked trips do not have lower comparable fares yet.</p>
-      </article>
-      {% endif %}
     </div>
+    {% endif %}
   </section>
 
   <section class="dashboard-panel">

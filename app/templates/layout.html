@@ -16,31 +16,17 @@
           <div class="brand">
             <p class="eyebrow">Flight desk</p>
             <h1>Milemark</h1>
-            <p>Flight planning and fare intelligence for repeat travel.</p>
           </div>
         </a>
         <nav class="nav nav-primary">
           <a href="/" class="{{ 'active' if page in ['today', 'dashboard'] else '' }}">Dashboard</a>
         </nav>
-        <div class="sidebar-section">
-          <p class="eyebrow">Ledgers</p>
-          <div class="sidebar-links">
-            <a href="/trips" class="{{ 'active' if page == 'trips' else '' }}">Trips</a>
-            <a href="/bookings" class="{{ 'active' if page in ['bookings', 'resolve'] else '' }}">
-              <span>Bookings</span>
-              {% if resolve_count %}
-              <span class="nav-badge">{{ resolve_count }}</span>
-              {% endif %}
-            </a>
-          </div>
+        {% if resolve_count %}
+        <div class="sidebar-note">
+          <span class="nav-badge">{{ resolve_count }}</span>
+          <p>{{ resolve_count }} booking{{ '' if resolve_count == 1 else 's' }} still need linking.</p>
         </div>
-        <div class="sidebar-section">
-          <p class="eyebrow">Create</p>
-          <div class="sidebar-links">
-            <a href="/trips/new">New trip</a>
-            <a href="/bookings/new">Add booking</a>
-          </div>
-        </div>
+        {% endif %}
       </aside>
       <main class="content">
         <div class="content-inner">

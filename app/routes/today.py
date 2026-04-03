@@ -202,7 +202,7 @@ def today(
 
     recent_booking_views = [
         _recent_booking_view(snapshot, booking)
-        for booking in sorted(snapshot.bookings, key=lambda item: item.booked_at, reverse=True)[:6]
+        for booking in sorted(snapshot.bookings, key=lambda item: item.booked_at, reverse=True)[:4]
     ]
 
     recurring_rule_views = [
