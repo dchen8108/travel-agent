@@ -2041,7 +2041,7 @@ textarea {
   grid-column: 1 / -1;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
 }
 

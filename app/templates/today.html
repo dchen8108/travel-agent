@@ -219,50 +219,6 @@
   </section>
 
   <div class="dashboard-utility-grid">
-    <section class="dashboard-panel dashboard-lower-panel" id="dashboard-plans">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Recurring plans</p>
-          <h3>Rules that keep your regular travel in place</h3>
-        </div>
-      </div>
-      <div class="dashboard-plan-list">
-        {% for item in recurring_rule_views %}
-        <article class="dashboard-plan-row">
-          <div class="dashboard-plan-copy">
-            <div>
-              <strong><a class="dashboard-item-title" href="/trips/{{ item.rule.trip_id }}">{{ item.rule.label }}</a></strong>
-              <p class="muted">
-                {% if item.groups %}
-                {{ item.groups|map(attribute='label')|join(' · ') }}
-                {% else %}
-                No collection
-                {% endif %}
-              </p>
-            </div>
-            <div class="dashboard-plan-meta">
-              <span class="status-pill {{ 'success' if item.rule.active else 'neutral' }}">{{ 'Active' if item.rule.active else 'Paused' }}</span>
-              <span class="plan-inline-metric">Next {{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</span>
-            </div>
-          </div>
-          <div class="dashboard-plan-stats">
-            <span>{{ item.upcoming_count }} upcoming</span>
-            <span>{{ item.route_count }} route{{ '' if item.route_count == 1 else 's' }}</span>
-          </div>
-          <div class="dashboard-link-row">
-            <a class="section-link" href="/trips/{{ item.rule.trip_id }}">View plan</a>
-            <a class="section-link" href="/trips/{{ item.rule.trip_id }}/edit">Edit</a>
-          </div>
-        </article>
-        {% else %}
-        <article class="compact-empty-state">
-          <strong>No recurring plans yet.</strong>
-          <p>Create a recurring trip to keep frequent travel dates populated automatically.</p>
-        </article>
-        {% endfor %}
-      </div>
-    </section>
-
     <section class="dashboard-panel dashboard-lower-panel" id="dashboard-bookings">
       <div class="panel-header">
         <div>
@@ -309,7 +265,7 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">Collections</p>
-          <h3>Shared collections for related travel</h3>
+          <h3>Where recurring plans and related trips live together</h3>
         </div>
         <a class="section-link" href="/trips">All groups</a>
       </div>
@@ -327,7 +283,8 @@
           </div>
           <div class="meta-grid">
             <div><dt>Next trip</dt><dd>{{ item.next_instance.anchor_date.strftime('%b %d') if item.next_instance else 'None' }}</dd></div>
-            <div><dt>Rules</dt><dd>{{ item.rule_count }}</dd></div>
+            <div><dt>Plans</dt><dd>{{ item.rule_count }}</dd></div>
+            <div><dt>Planned</dt><dd>{{ item.planned_count }}</dd></div>
             <div><dt>Booked</dt><dd>{{ item.booked_count }}</dd></div>
           </div>
           <div class="dashboard-link-row">

@@ -12,9 +12,7 @@ from app.services.dashboard import (
     booking_for_instance,
     booking_route_tracking_state,
     groups_for_instance,
-    groups_for_rule,
-    recurring_trips,
-    route_options_for_trip,
+    recurring_rules_for_group,
     scheduled_instances,
     load_snapshot,
     rebook_savings,
@@ -126,32 +124,6 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
         "phase_tone": phase_tone,
         "href": f"/trip-instances/{instance.trip_instance_id}",
     }
-
-
-def _rule_dashboard_view(snapshot, rule, *, today: date) -> dict[str, object]:
-    future_instances = [
-        instance
-        for instance in scheduled_instances(snapshot, today=today)
-        if instance.recurring_rule_trip_id == rule.trip_id
-    ]
-    next_instance = future_instances[0] if future_instances else None
-    booked_count = sum(
-        1
-        for instance in future_instances
-        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
-    )
-    return {
-        "rule": rule,
-        "groups": groups_for_rule(snapshot, rule),
-        "route_count": len(route_options_for_trip(snapshot, rule.trip_id)),
-        "upcoming_count": len(future_instances),
-        "next_instance": next_instance,
-        "booked_count": booked_count,
-        "planned_count": max(0, len(future_instances) - booked_count),
-        "upcoming_dates": [instance.anchor_date for instance in future_instances[:8]],
-    }
-
-
 def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
     upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
     booked_count = sum(
@@ -165,13 +137,7 @@ def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
         "next_instance": upcoming[0] if upcoming else None,
         "booked_count": booked_count,
         "planned_count": max(0, len(upcoming) - booked_count),
-        "rule_count": len(
-            [
-                rule
-                for rule in recurring_trips(snapshot)
-                if any(target_group.trip_group_id == group.trip_group_id for target_group in groups_for_rule(snapshot, rule))
-            ]
-        ),
+        "rule_count": len(recurring_rules_for_group(snapshot, group.trip_group_id)),
         "upcoming_dates": [instance.anchor_date for instance in upcoming[:6]],
     }
 
@@ -266,24 +232,6 @@ def today(
     initializing_count = sum(1 for label in monitoring_labels if label == "Initializing")
     no_match_count = sum(1 for label in monitoring_labels if label == "No matches")
 
-    recurring_rule_views = [
-        _rule_dashboard_view(snapshot, rule, today=today)
-        for rule in sorted(
-            recurring_trips(snapshot),
-            key=lambda item: (
-                not item.active,
-                next(
-                    (
-                        instance.anchor_date
-                        for instance in scheduled_instances(snapshot, today=today)
-                        if instance.recurring_rule_trip_id == item.trip_id
-                    ),
-                    date.max,
-                ),
-                item.label.lower(),
-            ),
-        )[:4]
-    ]
     group_views = [
         _group_dashboard_view(snapshot, group, today=today)
         for group in sorted(
@@ -315,7 +263,6 @@ def today(
             later_views=later_views,
             book_now_views=book_now_views,
             booking_views=booking_views,
-            recurring_rule_views=recurring_rule_views,
             group_views=group_views,
             scheduled_filter_action_path="/",
             scheduled_filter_clear_path="/#all-travel",
