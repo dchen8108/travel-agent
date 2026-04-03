@@ -1977,7 +1977,7 @@ textarea {
 
 .mission-copy h2 {
   font-size: clamp(2.1rem, 3.6vw, 3rem);
-  max-width: 17ch;
+  max-width: 22ch;
   margin: 2px 0 4px;
   text-wrap: balance;
 }
@@ -2030,6 +2030,12 @@ textarea {
   gap: 14px;
 }
 
+.dashboard-travel-panel {
+  grid-column: 1 / -1;
+  gap: 16px;
+  padding: 18px 18px 20px;
+}
+
 .dashboard-lower-panel {
   gap: 12px;
   padding: 14px 16px;
@@ -2041,7 +2047,7 @@ textarea {
   grid-column: 1 / -1;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
@@ -2068,6 +2074,21 @@ textarea {
   letter-spacing: -0.01em;
 }
 
+.dashboard-inline-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dashboard-panel-intro {
+  color: var(--muted);
+  font-size: 0.93rem;
+  line-height: 1.5;
+  max-width: 68ch;
+}
+
 .section-link {
   color: var(--muted);
   font-size: 0.88rem;
@@ -2090,6 +2111,35 @@ textarea {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.dashboard-card-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.collection-list {
+  display: grid;
+  gap: 10px;
+}
+
+.collection-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px 13px;
+  border: 1px solid rgba(212, 218, 212, 0.52);
+  border-radius: 18px;
+  background: rgba(255, 254, 250, 0.9);
+}
+
+.collection-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collection-head p {
+  margin-top: 4px;
 }
 
 .dashboard-plan-list {
@@ -2366,6 +2416,13 @@ textarea {
   color: var(--muted);
 }
 
+.timeline-side-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: right;
+}
+
 .status-inline {
   display: inline-flex;
   align-items: center;
@@ -2457,6 +2514,16 @@ textarea {
   flex-wrap: wrap;
 }
 
+.dashboard-date-pill-row {
+  margin-top: -2px;
+}
+
+.dashboard-date-pill-row .horizon-badge {
+  min-width: 82px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .dashboard-disclosure {
   grid-column: 1 / -1;
   border: 1px solid rgba(205, 212, 206, 0.68);
@@ -2521,6 +2588,34 @@ textarea {
   align-items: start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.dashboard-ledger-section {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-travel-panel .dashboard-ledger-section .section-header {
+  margin-top: 2px;
+}
+
+.dashboard-travel-panel .filter-card {
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.dashboard-travel-panel .scheduled-results-frame {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dashboard-travel-panel .scheduled-results-stack {
+  border-radius: 20px;
+  overflow: hidden;
 }
 
 .board-column-header p {

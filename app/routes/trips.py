@@ -642,7 +642,7 @@ def pause_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     sync_and_persist(repository)
-    return redirect_back(request, fallback_url="/trips", message="Trip paused")
+    return redirect_back(request, fallback_url="/#all-travel", message="Trip paused")
 
 
 @router.post("/trips/{trip_id}/activate")
@@ -669,7 +669,7 @@ def activate_trip_action(
     )
     return redirect_back(
         request,
-        fallback_url="/trips",
+        fallback_url="/#all-travel",
         message=queued_refresh_message("Trip activated", queued_count),
     )
 
@@ -707,7 +707,7 @@ def delete_trip_action(
         )
     delete_trip(repository, trip_id)
     sync_and_persist(repository)
-    return redirect_with_message("/trips", "Trip deleted")
+    return redirect_with_message("/#all-travel", "Trip deleted")
 
 
 @router.post("/trip-instances/{trip_instance_id}/detach")
@@ -750,7 +750,7 @@ def delete_generated_trip_instance_action(
     existing_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
     if existing_instance is None:
         raise HTTPException(status_code=404, detail="Trip instance not found")
-    redirect_url = "/trips"
+    redirect_url = "/#all-travel"
     if existing_instance.recurring_rule_trip_id:
         recurring_rule = trip_by_id(snapshot, existing_instance.recurring_rule_trip_id)
         recurring_rule_groups = groups_for_rule(snapshot, recurring_rule) if recurring_rule else []

@@ -195,4 +195,4 @@ def delete_group_action(
             message=str(exc),
             message_kind="error",
         )
-    return redirect_with_message("/trips", "Trip group deleted")
+    return redirect_with_message("/#dashboard-groups", "Trip group deleted")

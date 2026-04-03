@@ -206,11 +206,7 @@ def today(
     next_trip = upcoming_instances[0] if upcoming_instances else None
 
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances[:6]]
-    timeline_views = [_instance_dashboard_view(snapshot, instance) for instance in upcoming_instances[:18]]
-    this_week_cutoff = today + timedelta(days=6)
     action_window_cutoff = today + timedelta(days=10)
-    near_term_views = [view for view in timeline_views if view["instance"].anchor_date <= this_week_cutoff]
-    later_views = [view for view in timeline_views if view["instance"].anchor_date > this_week_cutoff]
     book_now_views = [
         _instance_dashboard_view(snapshot, instance)
         for instance in planned_instances
@@ -246,7 +242,7 @@ def today(
                 ),
                 item.label.lower(),
             ),
-        )[:3]
+        )
     ]
     return get_templates(request).TemplateResponse(
         request=request,
@@ -259,8 +255,6 @@ def today(
             planned_instances=planned_instances,
             booked_instances=booked_instances,
             rebook_views=rebook_views,
-            near_term_views=near_term_views,
-            later_views=later_views,
             book_now_views=book_now_views,
             booking_views=booking_views,
             group_views=group_views,

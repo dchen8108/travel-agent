@@ -7,7 +7,7 @@
     <p>{{ group.description or 'A place to organize related travel without changing how those trips are generated.' }}</p>
   </div>
   <div class="hero-actions">
-    <a class="button ghost" href="/trips">Back to trips</a>
+    <a class="button ghost" href="/#dashboard-groups">Back to overview</a>
     <a class="button secondary" href="/groups/{{ group.trip_group_id }}/edit">Edit group</a>
     <a class="button primary" href="/trips/new?trip_group_id={{ group.trip_group_id }}">New trip</a>
   </div>

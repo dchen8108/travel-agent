@@ -3,19 +3,63 @@
     Showing {{ scheduled_items|length }} scheduled trip{{ '' if scheduled_items|length == 1 else 's' }}.
   </p>
 
-  <div class="stack top-gap-small scheduled-results-stack" data-scheduled-results>
+  <div class="timeline-list scheduled-results-stack" data-scheduled-results>
     {% for instance in scheduled_items %}
     {% set scheduled_instance = instance %}
-    {% set scheduled_card_id = 'scheduled-' ~ instance.trip_instance_id %}
     {% set scheduled_parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_trip_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    {% include "partials/scheduled_trip_card.html" %}
+    {% set scheduled_title = scheduled_parent_trip.label if scheduled_parent_trip else instance.display_label %}
+    {% set scheduled_context = [] %}
+    {% set scheduled_group_labels = scheduled_trip_groups | map(attribute='label') | join(', ') %}
+    {% if scheduled_trip_groups %}
+      {% set scheduled_context = scheduled_context + [scheduled_group_labels] %}
+    {% elif scheduled_recurring_rule and (not scheduled_parent_trip or scheduled_recurring_rule.trip_id != scheduled_parent_trip.trip_id) %}
+      {% set scheduled_context = scheduled_context + [scheduled_recurring_rule.label] %}
+    {% elif instance.display_label != scheduled_title %}
+      {% set scheduled_context = scheduled_context + [instance.display_label] %}
+    {% endif %}
+    <article class="timeline-row" id="scheduled-{{ scheduled_instance.trip_instance_id }}">
+      <div class="timeline-date">
+        <span class="timeline-day">{{ scheduled_instance.anchor_date.strftime('%a') }}</span>
+        <strong>{{ scheduled_instance.anchor_date.strftime('%b %d') }}</strong>
+      </div>
+      <div class="timeline-main">
+        <div class="timeline-title-row">
+          <a class="travel-title" href="/trip-instances/{{ scheduled_instance.trip_instance_id }}">{{ scheduled_title }}</a>
+          <span class="status-inline status-inline--{{ trip_lifecycle_status_tone(snapshot, scheduled_instance.trip_instance_id) }}">
+            {{ trip_lifecycle_status_label(snapshot, scheduled_instance.trip_instance_id) }}
+          </span>
+        </div>
+        {% if scheduled_context %}
+        <p class="compact-meta">{{ scheduled_context | join(' · ') }}</p>
+        {% endif %}
+        <p class="travel-detail">{{ trip_status_detail(snapshot, scheduled_instance.trip_instance_id) }}</p>
+      </div>
+      <div class="timeline-side">
+        {% if rebook_savings(snapshot, scheduled_instance.trip_instance_id) %}
+        <span class="timeline-metric">{{ money(rebook_savings(snapshot, scheduled_instance.trip_instance_id)) }} lower</span>
+        {% elif scheduled_tracker and scheduled_tracker.latest_observed_price is not none %}
+        <span class="timeline-metric">{{ money(scheduled_tracker.latest_observed_price) }}</span>
+        {% elif scheduled_booking %}
+        <span class="timeline-metric">{{ money(scheduled_booking.booked_price) }}</span>
+        {% else %}
+        <span class="timeline-metric muted">No price</span>
+        {% endif %}
+        {% if scheduled_active_booking_count > 1 %}
+        <span class="timeline-side-note">{{ scheduled_active_booking_count }} bookings</span>
+        {% elif scheduled_booking %}
+        <span class="timeline-side-note">Booked</span>
+        {% else %}
+        <span class="timeline-side-note">{{ trip_monitoring_status_label(snapshot, scheduled_instance.trip_instance_id) }}</span>
+        {% endif %}
+      </div>
+    </article>
     {% else %}
-    <article class="empty-state">
+    <article class="compact-empty-state">
       <strong>No scheduled trips match these filters.</strong>
       <p>Clear a search term or group filter to widen the list again.</p>
     </article>

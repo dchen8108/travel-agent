@@ -167,7 +167,7 @@ def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
 
 @router.get("/trackers", response_class=HTMLResponse)
 def trackers_index() -> RedirectResponse:
-    return RedirectResponse(url="/trips", status_code=303)
+    return RedirectResponse(url="/#all-travel", status_code=303)
 
 
 @router.get("/trip-instances/{trip_instance_id}", response_class=HTMLResponse)

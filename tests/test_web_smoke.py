@@ -33,7 +33,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
     assert "New one-time trip" not in trips_page.text
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
-    assert trackers_redirect.headers["location"] == "/trips"
+    assert trackers_redirect.headers["location"] == "/#all-travel"
 
 
 def test_trip_form_requires_at_least_one_route_option(tmp_path: Path) -> None:
@@ -274,7 +274,7 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert page.status_code == 200
     assert "See every upcoming trip, booking, and fare change in one place" in page.text
     assert "What needs a decision right now" in page.text
-    assert "Everything coming up next" in page.text
+    assert "Every upcoming trip in one place" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
     assert "Match booking" in page.text
@@ -449,7 +449,7 @@ def test_one_time_trip_delete_removes_trip_from_user_visible_ui(tmp_path: Path) 
 
     archive = client.post(f"/trips/{trip_id}/delete", follow_redirects=False)
     assert archive.status_code == 303
-    assert archive.headers["location"] == "/trips?message=Trip+deleted"
+    assert archive.headers["location"] == "/?message=Trip+deleted#all-travel"
 
     trips_page = client.get("/trips")
     assert "Archive UI Trip" not in trips_page.text
@@ -993,7 +993,7 @@ def test_group_delete_removes_manual_memberships(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert delete.status_code == 303
-    assert delete.headers["location"] == "/trips?message=Trip+group+deleted"
+    assert delete.headers["location"] == "/?message=Trip+group+deleted#dashboard-groups"
     assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_groups())
     assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_instance_group_memberships())
 
@@ -1075,13 +1075,13 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
 
     pause = client.post(f"/trips/{trip_id}/pause", follow_redirects=False)
     assert pause.status_code == 303
-    assert pause.headers["location"] == "/trips?message=Trip+paused"
+    assert pause.headers["location"] == "/?message=Trip+paused#all-travel"
 
     activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
     assert activate.status_code == 303
     assert (
         activate.headers["location"]
-        == "/trips?message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches."
+        == "/?message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches.#all-travel"
     )
 
     pause_from_page = client.post(
@@ -1182,7 +1182,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert "Trip groups" in trips_page.text
-    assert "Search and narrow the full travel ledger" in trips_page.text
+    assert "Search and narrow the travel board" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text

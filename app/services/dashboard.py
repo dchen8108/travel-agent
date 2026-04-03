@@ -481,7 +481,7 @@ def trip_focus_url(
 ) -> str:
     trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
     if trip is None:
-        return "/trips"
+        return "/#all-travel"
 
     params: list[tuple[str, str]] = []
     anchor = ""
@@ -498,7 +498,7 @@ def trip_focus_url(
             anchor = f"scheduled-{trip_instance_id}"
 
     query = urlencode(params, doseq=True)
-    url = "/trips"
+    url = "/"
     if query:
         url = f"{url}?{query}"
     if anchor:
