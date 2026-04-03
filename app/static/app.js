@@ -128,45 +128,114 @@
   }
 
   function initCollectionOverflowToggles() {
-    document.querySelectorAll("[data-collection-expand]").forEach((button) => {
-      if (!(button instanceof HTMLButtonElement)) {
+    const clusters = Array.from(document.querySelectorAll("[data-collection-cluster]"));
+    if (!clusters.length) {
+      return;
+    }
+
+    const controllers = [];
+
+    clusters.forEach((cluster) => {
+      if (!(cluster instanceof HTMLElement)) {
         return;
       }
-      const targetId = button.dataset.targetId;
-      if (!targetId) {
-        return;
-      }
-      const target = document.getElementById(targetId);
-      if (!target) {
+      const preview = cluster.querySelector("[data-collection-preview]");
+      const overflow = cluster.querySelector("[data-collection-overflow]");
+      const expandRow = cluster.querySelector("[data-collection-expand-row]");
+      const collapseRow = cluster.querySelector("[data-collection-collapse-row]");
+      const expandButton = cluster.querySelector("[data-collection-expand]");
+      const collapseButton = cluster.querySelector("[data-collection-collapse]");
+      if (
+        !(preview instanceof HTMLElement) ||
+        !(overflow instanceof HTMLElement) ||
+        !(expandRow instanceof HTMLElement) ||
+        !(collapseRow instanceof HTMLElement) ||
+        !(expandButton instanceof HTMLButtonElement) ||
+        !(collapseButton instanceof HTMLButtonElement)
+      ) {
         return;
       }
 
-      button.addEventListener("click", () => {
-        target.removeAttribute("hidden");
-        button.hidden = true;
-        button.setAttribute("aria-expanded", "true");
+      const allPills = Array.from(preview.querySelectorAll("[data-collection-pill]"));
+      let expanded = false;
+
+      function render() {
+        preview.replaceChildren();
+        overflow.replaceChildren();
+
+        allPills.forEach((pill) => {
+          preview.appendChild(pill);
+        });
+
+        expandRow.hidden = true;
+        overflow.hidden = true;
+        collapseRow.hidden = true;
+        expandButton.hidden = true;
+        expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+
+        if (!allPills.length) {
+          return;
+        }
+
+        const rowTops = [];
+        let visibleCount = allPills.length;
+        allPills.forEach((pill, index) => {
+          const top = pill.offsetTop;
+          if (!rowTops.length || Math.abs(rowTops[rowTops.length - 1] - top) > 2) {
+            rowTops.push(top);
+          }
+          if (rowTops.length > 2 && visibleCount === allPills.length) {
+            visibleCount = index;
+          }
+        });
+
+        const previewPills = allPills.slice(0, visibleCount);
+        const overflowPills = allPills.slice(visibleCount);
+
+        preview.replaceChildren(...previewPills);
+
+        if (!overflowPills.length) {
+          expanded = false;
+          return;
+        }
+
+        expandButton.textContent = `+${overflowPills.length} more`;
+        expandRow.hidden = expanded;
+        expandButton.hidden = expanded;
+        expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+
+        if (expanded) {
+          overflow.replaceChildren(...overflowPills);
+          overflow.hidden = false;
+          collapseRow.hidden = false;
+        }
+      }
+
+      expandButton.addEventListener("click", () => {
+        expanded = true;
+        render();
       });
+
+      collapseButton.addEventListener("click", () => {
+        expanded = false;
+        render();
+      });
+
+      controllers.push(render);
     });
 
-    document.querySelectorAll("[data-collection-collapse]").forEach((button) => {
-      if (!(button instanceof HTMLButtonElement)) {
-        return;
+    let resizeFrame = 0;
+    const rerender = () => {
+      controllers.forEach((render) => render());
+    };
+    window.requestAnimationFrame(rerender);
+    window.addEventListener("resize", () => {
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
       }
-      const targetId = button.dataset.targetId;
-      const triggerId = button.dataset.triggerId;
-      if (!targetId || !triggerId) {
-        return;
-      }
-      const target = document.getElementById(targetId);
-      const trigger = document.getElementById(triggerId);
-      if (!target || !(trigger instanceof HTMLButtonElement)) {
-        return;
-      }
-
-      button.addEventListener("click", () => {
-        target.setAttribute("hidden", "");
-        trigger.hidden = false;
-        trigger.setAttribute("aria-expanded", "false");
+      resizeFrame = window.requestAnimationFrame(() => {
+        rerender();
+        resizeFrame = 0;
       });
     });
   }

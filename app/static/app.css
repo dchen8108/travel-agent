@@ -2206,11 +2206,18 @@ textarea {
   gap: 10px;
 }
 
-.collection-trip-strip-overflow {
-  margin-top: -2px;
-  padding-top: 2px;
+.collection-trip-cluster {
+  display: grid;
+  gap: 10px;
 }
 
+.collection-trip-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.collection-trip-disclosure[hidden],
 .collection-trip-strip-overflow[hidden] {
   display: none;
 }

@@ -250,49 +250,45 @@
           </div>
         </div>
 
-        {% if item.preview_trip_views %}
-        <div class="collection-trip-strip">
-          {% for upcoming in item.preview_trip_views %}
-          <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}">
+        {% if item.upcoming_trip_views %}
+        <div class="collection-trip-cluster" data-collection-cluster>
+          <div class="collection-trip-strip" data-collection-preview>
+          {% for upcoming in item.upcoming_trip_views %}
+          <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}" data-collection-pill>
             {{ upcoming.label }}
           </a>
           {% endfor %}
-          {% if item.overflow_count %}
+          </div>
+          <div class="collection-trip-disclosure" data-collection-expand-row hidden>
           <button
             type="button"
             class="collection-trip-pill more"
             data-collection-expand
             id="group-expand-{{ item.group.trip_group_id }}"
-            data-target-id="group-overflow-{{ item.group.trip_group_id }}"
+            data-collection-target="group-overflow-{{ item.group.trip_group_id }}"
             aria-controls="group-overflow-{{ item.group.trip_group_id }}"
             aria-expanded="false"
             title="Show the remaining trips in this collection"
           >
-            +{{ item.overflow_count }} more
+            +0 more
           </button>
-          {% endif %}
-        </div>
-        {% if item.overflow_trip_views %}
-        <div class="collection-trip-strip collection-trip-strip-overflow" id="group-overflow-{{ item.group.trip_group_id }}" hidden>
-          {% for upcoming in item.overflow_trip_views %}
-          <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}">
-            {{ upcoming.label }}
-          </a>
-          {% endfor %}
+          </div>
+          <div class="collection-trip-strip collection-trip-strip-overflow" id="group-overflow-{{ item.group.trip_group_id }}" data-collection-overflow hidden></div>
+          <div class="collection-trip-disclosure collection-trip-disclosure-overflow" data-collection-collapse-row hidden>
           <button
             type="button"
             class="collection-trip-pill more"
             data-collection-collapse
-            data-target-id="group-overflow-{{ item.group.trip_group_id }}"
-            data-trigger-id="group-expand-{{ item.group.trip_group_id }}"
+            data-collection-target="group-overflow-{{ item.group.trip_group_id }}"
+            data-collection-trigger="group-expand-{{ item.group.trip_group_id }}"
             aria-controls="group-overflow-{{ item.group.trip_group_id }}"
             aria-expanded="true"
             title="Collapse the remaining trips in this collection"
           >
             Show less
           </button>
+          </div>
         </div>
-        {% endif %}
         {% else %}
         <div class="quiet-state-row collection-empty-row">
           <div>
