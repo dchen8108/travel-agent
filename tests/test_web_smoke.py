@@ -466,9 +466,9 @@ def test_bookings_page_moves_past_active_bookings_into_history(tmp_path: Path) -
 
     page = client.get("/bookings")
     assert page.status_code == 200
-    assert "Upcoming flights currently attached to trips" in page.text
+    assert "Upcoming bookings already attached to trips" in page.text
     assert "No upcoming bookings." in page.text
-    assert "Past and inactive bookings" in page.text
+    assert "Past and cancelled bookings" in page.text
     assert "PAST01" in page.text
     assert ">Past<" in page.text
 

@@ -3,8 +3,8 @@
 <section class="hero compact">
   <div>
     <p class="eyebrow">Bookings</p>
-    <h2>Every purchased flight, plus the few that still need a home.</h2>
-    <p>Keep active bookings clean, link unmatched imports, and retain the history that matters.</p>
+    <h2>Every purchased flight, with the few that still need a trip at the top.</h2>
+    <p>Link unmatched bookings first, keep upcoming bookings tidy, and retain the history that matters.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="/bookings/new">Add booking</a>
@@ -12,8 +12,8 @@
 </section>
 
 <section class="summary-strip">
-  <div class="summary-pill"><span>{{ booking_views|length }}</span><small>active</small></div>
   <div class="summary-pill"><span>{{ unmatched_views|length }}</span><small>need linking</small></div>
+  <div class="summary-pill"><span>{{ booking_views|length }}</span><small>upcoming</small></div>
   <div class="summary-pill"><span>{{ history_views|length }}</span><small>history</small></div>
 </section>
 
@@ -21,8 +21,8 @@
 <section class="section" id="needs-linking">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Needs linking</p>
-      <h3>Bookings that still need a home</h3>
+      <p class="eyebrow">Unlinked bookings</p>
+      <h3>Active bookings that still need a trip</h3>
     </div>
   </div>
   <div class="stack">
@@ -89,8 +89,8 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Active bookings</p>
-      <h3>Upcoming flights currently attached to trips</h3>
+      <p class="eyebrow">Linked bookings</p>
+      <h3>Upcoming bookings already attached to trips</h3>
     </div>
   </div>
   <div class="stack">
@@ -152,8 +152,8 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">History</p>
-      <h3>Past and inactive bookings</h3>
+      <p class="eyebrow">Booking history</p>
+      <h3>Past and cancelled bookings</h3>
     </div>
   </div>
   <div class="stack">
