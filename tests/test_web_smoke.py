@@ -212,12 +212,12 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
 
     page = client.get("/")
     assert page.status_code == 200
-    assert "Things that deserve your attention now" in page.text
-    assert "Upcoming trips that still need to be booked" in page.text
-    assert "Booked trips that continue to be monitored for lower prices" in page.text
+    assert "Everything that matters for your next flights" in page.text
+    assert "What needs attention now" in page.text
+    assert "Planned trips and booked trips, in one board" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
-    assert "Resolve booking" in page.text
+    assert "Link booking" in page.text
     assert "/bookings#needs-linking" in page.text
 
 
