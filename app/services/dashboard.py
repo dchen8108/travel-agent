@@ -523,6 +523,71 @@ def trip_groups(snapshot: AppSnapshot) -> list[TripGroup]:
     return sorted(snapshot.trip_groups, key=lambda item: item.label.lower())
 
 
+def scheduled_ledger_view(
+    snapshot: AppSnapshot,
+    *,
+    today: date | None = None,
+    selected_trip_group_ids: list[str] | None = None,
+    search_query: str = "",
+) -> dict[str, object]:
+    today = today or date.today()
+    group_items = trip_groups(snapshot)
+    valid_group_ids = {group.trip_group_id for group in group_items}
+    selected_ids = [
+        trip_group_id
+        for trip_group_id in (selected_trip_group_ids or [])
+        if trip_group_id in valid_group_ids
+    ]
+    selected_id_set = set(selected_ids)
+
+    scheduled_items = scheduled_instances(
+        snapshot,
+        trip_group_ids=selected_id_set or None,
+        today=today,
+    )
+    query = search_query.strip()
+    if query:
+        lowered = query.lower()
+        scheduled_items = [
+            instance
+            for instance in scheduled_items
+            if lowered in instance.display_label.lower()
+            or (
+                (parent_trip := trip_for_instance(snapshot, instance.trip_instance_id)) is not None
+                and lowered in parent_trip.label.lower()
+            )
+            or any(
+                lowered in trip_group.label.lower()
+                for trip_group in groups_for_instance(snapshot, instance.trip_instance_id)
+            )
+        ]
+
+    total_active_scheduled = len(scheduled_instances(snapshot, today=today))
+    total_booked_scheduled = len(
+        [
+            instance
+            for instance in snapshot.trip_instances
+            if instance.anchor_date >= today
+            and not instance.deleted
+            and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+        ]
+    )
+
+    return {
+        "group_items": group_items,
+        "scheduled_items": scheduled_items,
+        "selected_trip_group_ids": selected_ids,
+        "search_query": query,
+        "total_active_scheduled": total_active_scheduled,
+        "total_booked_scheduled": total_booked_scheduled,
+        "group_filter_options": [
+            {"value": group.trip_group_id, "label": group.label}
+            for group in group_items
+        ],
+        "today": today,
+    }
+
+
 def recurring_rules_for_group(snapshot: AppSnapshot, trip_group_id: str) -> list[Trip]:
     rule_trip_ids = {
         target.rule_trip_id

@@ -19,6 +19,7 @@ from app.services.dashboard import (
     load_snapshot,
     rebook_savings,
     recurring_rule_for_instance,
+    scheduled_ledger_view,
     trip_groups,
     trip_for_instance,
     trip_lifecycle_status_label,
@@ -199,6 +200,32 @@ def today(
 ) -> HTMLResponse:
     snapshot = load_snapshot(repository)
     today = date.today()
+    scheduled_view = scheduled_ledger_view(
+        snapshot,
+        today=today,
+        selected_trip_group_ids=request.query_params.getlist("trip_group_id"),
+        search_query=str(request.query_params.get("q", "")),
+    )
+    partial = request.query_params.get("partial")
+    if partial in {"scheduled", "scheduled-results"}:
+        template_name = (
+            "partials/scheduled_trips_section.html"
+            if partial == "scheduled"
+            else "partials/scheduled_trips_results.html"
+        )
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name=template_name,
+            context=base_context(
+                request,
+                page="dashboard",
+                snapshot=snapshot,
+                trip_focus_url=trip_focus_url,
+                scheduled_filter_action_path="/",
+                scheduled_filter_clear_path="/#all-travel",
+                **scheduled_view,
+            ),
+        )
     open_unmatched = [item for item in snapshot.unmatched_bookings if item.resolution_status == "open"]
     upcoming_instances = scheduled_instances(snapshot, today=today)
     planned_instances = [
@@ -297,6 +324,8 @@ def today(
             latest_booking_view=latest_booking_view,
             recurring_rule_views=recurring_rule_views,
             group_views=group_views,
+            scheduled_filter_action_path="/",
+            scheduled_filter_clear_path="/#all-travel",
             action_count=action_count,
             next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
@@ -310,5 +339,6 @@ def today(
             best_tracker=best_tracker,
             trip_for_instance=trip_for_instance,
             trip_focus_url=trip_focus_url,
+            **scheduled_view,
         ),
     )

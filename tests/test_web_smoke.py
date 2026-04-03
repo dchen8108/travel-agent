@@ -1122,7 +1122,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert "Trip groups" in trips_page.text
-    assert "Scheduled trips" in trips_page.text
+    assert "All travel" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text

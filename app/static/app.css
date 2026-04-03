@@ -2110,6 +2110,10 @@ textarea {
   box-shadow: 0 6px 18px rgba(18, 32, 44, 0.04);
 }
 
+.dashboard-ledger-section {
+  grid-column: 1 / -1;
+}
+
 .panel-header {
   display: flex;
   align-items: start;

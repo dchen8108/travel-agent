@@ -22,6 +22,8 @@
     const hiddenInputsRoot = form.querySelector("[data-group-hidden-inputs]");
     let resultsShell = panel.querySelector("[data-scheduled-results-shell]");
     const clearLink = form.querySelector("[data-clear-filters]");
+    const actionPath = new URL(form.getAttribute("action") || window.location.pathname, window.location.origin).pathname;
+    const panelAnchor = panel.id ? `#${panel.id}` : "";
     let debounceTimer = null;
 
     if (!searchInput || !groupRoot || !hiddenInputsRoot) {
@@ -62,14 +64,14 @@
         pickers.closeAllPickers();
       }
       if (!resultsShell) {
-        window.location.assign(`/trips${params.toString() ? `?${params.toString()}` : ""}`);
+        window.location.assign(`${actionPath}${params.toString() ? `?${params.toString()}` : ""}${panelAnchor}`);
         return;
       }
       const pageQuery = params.toString();
-      const pageUrl = `/trips${pageQuery ? `?${pageQuery}` : ""}`;
+      const pageUrl = `${actionPath}${pageQuery ? `?${pageQuery}` : ""}${panelAnchor}`;
       const partialParams = new URLSearchParams(params);
       partialParams.set("partial", "scheduled-results");
-      const partialUrl = `/trips?${partialParams.toString()}`;
+      const partialUrl = `${actionPath}?${partialParams.toString()}`;
       const requestToken = scheduledFilterRequestToken + 1;
       scheduledFilterRequestToken = requestToken;
       scheduledFilterAbortController?.abort();

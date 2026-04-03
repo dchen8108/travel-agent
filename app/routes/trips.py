@@ -25,6 +25,7 @@ from app.services.dashboard import (
     load_snapshot,
     recurring_rules_for_group,
     route_options_for_trip,
+    scheduled_ledger_view,
     scheduled_instances,
     trip_groups,
     trip_by_id,
@@ -159,62 +160,6 @@ def _route_option_views(trip, route_options):
     return views
 
 
-def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
-    today = date.today()
-    group_items = trip_groups(snapshot)
-    group_ids = {group.trip_group_id for group in group_items}
-    selected_trip_group_ids = [
-        group.trip_group_id
-        for group in group_items
-        if group.trip_group_id in request.query_params.getlist("trip_group_id") and group.trip_group_id in group_ids
-    ]
-    selected_trip_group_id_set = set(selected_trip_group_ids)
-    search_query = str(request.query_params.get("q", "")).strip()
-
-    scheduled_items = scheduled_instances(
-        snapshot,
-        trip_group_ids=selected_trip_group_id_set or None,
-        today=today,
-    )
-    if search_query:
-        lowered = search_query.lower()
-        scheduled_items = [
-            instance
-            for instance in scheduled_items
-            if lowered in instance.display_label.lower()
-            or (
-                (parent_trip := trip_for_instance(snapshot, instance.trip_instance_id)) is not None
-                and lowered in parent_trip.label.lower()
-            )
-            or (
-                any(lowered in trip_group.label.lower() for trip_group in groups_for_instance(snapshot, instance.trip_instance_id))
-            )
-        ]
-
-    total_active_scheduled = len(scheduled_instances(snapshot, today=today))
-    total_booked_scheduled = len(
-        [
-            instance
-            for instance in snapshot.trip_instances
-            if instance.anchor_date >= today
-            and not instance.deleted
-            and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
-        ]
-    )
-    group_filter_options = [{"value": group.trip_group_id, "label": group.label} for group in group_items]
-
-    return {
-        "group_items": group_items,
-        "scheduled_items": scheduled_items,
-        "selected_trip_group_ids": selected_trip_group_ids,
-        "search_query": search_query,
-        "total_active_scheduled": total_active_scheduled,
-        "total_booked_scheduled": total_booked_scheduled,
-        "group_filter_options": group_filter_options,
-        "today": today,
-    }
-
-
 def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> dict[str, object]:
     today = today or date.today()
     trip = trip_by_id(snapshot, trip_id)
@@ -307,45 +252,13 @@ def _linked_booking_route_warning_count(snapshot, trip) -> int:
 def trips_index(
     request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_snapshot(repository)
-    scheduled_view = _scheduled_view_state(snapshot, request)
-    group_rule_map = {
-        group.trip_group_id: recurring_rules_for_group(snapshot, group.trip_group_id)
-        for group in scheduled_view["group_items"]
-    }
-    group_scheduled_map = {
-        group.trip_group_id: scheduled_instances(
-            snapshot,
-            trip_group_ids={group.trip_group_id},
-            today=scheduled_view["today"],
-        )
-        for group in scheduled_view["group_items"]
-    }
-    context = base_context(
-        request,
-        page="trips",
-        snapshot=snapshot,
-        horizon_instances_for_trip=horizon_instances_for_trip,
-        horizon_instances_for_rule=horizon_instances_for_rule,
-        instances_for_trip=instances_for_trip,
-        trip_groups=trip_groups,
-        recurring_rules_for_group=recurring_rules_for_group,
-        route_options_for_trip=route_options_for_trip,
-        booking_for_instance=booking_for_instance,
-        best_tracker=best_tracker,
-        trackers_for_instance=trackers_for_instance,
-        trip_for_instance=trip_for_instance,
-        group_for_trip=group_for_trip,
-        groups_for_trip=groups_for_trip,
-        group_for_instance=group_for_instance,
-        groups_for_instance=groups_for_instance,
-        recurring_rule_for_instance=recurring_rule_for_instance,
-        groups_for_rule=groups_for_rule,
-        trip_focus_url=trip_focus_url,
-        group_rule_map=group_rule_map,
-        group_scheduled_map=group_scheduled_map,
-        **scheduled_view,
+    scheduled_view = scheduled_ledger_view(
+        snapshot,
+        today=date.today(),
+        selected_trip_group_ids=request.query_params.getlist("trip_group_id"),
+        search_query=str(request.query_params.get("q", "")),
     )
     partial = request.query_params.get("partial")
     if partial == "scheduled":
@@ -353,12 +266,88 @@ def trips_index(
     elif partial == "scheduled-results":
         template_name = "partials/scheduled_trips_results.html"
     else:
-        template_name = "trips.html"
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name=template_name,
-        context=context,
-    )
+        template_name = ""
+    if template_name:
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name=template_name,
+            context=base_context(
+                request,
+                page="dashboard",
+                snapshot=snapshot,
+                horizon_instances_for_trip=horizon_instances_for_trip,
+                horizon_instances_for_rule=horizon_instances_for_rule,
+                instances_for_trip=instances_for_trip,
+                trip_groups=trip_groups,
+                recurring_rules_for_group=recurring_rules_for_group,
+                route_options_for_trip=route_options_for_trip,
+                booking_for_instance=booking_for_instance,
+                best_tracker=best_tracker,
+                trackers_for_instance=trackers_for_instance,
+                trip_for_instance=trip_for_instance,
+                group_for_trip=group_for_trip,
+                groups_for_trip=groups_for_trip,
+                group_for_instance=group_for_instance,
+                groups_for_instance=groups_for_instance,
+                recurring_rule_for_instance=recurring_rule_for_instance,
+                groups_for_rule=groups_for_rule,
+                trip_focus_url=trip_focus_url,
+                scheduled_filter_action_path="/trips",
+                scheduled_filter_clear_path="/trips",
+                **scheduled_view,
+            ),
+        )
+    if request.query_params.get("q") or request.query_params.getlist("trip_group_id"):
+        group_rule_map = {
+            group.trip_group_id: recurring_rules_for_group(snapshot, group.trip_group_id)
+            for group in scheduled_view["group_items"]
+        }
+        group_scheduled_map = {
+            group.trip_group_id: scheduled_instances(
+                snapshot,
+                trip_group_ids={group.trip_group_id},
+                today=scheduled_view["today"],
+            )
+            for group in scheduled_view["group_items"]
+        }
+        return get_templates(request).TemplateResponse(
+            request=request,
+            name="trips.html",
+            context=base_context(
+                request,
+                page="trips",
+                snapshot=snapshot,
+                horizon_instances_for_trip=horizon_instances_for_trip,
+                horizon_instances_for_rule=horizon_instances_for_rule,
+                instances_for_trip=instances_for_trip,
+                trip_groups=trip_groups,
+                recurring_rules_for_group=recurring_rules_for_group,
+                route_options_for_trip=route_options_for_trip,
+                booking_for_instance=booking_for_instance,
+                best_tracker=best_tracker,
+                trackers_for_instance=trackers_for_instance,
+                trip_for_instance=trip_for_instance,
+                group_for_trip=group_for_trip,
+                groups_for_trip=groups_for_trip,
+                group_for_instance=group_for_instance,
+                groups_for_instance=groups_for_instance,
+                recurring_rule_for_instance=recurring_rule_for_instance,
+                groups_for_rule=groups_for_rule,
+                trip_focus_url=trip_focus_url,
+                group_rule_map=group_rule_map,
+                group_scheduled_map=group_scheduled_map,
+                scheduled_filter_action_path="/trips",
+                scheduled_filter_clear_path="/trips",
+                **scheduled_view,
+            ),
+        )
+    target = "/"
+    query = request.url.query
+    if query:
+        target = f"/?{query}"
+    if "#all-travel" not in target:
+        target = f"{target}#all-travel"
+    return RedirectResponse(url=target, status_code=303)
 
 
 @router.get("/trips/new", response_class=HTMLResponse)

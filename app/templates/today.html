@@ -57,7 +57,7 @@
         <strong>Nothing urgent right now.</strong>
         <p>Imports are resolved, nearer trips are in shape, and current booked fares do not have better comparable alternatives.</p>
       </div>
-      <a class="button secondary" href="/trips">Review trips</a>
+      <a class="button secondary" href="/#all-travel">Review trips</a>
     </div>
     {% else %}
     <div class="signal-list">
@@ -168,7 +168,7 @@
         <p class="eyebrow">Upcoming travel</p>
         <h3>The full sequence of what is coming next</h3>
       </div>
-      <a class="section-link" href="/trips">Trips ledger</a>
+      <a class="section-link" href="/#all-travel">All travel</a>
     </div>
 
     <div class="timeline-section">
@@ -252,13 +252,15 @@
     </div>
   </section>
 
-  <section class="dashboard-panel dashboard-lower-panel">
+  {% include "partials/scheduled_trips_section.html" %}
+
+  <section class="dashboard-panel dashboard-lower-panel" id="dashboard-plans">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Recurring plans</p>
         <h3>Rules that are quietly generating future dates</h3>
       </div>
-      <a class="section-link" href="/trips">All plans</a>
+      <a class="section-link" href="/#dashboard-plans">All plans</a>
     </div>
     <div class="dashboard-card-grid">
       {% for item in recurring_rule_views %}
@@ -303,13 +305,13 @@
     </div>
   </section>
 
-  <section class="dashboard-panel dashboard-lower-panel">
+  <section class="dashboard-panel dashboard-lower-panel" id="dashboard-groups">
     <div class="panel-header">
       <div>
         <p class="eyebrow">Collections</p>
         <h3>Shared collections for related travel</h3>
       </div>
-      <a class="section-link" href="/trips">All groups</a>
+      <a class="section-link" href="/#dashboard-groups">All groups</a>
     </div>
     <div class="dashboard-card-grid">
       {% for item in group_views %}
@@ -350,4 +352,9 @@
     </div>
   </section>
 </div>
+<script id="scheduled-filters-data" type="application/json">
+  {{ {"groupOptions": group_filter_options}|tojson }}
+</script>
+<script src="{{ url_for('static', path='/pickers.js') }}?v={{ asset_version }}" defer></script>
+<script src="{{ url_for('static', path='/scheduled_filters.js') }}?v={{ asset_version }}" defer></script>
 {% endblock %}
