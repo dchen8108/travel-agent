@@ -141,14 +141,12 @@
       }
       const preview = cluster.querySelector("[data-collection-preview]");
       const overflow = cluster.querySelector("[data-collection-overflow]");
-      const expandRow = cluster.querySelector("[data-collection-expand-row]");
       const collapseRow = cluster.querySelector("[data-collection-collapse-row]");
       const expandButton = cluster.querySelector("[data-collection-expand]");
       const collapseButton = cluster.querySelector("[data-collection-collapse]");
       if (
         !(preview instanceof HTMLElement) ||
         !(overflow instanceof HTMLElement) ||
-        !(expandRow instanceof HTMLElement) ||
         !(collapseRow instanceof HTMLElement) ||
         !(expandButton instanceof HTMLButtonElement) ||
         !(collapseButton instanceof HTMLButtonElement)
@@ -159,15 +157,39 @@
       const allPills = Array.from(preview.querySelectorAll("[data-collection-pill]"));
       let expanded = false;
 
+      function rowCountForNodes(nodes) {
+        const rowTops = [];
+        nodes.forEach((node) => {
+          const top = node.offsetTop;
+          if (!rowTops.length || Math.abs(rowTops[rowTops.length - 1] - top) > 2) {
+            rowTops.push(top);
+          }
+        });
+        return rowTops.length;
+      }
+
+      function visibleCountWithExpandButton() {
+        preview.replaceChildren(...allPills);
+        if (rowCountForNodes(allPills) <= 2) {
+          return allPills.length;
+        }
+
+        for (let count = allPills.length - 1; count >= 0; count -= 1) {
+          const overflowCount = allPills.length - count;
+          expandButton.textContent = `+${overflowCount} more`;
+          preview.replaceChildren(...allPills.slice(0, count), expandButton);
+          if (rowCountForNodes(Array.from(preview.children)) <= 2) {
+            return count;
+          }
+        }
+
+        return 0;
+      }
+
       function render() {
         preview.replaceChildren();
         overflow.replaceChildren();
 
-        allPills.forEach((pill) => {
-          preview.appendChild(pill);
-        });
-
-        expandRow.hidden = true;
         overflow.hidden = true;
         collapseRow.hidden = true;
         expandButton.hidden = true;
@@ -177,37 +199,27 @@
           return;
         }
 
-        const rowTops = [];
-        let visibleCount = allPills.length;
-        allPills.forEach((pill, index) => {
-          const top = pill.offsetTop;
-          if (!rowTops.length || Math.abs(rowTops[rowTops.length - 1] - top) > 2) {
-            rowTops.push(top);
-          }
-          if (rowTops.length > 2 && visibleCount === allPills.length) {
-            visibleCount = index;
-          }
-        });
-
+        const visibleCount = visibleCountWithExpandButton();
         const previewPills = allPills.slice(0, visibleCount);
         const overflowPills = allPills.slice(visibleCount);
 
-        preview.replaceChildren(...previewPills);
-
         if (!overflowPills.length) {
           expanded = false;
+          preview.replaceChildren(...previewPills);
           return;
         }
 
         expandButton.textContent = `+${overflowPills.length} more`;
-        expandRow.hidden = expanded;
-        expandButton.hidden = expanded;
         expandButton.setAttribute("aria-expanded", expanded ? "true" : "false");
 
         if (expanded) {
+          preview.replaceChildren(...previewPills);
           overflow.replaceChildren(...overflowPills);
           overflow.hidden = false;
           collapseRow.hidden = false;
+        } else {
+          expandButton.hidden = false;
+          preview.replaceChildren(...previewPills, expandButton);
         }
       }
 

@@ -258,8 +258,6 @@
             {{ upcoming.label }}
           </a>
           {% endfor %}
-          </div>
-          <div class="collection-trip-disclosure" data-collection-expand-row hidden>
           <button
             type="button"
             class="collection-trip-pill more"
@@ -269,6 +267,7 @@
             aria-controls="group-overflow-{{ item.group.trip_group_id }}"
             aria-expanded="false"
             title="Show the remaining trips in this collection"
+            hidden
           >
             +0 more
           </button>
