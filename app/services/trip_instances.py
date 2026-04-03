@@ -198,7 +198,7 @@ def reconcile_trip_instances(
             instance.updated_at = utcnow()
             kept.append(instance)
             continue
-        if instance.anchor_date < today or instance.travel_state != TravelState.PLANNED or instance.booking_id:
+        if instance.anchor_date < today or instance.travel_state == TravelState.SKIPPED or instance.booking_id:
             if trip is not None:
                 instance.data_scope = trip.data_scope
                 instance.instance_kind = instance_kind_for_trip(trip)

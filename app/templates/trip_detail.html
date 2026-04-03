@@ -195,7 +195,7 @@
           <button class="button danger-outline" type="submit">Delete</button>
         </form>
         {% endif %}
-        {% if instance.travel_state == 'planned' %}
+        {% if instance.travel_state != 'skipped' and active_booking_count == 0 %}
         <a class="button secondary" href="/bookings/new?trip_instance_id={{ instance.trip_instance_id }}">Add booking</a>
         <form method="post" action="/trip-instances/{{ instance.trip_instance_id }}/skip">
           <button class="button danger" type="submit">Skip</button>

@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.models.base import TravelState
 from app.services.dashboard import (
+    active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
     horizon_instances_for_rule,
@@ -91,8 +92,18 @@ def group_detail(
     today = date.today()
     recurring_rules = recurring_rules_for_group(snapshot, trip_group_id)
     grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, include_skipped=True, today=today)
-    planned_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.PLANNED)
-    booked_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.BOOKED)
+    planned_count = sum(
+        1
+        for instance in grouped_instances
+        if instance.travel_state != TravelState.SKIPPED
+        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
+    )
+    booked_count = sum(
+        1
+        for instance in grouped_instances
+        if instance.travel_state != TravelState.SKIPPED
+        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+    )
     skipped_count = sum(1 for instance in grouped_instances if instance.travel_state == TravelState.SKIPPED)
     next_instance = next(
         (instance for instance in grouped_instances if instance.travel_state != TravelState.SKIPPED),

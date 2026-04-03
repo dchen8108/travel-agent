@@ -251,7 +251,7 @@
     {% endfor %}
   </div>
 </section>
-{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip or trip_instance.travel_state in ['planned', 'skipped'] %}
+{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_archive_parent_trip or trip_instance.travel_state == 'skipped' or active_bookings|length == 0 %}
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
@@ -259,7 +259,7 @@
     </div>
   </div>
   <div class="actions">
-    {% if trip_instance.travel_state == 'planned' %}
+    {% if trip_instance.travel_state != 'skipped' and active_bookings|length == 0 %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/skip">
       <button class="button ghost" type="submit">Skip trip</button>
     </form>

@@ -33,6 +33,12 @@
     {% set instances = group_scheduled_map[group.trip_group_id] %}
     {% set active_preview_instances = instances|rejectattr('travel_state', 'equalto', 'skipped')|list %}
     {% set next_active_instance = active_preview_instances|first %}
+    {% set counts = namespace(planned=0) %}
+    {% for instance in active_preview_instances %}
+      {% if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0 %}
+        {% set counts.planned = counts.planned + 1 %}
+      {% endif %}
+    {% endfor %}
     <article class="card" id="group-{{ group.trip_group_id }}">
       <div class="card-header">
         <div>
@@ -46,7 +52,7 @@
       <div class="meta-grid">
         <div><dt>Next trip</dt><dd>{{ next_active_instance.anchor_date.isoformat() if next_active_instance else 'None' }}</dd></div>
         <div><dt>Recurring rules</dt><dd>{{ recurring_rules|length }}</dd></div>
-        <div><dt>Planned</dt><dd>{{ active_preview_instances|length }}</dd></div>
+        <div><dt>Planned</dt><dd>{{ counts.planned }}</dd></div>
       </div>
       {% if instances %}
       <div class="inline-badge-row">

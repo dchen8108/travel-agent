@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.models.base import (
     CsvModel,
@@ -25,11 +25,22 @@ class TripInstance(CsvModel):
     rule_occurrence_date: date | None = None
     inheritance_mode: TripInstanceInheritanceMode = TripInstanceInheritanceMode.MANUAL
     deleted: bool = False
-    travel_state: TravelState = TravelState.PLANNED
+    travel_state: TravelState = TravelState.ACTIVE
     booking_id: str = ""
     last_signal_at: datetime | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+    @field_validator("travel_state", mode="before")
+    @classmethod
+    def normalize_travel_state(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"planned", "booked", "open", "active", ""}:
+                return TravelState.ACTIVE
+            if normalized == "skipped":
+                return TravelState.SKIPPED
+        return value
 
     @model_validator(mode="after")
     def validate_rule_linkage(self) -> "TripInstance":

@@ -5,8 +5,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from app.models.base import TravelState
 from app.services.dashboard import (
+    active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
     load_snapshot,
@@ -32,12 +32,15 @@ def today(
         instance
         for instance in snapshot.trip_instances
         if instance.anchor_date >= today
-        and instance.travel_state == TravelState.PLANNED
+        and instance.travel_state != "skipped"
+        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
     ]
     booked_instances = [
         instance
         for instance in snapshot.trip_instances
-        if instance.anchor_date >= today and instance.travel_state == TravelState.BOOKED
+        if instance.anchor_date >= today
+        and instance.travel_state != "skipped"
+        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     ]
     planned_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))
     booked_instances.sort(key=lambda item: (item.anchor_date, item.display_label.lower()))

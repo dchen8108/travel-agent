@@ -10,6 +10,7 @@ from app.catalog import catalogs_json
 from app.models.base import BookingStatus, DataScope, FareClassPolicy, TravelState
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
+    active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
     group_for_instance,
@@ -198,7 +199,9 @@ def _scheduled_view_state(snapshot, request: Request) -> dict[str, object]:
         [
             instance
             for instance in snapshot.trip_instances
-            if instance.anchor_date >= today and instance.travel_state == TravelState.BOOKED
+            if instance.anchor_date >= today
+            and instance.travel_state != TravelState.SKIPPED
+            and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
         ]
     )
     group_filter_options = [{"value": group.trip_group_id, "label": group.label} for group in group_items]
@@ -230,7 +233,12 @@ def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> d
         if trip.trip_kind == "weekly"
         else horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
     )
-    booked_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.BOOKED)
+    booked_count = sum(
+        1
+        for instance in future_instances
+        if instance.travel_state != TravelState.SKIPPED
+        and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+    )
     skipped_count = sum(1 for instance in future_instances if instance.travel_state == TravelState.SKIPPED)
     planned_count = len(future_instances) - booked_count - skipped_count
     next_open_instance = next(
@@ -700,7 +708,7 @@ def restore_trip_instance(
     trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
     if trip_instance is None:
         raise HTTPException(status_code=404, detail="Trip instance not found")
-    trip_instance.travel_state = TravelState.PLANNED
+    trip_instance.travel_state = TravelState.ACTIVE
     repository.save_trip_instances(trip_instances)
     snapshot = sync_and_persist(repository)
     queued_count = queue_refresh_for_trip_instance(

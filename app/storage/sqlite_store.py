@@ -34,6 +34,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_weekly_rule_legacy_groups_to_v14(connection)
     _migrate_fetch_target_claims_to_v15(connection)
     _migrate_bookings_route_options_to_v16(connection)
+    _migrate_trip_state_override_to_v17(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -497,6 +498,18 @@ def _migrate_status_enums_to_v12(connection: sqlite3.Connection) -> None:
             WHERE booking_status = 'rebooked'
             """
         )
+
+
+def _migrate_trip_state_override_to_v17(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trip_instances"):
+        return
+    connection.execute(
+        """
+        UPDATE trip_instances
+        SET travel_state = 'active'
+        WHERE COALESCE(travel_state, '') IN ('', 'open', 'planned', 'booked')
+        """
+    )
 
 
 def _migrate_group_memberships_to_v13(connection: sqlite3.Connection) -> None:

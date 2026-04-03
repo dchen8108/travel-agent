@@ -121,12 +121,9 @@ def recompute_trip_states(
             default=None,
         )
 
-        if booking and instance.travel_state != TravelState.SKIPPED:
-            instance.travel_state = TravelState.BOOKED
-            instance.booking_id = booking.booking_id
-        elif instance.travel_state != TravelState.SKIPPED:
-            instance.travel_state = TravelState.PLANNED
-            instance.booking_id = ""
+        if instance.travel_state != TravelState.SKIPPED:
+            instance.travel_state = TravelState.ACTIVE
+            instance.booking_id = booking.booking_id if booking is not None else ""
 
         if instance.travel_state == TravelState.SKIPPED:
             instance.updated_at = utcnow()

@@ -61,8 +61,7 @@ class TripInstanceGroupMembershipSource(StrEnum):
 
 
 class TravelState(StrEnum):
-    PLANNED = "planned"
-    BOOKED = "booked"
+    ACTIVE = "active"
     SKIPPED = "skipped"
 
 class FetchTargetStatus(StrEnum):

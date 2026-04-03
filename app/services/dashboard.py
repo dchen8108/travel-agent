@@ -321,26 +321,34 @@ def rebook_savings(snapshot: AppSnapshot, trip_instance_id: str) -> int | None:
     return booking.booked_price - tracker.latest_observed_price
 
 
-def trip_lifecycle_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+def trip_lifecycle_status_key(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
-        return "Unknown"
+        return "unknown"
+    if instance.travel_state == TravelState.SKIPPED:
+        return "skipped"
+    if active_booking_count_for_instance(snapshot, trip_instance_id) > 0:
+        return "booked"
+    return "planned"
+
+
+def trip_lifecycle_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     return {
-        TravelState.PLANNED: "Planned",
-        TravelState.BOOKED: "Booked",
-        TravelState.SKIPPED: "Skipped",
-    }.get(instance.travel_state, "Unknown")
+        "planned": "Planned",
+        "booked": "Booked",
+        "skipped": "Skipped",
+    }.get(trip_lifecycle_status_key(snapshot, trip_instance_id), "Unknown")
 
 
 def trip_lifecycle_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> str:
-    instance = trip_instance_by_id(snapshot, trip_instance_id)
-    if instance is None:
+    lifecycle = trip_lifecycle_status_key(snapshot, trip_instance_id)
+    if lifecycle == "skipped":
         return "neutral"
-    if instance.travel_state == TravelState.SKIPPED:
-        return "neutral"
-    if instance.travel_state == TravelState.BOOKED:
+    if lifecycle == "booked":
         return "success"
-    return "warning"
+    if lifecycle == "planned":
+        return "warning"
+    return "neutral"
 
 
 def trip_monitoring_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
@@ -367,7 +375,7 @@ def trip_recommended_action(snapshot: AppSnapshot, trip_instance_id: str) -> str
     if active_bookings:
         return "Rebook" if rebook_savings(snapshot, trip_instance_id) is not None else None
     fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
-    if instance.travel_state == TravelState.PLANNED and fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
+    if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
         return "Book"
     return None
 

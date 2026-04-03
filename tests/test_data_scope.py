@@ -66,7 +66,7 @@ def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path:
                 anchor_date=date(2026, 4, 20),
                 data_scope=DataScope.TEST,
                 instance_kind=TripInstanceKind.STANDALONE,
-                travel_state=TravelState.PLANNED,
+                travel_state=TravelState.ACTIVE,
             )
         ]
     )
