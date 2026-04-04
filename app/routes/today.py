@@ -224,7 +224,6 @@ def today(
         for instance in planned_instances
         if instance.anchor_date <= action_window_cutoff
     ]
-    action_count = len(unmatched_views) + len(overbooked_views) + len(rebook_views) + len(book_now_views)
 
     monitoring_labels = [
         trip_monitoring_status_label(snapshot, instance.trip_instance_id)
@@ -265,7 +264,6 @@ def today(
             group_views=group_views,
             scheduled_filter_action_path="/",
             scheduled_filter_clear_path="/#all-travel",
-            action_count=action_count,
             next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
             total_booked_monitoring=len(booked_instances),
