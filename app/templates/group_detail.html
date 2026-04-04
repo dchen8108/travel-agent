@@ -13,28 +13,6 @@
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="/groups/{{ group.trip_group_id }}/edit">Edit collection</a>
-    <a class="button primary" href="/trips/new?trip_group_id={{ group.trip_group_id }}">Create trip</a>
-  </div>
-</section>
-
-<section class="summary-strip">
-  <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>rules</small></div>
-  <div class="summary-pill"><span>{{ grouped_instances|length }}</span><small>upcoming trips</small></div>
-  <div class="summary-pill"><span>{{ planned_count }}</span><small>planned</small></div>
-  <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
-  <div class="summary-pill"><span>{{ next_instance.anchor_date.isoformat() if next_instance else '—' }}</span><small>next trip</small></div>
-</section>
-
-<section class="section section-tight">
-  <div class="section-header compact">
-    <div>
-      <h3>Controls</h3>
-      {% if recurring_rules %}
-      <p class="muted">Remove rules before deleting this collection.</p>
-      {% endif %}
-    </div>
-  </div>
-  <div class="actions">
     {% if not recurring_rules %}
     <form
       method="post"
@@ -47,7 +25,16 @@
       <button class="button ghost danger-outline" type="submit">Delete collection</button>
     </form>
     {% endif %}
+    <a class="button primary" href="/trips/new?trip_group_id={{ group.trip_group_id }}">Create trip</a>
   </div>
+</section>
+
+<section class="summary-strip">
+  <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>rules</small></div>
+  <div class="summary-pill"><span>{{ grouped_instances|length }}</span><small>upcoming trips</small></div>
+  <div class="summary-pill"><span>{{ planned_count }}</span><small>planned</small></div>
+  <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
+  <div class="summary-pill"><span>{{ next_instance.anchor_date.isoformat() if next_instance else '—' }}</span><small>next trip</small></div>
 </section>
 
 <section class="section">
