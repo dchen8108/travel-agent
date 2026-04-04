@@ -2357,15 +2357,15 @@ button.collection-trip-pill[hidden] {
 
 .timeline-main {
   display: grid;
-  gap: 10px;
   min-width: 0;
 }
 
-.timeline-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.timeline-summary-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+  min-width: 0;
 }
 
 .timeline-title-group {
@@ -2376,56 +2376,58 @@ button.collection-trip-pill[hidden] {
   min-width: 0;
 }
 
-.timeline-offer-grid {
+.timeline-offer-strip {
   display: grid;
+  grid-template-columns: repeat(2, minmax(290px, 340px));
+  justify-content: end;
   gap: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(208, 215, 208, 0.72);
+  min-width: 0;
 }
 
-.timeline-offer-grid--single {
-  grid-template-columns: minmax(0, 1fr);
+.timeline-offer-strip--single {
+  grid-template-columns: repeat(2, minmax(290px, 340px));
 }
 
-.timeline-offer-card {
+.timeline-offer-item {
   display: grid;
   gap: 7px;
-  padding: 6px 22px 6px 22px;
+  padding: 0 0 0 22px;
   border: 0;
   border-radius: 0;
   background: transparent;
   min-width: 0;
 }
 
-.timeline-offer-card:first-child {
+.timeline-offer-item:first-child {
   padding-left: 0;
 }
 
-.timeline-offer-card:last-child {
+.timeline-offer-item:last-child {
   padding-right: 0;
 }
 
-.timeline-offer-card + .timeline-offer-card {
+.timeline-offer-item + .timeline-offer-item {
   border-left: 1px solid rgba(208, 215, 208, 0.72);
 }
 
-.timeline-offer-card--neutral {
+.timeline-offer-item--neutral {
   background: transparent;
 }
 
-.timeline-offer-card--warning {
+.timeline-offer-item--warning {
   background: transparent;
 }
 
-.timeline-offer-card--success {
+.timeline-offer-item--success {
   background: transparent;
 }
 
-.timeline-offer-card--accent {
+.timeline-offer-item--accent {
   background: transparent;
+}
+
+.timeline-offer-item--current-only {
+  grid-column: 2;
 }
 
 .timeline-offer-label {
@@ -2837,16 +2839,28 @@ code {
     justify-self: start;
   }
 
-  .timeline-offer-grid {
+  .timeline-summary-row {
     grid-template-columns: 1fr;
   }
 
-  .timeline-offer-card {
+  .timeline-offer-strip,
+  .timeline-offer-strip--single {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .timeline-offer-item,
+  .timeline-offer-item:first-child,
+  .timeline-offer-item:last-child {
     padding-right: 0;
     padding-left: 0;
   }
 
-  .timeline-offer-card + .timeline-offer-card {
+  .timeline-offer-item--current-only {
+    grid-column: auto;
+  }
+
+  .timeline-offer-item + .timeline-offer-item {
     border-left: 0;
     border-top: 1px solid rgba(208, 215, 208, 0.72);
     margin-top: 10px;
