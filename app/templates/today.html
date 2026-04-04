@@ -18,11 +18,6 @@
         {% endif %}
       </p>
     </div>
-    <div class="mission-side">
-      <div class="mission-actions">
-        <a class="button primary" href="/trips/new">Create trip</a>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -293,6 +288,7 @@
       <div class="dashboard-inline-summary">
         <span class="board-count">{{ planned_instances|length }} to book</span>
         <span class="board-count">{{ total_booked_monitoring }} booked</span>
+        <a class="button primary compact" href="/trips/new">Create trip</a>
       </div>
     </div>
     {% include "partials/scheduled_trips_section.html" %}

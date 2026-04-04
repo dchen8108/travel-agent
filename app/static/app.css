@@ -1919,21 +1919,6 @@ textarea {
   color: var(--muted);
 }
 
-.mission-side {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  align-self: start;
-}
-
-.mission-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .dashboard-grid-v4 {
   display: grid;
   gap: 18px;
@@ -2808,10 +2793,6 @@ code {
   .mission-head {
     grid-template-columns: 1fr;
     align-items: start;
-  }
-
-  .mission-side {
-    justify-content: flex-start;
   }
 
   .dashboard-plan-copy {
