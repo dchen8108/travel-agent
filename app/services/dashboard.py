@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import re
 from urllib.parse import urlencode
 
 from app.catalog import airline_display
@@ -541,8 +542,12 @@ def _format_departure_time_label(value: str) -> str:
     raw = value.strip()
     if not raw:
         return ""
-    if " on " in raw.lower():
-        raw = raw.split(" on ", 1)[0].strip()
+    meridiem_match = re.match(r"^\s*(\d{1,2}:\d{2})\s*([APap][Mm])", raw)
+    if meridiem_match:
+        return f"{meridiem_match.group(1)} {meridiem_match.group(2).upper()}"
+    time_match = re.match(r"^\s*(\d{1,2}:\d{2})", raw)
+    if time_match:
+        raw = time_match.group(1)
     if "am" in raw.lower() or "pm" in raw.lower():
         return raw
     try:
