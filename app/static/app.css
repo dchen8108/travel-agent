@@ -2362,9 +2362,9 @@ button.collection-trip-pill[hidden] {
 
 .timeline-summary-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: center;
   min-width: 0;
 }
 
@@ -2376,38 +2376,24 @@ button.collection-trip-pill[hidden] {
   min-width: 0;
 }
 
-.timeline-offer-strip {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(290px, 340px));
-  justify-content: end;
-  gap: 0;
-  min-width: 0;
-}
-
-.timeline-offer-strip--single {
-  grid-template-columns: repeat(2, minmax(290px, 340px));
-}
-
 .timeline-offer-item {
   display: grid;
   gap: 7px;
-  padding: 0 0 0 22px;
+  padding: 0 0 0 18px;
   border: 0;
   border-radius: 0;
   background: transparent;
   min-width: 0;
+  align-self: stretch;
 }
 
-.timeline-offer-item:first-child {
-  padding-left: 0;
-}
-
-.timeline-offer-item:last-child {
-  padding-right: 0;
-}
-
-.timeline-offer-item + .timeline-offer-item {
+.timeline-offer-item--booked,
+.timeline-offer-item--current {
   border-left: 1px solid rgba(208, 215, 208, 0.72);
+}
+
+.timeline-offer-item--current-only {
+  grid-column: 3;
 }
 
 .timeline-offer-item--neutral {
@@ -2424,10 +2410,6 @@ button.collection-trip-pill[hidden] {
 
 .timeline-offer-item--accent {
   background: transparent;
-}
-
-.timeline-offer-item--current-only {
-  grid-column: 2;
 }
 
 .timeline-offer-label {
@@ -2449,13 +2431,14 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 14px;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
 }
 
 .timeline-offer-copy {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -2492,10 +2475,9 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-price-row {
   display: flex;
   align-items: center;
-  align-self: start;
+  align-self: center;
   justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  min-width: max-content;
 }
 
 .timeline-offer-price {
@@ -2841,35 +2823,29 @@ code {
 
   .timeline-summary-row {
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
-  .timeline-offer-strip,
-  .timeline-offer-strip--single {
-    grid-template-columns: 1fr;
-    justify-content: stretch;
-  }
-
-  .timeline-offer-item,
-  .timeline-offer-item:first-child,
-  .timeline-offer-item:last-child {
+  .timeline-offer-item {
     padding-right: 0;
     padding-left: 0;
+  }
+
+  .timeline-offer-item--booked,
+  .timeline-offer-item--current {
+    border-left: 0;
+    border-top: 1px solid rgba(208, 215, 208, 0.72);
+    padding-top: 14px;
   }
 
   .timeline-offer-item--current-only {
     grid-column: auto;
   }
 
-  .timeline-offer-item + .timeline-offer-item {
-    border-left: 0;
-    border-top: 1px solid rgba(208, 215, 208, 0.72);
-    margin-top: 10px;
-    padding-top: 14px;
-  }
-
   .timeline-offer-main {
     grid-template-columns: 1fr;
     align-items: start;
+    min-height: auto;
   }
 
   .timeline-side {

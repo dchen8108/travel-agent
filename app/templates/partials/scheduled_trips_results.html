@@ -24,74 +24,65 @@
             <span class="status-inline status-inline--{{ row.lifecycle_tone }}">
               {{ row.lifecycle_label }}
             </span>
-            {% for chip in row.state_chips %}
-            <span class="timeline-fact timeline-fact--{{ chip.tone }} timeline-fact--compact">
-              {{ chip.label }}
-            </span>
-            {% endfor %}
           </div>
-          {% if row.booked_offer or row.current_offer %}
-          <div class="timeline-offer-strip{% if not row.has_dual_offers %} timeline-offer-strip--single{% endif %}">
-            {% if row.booked_offer %}
-            <div class="timeline-offer-item timeline-offer-item--{{ row.booked_offer.tone }}">
-              <div class="timeline-offer-main">
-                <div class="timeline-offer-copy">
-                  <span class="timeline-offer-label">{{ row.booked_offer.label }}</span>
-                  {% if row.booked_offer.detail %}
-                  <p class="timeline-offer-detail">{{ row.booked_offer.detail }}</p>
+          {% if row.booked_offer %}
+          <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">
+            <div class="timeline-offer-main">
+              <div class="timeline-offer-copy">
+                <span class="timeline-offer-label">{{ row.booked_offer.label }}</span>
+                {% if row.booked_offer.detail %}
+                <p class="timeline-offer-detail">{{ row.booked_offer.detail }}</p>
+                {% endif %}
+                {% if row.booked_offer.meta_label or row.booked_offer.day_delta_label %}
+                <div class="timeline-offer-meta">
+                  {% if row.booked_offer.meta_label %}
+                  <span class="timeline-offer-time">{{ row.booked_offer.meta_label }}</span>
                   {% endif %}
-                  {% if row.booked_offer.meta_label or row.booked_offer.day_delta_label %}
-                  <div class="timeline-offer-meta">
-                    {% if row.booked_offer.meta_label %}
-                    <span class="timeline-offer-time">{{ row.booked_offer.meta_label }}</span>
-                    {% endif %}
-                    {% if row.booked_offer.day_delta_label %}
-                    <span class="timeline-offer-shift">{{ row.booked_offer.day_delta_label }}</span>
-                    {% endif %}
-                  </div>
+                  {% if row.booked_offer.day_delta_label %}
+                  <span class="timeline-offer-shift">{{ row.booked_offer.day_delta_label }}</span>
                   {% endif %}
                 </div>
-                <div class="timeline-offer-price-row">
-                  <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
-                    {{ row.booked_offer.price_label }}
-                  </span>
-                </div>
+                {% endif %}
+              </div>
+              <div class="timeline-offer-price-row">
+                <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
+                  {{ row.booked_offer.price_label }}
+                </span>
               </div>
             </div>
-            {% endif %}
-            {% if row.current_offer %}
-            <div class="timeline-offer-item timeline-offer-item--{{ row.current_offer.tone }}{% if not row.booked_offer %} timeline-offer-item--current-only{% endif %}">
-              <div class="timeline-offer-main">
-                <div class="timeline-offer-copy">
-                  <span class="timeline-offer-label">{{ row.current_offer.label }}</span>
-                  {% if row.current_offer.detail %}
-                  <p class="timeline-offer-detail">{{ row.current_offer.detail }}</p>
+          </div>
+          {% endif %}
+          {% if row.current_offer %}
+          <div class="timeline-offer-item timeline-offer-item--current timeline-offer-item--{{ row.current_offer.tone }}{% if not row.booked_offer %} timeline-offer-item--current-only{% endif %}">
+            <div class="timeline-offer-main">
+              <div class="timeline-offer-copy">
+                <span class="timeline-offer-label">{{ row.current_offer.label }}</span>
+                {% if row.current_offer.detail %}
+                <p class="timeline-offer-detail">{{ row.current_offer.detail }}</p>
+                {% endif %}
+                {% if row.current_offer.meta_label or row.current_offer.day_delta_label %}
+                <div class="timeline-offer-meta">
+                  {% if row.current_offer.meta_label %}
+                  <span class="timeline-offer-time">{{ row.current_offer.meta_label }}</span>
                   {% endif %}
-                  {% if row.current_offer.meta_label or row.current_offer.day_delta_label %}
-                  <div class="timeline-offer-meta">
-                    {% if row.current_offer.meta_label %}
-                    <span class="timeline-offer-time">{{ row.current_offer.meta_label }}</span>
-                    {% endif %}
-                    {% if row.current_offer.day_delta_label %}
-                    <span class="timeline-offer-shift">{{ row.current_offer.day_delta_label }}</span>
-                    {% endif %}
-                  </div>
-                  {% endif %}
-                </div>
-                <div class="timeline-offer-price-row">
-                  {% if row.current_offer.href %}
-                  <a class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }} timeline-offer-price--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
-                    {{ row.current_offer.price_label }}
-                  </a>
-                  {% else %}
-                  <span class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }}">
-                    {{ row.current_offer.price_label }}
-                  </span>
+                  {% if row.current_offer.day_delta_label %}
+                  <span class="timeline-offer-shift">{{ row.current_offer.day_delta_label }}</span>
                   {% endif %}
                 </div>
+                {% endif %}
+              </div>
+              <div class="timeline-offer-price-row">
+                {% if row.current_offer.href %}
+                <a class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }} timeline-offer-price--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
+                  {{ row.current_offer.price_label }}
+                </a>
+                {% else %}
+                <span class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }}">
+                  {{ row.current_offer.price_label }}
+                </span>
+                {% endif %}
               </div>
             </div>
-            {% endif %}
           </div>
           {% endif %}
         </div>
