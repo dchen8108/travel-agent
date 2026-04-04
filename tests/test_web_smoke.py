@@ -1625,7 +1625,7 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
         for target in repository.load_rule_group_targets()
     )
 
-    filtered_page = client.get(f"/trips?trip_group_id={work_group.trip_group_id}")
+    filtered_page = client.get(f"/?partial=scheduled-results&trip_group_id={work_group.trip_group_id}")
     assert filtered_page.status_code == 200
     assert "Weekly Commute A" in filtered_page.text
     assert "One-off Flight" not in filtered_page.text
