@@ -266,7 +266,6 @@ def today(
             scheduled_filter_clear_path="/#all-travel",
             next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
-            total_booked_monitoring=len(booked_instances),
             tracking_count=tracking_count,
             initializing_count=initializing_count,
             no_match_count=no_match_count,

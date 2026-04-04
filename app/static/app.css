@@ -2350,8 +2350,7 @@ button.collection-trip-pill[hidden] {
   color: var(--accent);
 }
 
-.signal-badge,
-.board-count {
+.signal-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
