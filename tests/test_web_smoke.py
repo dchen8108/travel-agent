@@ -1913,8 +1913,10 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
 
     filtered_page = client.get(f"/?partial=scheduled-results&trip_group_id={work_group.trip_group_id}")
     assert filtered_page.status_code == 200
-    assert "Weekly Commute A" in filtered_page.text
+    assert "Work Travel" in filtered_page.text
+    assert "BUR → SFO" in filtered_page.text
     assert "One-off Flight" not in filtered_page.text
+    assert "LAX → SEA" not in filtered_page.text
 
 
 def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> None:

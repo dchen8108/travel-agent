@@ -614,9 +614,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
     current_target = tracker_best_fetch_target(snapshot, tracker)
     current_price = tracker.latest_observed_price if tracker is not None else None
-    context_label = trip_ui_context_label(snapshot, trip_instance_id)
     route_label = trip_route_label(snapshot, trip_instance_id)
-    detail_parts = [part for part in [context_label, route_label] if part]
     fact_chips: list[dict[str, object]] = []
 
     if booking is not None:
@@ -673,7 +671,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         "title": trip_ui_label(snapshot, trip_instance_id),
         "lifecycle_label": trip_lifecycle_status_label(snapshot, trip_instance_id),
         "lifecycle_tone": trip_lifecycle_status_tone(snapshot, trip_instance_id),
-        "detail_line": " · ".join(detail_parts),
+        "detail_line": route_label,
         "fact_chips": fact_chips,
     }
 
