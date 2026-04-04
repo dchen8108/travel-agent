@@ -205,8 +205,6 @@ def today(
         if instance.trip_instance_id not in overbooked_instance_ids
         and rebook_savings(snapshot, instance.trip_instance_id) is not None
     ]
-    next_trip = upcoming_instances[0] if upcoming_instances else None
-
     overbooked_views = [_instance_dashboard_view(snapshot, instance) for instance in overbooked_instances]
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances]
     action_window_cutoff = today + timedelta(weeks=snapshot.app_state.dashboard_needs_booking_window_weeks)
@@ -255,7 +253,6 @@ def today(
             group_views=group_views,
             scheduled_filter_action_path="/",
             scheduled_filter_clear_path="/#all-travel",
-            next_trip=next_trip,
             total_upcoming=len(upcoming_instances),
             tracking_count=tracking_count,
             initializing_count=initializing_count,

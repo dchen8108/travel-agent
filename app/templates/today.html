@@ -1,21 +1,5 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="mission-control">
-  <div class="mission-head">
-    <div class="mission-copy">
-      <div class="mission-brandline">
-        <span class="mission-brand-mark" aria-hidden="true">M</span>
-        <h1 class="mission-title">Milemark</h1>
-      </div>
-      {% if next_trip %}
-      <p class="mission-summary">
-        Next trip {{ next_trip.anchor_date.strftime('%a, %b %d') }}
-      </p>
-      {% endif %}
-    </div>
-  </div>
-</section>
-
 <div class="dashboard-grid-v4">
   <section class="dashboard-panel dashboard-primary-panel" id="needs-attention">
     <div class="panel-header">
