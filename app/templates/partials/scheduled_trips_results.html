@@ -17,12 +17,9 @@
     {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_title = scheduled_parent_trip.label if scheduled_parent_trip else instance.display_label %}
+    {% set scheduled_title = trip_ui_label(snapshot, instance.trip_instance_id) %}
     {% set scheduled_context = [] %}
-    {% set scheduled_group_labels = scheduled_trip_groups | map(attribute='label') | join(', ') %}
-    {% if scheduled_trip_groups %}
-      {% set scheduled_context = scheduled_context + [scheduled_group_labels] %}
-    {% elif scheduled_recurring_rule and (not scheduled_parent_trip or scheduled_recurring_rule.trip_id != scheduled_parent_trip.trip_id) %}
+    {% if not scheduled_trip_groups and scheduled_recurring_rule and (not scheduled_parent_trip or scheduled_recurring_rule.trip_id != scheduled_parent_trip.trip_id) %}
       {% set scheduled_context = scheduled_context + [scheduled_recurring_rule.label] %}
     {% elif instance.display_label != scheduled_title %}
       {% set scheduled_context = scheduled_context + [instance.display_label] %}

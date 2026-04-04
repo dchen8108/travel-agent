@@ -24,6 +24,7 @@ from app.services.dashboard import (
     trip_monitoring_status_label,
     trip_recommended_action,
     unmatched_booking_resolution_views,
+    trip_ui_label,
 )
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
@@ -52,9 +53,9 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
     monitoring_label = trip_monitoring_status_label(snapshot, instance.trip_instance_id)
     recommended_action = trip_recommended_action(snapshot, instance.trip_instance_id)
     group_labels = [group.label for group in groups_for_instance(snapshot, instance.trip_instance_id)]
-    title = trip.label if trip else instance.display_label
+    title = trip_ui_label(snapshot, instance.trip_instance_id)
     if group_labels:
-        context_label = " · ".join(group_labels)
+        context_label = ""
     elif recurring_rule is not None and (trip is None or recurring_rule.trip_id != trip.trip_id):
         context_label = recurring_rule.label
     elif instance.display_label != title:
@@ -126,7 +127,6 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
 
 
 def _group_trip_pill_view(snapshot, instance) -> dict[str, object]:
-    trip = trip_for_instance(snapshot, instance.trip_instance_id)
     active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
     savings = rebook_savings(snapshot, instance.trip_instance_id)
     if active_booking_count > 0 and savings is not None:
@@ -138,7 +138,7 @@ def _group_trip_pill_view(snapshot, instance) -> dict[str, object]:
     else:
         tone = "warning"
         status_label = "Planned"
-    title = trip.label if trip is not None else instance.display_label
+    title = trip_ui_label(snapshot, instance.trip_instance_id)
     return {
         "instance": instance,
         "href": f"/trip-instances/{instance.trip_instance_id}",

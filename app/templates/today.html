@@ -62,21 +62,21 @@
                       {% if card.suggested_trip_instances %}
                       <optgroup label="Suggested matches">
                         {% for trip_instance in card.suggested_trip_instances %}
-                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_ui_picker_label(snapshot, trip_instance.trip_instance_id) }}</option>
                         {% endfor %}
                       </optgroup>
                       {% endif %}
                       {% if card.upcoming_trip_instances %}
                       <optgroup label="{{ 'Other upcoming trips' if card.suggested_trip_instances else 'Upcoming trips' }}">
                         {% for trip_instance in card.upcoming_trip_instances %}
-                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_ui_picker_label(snapshot, trip_instance.trip_instance_id) }}</option>
                         {% endfor %}
                       </optgroup>
                       {% endif %}
                       {% if card.past_trip_instances %}
                       <optgroup label="Past trips">
                         {% for trip_instance in card.past_trip_instances %}
-                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_ui_picker_label(snapshot, trip_instance.trip_instance_id) }}</option>
                         {% endfor %}
                       </optgroup>
                       {% endif %}

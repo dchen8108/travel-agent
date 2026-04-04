@@ -484,6 +484,25 @@ def group_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> TripGrou
     return groups[0] if groups else None
 
 
+def trip_ui_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    group = group_for_instance(snapshot, trip_instance_id)
+    if group is not None:
+        return group.label
+    trip = trip_for_instance(snapshot, trip_instance_id)
+    if trip is not None:
+        return trip.label
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    return instance.display_label if instance is not None else ""
+
+
+def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return ""
+    label = trip_ui_label(snapshot, trip_instance_id)
+    return f"{label} · {instance.anchor_date.strftime('%a, %b %d')}"
+
+
 def trip_focus_url(
     snapshot: AppSnapshot,
     trip_id: str,

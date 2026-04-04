@@ -10,7 +10,7 @@
 {% if selected_trip_instance %}
 <section class="card callout-card slim-callout">
   <strong>Trip</strong>
-  <p>{{ selected_parent_trip.label if selected_parent_trip else selected_trip_instance.display_label }} · {{ selected_trip_instance.anchor_date.isoformat() }}</p>
+  <p>{{ trip_ui_label(snapshot, selected_trip_instance.trip_instance_id) }} · {{ selected_trip_instance.anchor_date.isoformat() }}</p>
 </section>
 {% endif %}
 
