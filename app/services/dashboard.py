@@ -548,6 +548,18 @@ def trip_route_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     return route
 
 
+def _fetch_target_route_label(
+    target: TrackerFetchTarget,
+    *,
+    fallback_tracker: Tracker | None = None,
+) -> str:
+    route = f"{target.origin_airport} → {target.destination_airport}"
+    airline = airline_display(target.latest_airline) if target.latest_airline else ""
+    if not airline and fallback_tracker is not None and len(fallback_tracker.airline_codes) == 1:
+        airline = airline_display(fallback_tracker.airline_codes[0])
+    return f"{route} · {airline}" if airline else route
+
+
 def tracker_best_fetch_target(snapshot: AppSnapshot, tracker: Tracker | None) -> TrackerFetchTarget | None:
     if tracker is None:
         return None
@@ -608,13 +620,15 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     booking = booking_for_instance(snapshot, trip_instance_id)
     tracker = comparison_tracker(snapshot, trip_instance_id)
     trackers = trackers_for_instance(snapshot, trip_instance_id)
-    route_tracker = tracker or (trackers[0] if trackers else None)
     active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
     savings = rebook_savings(snapshot, trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
     current_target = tracker_best_fetch_target(snapshot, tracker)
     current_price = tracker.latest_observed_price if tracker is not None else None
-    route_label = trip_route_label(snapshot, trip_instance_id)
+    if booking is None and current_target is not None:
+        route_label = _fetch_target_route_label(current_target, fallback_tracker=tracker)
+    else:
+        route_label = trip_route_label(snapshot, trip_instance_id)
     fact_chips: list[dict[str, object]] = []
 
     if booking is not None:
