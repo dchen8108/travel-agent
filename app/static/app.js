@@ -133,7 +133,7 @@
       return;
     }
 
-    const maxPreviewRows = 3;
+    const maxPreviewRows = 2;
     const controllers = [];
 
     clusters.forEach((cluster) => {
