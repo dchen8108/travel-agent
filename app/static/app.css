@@ -1,15 +1,15 @@
 :root {
   --font-sans: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-display: "Iowan Old Style", "Baskerville", Georgia, serif;
-  --bg: #f5f0e8;
-  --bg-elevated: #eee6da;
-  --surface: rgba(255, 253, 249, 0.92);
+  --bg: #f6f1e8;
+  --bg-elevated: #efe7db;
+  --surface: rgba(255, 253, 249, 0.94);
   --surface-strong: rgba(255, 255, 253, 0.98);
-  --panel: rgba(255, 253, 249, 0.94);
+  --panel: rgba(255, 253, 249, 0.96);
   --ink: #12202c;
   --muted: #677582;
-  --line: #dde3df;
-  --line-strong: #c8d1cc;
+  --line: #d9dfda;
+  --line-strong: #c5cdc8;
   --accent: #0d7a6d;
   --accent-strong: #08584f;
   --accent-soft: #e2f2ed;
@@ -47,9 +47,9 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at top right, rgba(221, 241, 235, 0.55), transparent 28%),
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.5), transparent 24%),
-    linear-gradient(180deg, #fbf8f3 0%, var(--bg) 60%, #ede5da 100%);
+    radial-gradient(circle at top right, rgba(221, 241, 235, 0.42), transparent 28%),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.42), transparent 22%),
+    linear-gradient(180deg, #fbf8f2 0%, var(--bg) 62%, #ede5da 100%);
 }
 
 a {
@@ -74,56 +74,62 @@ p {
 
 .app-shell {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 184px minmax(0, 1fr);
+  display: block;
 }
 
 .sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 28px 18px 22px;
-  background:
-    linear-gradient(180deg, #0f1822 0%, #142130 62%, #18293a 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(239, 245, 248, 0.92);
+  padding: 20px 28px 0;
+  color: var(--ink);
 }
 
 .brand-lockup {
-  display: grid;
-  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(205, 212, 206, 0.72);
+  border-radius: 24px;
+  background: rgba(255, 254, 250, 0.78);
+  box-shadow: 0 10px 28px rgba(18, 32, 44, 0.035);
   color: inherit;
 }
 
 .brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.45rem;
   color: #f6fbff;
   background:
-    linear-gradient(135deg, rgba(144, 219, 206, 0.92), rgba(13, 122, 109, 0.92)),
+    linear-gradient(135deg, rgba(141, 211, 198, 0.96), rgba(13, 122, 109, 0.9)),
     rgba(255, 255, 255, 0.1);
-  box-shadow: 0 14px 28px rgba(8, 19, 27, 0.24);
+  box-shadow: 0 14px 30px rgba(13, 122, 109, 0.18);
+}
+
+.brand {
+  display: grid;
+  gap: 2px;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 2.15rem;
-  color: #f8fbfd;
-  text-wrap: balance;
+  font-size: 1.9rem;
+  color: var(--ink);
+  line-height: 0.96;
 }
 
 .brand p {
   margin: 0;
-  color: rgba(224, 233, 239, 0.72);
-  font-size: 0.88rem;
+  color: var(--muted);
+  font-size: 0.92rem;
   line-height: 1.45;
-  text-wrap: pretty;
+  text-wrap: balance;
 }
 
 .eyebrow {
@@ -135,12 +141,8 @@ p {
   font-weight: 700;
 }
 
-.sidebar .eyebrow {
-  color: #8dd1c7;
-}
-
 .content {
-  padding: 24px 28px 36px;
+  padding: 14px 28px 40px;
 }
 
 .content-inner {
@@ -1925,8 +1927,8 @@ textarea {
 .dashboard-panel {
   border: 1px solid rgba(205, 212, 206, 0.68);
   background: var(--panel);
-  border-radius: 22px;
-  box-shadow: 0 12px 30px rgba(18, 32, 44, 0.04);
+  border-radius: 24px;
+  box-shadow: 0 10px 28px rgba(18, 32, 44, 0.035);
 }
 
 .dashboard-panel {
@@ -1945,33 +1947,88 @@ textarea {
   gap: 14px;
   align-items: start;
   padding: 20px 22px;
-  border: 0;
-  border-radius: 24px;
+  border: 1px solid rgba(205, 212, 206, 0.68);
+  border-radius: 28px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 252, 0.76), rgba(247, 243, 236, 0.72));
-  box-shadow: none;
+    linear-gradient(180deg, rgba(255, 255, 252, 0.92), rgba(248, 243, 236, 0.88));
+  box-shadow: 0 12px 28px rgba(18, 32, 44, 0.03);
 }
 
 .mission-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: start;
+  gap: 20px;
+  align-items: center;
+}
+
+.mission-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.mission-copy .eyebrow {
+  color: #5d6c79;
 }
 
 .mission-copy h2 {
-  font-size: clamp(2.1rem, 3.6vw, 3rem);
-  max-width: 22ch;
-  margin: 2px 0 4px;
+  font-family: var(--font-sans);
+  font-size: clamp(1.95rem, 3vw, 2.55rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.96;
+  max-width: 12ch;
+  margin: 0;
   text-wrap: balance;
 }
 
 .mission-digest {
-  max-width: 60ch;
+  max-width: 54ch;
   color: var(--muted);
-  font-size: 0.96rem;
-  line-height: 1.52;
+  font-size: 1rem;
+  line-height: 1.5;
   text-wrap: pretty;
+}
+
+.mission-side {
+  display: grid;
+  gap: 12px;
+  justify-items: end;
+}
+
+.mission-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mission-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 110px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(209, 216, 210, 0.74);
+  background: rgba(255, 252, 246, 0.9);
+  text-align: left;
+}
+
+.mission-stat span {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.mission-stat small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .mission-actions {
@@ -1984,15 +2041,15 @@ textarea {
 
 .dashboard-grid-v4 {
   display: grid;
-  gap: 20px;
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr);
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.72fr) minmax(300px, 0.9fr);
   align-items: start;
 }
 
 .dashboard-primary-panel {
   grid-column: 1;
-  border-color: rgba(164, 194, 184, 0.66);
-  box-shadow: 0 18px 38px rgba(18, 32, 44, 0.06);
+  border-color: rgba(164, 194, 184, 0.58);
+  box-shadow: 0 14px 34px rgba(18, 32, 44, 0.05);
   padding: 18px;
 }
 
@@ -2004,9 +2061,9 @@ textarea {
 
 .dashboard-rail-panel {
   gap: 14px;
-  padding: 14px;
-  background: rgba(250, 246, 240, 0.84);
-  box-shadow: none;
+  padding: 16px;
+  background: rgba(252, 248, 242, 0.88);
+  box-shadow: 0 8px 20px rgba(18, 32, 44, 0.025);
 }
 
 .timeline-panel {
@@ -2054,7 +2111,7 @@ textarea {
 }
 
 .panel-header h3 {
-  font-size: 1.12rem;
+  font-size: 1.08rem;
   margin-top: 4px;
   font-family: var(--font-sans);
   font-weight: 800;
@@ -2079,9 +2136,9 @@ textarea {
 
 .dashboard-panel-intro {
   color: var(--muted);
-  font-size: 0.93rem;
+  font-size: 0.9rem;
   line-height: 1.5;
-  max-width: 68ch;
+  max-width: 60ch;
 }
 
 .section-link {
@@ -2122,12 +2179,12 @@ textarea {
 .collection-card {
   display: grid;
   gap: 16px;
-  padding: 18px;
+  padding: 20px;
   border: 1px solid rgba(203, 212, 206, 0.76);
-  border-radius: 22px;
+  border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 253, 0.98), rgba(249, 244, 237, 0.96));
-  box-shadow: 0 14px 34px rgba(18, 32, 44, 0.04);
+    linear-gradient(180deg, rgba(255, 255, 253, 0.98), rgba(250, 245, 238, 0.96));
+  box-shadow: 0 12px 26px rgba(18, 32, 44, 0.035);
   align-self: start;
 }
 
@@ -2156,9 +2213,9 @@ textarea {
 
 .collection-card-summary {
   color: var(--muted);
-  font-size: 0.94rem;
+  font-size: 0.95rem;
   line-height: 1.55;
-  max-width: 56ch;
+  max-width: 52ch;
   text-wrap: pretty;
 }
 
@@ -2180,8 +2237,8 @@ textarea {
   gap: 4px;
   padding: 12px 13px;
   border-radius: 16px;
-  background: rgba(255, 250, 243, 0.78);
-  border: 1px solid rgba(209, 216, 210, 0.62);
+  background: rgba(255, 251, 245, 0.92);
+  border: 1px solid rgba(209, 216, 210, 0.68);
 }
 
 .collection-metric-label {
@@ -2359,7 +2416,7 @@ button.collection-trip-pill[hidden] {
   align-items: start;
   border: 1px solid rgba(212, 218, 212, 0.52);
   border-radius: 18px;
-  background: rgba(255, 254, 250, 0.92);
+  background: rgba(255, 254, 250, 0.96);
 }
 
 .signal-item {
@@ -2596,7 +2653,7 @@ button.collection-trip-pill[hidden] {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
-  padding: 10px 0;
+  padding: 11px 0;
   border-top: 1px solid rgba(217, 223, 217, 0.72);
   border-radius: 0;
   background: transparent;
@@ -2630,7 +2687,7 @@ button.collection-trip-pill[hidden] {
   height: 34px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(247, 239, 228, 0.95);
+  background: rgba(247, 239, 228, 0.9);
   border: 1px solid rgba(200, 209, 204, 0.78);
   color: #455969;
   font-weight: 800;
@@ -2828,23 +2885,13 @@ code {
 }
 
 @media (max-width: 980px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
   .sidebar {
-    display: grid;
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: 8px;
-    padding: 18px 18px 16px;
-    border-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 18px 18px 0;
   }
 
   .brand-lockup {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
+    align-items: center;
+    padding: 12px 14px;
   }
 
   .brand-mark {
@@ -2854,13 +2901,12 @@ code {
   }
 
   .brand h1 {
-    margin: 4px 0 4px;
-    font-size: 2rem;
+    margin: 0;
+    font-size: 1.65rem;
   }
 
   .brand p {
-    max-width: none;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
   .two-column {
@@ -2921,6 +2967,15 @@ code {
 
   .mission-head {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .mission-side {
+    justify-items: start;
+  }
+
+  .mission-stat-row {
+    justify-content: flex-start;
   }
 
   .dashboard-plan-copy {

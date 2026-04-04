@@ -307,13 +307,13 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
 
     page = client.get("/")
     assert page.status_code == 200
-    assert "See every upcoming trip, booking, and fare change in one place" in page.text
+    assert "Upcoming travel" in page.text
     assert "What needs a decision right now" in page.text
-    assert "Every upcoming trip in one place" in page.text
+    assert "All upcoming dates, one list" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
     assert "Unlinked bookings" in page.text
-    assert "Bookings Milemark could not place automatically" in page.text
+    assert "Bookings that need your review" in page.text
     assert "/bookings/unmatched/" in page.text
 
 
@@ -456,7 +456,8 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert unmatched[0].record_locator == "UNLINK123"
 
     trips_page = client.get("/trips?q=Unlink+Booking+Trip")
-    assert "Booked" not in trips_page.text
+    assert "UNLINK123" in trips_page.text
+    assert "Link booking" in trips_page.text
 
 
 def test_unlinked_booking_can_be_deleted_from_dashboard(tmp_path: Path) -> None:
@@ -1377,7 +1378,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert "Trip groups" in trips_page.text
-    assert "Search and narrow the travel board" in trips_page.text
+    assert "Search and narrow upcoming trips" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text

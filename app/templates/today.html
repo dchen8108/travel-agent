@@ -3,23 +3,38 @@
 <section class="mission-control">
   <div class="mission-head">
     <div class="mission-copy">
-      <h2>See every upcoming trip, booking, and fare change in one place.</h2>
+      <p class="eyebrow">Dashboard</p>
+      <h2>Upcoming travel</h2>
       <p class="mission-digest">
         {% if action_count %}
-        {{ action_count }} thing{{ '' if action_count == 1 else 's' }} worth a look
+        {{ action_count }} thing{{ '' if action_count == 1 else 's' }} need review
         {% else %}
         Nothing urgent right now
         {% endif %}
         {% if next_trip %}
         · Next departure {{ next_trip.anchor_date.strftime('%a, %b %d') }}
         {% endif %}
-        · {{ planned_instances|length }} still to book
-        · {{ total_booked_monitoring }} already booked
       </p>
     </div>
-    <div class="mission-actions">
-      <a class="button secondary" href="/bookings/new">Add a booking</a>
-      <a class="button primary" href="/trips/new">Create trip</a>
+    <div class="mission-side">
+      <div class="mission-stat-row">
+        <div class="mission-stat">
+          <span>{{ action_count }}</span>
+          <small>Need review</small>
+        </div>
+        <div class="mission-stat">
+          <span>{{ planned_instances|length }}</span>
+          <small>To book</small>
+        </div>
+        <div class="mission-stat">
+          <span>{{ total_booked_monitoring }}</span>
+          <small>Booked</small>
+        </div>
+      </div>
+      <div class="mission-actions">
+        <a class="button secondary" href="/bookings/new">Add booking</a>
+        <a class="button primary" href="/trips/new">Create trip</a>
+      </div>
     </div>
   </div>
 </section>
@@ -81,33 +96,33 @@
 
   <aside class="dashboard-rail">
     <section class="dashboard-panel dashboard-rail-panel">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Coverage</p>
-          <h3>How well Milemark is covering your trips</h3>
-        </div>
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Tracking health</p>
+        <h3>Fare coverage across upcoming dates</h3>
       </div>
-      <div class="status-stack">
-        <article class="status-stat">
-          <div>
-            <strong>Trips with live fares</strong>
-            <p>Current alternatives are already in view.</p>
-          </div>
-          <span class="status-stat-value">{{ tracking_count }}</span>
-        </article>
-        <article class="status-stat">
-          <div>
-            <strong>Still gathering prices</strong>
-            <p>Searches are running but not settled yet.</p>
-          </div>
-          <span class="status-stat-value">{{ initializing_count }}</span>
-        </article>
-        <article class="status-stat">
-          <div>
-            <strong>No current matches</strong>
-            <p>Configured searches are coming back empty right now.</p>
-          </div>
-          <span class="status-stat-value">{{ no_match_count }}</span>
+    </div>
+    <div class="status-stack">
+      <article class="status-stat">
+        <div>
+          <strong>Dates with live prices</strong>
+          <p>Current alternatives are already in view.</p>
+        </div>
+        <span class="status-stat-value">{{ tracking_count }}</span>
+      </article>
+      <article class="status-stat">
+        <div>
+          <strong>Still checking</strong>
+          <p>Searches are running but not settled yet.</p>
+        </div>
+        <span class="status-stat-value">{{ initializing_count }}</span>
+      </article>
+      <article class="status-stat">
+        <div>
+          <strong>No fares returned</strong>
+          <p>Configured searches are coming back empty right now.</p>
+        </div>
+        <span class="status-stat-value">{{ no_match_count }}</span>
         </article>
       </div>
     </section>
@@ -118,11 +133,11 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">Unlinked bookings</p>
-        <h3>Bookings Milemark could not place automatically</h3>
+        <h3>Bookings that need your review</h3>
       </div>
     </div>
     <p class="dashboard-panel-intro">
-      Link these bookings to an existing scheduled trip or start a new trip with the itinerary prefilled.
+      Attach these itineraries to a trip before Milemark can track them.
     </p>
     <div class="stack">
       {% for card in unmatched_views %}
@@ -205,12 +220,12 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">Collections</p>
-        <h3>Where related travel stays together</h3>
+        <h3>Travel that belongs together</h3>
       </div>
       <a class="section-link" href="/groups/new">New group</a>
     </div>
     <p class="dashboard-panel-intro">
-      Organize recurring plans and one-off trips around the way you actually travel, then jump straight into each scheduled date.
+      Keep recurring plans and one-off trips organized around the way you actually travel.
     </p>
     <div class="collection-board">
       {% for item in group_views %}
@@ -307,17 +322,14 @@
   <section class="dashboard-panel dashboard-travel-panel" id="all-travel">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Travel board</p>
-        <h3>Every upcoming trip in one place</h3>
+        <p class="eyebrow">Upcoming trips</p>
+        <h3>All upcoming dates, one list</h3>
       </div>
       <div class="dashboard-inline-summary">
         <span class="board-count">{{ planned_instances|length }} to book</span>
         <span class="board-count">{{ total_booked_monitoring }} booked</span>
       </div>
     </div>
-    <p class="dashboard-panel-intro">
-      Search, filter, and open any scheduled date without leaving the dashboard. The same ledger covers one-off trips, recurring plans, and booked travel.
-    </p>
     {% include "partials/scheduled_trips_section.html" %}
   </section>
 
