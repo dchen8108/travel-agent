@@ -308,7 +308,7 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
 
     page = client.get("/")
     assert page.status_code == 200
-    assert "Overview" in page.text
+    assert "Milemark" in page.text
     assert "What needs a decision right now" in page.text
     assert "All upcoming dates, one list" in page.text
     assert "Planned Commute" in page.text

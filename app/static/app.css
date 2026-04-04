@@ -1900,7 +1900,7 @@ textarea {
   display: grid;
   gap: 10px;
   align-items: start;
-  padding: 2px 0 0;
+  padding: 12px 0 2px;
 }
 
 .mission-head {
@@ -1912,26 +1912,26 @@ textarea {
 
 .mission-copy {
   display: grid;
-  gap: 6px;
+  gap: 7px;
 }
 
 .mission-brandline {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
 .mission-brand-mark {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
-  border-radius: 11px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.08rem;
+  font-size: 1.2rem;
   color: #f6fbff;
   background:
     linear-gradient(135deg, rgba(141, 211, 198, 0.96), rgba(13, 122, 109, 0.9)),
@@ -1943,15 +1943,10 @@ textarea {
   margin: 0;
   min-width: 0;
   font-family: var(--font-sans);
-  font-size: clamp(1.45rem, 2vw, 1.85rem);
+  font-size: clamp(1.68rem, 2.35vw, 2.15rem);
   font-weight: 800;
   letter-spacing: -0.05em;
-  line-height: 1;
-}
-
-.mission-title span {
-  color: #647385;
-  font-weight: 700;
+  line-height: 0.98;
 }
 
 .mission-summary {
