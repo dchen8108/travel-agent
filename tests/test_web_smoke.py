@@ -1949,6 +1949,11 @@ def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> Non
     assert grouped.status_code == 303
     assert ungrouped.status_code == 303
 
+    dashboard_page = client.get("/")
+    assert dashboard_page.status_code == 200
+    assert '"label": "No collection"' in dashboard_page.text
+    assert 'value="__ungrouped__"' in dashboard_page.text
+
     filtered_page = client.get("/?partial=scheduled-results&trip_group_id=__ungrouped__")
     assert filtered_page.status_code == 200
     assert "Ungrouped One-off" in filtered_page.text
