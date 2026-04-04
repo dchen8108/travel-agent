@@ -61,6 +61,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
                 google_flights_url="https://example.com/gf",
                 latest_price=88,
                 latest_airline="Southwest",
+                latest_departure_label="6:35 AM on Mon, Apr 6",
             )
         ],
         bookings=[],
@@ -77,7 +78,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
     assert row["current_offer"] == {
         "label": "Current best",
         "detail": "BUR → SFO · Southwest",
-        "meta_label": "",
+        "meta_label": "6:35 AM",
         "day_delta_label": "",
         "price_label": "$88",
         "href": "https://example.com/gf",

@@ -541,6 +541,8 @@ def _format_departure_time_label(value: str) -> str:
     raw = value.strip()
     if not raw:
         return ""
+    if " on " in raw.lower():
+        raw = raw.split(" on ", 1)[0].strip()
     if "am" in raw.lower() or "pm" in raw.lower():
         return raw
     try:
