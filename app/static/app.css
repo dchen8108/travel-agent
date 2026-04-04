@@ -2378,8 +2378,12 @@ button.collection-trip-pill[hidden] {
 
 .timeline-offer-grid {
   display: grid;
-  gap: 10px;
+  gap: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(208, 215, 208, 0.72);
 }
 
 .timeline-offer-grid--single {
@@ -2388,31 +2392,40 @@ button.collection-trip-pill[hidden] {
 
 .timeline-offer-card {
   display: grid;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(208, 215, 208, 0.72);
-  background: rgba(247, 240, 230, 0.76);
+  gap: 7px;
+  padding: 6px 22px 6px 22px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+}
+
+.timeline-offer-card:first-child {
+  padding-left: 0;
+}
+
+.timeline-offer-card:last-child {
+  padding-right: 0;
+}
+
+.timeline-offer-card + .timeline-offer-card {
+  border-left: 1px solid rgba(208, 215, 208, 0.72);
 }
 
 .timeline-offer-card--neutral {
-  background: rgba(247, 240, 230, 0.76);
-  border-color: rgba(208, 215, 208, 0.72);
+  background: transparent;
 }
 
 .timeline-offer-card--warning {
-  background: linear-gradient(180deg, rgba(251, 239, 213, 0.9), rgba(255, 250, 241, 0.94));
-  border-color: rgba(212, 183, 126, 0.72);
+  background: transparent;
 }
 
 .timeline-offer-card--success {
-  background: linear-gradient(180deg, rgba(230, 244, 238, 0.92), rgba(247, 252, 249, 0.96));
-  border-color: rgba(152, 199, 180, 0.76);
+  background: transparent;
 }
 
 .timeline-offer-card--accent {
-  background: linear-gradient(180deg, rgba(219, 242, 234, 0.94), rgba(242, 251, 247, 0.98));
-  border-color: rgba(89, 168, 144, 0.76);
+  background: transparent;
 }
 
 .timeline-offer-label {
@@ -2434,8 +2447,8 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
+  align-items: start;
+  gap: 14px;
 }
 
 .timeline-offer-copy {
@@ -2453,7 +2466,7 @@ button.collection-trip-pill[hidden] {
 
 .timeline-offer-time {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2477,7 +2490,8 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-price-row {
   display: flex;
   align-items: center;
-  align-self: center;
+  align-self: start;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -2486,40 +2500,37 @@ button.collection-trip-pill[hidden] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(208, 215, 208, 0.72);
-  background: rgba(255, 254, 251, 0.86);
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #4d5f70;
-  font-size: 0.84rem;
-  font-weight: 800;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 
 .timeline-offer-price--neutral {
-  border-color: rgba(208, 215, 208, 0.72);
   color: #4d5f70;
 }
 
 .timeline-offer-price--warning {
-  border-color: rgba(212, 183, 126, 0.72);
   color: var(--warning);
 }
 
 .timeline-offer-price--success,
 .timeline-offer-price--accent {
-  border-color: rgba(89, 168, 144, 0.72);
   color: var(--accent-strong);
 }
 
 .timeline-offer-price--link {
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition: transform 140ms ease, opacity 140ms ease;
 }
 
 .timeline-offer-price--link:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(18, 32, 44, 0.055);
+  opacity: 0.82;
 }
 
 .timeline-fact {
@@ -2828,6 +2839,18 @@ code {
 
   .timeline-offer-grid {
     grid-template-columns: 1fr;
+  }
+
+  .timeline-offer-card {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .timeline-offer-card + .timeline-offer-card {
+    border-left: 0;
+    border-top: 1px solid rgba(208, 215, 208, 0.72);
+    margin-top: 10px;
+    padding-top: 14px;
   }
 
   .timeline-offer-main {
