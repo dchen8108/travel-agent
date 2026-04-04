@@ -19,27 +19,52 @@
       </div>
       <div class="timeline-main">
         <div class="timeline-title-row">
-          <a class="travel-title" href="/trip-instances/{{ scheduled_instance.trip_instance_id }}">{{ row.title }}</a>
-          <span class="status-inline status-inline--{{ row.lifecycle_tone }}">
-            {{ row.lifecycle_label }}
-          </span>
+          <div class="timeline-title-group">
+            <a class="travel-title" href="/trip-instances/{{ scheduled_instance.trip_instance_id }}">{{ row.title }}</a>
+            <span class="status-inline status-inline--{{ row.lifecycle_tone }}">
+              {{ row.lifecycle_label }}
+            </span>
+            {% for chip in row.state_chips %}
+            <span class="timeline-fact timeline-fact--{{ chip.tone }} timeline-fact--compact">
+              {{ chip.label }}
+            </span>
+            {% endfor %}
+          </div>
         </div>
-        {% if row.detail_line %}
-        <p class="compact-meta travel-meta-line">{{ row.detail_line }}</p>
-        {% endif %}
-        {% if row.fact_chips %}
-        <div class="timeline-facts">
-          {% for chip in row.fact_chips %}
-          {% if chip.href %}
-          <a class="timeline-fact timeline-fact--{{ chip.tone }} timeline-fact--link" href="{{ chip.href }}" target="_blank" rel="noreferrer">
-            {{ chip.label }}
-          </a>
-          {% else %}
-          <span class="timeline-fact timeline-fact--{{ chip.tone }}">
-            {{ chip.label }}
-          </span>
+        {% if row.booked_offer or row.current_offer %}
+        <div class="timeline-offer-grid{% if not row.has_dual_offers %} timeline-offer-grid--single{% endif %}">
+          {% if row.booked_offer %}
+          <div class="timeline-offer-card timeline-offer-card--{{ row.booked_offer.tone }}">
+            <span class="timeline-offer-label">{{ row.booked_offer.label }}</span>
+            {% if row.booked_offer.detail %}
+            <p class="timeline-offer-detail">{{ row.booked_offer.detail }}</p>
+            {% endif %}
+            <div class="timeline-offer-price-row">
+              <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
+                {{ row.booked_offer.price_label }}
+              </span>
+            </div>
+          </div>
           {% endif %}
-          {% endfor %}
+          {% if row.current_offer %}
+          <div class="timeline-offer-card timeline-offer-card--{{ row.current_offer.tone }}">
+            <span class="timeline-offer-label">{{ row.current_offer.label }}</span>
+            {% if row.current_offer.detail %}
+            <p class="timeline-offer-detail">{{ row.current_offer.detail }}</p>
+            {% endif %}
+            <div class="timeline-offer-price-row">
+              {% if row.current_offer.href %}
+              <a class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }} timeline-offer-price--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
+                {{ row.current_offer.price_label }}
+              </a>
+              {% else %}
+              <span class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }}">
+                {{ row.current_offer.price_label }}
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% endif %}
       </div>

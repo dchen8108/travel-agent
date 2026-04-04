@@ -2357,26 +2357,125 @@ button.collection-trip-pill[hidden] {
 
 .timeline-main {
   display: grid;
-  gap: 7px;
+  gap: 10px;
   min-width: 0;
 }
 
 .timeline-title-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.timeline-title-group {
+  display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
-.travel-meta-line {
-  line-height: 1.38;
+.timeline-offer-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.timeline-facts {
+.timeline-offer-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.timeline-offer-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(208, 215, 208, 0.72);
+  background: rgba(247, 240, 230, 0.76);
+}
+
+.timeline-offer-card--neutral {
+  background: rgba(247, 240, 230, 0.76);
+  border-color: rgba(208, 215, 208, 0.72);
+}
+
+.timeline-offer-card--warning {
+  background: linear-gradient(180deg, rgba(251, 239, 213, 0.9), rgba(255, 250, 241, 0.94));
+  border-color: rgba(212, 183, 126, 0.72);
+}
+
+.timeline-offer-card--success {
+  background: linear-gradient(180deg, rgba(230, 244, 238, 0.92), rgba(247, 252, 249, 0.96));
+  border-color: rgba(152, 199, 180, 0.76);
+}
+
+.timeline-offer-card--accent {
+  background: linear-gradient(180deg, rgba(219, 242, 234, 0.94), rgba(242, 251, 247, 0.98));
+  border-color: rgba(89, 168, 144, 0.76);
+}
+
+.timeline-offer-label {
+  color: #60707d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timeline-offer-detail {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.timeline-offer-price-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.timeline-offer-price {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(208, 215, 208, 0.72);
+  background: rgba(255, 254, 251, 0.86);
+  color: #4d5f70;
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.timeline-offer-price--neutral {
+  border-color: rgba(208, 215, 208, 0.72);
+  color: #4d5f70;
+}
+
+.timeline-offer-price--warning {
+  border-color: rgba(212, 183, 126, 0.72);
+  color: var(--warning);
+}
+
+.timeline-offer-price--success,
+.timeline-offer-price--accent {
+  border-color: rgba(89, 168, 144, 0.72);
+  color: var(--accent-strong);
+}
+
+.timeline-offer-price--link {
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.timeline-offer-price--link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(18, 32, 44, 0.055);
 }
 
 .timeline-fact {
@@ -2392,6 +2491,12 @@ button.collection-trip-pill[hidden] {
   font-size: 0.84rem;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.timeline-fact--compact {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.78rem;
 }
 
 .timeline-fact--link {
@@ -2675,6 +2780,10 @@ code {
 
   .timeline-date {
     justify-self: start;
+  }
+
+  .timeline-offer-grid {
+    grid-template-columns: 1fr;
   }
 
   .timeline-side {

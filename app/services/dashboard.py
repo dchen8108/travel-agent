@@ -531,13 +531,19 @@ def _tracker_route_label(tracker: Tracker) -> str:
     return ""
 
 
-def trip_route_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
-    booking = booking_for_instance(snapshot, trip_instance_id)
-    if booking is not None:
-        route = f"{booking.origin_airport} → {booking.destination_airport}"
-        airline = airline_display(booking.airline)
-        return f"{route} · {airline}" if airline else route
-    tracker = _row_tracker(snapshot, trip_instance_id)
+def _booking_route_label(booking: Booking) -> str:
+    route = f"{booking.origin_airport} → {booking.destination_airport}"
+    airline = airline_display(booking.airline)
+    return f"{route} · {airline}" if airline else route
+
+
+def _tracker_display_label(
+    tracker: Tracker | None,
+    *,
+    current_target: TrackerFetchTarget | None = None,
+) -> str:
+    if current_target is not None:
+        return _fetch_target_route_label(current_target, fallback_tracker=tracker)
     if tracker is None:
         return ""
     route = _tracker_route_label(tracker)
@@ -619,65 +625,59 @@ def tracker_best_fetch_target(snapshot: AppSnapshot, tracker: Tracker | None) ->
 def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
     booking = booking_for_instance(snapshot, trip_instance_id)
     tracker = comparison_tracker(snapshot, trip_instance_id)
-    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    display_tracker = _row_tracker(snapshot, trip_instance_id)
     active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
     savings = rebook_savings(snapshot, trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
-    current_target = tracker_best_fetch_target(snapshot, tracker)
+    current_target = tracker_best_fetch_target(snapshot, display_tracker)
     current_price = tracker.latest_observed_price if tracker is not None else None
-    if booking is None and current_target is not None:
-        route_label = _fetch_target_route_label(current_target, fallback_tracker=tracker)
-    else:
-        route_label = trip_route_label(snapshot, trip_instance_id)
-    fact_chips: list[dict[str, object]] = []
 
-    if booking is not None:
-        fact_chips.append(
-            {
-                "label": f"Booked {format_money(booking.booked_price)}",
-                "tone": "neutral",
-                "href": "",
-            }
-        )
+    current_offer: dict[str, object] | None = None
+    current_offer_label = "Current best"
+    current_offer_price = ""
+    current_offer_href = ""
+    current_offer_tone = "success" if booking is None else "accent"
     if current_price is not None:
-        current_tone = "accent" if savings is not None else ("success" if booking is None else "neutral")
-        fact_chips.append(
-            {
-                "label": f"Best {format_money(current_price)}",
-                "tone": current_tone,
-                "href": current_target.google_flights_url if current_target and current_target.google_flights_url else "",
-            }
-        )
+        current_offer_price = format_money(current_price)
+        current_offer_href = current_target.google_flights_url if current_target and current_target.google_flights_url else ""
+    else:
+        current_offer_label = "Watching"
+        current_offer_price = "No fares" if monitoring_label == "No matches" else "Checking"
+        current_offer_tone = "warning" if monitoring_label == "No matches" else "neutral"
+
+    current_offer_detail = _tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
+    if current_offer_detail or current_offer_price:
+        current_offer = {
+            "label": current_offer_label,
+            "detail": current_offer_detail,
+            "price_label": current_offer_price,
+            "href": current_offer_href,
+            "tone": current_offer_tone,
+        }
+
+    booked_offer: dict[str, object] | None = None
+    if booking is not None:
+        booked_offer = {
+            "label": "Latest booked" if active_booking_count > 1 else "Booked",
+            "detail": _booking_route_label(booking),
+            "price_label": format_money(booking.booked_price),
+            "href": "",
+            "tone": "neutral",
+        }
+
+    state_chips: list[dict[str, object]] = []
     if savings is not None:
-        fact_chips.append(
+        state_chips.append(
             {
                 "label": f"Save {format_money(savings)}",
                 "tone": "accent",
-                "href": "",
             }
         )
     if active_booking_count > 1:
-        fact_chips.append(
+        state_chips.append(
             {
                 "label": f"{active_booking_count} bookings",
                 "tone": "warning",
-                "href": "",
-            }
-        )
-    if current_price is None:
-        fact_chips.append(
-            {
-                "label": "No fares" if monitoring_label == "No matches" else "Checking",
-                "tone": "warning" if monitoring_label == "No matches" else "neutral",
-                "href": "",
-            }
-        )
-    elif booking is None and len(trackers) > 1:
-        fact_chips.append(
-            {
-                "label": f"{len(trackers)} routes",
-                "tone": "neutral",
-                "href": "",
             }
         )
 
@@ -685,8 +685,10 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         "title": trip_ui_label(snapshot, trip_instance_id),
         "lifecycle_label": trip_lifecycle_status_label(snapshot, trip_instance_id),
         "lifecycle_tone": trip_lifecycle_status_tone(snapshot, trip_instance_id),
-        "detail_line": route_label,
-        "fact_chips": fact_chips,
+        "booked_offer": booked_offer,
+        "current_offer": current_offer,
+        "state_chips": state_chips,
+        "has_dual_offers": booked_offer is not None and current_offer is not None,
     }
 
 
