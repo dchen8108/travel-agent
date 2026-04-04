@@ -20,7 +20,7 @@ from app.services.dashboard import (
 )
 from app.services.groups import delete_trip_group, save_trip_group
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
+from app.web import back_url, base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["groups"])
 
@@ -45,6 +45,7 @@ def _render_group_form(
     snapshot,
     group,
     group_form_state,
+    cancel_url: str,
     error_message: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -57,6 +58,7 @@ def _render_group_form(
             snapshot=snapshot,
             group=group,
             group_form_state=group_form_state,
+            cancel_url=cancel_url,
             error_message=error_message or "",
         ),
         status_code=status_code,
@@ -74,6 +76,7 @@ def new_group(
         snapshot=snapshot,
         group=None,
         group_form_state=_group_form_state(None),
+        cancel_url=back_url(request, fallback_url="/#dashboard-groups"),
     )
 
 
@@ -141,6 +144,7 @@ def edit_group(
         snapshot=snapshot,
         group=group,
         group_form_state=_group_form_state(group),
+        cancel_url=back_url(request, fallback_url=f"/groups/{group.trip_group_id}"),
     )
 
 
@@ -151,6 +155,7 @@ async def save_group_action(
 ):
     form = await request.form()
     group_id = str(form.get("trip_group_id", "")).strip() or None
+    cancel_url = str(form.get("cancel_url", "")).strip()
     label = str(form.get("label", "")).strip()
     description = str(form.get("description", "")).strip()
     try:
@@ -172,6 +177,7 @@ async def save_group_action(
                 "label": label,
                 "description": description,
             },
+            cancel_url=cancel_url or (f"/groups/{group_id}" if group_id else "/#dashboard-groups"),
             error_message=str(exc),
             status_code=400,
         )

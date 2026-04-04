@@ -2,9 +2,6 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="detail-breadcrumb">
-      <a class="inline-back-link" href="{{ '/trips/' ~ trip.trip_id if trip else '/' }}">Back</a>
-    </p>
     <p class="page-context">
       {% if source_unmatched_booking %}
       Trip
@@ -51,6 +48,7 @@
     <input type="hidden" name="trip_group_ids_json" value='{{ trip_form_state.trip_group_ids|tojson }}'>
     <input type="hidden" name="source_unmatched_booking_id" value="{{ source_unmatched_booking.unmatched_booking_id if source_unmatched_booking else '' }}">
     <input type="hidden" name="data_scope" value="{{ trip_form_state.data_scope }}">
+    <input type="hidden" name="cancel_url" value="{{ cancel_url }}">
 
     <div class="form-grid">
       <label>
@@ -137,7 +135,7 @@
     </section>
 
     <div class="actions top-gap">
-      <a class="button ghost" href="/">Cancel</a>
+      <a class="button ghost" href="{{ cancel_url }}">Cancel</a>
       <button type="submit" class="button primary">Save trip</button>
     </div>
   </form>

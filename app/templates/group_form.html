@@ -2,9 +2,6 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="detail-breadcrumb">
-      <a class="inline-back-link" href="{{ '/groups/' ~ group.trip_group_id if group else '/' }}">Back</a>
-    </p>
     <p class="page-context">Collection</p>
     <h2>{{ group.label if group else 'Create collection' }}</h2>
   </div>
@@ -19,6 +16,7 @@
   {% endif %}
   <form method="post" action="/groups" novalidate>
     <input type="hidden" name="trip_group_id" value="{{ group_form_state.trip_group_id }}">
+    <input type="hidden" name="cancel_url" value="{{ cancel_url }}">
     <div class="form-grid">
       <label>
         <span>Collection name</span>
@@ -30,7 +28,7 @@
       </label>
     </div>
     <div class="actions top-gap">
-      <a class="button ghost" href="{{ '/groups/' ~ group.trip_group_id if group else '/' }}">Cancel</a>
+      <a class="button ghost" href="{{ cancel_url }}">Cancel</a>
       <button type="submit" class="button primary">Save collection</button>
     </div>
   </form>

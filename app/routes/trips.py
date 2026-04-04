@@ -48,7 +48,7 @@ from app.services.trip_instances import delete_generated_trip_instance, detach_g
 from app.services.trips import delete_trip, save_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
+from app.web import back_url, base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["trips"])
 
@@ -206,6 +206,7 @@ def _render_trip_form(
     trip_form_state,
     route_option_state,
     source_unmatched_booking=None,
+    cancel_url: str,
     error_message: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -222,6 +223,7 @@ def _render_trip_form(
             trip_form_state=trip_form_state,
             route_option_state=route_option_state,
             source_unmatched_booking=source_unmatched_booking,
+            cancel_url=cancel_url,
             source_booking_reference_label=(
                 booking_reference_label(source_unmatched_booking)
                 if source_unmatched_booking is not None
@@ -326,6 +328,14 @@ def new_trip(
         trip_form_state=trip_form_state,
         route_option_state=route_option_state,
         source_unmatched_booking=source_unmatched_booking,
+        cancel_url=back_url(
+            request,
+            fallback_url=(
+                f"/groups/{trip_group_id}"
+                if trip_group_id
+                else "/#needs-linking" if source_unmatched_booking is not None else "/"
+            ),
+        ),
     )
 
 
@@ -385,6 +395,7 @@ def edit_trip(
             trip_group_ids=[group.trip_group_id for group in groups_for_trip(snapshot, trip)],
         ),
         route_option_state=_route_option_state(route_options),
+        cancel_url=back_url(request, fallback_url=f"/trips/{trip.trip_id}"),
     )
 
 
@@ -400,6 +411,7 @@ async def save_trip_action(
     trip_group_ids_json = str(form.get("trip_group_ids_json", "[]") or "[]")
     preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
     source_unmatched_booking_id = str(form.get("source_unmatched_booking_id", "")).strip()
+    cancel_url = str(form.get("cancel_url", "")).strip()
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
     route_options_json = str(form.get("route_options_json", "[]"))
@@ -545,6 +557,11 @@ async def save_trip_action(
             },
             route_option_state=_route_option_state_from_payloads(raw_route_option_state),
             source_unmatched_booking=source_unmatched_booking,
+            cancel_url=cancel_url or (
+                f"/trips/{existing_trip.trip_id}" if existing_trip else (
+                    "/#needs-linking" if source_unmatched_booking is not None else "/"
+                )
+            ),
             status_code=400,
         )
 

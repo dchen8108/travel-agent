@@ -90,6 +90,17 @@ def redirect_back(
     message_kind: str = "success",
     status_code: int = 303,
 ) -> RedirectResponse:
+    target = back_url(request, fallback_url=fallback_url)
+    if target != fallback_url:
+        if message:
+            target = with_message(target, message, message_kind=message_kind)
+        return RedirectResponse(url=target, status_code=status_code)
+    if message:
+        return redirect_with_message(fallback_url, message, message_kind=message_kind, status_code=status_code)
+    return RedirectResponse(url=fallback_url, status_code=status_code)
+
+
+def back_url(request: Request, *, fallback_url: str) -> str:
     referer = request.headers.get("referer", "")
     if referer:
         parsed = urlsplit(referer)
@@ -101,13 +112,8 @@ def redirect_back(
             )
         )
         if same_origin and parsed.path.startswith("/"):
-            target = _canonical_dashboard_target(parsed.path, parsed.query)
-            if message:
-                target = with_message(target, message, message_kind=message_kind)
-            return RedirectResponse(url=target, status_code=status_code)
-    if message:
-        return redirect_with_message(fallback_url, message, message_kind=message_kind, status_code=status_code)
-    return RedirectResponse(url=fallback_url, status_code=status_code)
+            return _canonical_dashboard_target(parsed.path, parsed.query)
+    return fallback_url
 
 
 def base_context(request: Request, **extra: object) -> dict[str, object]:
