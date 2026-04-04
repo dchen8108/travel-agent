@@ -1,7 +1,14 @@
 from __future__ import annotations
+
 import plistlib
+import sys
 from pathlib import Path
 
+import pytest
+
+from app.jobs import install_launchd_booking_poller, install_launchd_fetcher
+from app.models.base import AppState
+from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.launchd import (
     BOOKING_POLLER_LAUNCH_AGENT_LABEL,
     LAUNCH_AGENT_LABEL,
@@ -78,3 +85,92 @@ def test_ensure_local_secret_from_env_persists_launchd_compatible_key(tmp_path, 
 
     assert path == settings.config_local_dir / "openai_api_key.txt"
     assert path.read_text(encoding="utf-8").strip() == "sk-test-secret"
+
+
+def test_ensure_local_secret_from_env_updates_rotated_key(tmp_path, monkeypatch) -> None:
+    settings = Settings(data_dir=tmp_path / "data", config_dir=tmp_path / "config")
+    secret_path = settings.config_local_dir / "openai_api_key.txt"
+    secret_path.parent.mkdir(parents=True, exist_ok=True)
+    secret_path.write_text("sk-old-secret\n", encoding="utf-8")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-new-secret")
+
+    path = ensure_local_secret_from_env(
+        settings,
+        env_var="OPENAI_API_KEY",
+        local_filename="openai_api_key.txt",
+    )
+
+    assert path == secret_path
+    assert secret_path.read_text(encoding="utf-8").strip() == "sk-new-secret"
+
+
+def test_install_launchd_fetcher_rejects_invalid_interval(settings, monkeypatch) -> None:
+    monkeypatch.setattr(install_launchd_fetcher, "get_settings", lambda: settings)
+
+    class StubRepository:
+        def __init__(self, _settings):
+            pass
+
+        def load_app_state(self):
+            return AppState()
+
+    monkeypatch.setattr(install_launchd_fetcher, "Repository", StubRepository)
+    monkeypatch.setattr(sys, "argv", ["install_launchd_fetcher", "--interval-seconds", "0"])
+
+    with pytest.raises(SystemExit):
+        install_launchd_fetcher.main()
+
+
+def test_install_launchd_booking_poller_rejects_invalid_message_limit(settings, monkeypatch) -> None:
+    monkeypatch.setattr(install_launchd_booking_poller, "get_settings", lambda: settings)
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "load_gmail_integration_config",
+        lambda _settings: GmailIntegrationConfig(),
+    )
+    monkeypatch.setattr(sys, "argv", ["install_launchd_booking_poller", "--max-messages", "0"])
+
+    with pytest.raises(SystemExit):
+        install_launchd_booking_poller.main()
+
+
+def test_install_launchd_fetcher_fails_cleanly_when_uv_missing(settings, monkeypatch) -> None:
+    monkeypatch.setattr(install_launchd_fetcher, "get_settings", lambda: settings)
+
+    class StubRepository:
+        def __init__(self, _settings):
+            pass
+
+        def load_app_state(self):
+            return AppState()
+
+    monkeypatch.setattr(install_launchd_fetcher, "Repository", StubRepository)
+    monkeypatch.setattr(install_launchd_fetcher.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(sys, "argv", ["install_launchd_fetcher"])
+
+    with pytest.raises(SystemExit, match="Could not find `uv` in PATH."):
+        install_launchd_fetcher.main()
+
+
+def test_install_launchd_booking_poller_fails_cleanly_when_uv_missing(settings, monkeypatch) -> None:
+    monkeypatch.setattr(install_launchd_booking_poller, "get_settings", lambda: settings)
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "load_gmail_integration_config",
+        lambda _settings: GmailIntegrationConfig(),
+    )
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "openai_api_key",
+        lambda _settings: "sk-test-secret",
+    )
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "ensure_local_secret_from_env",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(install_launchd_booking_poller.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(sys, "argv", ["install_launchd_booking_poller"])
+
+    with pytest.raises(SystemExit, match="Could not find `uv` in PATH."):
+        install_launchd_booking_poller.main()

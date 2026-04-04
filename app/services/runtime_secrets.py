@@ -38,7 +38,10 @@ def ensure_local_secret_from_env(
     if not value:
         return None
     path = local_secret_path(settings, local_filename)
-    if path.exists() and path.read_text(encoding="utf-8").strip():
+    existing_value = ""
+    if path.exists():
+        existing_value = path.read_text(encoding="utf-8").strip()
+    if existing_value == value:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"{value}\n", encoding="utf-8")

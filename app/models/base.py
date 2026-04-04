@@ -78,7 +78,7 @@ class BookingMatchStatus(StrEnum):
     UNMATCHED = "unmatched"
 
 
-class UnmatchedBookingStatus(StrEnum):
+class BookingResolutionStatus(StrEnum):
     OPEN = "open"
     RESOLVED = "resolved"
 

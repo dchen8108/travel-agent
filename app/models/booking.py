@@ -7,7 +7,7 @@ from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
 from app.money import parse_money
-from app.models.base import BookingMatchStatus, BookingStatus, CsvModel, DataScope, UnmatchedBookingStatus, utcnow
+from app.models.base import BookingMatchStatus, BookingResolutionStatus, BookingStatus, CsvModel, DataScope, utcnow
 from app.route_options import join_pipe, parse_time, split_pipe
 
 
@@ -31,7 +31,7 @@ class Booking(CsvModel):
     raw_summary: str = ""
     candidate_trip_instance_ids: str = ""
     auto_link_enabled: bool = True
-    resolution_status: UnmatchedBookingStatus = UnmatchedBookingStatus.RESOLVED
+    resolution_status: BookingResolutionStatus = BookingResolutionStatus.RESOLVED
     notes: str = ""
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -98,4 +98,4 @@ class Booking(CsvModel):
 
     @property
     def needs_linking(self) -> bool:
-        return self.is_unlinked and self.resolution_status == UnmatchedBookingStatus.OPEN
+        return self.is_unlinked and self.resolution_status == BookingResolutionStatus.OPEN

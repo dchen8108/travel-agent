@@ -126,6 +126,47 @@ def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(r
     assert selection.source_mode == "history_reset_backfill"
 
 
+def test_select_message_ids_for_poll_falls_back_to_backfill_on_http_error_status(repository, monkeypatch) -> None:
+    repository.save_booking_email_events([_event("msg-known", "resolved_auto", hour=9)])
+
+    class _RespOnlyHttpError(HttpError):
+        @property
+        def status_code(self):
+            return None
+
+    error = _RespOnlyHttpError(Response({"status": "404"}), b'{"error":{"message":"History expired"}}')
+
+    def raise_history_error(service, *, start_history_id, label_id=None):
+        raise error
+
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.list_message_ids_since_history",
+        raise_history_error,
+    )
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.list_all_inbox_message_ids",
+        lambda service, *, label_ids: ["msg-backfill", "msg-known"],
+    )
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.get_mailbox_profile",
+        lambda service: {"email_address": "booking@example.com", "history_id": "401"},
+    )
+
+    selection = _select_message_ids_for_poll(
+        repository,
+        object(),
+        inbox_label_ids=["INBOX"],
+        sync_state_last_history_id="350",
+        max_messages=5,
+        retry_limit=5,
+        max_retry_attempts=2,
+    )
+
+    assert selection.message_ids == ["msg-backfill"]
+    assert selection.latest_history_id == "401"
+    assert selection.source_mode == "history_reset_backfill"
+
+
 def test_select_message_ids_for_poll_skips_nonretryable_and_exhausted_errors(repository, monkeypatch) -> None:
     repository.save_booking_email_events(
         [

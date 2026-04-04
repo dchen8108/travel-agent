@@ -6,6 +6,7 @@ import os
 import sys
 import traceback
 
+from app.jobs.cli_types import non_negative_float_argument, non_negative_int_argument
 from app.models.base import utcnow
 from app.services.background_fetch import claim_due_fetch_targets, run_fetch_batch, select_due_fetch_targets
 from app.services.data_scope import include_test_data_for_processing
@@ -16,13 +17,6 @@ from app.services.recommendations import apply_fetch_target_rollups, recompute_t
 from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository
-
-def _non_negative_int(value: str) -> int:
-    parsed = int(value)
-    if parsed < 0:
-        raise argparse.ArgumentTypeError("--max-targets must be >= 0")
-    return parsed
-
 
 def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
     payload = {
@@ -35,9 +29,13 @@ def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max-targets", type=_non_negative_int, default=None)
+    parser.add_argument("--max-targets", type=non_negative_int_argument("--max-targets"), default=None)
     parser.add_argument("--no-sleep", action="store_true")
-    parser.add_argument("--startup-jitter-seconds", type=float, default=None)
+    parser.add_argument(
+        "--startup-jitter-seconds",
+        type=non_negative_float_argument("--startup-jitter-seconds"),
+        default=None,
+    )
     args = parser.parse_args()
 
     repository = Repository(get_settings())
@@ -59,7 +57,7 @@ def main() -> None:
         effective_startup_jitter_seconds = (
             snapshot.app_state.fetch_startup_jitter_seconds
             if args.startup_jitter_seconds is None
-            else max(args.startup_jitter_seconds, 0.0)
+            else args.startup_jitter_seconds
         )
 
         selection_now = utcnow()

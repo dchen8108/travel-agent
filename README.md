@@ -94,7 +94,7 @@ uv run python -m app.jobs.authorize_gmail_bookings
 uv run python -m app.jobs.install_launchd_booking_poller
 ```
 
-If `OPENAI_API_KEY` is present in your shell when you run the installer, the installer will persist it to `config/local/openai_api_key.txt` so the launchd job can use it without relying on shell startup files.
+If `OPENAI_API_KEY` is present in your shell when you run the installer, the installer will persist it to `config/local/openai_api_key.txt` so the launchd job can use it without relying on shell startup files. Re-running the installer with a different `OPENAI_API_KEY` refreshes that cached value.
 
 The installer uses the checked-in defaults from `config/gmail_integration.json` unless you override them on the CLI.
 
@@ -107,7 +107,7 @@ How it behaves:
 - validates and matches extracted legs to existing trip instances
 - creates `Booking` rows automatically only when there is exactly one confident trip-instance match
 - marks existing bookings `cancelled` automatically when a cancellation email matches cleanly
-- creates `Unmatched Booking` rows only when a real booking cannot be placed confidently
+- creates unmatched `Booking` rows only when a real booking cannot be placed confidently
 - records every processed message in `booking_email_events`
 - retries only retryable email-processing failures, with a bounded retry count
 - redacts model input/output from logs by default unless `debug_log_model_io` is enabled in `config/gmail_integration.json`

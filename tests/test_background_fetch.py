@@ -8,7 +8,7 @@ from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
-from app.jobs.fetch_google_flights import _non_negative_int
+from app.jobs.cli_types import non_negative_float_argument, non_negative_int_argument
 from app.services.background_fetch import (
     claim_due_fetch_targets,
     queue_rolling_refresh,
@@ -66,11 +66,20 @@ def test_route_options_reject_more_than_three_airports(repository: Repository) -
 
 def test_fetch_job_rejects_negative_max_targets() -> None:
     try:
-        _non_negative_int("-1")
+        non_negative_int_argument("--max-targets")("-1")
     except Exception as exc:
         assert "--max-targets must be >= 0" in str(exc)
     else:
         raise AssertionError("Expected negative max-targets to be rejected.")
+
+
+def test_fetch_job_rejects_negative_startup_jitter() -> None:
+    try:
+        non_negative_float_argument("--startup-jitter-seconds")("-0.5")
+    except Exception as exc:
+        assert "--startup-jitter-seconds must be >= 0" in str(exc)
+    else:
+        raise AssertionError("Expected negative startup jitter to be rejected.")
 
 
 def test_next_refresh_time_uses_four_hour_cadence() -> None:

@@ -27,11 +27,11 @@
 3. Apply a cheap keyword gate to ignore obvious spam/newsletter noise.
 4. Send likely booking emails to the OpenAI extraction model.
 5. If the email is a cancellation, try to match it to existing `Booking` rows and mark them `cancelled`.
-6. Otherwise validate extracted legs and convert them to `BookingCandidate` rows.
-7. Deduplicate against existing `Booking` and open `UnmatchedBooking` rows.
+6. Otherwise validate extracted legs and convert them into booking candidates.
+7. Deduplicate against existing `Booking` rows.
 8. Use the existing booking matcher:
-   - unique trip-instance match => `Booking`
-   - ambiguous/no match => `UnmatchedBooking`
+   - unique trip-instance match => matched `Booking`
+   - ambiguous/no match => unmatched `Booking`
 9. Append one `booking_email_events` audit row for the Gmail message.
 
 The Gmail poller uses two checkpoints:
@@ -59,7 +59,7 @@ Supported now:
 - cancellation emails that can be matched to an existing booking
 - multi-leg extraction
 - automatic booking creation when a leg matches confidently
-- fallback to unmatched booking review on `Bookings` when matching is ambiguous
+- fallback to unmatched booking review inline on the dashboard when matching is ambiguous
 - default log redaction for model inputs/outputs, with opt-in full model I/O logging through `debug_log_model_io`
 
 Intentionally deferred:

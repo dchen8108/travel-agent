@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from app.jobs.cli_types import non_negative_int_argument, positive_int_argument
 from app.storage.repository import Repository
 from app.services.launchd import (
     FETCH_LAUNCH_AGENT_LABEL,
@@ -31,8 +32,16 @@ def main() -> None:
     settings = get_settings()
     app_state = Repository(settings).load_app_state()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--interval-seconds", type=int, default=app_state.launchd_fetch_interval_seconds)
-    parser.add_argument("--max-targets", type=int, default=app_state.launchd_fetch_max_targets)
+    parser.add_argument(
+        "--interval-seconds",
+        type=positive_int_argument("--interval-seconds"),
+        default=app_state.launchd_fetch_interval_seconds,
+    )
+    parser.add_argument(
+        "--max-targets",
+        type=non_negative_int_argument("--max-targets"),
+        default=app_state.launchd_fetch_max_targets,
+    )
     args = parser.parse_args()
 
     project_root = settings.project_root

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date, datetime
 
-from app.models.base import BookingMatchStatus, BookingStatus, DataScope, UnmatchedBookingStatus, utcnow
+from app.models.base import BookingMatchStatus, BookingResolutionStatus, BookingStatus, DataScope, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.route_options import time_in_window
@@ -80,7 +80,7 @@ def _booking_to_unmatched(booking: Booking) -> Booking:
         booked_at=booking.booked_at,
         status=booking.status,
         match_status=BookingMatchStatus.UNMATCHED,
-        resolution_status=UnmatchedBookingStatus.OPEN,
+        resolution_status=BookingResolutionStatus.OPEN,
         notes=booking.notes,
         created_at=booking.created_at,
         updated_at=utcnow(),
@@ -234,7 +234,7 @@ def reconcile_unmatched_bookings(
         valid_candidate_ids = {
             item for item in split_pipe(unmatched.candidate_trip_instance_ids) if item in trip_instances_by_id
         }
-        if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+        if unmatched.resolution_status != BookingResolutionStatus.OPEN:
             unmatched.candidate_trip_instance_ids = join_pipe(sorted(valid_candidate_ids))
             remaining_unmatched.append(unmatched)
             continue
@@ -272,7 +272,7 @@ def reconcile_unmatched_bookings(
                 trackers,
                 trip_instance_id=matched_trip_instance.trip_instance_id,
             )
-            unmatched.resolution_status = UnmatchedBookingStatus.RESOLVED
+            unmatched.resolution_status = BookingResolutionStatus.RESOLVED
             continue
 
         notes = "Automatically linked after a matching trip became available."
@@ -301,7 +301,7 @@ def reconcile_unmatched_bookings(
                 raw_summary="",
                 candidate_trip_instance_ids=join_pipe(matching_trip_instance_ids),
                 auto_link_enabled=unmatched.auto_link_enabled,
-                resolution_status=UnmatchedBookingStatus.RESOLVED,
+                resolution_status=BookingResolutionStatus.RESOLVED,
                 notes=notes,
                 created_at=unmatched.created_at,
                 updated_at=utcnow(),
@@ -381,7 +381,7 @@ def record_booking(
             matching_trip_instance_ids
         ),
         auto_link_enabled=auto_link,
-        resolution_status=UnmatchedBookingStatus.OPEN,
+        resolution_status=BookingResolutionStatus.OPEN,
     )
     repository.upsert_unmatched_bookings([unmatched])
     return None, unmatched
@@ -400,7 +400,7 @@ def resolve_unmatched_booking_to_trip_instance(
         if existing is not None and existing.trip_instance_id == trip_instance_id:
             return existing
         raise KeyError("Unmatched booking not found")
-    if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+    if unmatched.resolution_status != BookingResolutionStatus.OPEN:
         existing = next((item for item in repository.load_bookings() if item.booking_id == unmatched_booking_id), None)
         if existing is not None and existing.trip_instance_id == trip_instance_id:
             return existing
@@ -441,7 +441,7 @@ def resolve_unmatched_booking_to_trip_instance(
         raw_summary="",
         candidate_trip_instance_ids=unmatched.candidate_trip_instance_ids,
         auto_link_enabled=unmatched.auto_link_enabled,
-        resolution_status=UnmatchedBookingStatus.RESOLVED,
+        resolution_status=BookingResolutionStatus.RESOLVED,
         notes="Resolved from unmatched booking",
         created_at=unmatched.created_at,
         updated_at=utcnow(),
@@ -478,7 +478,7 @@ def resolve_unmatched_booking_to_trip(
             return existing
         raise KeyError("Unmatched booking not found")
     candidate = _candidate_from_unmatched(unmatched)
-    if unmatched.resolution_status != UnmatchedBookingStatus.OPEN:
+    if unmatched.resolution_status != BookingResolutionStatus.OPEN:
         existing_bookings = [
             item
             for item in repository.load_bookings()

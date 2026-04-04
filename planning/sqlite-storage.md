@@ -186,7 +186,7 @@ Key columns:
 - `created_at`
 - `updated_at`
 
-The application still exposes `Booking` and `UnmatchedBooking` models separately through the repository for compatibility, but both are backed by this one table.
+The repository now treats both linked and unresolved booking rows as one `Booking` model. Row state is driven by `match_status`, nullable trip/route links, and the resolution metadata above.
 
 Bookings are trip-scoped. They can optionally link to a uniquely matched route option, but booked-vs-current comparison logic is still based on the trip's best current option after preferences are applied.
 

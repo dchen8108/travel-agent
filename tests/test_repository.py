@@ -88,6 +88,38 @@ def test_repository_bootstraps_app_state_from_existing_db_row_when_config_missin
     assert "app_state" not in tables
 
 
+def test_repository_load_app_state_reads_checked_in_shape_from_config_json(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+    settings.config_dir.mkdir(parents=True, exist_ok=True)
+    repository.app_state_path.write_text(
+        """
+        {
+          "dashboard_needs_booking_window_weeks": 5,
+          "dashboard_overbooked_window_days": 9,
+          "fetch_interval_seconds": 900,
+          "launchd_fetch_interval_seconds": 120,
+          "launchd_fetch_max_targets": 4
+        }
+        """.strip(),
+        encoding="utf-8",
+    )
+
+    app_state = repository.load_app_state()
+
+    assert app_state.dashboard_needs_booking_window_weeks == 5
+    assert app_state.dashboard_overbooked_window_days == 9
+    assert app_state.fetch_interval_seconds == 900
+    assert app_state.launchd_fetch_interval_seconds == 120
+    assert app_state.launchd_fetch_max_targets == 4
+
+
 def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

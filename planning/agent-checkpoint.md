@@ -1,6 +1,6 @@
 # Agent Checkpoint
 
-Last refreshed: `2026-04-02`
+Last refreshed: `2026-04-04`
 
 ## Purpose
 
@@ -19,8 +19,9 @@ Core product shape:
 - `Route Option` is a ranked itinerary definition under a trip
 - `Tracker` and `Tracker Fetch Target` are derived monitoring objects
 - `Booking` may be linked to a scheduled trip and can optionally link to a uniquely matched route option
+- unresolved bookings are still `Booking` rows, not a separate object type
 
-There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with trip, group, rule, and booking detail pages branching from it.
+There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with trip/group/rule detail pages and focused create/edit flows branching from it.
 
 ## Current UX Model
 
@@ -30,7 +31,7 @@ Primary screens:
 - scheduled-trip detail pages at `/trip-instances/{trip_instance_id}`
 - group detail pages at `/groups/{trip_group_id}`
 - trip/rule detail pages at `/trips/{trip_id}`
-- focused create/edit flows such as `/trips/new` and `/bookings/new`
+- focused create/edit flows such as `/trips/new` and trip-scoped `/bookings/new?trip_instance_id=...`
 
 Important hierarchy:
 
@@ -130,7 +131,8 @@ Known-good on this machine after the latest cleanup pass:
 - `uv run python -m compileall app tests`
 - Playwright/browser smoke on:
   - `/`
-  - `/bookings/new`
+  - `/trips/new`
+  - `/bookings/new?trip_instance_id={id}`
   - `/groups/{id}`
   - `/trip-instances/{id}`
 

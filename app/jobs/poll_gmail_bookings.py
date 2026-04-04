@@ -9,6 +9,7 @@ import traceback
 
 from googleapiclient.errors import HttpError
 
+from app.jobs.cli_types import positive_int_argument
 from app.models.base import BookingEmailEventStatus
 from app.models.base import utcnow
 from app.models.booking_email_event import BookingEmailEvent
@@ -30,11 +31,11 @@ from app.settings import get_settings
 from app.storage.repository import Repository
 
 
-def _positive_int(value: str) -> int:
-    parsed = int(value)
-    if parsed < 1:
-        raise argparse.ArgumentTypeError("--max-messages must be >= 1")
-    return parsed
+def _http_error_status(exc: HttpError) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if status is not None:
+        return status
+    return getattr(getattr(exc, "resp", None), "status", None)
 
 
 def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
@@ -77,7 +78,7 @@ class MessageSelection:
 
 def _retryable_message_error(exc: Exception) -> bool:
     if isinstance(exc, HttpError):
-        status = getattr(getattr(exc, "resp", None), "status", None)
+        status = _http_error_status(exc)
         return status in {408, 409, 425, 429, 500, 502, 503, 504}
     return False
 
@@ -142,7 +143,7 @@ def _select_message_ids_for_poll(
             )
             source_mode = "incremental"
         except HttpError as exc:
-            if getattr(exc, "status_code", None) == 404 or "startHistoryId" in str(exc):
+            if _http_error_status(exc) == 404 or "startHistoryId" in str(exc):
                 incremental_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
                 latest_history_id = get_mailbox_profile(service)["history_id"]
                 source_mode = "history_reset_backfill"
@@ -175,7 +176,7 @@ def main() -> None:
     settings = get_settings()
     config = load_gmail_integration_config(settings)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max-messages", type=_positive_int, default=config.launchd_max_messages)
+    parser.add_argument("--max-messages", type=positive_int_argument("--max-messages"), default=config.launchd_max_messages)
     args = parser.parse_args()
 
     repository = Repository(settings)

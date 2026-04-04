@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from app.jobs.cli_types import positive_int_argument
 from app.services.launchd import (
     BOOKING_POLLER_LAUNCH_AGENT_LABEL,
     build_booking_poller_launch_agent_plist,
@@ -32,8 +33,16 @@ def main() -> None:
     settings = get_settings()
     config = load_gmail_integration_config(settings)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--interval-seconds", type=int, default=config.launchd_poll_interval_seconds)
-    parser.add_argument("--max-messages", type=int, default=config.launchd_max_messages)
+    parser.add_argument(
+        "--interval-seconds",
+        type=positive_int_argument("--interval-seconds"),
+        default=config.launchd_poll_interval_seconds,
+    )
+    parser.add_argument(
+        "--max-messages",
+        type=positive_int_argument("--max-messages"),
+        default=config.launchd_max_messages,
+    )
     args = parser.parse_args()
 
     project_root = settings.project_root
