@@ -25,7 +25,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
     )
     client = TestClient(create_app(settings))
 
-    for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
+    for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/resolve", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
     trips_redirect = client.get("/trips", follow_redirects=False)
@@ -34,6 +34,9 @@ def test_core_pages_render(tmp_path: Path) -> None:
     bookings_redirect = client.get("/bookings", follow_redirects=False)
     assert bookings_redirect.status_code == 303
     assert bookings_redirect.headers["location"] == "/#needs-linking"
+    new_booking_redirect = client.get("/bookings/new", follow_redirects=False)
+    assert new_booking_redirect.status_code == 303
+    assert "Start+from+a+trip+to+add+a+booking." in new_booking_redirect.headers["location"]
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/#all-travel"
@@ -216,13 +219,17 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     trips_page = client.get("/trips")
     assert "LA to SF Outbound" in trips_page.text
 
-    booking_page = client.get("/bookings/new")
+    trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
+    booking_page = client.get(f"/bookings/new?trip_instance_id={trip_instance_id}")
     assert booking_page.status_code == 200
+    assert "Add booking" in booking_page.text
+    assert "Scheduled trip" not in booking_page.text
+    assert ">Trip<" in booking_page.text
 
     booking_response = client.post(
         "/bookings",
         data={
-            "trip_instance_id": "",
+            "trip_instance_id": trip_instance_id,
             "airline": "Alaska",
             "origin_airport": "BUR",
             "destination_airport": "SFO",
@@ -1008,6 +1015,7 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
     edit_page = client.get(f"/bookings/{booking.booking_id}/edit")
     assert edit_page.status_code == 200
     assert "Edit booking" in edit_page.text
+    assert "Scheduled trip" not in edit_page.text
 
     edited = client.post(
         "/bookings",

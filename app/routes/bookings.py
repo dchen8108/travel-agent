@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
 from app.money import parse_money
@@ -21,9 +21,7 @@ from app.services.bookings import (
 from app.services.dashboard import (
     booking_route_tracking_state,
     load_snapshot,
-    selectable_trip_instances_for_booking_link,
     trip_for_instance,
-    trip_instance_by_id,
 )
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -74,7 +72,6 @@ def _render_booking_form(
     request: Request,
     *,
     snapshot,
-    trip_instances,
     booking_form_state,
     selected_trip_instance=None,
     selected_parent_trip=None,
@@ -90,7 +87,6 @@ def _render_booking_form(
             request,
             page="bookings",
             snapshot=snapshot,
-            trip_instances=trip_instances,
             selected_trip_instance=selected_trip_instance,
             selected_parent_trip=selected_parent_trip,
             editing_booking=editing_booking,
@@ -131,18 +127,22 @@ def new_booking(
     request: Request,
     repository: Repository = Depends(get_repository),
     trip_instance_id: str | None = None,
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_snapshot(repository)
-    selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
     selected_trip_instance = next(
         (item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id),
         None,
     ) if trip_instance_id else None
+    if selected_trip_instance is None:
+        return redirect_with_message(
+            "/",
+            "Start from a trip to add a booking.",
+            message_kind="error",
+        )
     selected_parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id) if selected_trip_instance else None
     return _render_booking_form(
         request,
         snapshot=snapshot,
-        trip_instances=selectable_trip_instances,
         selected_trip_instance=selected_trip_instance,
         selected_parent_trip=selected_parent_trip,
         cancel_url=_booking_form_cancel_url(selected_trip_instance=selected_trip_instance),
@@ -163,16 +163,14 @@ def edit_booking(
     booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
     if booking is None or booking.status != "active":
         raise HTTPException(status_code=404, detail="Booking not found")
-    selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
     selected_trip_instance = next(
-        (item for item in selectable_trip_instances if item.trip_instance_id == booking.trip_instance_id),
+        (item for item in snapshot.trip_instances if item.trip_instance_id == booking.trip_instance_id),
         None,
     )
     selected_parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id) if selected_trip_instance else None
     return _render_booking_form(
         request,
         snapshot=snapshot,
-        trip_instances=selectable_trip_instances,
         selected_trip_instance=selected_trip_instance,
         selected_parent_trip=selected_parent_trip,
         editing_booking=booking,
@@ -239,7 +237,6 @@ async def save_booking(
         return _booking_redirect_response(snapshot, booking, message="Booking saved")
     except ValueError as exc:
         snapshot = load_snapshot(repository)
-        selectable_trip_instances = selectable_trip_instances_for_booking_link(snapshot)
         selected_trip_instance = next(
             (item for item in snapshot.trip_instances if item.trip_instance_id == booking_state["trip_instance_id"]),
             None,
@@ -252,7 +249,6 @@ async def save_booking(
         return _render_booking_form(
             request,
             snapshot=snapshot,
-            trip_instances=selectable_trip_instances,
             selected_trip_instance=selected_trip_instance,
             selected_parent_trip=selected_parent_trip,
             editing_booking=editing_booking,

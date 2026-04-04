@@ -6,13 +6,13 @@
       <a class="inline-back-link" href="{{ cancel_url }}">Back</a>
     </p>
     <p class="page-context">Booking</p>
-    <h2>{{ 'Edit booking' if editing_booking else 'New booking' }}</h2>
+    <h2>{{ 'Edit booking' if editing_booking else 'Add booking' }}</h2>
   </div>
 </section>
 
 {% if selected_trip_instance %}
 <section class="card callout-card slim-callout">
-  <strong>Preselected trip</strong>
+  <strong>Trip</strong>
   <p>{{ selected_parent_trip.label if selected_parent_trip else selected_trip_instance.display_label }} · {{ selected_trip_instance.anchor_date.isoformat() }}</p>
 </section>
 {% endif %}
@@ -26,6 +26,7 @@
   {% endif %}
   <form method="post" action="/bookings" id="booking-form">
     <input type="hidden" name="booking_id" value="{{ booking_form_state.booking_id }}">
+    <input type="hidden" name="trip_instance_id" value="{{ booking_form_state.trip_instance_id }}">
     <section class="form-section">
       <div class="section-header compact">
         <div>
@@ -81,27 +82,6 @@
         <label class="full-width">
           <span>Notes</span>
           <textarea name="notes" rows="3">{{ booking_form_state.notes }}</textarea>
-        </label>
-      </div>
-    </section>
-
-    <section class="form-section">
-      <div class="section-header compact">
-        <div>
-          <h3>Link</h3>
-        </div>
-      </div>
-      <div class="form-grid">
-        <label class="full-width">
-          <span>Scheduled trip</span>
-          <div class="select-shell">
-            <select name="trip_instance_id">
-              <option value="">{{ 'Choose a scheduled trip' if editing_booking else 'Let Milemark match it automatically' }}</option>
-              {% for trip_instance in trip_instances %}
-              <option value="{{ trip_instance.trip_instance_id }}" {{ 'selected' if booking_form_state.trip_instance_id == trip_instance.trip_instance_id else '' }}>{{ trip_instance.display_label }}</option>
-              {% endfor %}
-            </select>
-          </div>
         </label>
       </div>
     </section>
