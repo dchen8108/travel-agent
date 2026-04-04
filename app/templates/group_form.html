@@ -2,9 +2,11 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="page-context">Milemark · {{ 'Edit trip group' if group else 'New trip group' }}</p>
-    <h2>{{ group.label if group else 'Create a group to organize related travel.' }}</h2>
-    <p>Groups are pure organization. They can hold recurring rules, manual one-time trips, or both.</p>
+    <p class="detail-breadcrumb">
+      <a class="inline-back-link" href="{{ '/groups/' ~ group.trip_group_id if group else '/' }}">Back</a>
+    </p>
+    <p class="page-context">Collection</p>
+    <h2>{{ group.label if group else 'New collection' }}</h2>
   </div>
 </section>
 
@@ -19,17 +21,17 @@
     <input type="hidden" name="trip_group_id" value="{{ group_form_state.trip_group_id }}">
     <div class="form-grid">
       <label>
-        <span>Group label</span>
+        <span>Collection name</span>
         <input type="text" name="label" value="{{ group_form_state.label }}" required>
       </label>
       <label class="full-width">
         <span>Description</span>
-        <textarea name="description" rows="4" placeholder="Optional context for the kind of travel this group organizes.">{{ group_form_state.description }}</textarea>
+        <textarea name="description" rows="4" placeholder="Optional context for this collection.">{{ group_form_state.description }}</textarea>
       </label>
     </div>
     <div class="actions top-gap">
       <a class="button ghost" href="{{ '/groups/' ~ group.trip_group_id if group else '/' }}">Cancel</a>
-      <button type="submit" class="button primary">Save group</button>
+      <button type="submit" class="button primary">Save collection</button>
     </div>
   </form>
 </section>

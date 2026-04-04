@@ -97,15 +97,15 @@
   function syncTripGroupPicker() {
     const weekly = currentTripKind() === "weekly";
     if (tripGroupLabel) {
-      tripGroupLabel.textContent = weekly ? "Target groups" : "Groups";
+      tripGroupLabel.textContent = weekly ? "Target collections" : "Collections";
     }
     if (tripGroupHelp) {
       if (weekly) {
         tripGroupHelp.innerHTML = existingRuleHadGroups
-          ? "Recurring rules should stay in at least one group."
-          : "Leave this blank and Milemark will create a matching group when you save.";
+          ? "Recurring rules need at least one collection."
+          : "Leave blank to create a matching collection.";
       } else if (!tripGroups.length) {
-        tripGroupHelp.innerHTML = 'No groups yet. <a href="/groups/new">Create one first</a>.';
+        tripGroupHelp.innerHTML = 'No collections yet. <a href="/groups/new">Create one</a>.';
       } else {
         tripGroupHelp.textContent = "";
       }
@@ -114,8 +114,8 @@
       root: tripGroupPickerRoot,
       options: tripGroups,
       values: tripGroupIds,
-      placeholder: "Search groups",
-      emptyText: weekly ? (existingRuleHadGroups ? "Select groups" : "Will create matching group") : "No groups",
+      placeholder: "Search collections",
+      emptyText: weekly ? (existingRuleHadGroups ? "Select collections" : "Will create matching collection") : "No collections",
       compact: true,
       checkable: true,
       allowSelectAll: true,

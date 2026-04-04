@@ -49,7 +49,6 @@
       <section class="attention-group" id="needs-linking">
         <div class="attention-group-header">
           <strong>Link bookings</strong>
-          <p>Attach these itineraries to a trip before Milemark can track them.</p>
         </div>
         <div class="stack">
           {% for card in unmatched_views %}
@@ -132,7 +131,6 @@
       <section class="attention-group">
         <div class="attention-group-header">
           <strong>Resolve multiple bookings</strong>
-          <p>These trips depart within the next week and still have more than one active booking attached.</p>
         </div>
         <div class="signal-list">
           {% for card in overbooked_views %}
@@ -159,7 +157,6 @@
       <section class="attention-group">
         <div class="attention-group-header">
           <strong>Review savings</strong>
-          <p>These booked trips have a lower fare available right now.</p>
         </div>
         <div class="signal-list">
           {% for card in rebook_views %}
@@ -188,7 +185,6 @@
       <section class="attention-group">
         <div class="attention-group-header">
           <strong>Book upcoming trips</strong>
-          <p>These departures are coming up soon and still need a booking.</p>
         </div>
         <div class="signal-list">
           {% for card in book_now_views %}
@@ -225,21 +221,18 @@
       <article class="status-stat">
         <div>
           <strong>Dates with live prices</strong>
-          <p>Current alternatives are already in view.</p>
         </div>
         <span class="status-stat-value">{{ tracking_count }}</span>
       </article>
       <article class="status-stat">
         <div>
           <strong>Still checking</strong>
-          <p>Searches are running but not settled yet.</p>
         </div>
         <span class="status-stat-value">{{ initializing_count }}</span>
       </article>
       <article class="status-stat">
         <div>
           <strong>No fares returned</strong>
-          <p>Configured searches are coming back empty right now.</p>
         </div>
         <span class="status-stat-value">{{ no_match_count }}</span>
         </article>
@@ -251,13 +244,10 @@
     <div class="panel-header">
       <div>
         <p class="eyebrow">Collections</p>
-        <h3>Travel that belongs together</h3>
+        <h3>Related travel</h3>
       </div>
-      <a class="section-link" href="/groups/new">New group</a>
+      <a class="section-link" href="/groups/new">New collection</a>
     </div>
-    <p class="dashboard-panel-intro">
-      Keep recurring plans and one-off trips organized around the way you actually travel.
-    </p>
     <div class="collection-board">
       {% for item in group_views %}
       <article class="collection-card" id="group-{{ item.group.trip_group_id }}">
@@ -272,7 +262,7 @@
             </p>
           </div>
           <div class="collection-card-actions">
-            <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">Open group</a>
+            <a class="section-link" href="/groups/{{ item.group.trip_group_id }}">Open collection</a>
             <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
           </div>
         </div>
@@ -335,8 +325,7 @@
         {% else %}
         <div class="quiet-state-row collection-empty-row">
           <div>
-            <strong>No upcoming travel yet.</strong>
-            <p>Add a trip or rule when you want this collection to start filling up.</p>
+            <strong>No trips yet.</strong>
           </div>
         </div>
         {% endif %}
@@ -344,7 +333,6 @@
       {% else %}
       <article class="compact-empty-state">
         <strong>No collections yet.</strong>
-        <p>Create a group when you want related trips and recurring plans to stay together.</p>
       </article>
       {% endfor %}
     </div>

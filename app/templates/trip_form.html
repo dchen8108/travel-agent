@@ -2,31 +2,27 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
+    <p class="detail-breadcrumb">
+      <a class="inline-back-link" href="{{ '/trips/' ~ trip.trip_id if trip else '/' }}">Back</a>
+    </p>
     <p class="page-context">
       {% if source_unmatched_booking %}
-      Milemark · Draft trip from booking
+      Trip
       {% elif trip %}
-      Milemark · Edit trip
+      {{ 'Rule' if trip.trip_kind == 'weekly' else 'Trip' }}
       {% else %}
-      Milemark · Design trip
+      Trip
       {% endif %}
     </p>
     <h2>
       {% if trip %}
       {{ trip.label }}
       {% elif source_unmatched_booking %}
-      Turn this booking into a trip Milemark can track.
+      New trip
       {% else %}
-      Build a trip Milemark can actually track.
+      New trip
       {% endif %}
     </h2>
-    <p>
-      {% if source_unmatched_booking %}
-      Confirm the schedule, adjust the route if needed, and save the trip to link the booking.
-      {% else %}
-      Choose the schedule, define the acceptable routes, and let price decide what wins.
-      {% endif %}
-    </p>
   </div>
 </section>
 
@@ -46,7 +42,7 @@
       · {{ source_unmatched_booking.departure_time }}{% if source_unmatched_booking.arrival_time %}–{{ source_unmatched_booking.arrival_time }}{% endif %}
       · {{ airline_label(source_unmatched_booking.airline) }}
     </p>
-    <p class="muted">Save this trip to link the booking. You can adjust the route before saving.</p>
+    <p class="muted">Saving links this booking.</p>
   </section>
   {% endif %}
   <form method="post" action="/trips" id="trip-form" novalidate>
@@ -75,17 +71,17 @@
         </div>
       </div>
       <label>
-        <span data-trip-group-label>{{ 'Target groups' if trip_form_state.trip_kind == 'weekly' else 'Groups' }}</span>
+        <span data-trip-group-label>{{ 'Target collections' if trip_form_state.trip_kind == 'weekly' else 'Collections' }}</span>
         <div data-trip-group-picker></div>
         <small class="muted" data-trip-group-help>
           {% if trip_form_state.trip_kind == 'weekly' %}
             {% if trip_form_state.trip_id and trip_form_state.trip_group_ids %}
-            Recurring rules should stay in at least one group.
+            Recurring rules need at least one collection.
             {% else %}
-            Leave this blank and Milemark will create a matching group when you save.
+            Leave blank to create a matching collection.
             {% endif %}
           {% elif not trip_groups %}
-          No groups yet. <a href="/groups/new">Create one first</a>.
+          No collections yet. <a href="/groups/new">Create one</a>.
           {% endif %}
         </small>
       </label>
@@ -109,8 +105,7 @@
     <section class="preference-card top-gap-small">
       <div class="section-header compact">
         <div>
-          <p class="eyebrow">Preference</p>
-          <h3>How to choose between options</h3>
+          <h3>Preference</h3>
         </div>
       </div>
       <div class="preference-mode-grid">
@@ -118,14 +113,14 @@
           <input type="radio" name="preference_mode" value="equal" {{ 'checked' if trip_form_state.preference_mode != 'ranked_bias' else '' }}>
           <span>
             <strong>Treat all options equally</strong>
-            <small>Cheapest matching option wins, regardless of rank.</small>
+            <small>Cheapest match wins.</small>
           </span>
         </label>
         <label class="choice-card">
           <input type="radio" name="preference_mode" value="ranked_bias" {{ 'checked' if trip_form_state.preference_mode == 'ranked_bias' else '' }}>
           <span>
             <strong>Prefer option order</strong>
-            <small>Option 1 is preferred, but lower options can win if they are cheaper by enough.</small>
+            <small>Option 1 wins unless another saves enough.</small>
           </span>
         </label>
       </div>
@@ -134,11 +129,9 @@
     <section class="route-editor top-gap-medium">
       <div class="section-header">
         <div>
-          <p class="eyebrow">Route options</p>
-          <h3>Ranked route definitions</h3>
-          <p class="muted">Each option is one acceptable itinerary for this trip. Keep at least one route so Milemark knows what to track.</p>
+          <h3>Routes</h3>
         </div>
-        <button type="button" class="button secondary" data-add-route-option>Add route option</button>
+        <button type="button" class="button secondary" data-add-route-option>Add route</button>
       </div>
       <div class="stack" data-route-options></div>
     </section>

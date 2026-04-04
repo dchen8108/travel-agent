@@ -1,8 +1,7 @@
 <div class="dashboard-ledger-section" data-scheduled-panel>
   <div class="section-header">
     <div>
-      <p class="eyebrow">Travel filters</p>
-      <h3>Search and narrow upcoming trips</h3>
+      <h3>Filter trips</h3>
     </div>
   </div>
 
@@ -27,12 +26,12 @@
         </style>
       </noscript>
       <label class="filter-field search-field">
-        <span>Search trips</span>
+        <span>Search</span>
         <input
           type="search"
           name="q"
           value="{{ search_query }}"
-          placeholder="Search by trip label"
+          placeholder="Search trips"
           data-filter-search
           autocomplete="off"
           spellcheck="false"
@@ -40,7 +39,7 @@
       </label>
 
       <div class="filter-field">
-        <span>Trip groups</span>
+        <span>Collections</span>
         <div class="filter-picker-shell" data-group-filter-root></div>
         <div data-group-hidden-inputs>
           {% for trip_group_id in selected_trip_group_ids %}
@@ -50,7 +49,7 @@
         <noscript>
           <div class="filter-noscript">
             <label class="filter-field">
-              <span>Trip groups</span>
+              <span>Collections</span>
               <select name="trip_group_id" multiple size="{{ 4 if group_items|length > 4 else (group_items|length if group_items else 1) }}">
                 {% for group in group_items %}
                 <option value="{{ group.trip_group_id }}" {{ 'selected' if group.trip_group_id in selected_trip_group_ids else '' }}>{{ group.label }}</option>

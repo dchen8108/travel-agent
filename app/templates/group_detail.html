@@ -2,19 +2,23 @@
 {% block content %}
 <section class="hero compact">
   <div>
-    <p class="page-context">Milemark · Trip group</p>
+    <p class="detail-breadcrumb">
+      <a class="inline-back-link" href="/#dashboard-groups">Back</a>
+    </p>
+    <p class="page-context">Collection</p>
     <h2>{{ group.label }}</h2>
-    <p>{{ group.description or 'A place to organize related travel without changing how those trips are generated.' }}</p>
+    {% if group.description %}
+    <p>{{ group.description }}</p>
+    {% endif %}
   </div>
   <div class="hero-actions">
-    <a class="button ghost" href="/#dashboard-groups">Back to overview</a>
-    <a class="button secondary" href="/groups/{{ group.trip_group_id }}/edit">Edit group</a>
+    <a class="button secondary" href="/groups/{{ group.trip_group_id }}/edit">Edit collection</a>
     <a class="button primary" href="/trips/new?trip_group_id={{ group.trip_group_id }}">New trip</a>
   </div>
 </section>
 
 <section class="summary-strip">
-  <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>recurring rules</small></div>
+  <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>rules</small></div>
   <div class="summary-pill"><span>{{ grouped_instances|length }}</span><small>upcoming trips</small></div>
   <div class="summary-pill"><span>{{ planned_count }}</span><small>planned</small></div>
   <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
@@ -24,9 +28,9 @@
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
-      <p class="eyebrow">Group controls</p>
+      <h3>Controls</h3>
       {% if recurring_rules %}
-      <p class="muted">Remove or retarget recurring rules before deleting this group.</p>
+      <p class="muted">Remove rules before deleting this collection.</p>
       {% endif %}
     </div>
   </div>
@@ -35,12 +39,12 @@
     <form
       method="post"
       action="/groups/{{ group.trip_group_id }}/delete"
-      data-confirm-title="Delete this trip group?"
-      data-confirm-description="Trips will stay in Milemark, but this group will disappear and any manual memberships in it will be removed."
-      data-confirm-action="Delete group"
-      data-confirm-cancel="Keep group"
+      data-confirm-title="Delete this collection?"
+      data-confirm-description="Trips will stay in Milemark, but this collection will disappear and any manual memberships in it will be removed."
+      data-confirm-action="Delete collection"
+      data-confirm-cancel="Keep collection"
     >
-      <button class="button ghost danger-outline" type="submit">Delete group</button>
+      <button class="button ghost danger-outline" type="submit">Delete collection</button>
     </form>
     {% endif %}
   </div>
@@ -49,8 +53,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Recurring rules</p>
-      <h3>Rules targeting this group</h3>
+      <h3>Rules</h3>
     </div>
   </div>
   <div class="card-grid">
@@ -79,8 +82,7 @@
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No recurring rules yet.</strong>
-      <p>Add one when you want this group to keep generating future trips on a cadence.</p>
+      <strong>No rules yet.</strong>
     </article>
     {% endfor %}
   </div>
@@ -89,8 +91,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Upcoming trips</p>
-      <h3>Trips currently in this group</h3>
+      <h3>Trips</h3>
     </div>
   </div>
   <div class="stack">
@@ -106,8 +107,7 @@
     {% include "partials/scheduled_trip_card.html" %}
     {% else %}
     <article class="empty-state">
-      <strong>No upcoming trips in this group.</strong>
-      <p>Create a one-time trip or add a recurring rule to start filling the group.</p>
+      <strong>No upcoming trips.</strong>
     </article>
     {% endfor %}
   </div>

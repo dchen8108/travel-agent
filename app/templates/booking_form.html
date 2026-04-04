@@ -2,9 +2,11 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="page-context">Milemark · {{ 'Edit booking' if editing_booking else 'Add booking' }}</p>
-    <h2>{{ 'Update a flight already in Milemark.' if editing_booking else 'Capture a flight you already booked.' }}</h2>
-    <p>{% if editing_booking %}Change the itinerary or trip link, then Milemark will re-check whether this exact route is being tracked.{% else %}Record the itinerary first. If Milemark can place it confidently, it will attach it automatically.{% endif %}</p>
+    <p class="detail-breadcrumb">
+      <a class="inline-back-link" href="{{ cancel_url }}">Back</a>
+    </p>
+    <p class="page-context">Booking</p>
+    <h2>{{ 'Edit booking' if editing_booking else 'New booking' }}</h2>
   </div>
 </section>
 
@@ -27,8 +29,7 @@
     <section class="form-section">
       <div class="section-header compact">
         <div>
-          <p class="eyebrow">Flight</p>
-          <h3>Enter the actual booked itinerary</h3>
+          <h3>Flight</h3>
         </div>
       </div>
       <div class="form-grid booking-itinerary-grid">
@@ -65,8 +66,7 @@
     <section class="form-section">
       <div class="section-header compact">
         <div>
-          <p class="eyebrow">Purchase</p>
-          <h3>Purchase details</h3>
+          <h3>Price</h3>
         </div>
       </div>
       <div class="form-grid">
@@ -88,8 +88,7 @@
     <section class="form-section">
       <div class="section-header compact">
         <div>
-          <p class="eyebrow">Trip link</p>
-          <h3>Attach to a trip</h3>
+          <h3>Link</h3>
         </div>
       </div>
       <div class="form-grid">
@@ -118,7 +117,7 @@
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
-      <p class="eyebrow">Booking controls</p>
+      <h3>Controls</h3>
     </div>
   </div>
   <div class="actions">

@@ -231,8 +231,8 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     detail = client.get(create.headers["location"])
     assert detail.status_code == 200
     assert "Work Trips" in detail.text
-    assert "Recurring rules" in detail.text
-    assert "Upcoming trips" in detail.text
+    assert "Rules" in detail.text
+    assert "Trips" in detail.text
 
 
 def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
@@ -314,7 +314,6 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
     assert "Link bookings" in page.text
-    assert "Attach these itineraries to a trip before Milemark can track them." in page.text
     assert "/bookings/unmatched/" in page.text
 
 
@@ -874,7 +873,7 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
     assert response.status_code == 400
     assert "Trip not saved." in response.text
     assert "This Trip Label is already used by a recurring trip." in response.text
-    assert "Edit trip" in response.text
+    assert "Conflict Trip" in response.text
     assert f'name=\"trip_id\" value=\"{trip_id}\"' in response.text
 
 
@@ -1356,7 +1355,7 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
 
     detail = client.get(trip_instance_url)
     assert detail.status_code == 200
-    assert "Flights linked to this scheduled trip" in detail.text
+    assert "Bookings" in detail.text
     assert "MULTI1" in detail.text
     assert "MULTI2" in detail.text
     assert "2 active" in detail.text
@@ -1494,8 +1493,8 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert "Trip groups" in trips_page.text
-    assert "Search and narrow upcoming trips" in trips_page.text
+    assert "Collections" in trips_page.text
+    assert "Filter trips" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text
@@ -1625,8 +1624,8 @@ def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
     response = client.get(f"/trips/{trip_id}", follow_redirects=False)
     assert response.status_code == 200
     assert "Redirect Weekly Trip" in response.text
-    assert "Route options" in response.text
-    assert "Scheduled trips" in response.text
+    assert "Routes" in response.text
+    assert "Trips" in response.text
 
 
 def test_one_time_trip_detail_redirects_to_scheduled_trip_page(tmp_path: Path) -> None:
@@ -1899,7 +1898,7 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
     assert "Scheduled trip" in trackers_page.text
-    assert "Current options" in trackers_page.text
+    assert "Tracked searches" in trackers_page.text
     assert "Last updated:" in trackers_page.text
     assert "Next refresh:" in trackers_page.text
     assert "BUR to SFO" in trackers_page.text

@@ -4,9 +4,9 @@
   {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
-      <a class="inline-back-link" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id) }}">Back to overview</a>
+      <a class="inline-back-link" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id) }}">Back</a>
     </p>
-    <p class="page-context">Milemark · Scheduled trip</p>
+    <p class="page-context">Scheduled trip</p>
     <h2>{{ trip_instance.display_label }}</h2>
     <div class="detail-hero-meta">
       <span class="status-pill {{ lifecycle_tone }}">{{ lifecycle_label }}</span>
@@ -54,8 +54,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Bookings</p>
-      <h3>Flights linked to this scheduled trip</h3>
+      <h3>Bookings</h3>
     </div>
   </div>
   {% if untracked_booking_count %}
@@ -67,7 +66,7 @@
       {{ untracked_booking_count }} linked bookings are not being tracked by any route on this trip yet
       {% endif %}
     </strong>
-    <p>These bookings stay linked to the trip, but Milemark cannot compare their exact itinerary until one of this trip’s tracked routes matches.</p>
+    <p>Add a matching route to compare these fares.</p>
   </section>
   {% endif %}
   <div class="stack">
@@ -138,14 +137,7 @@
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
-      <p class="eyebrow">Other dates</p>
-      <p class="muted">
-        {% if recurring_rule %}
-        Jump to another date generated from this recurring rule.
-        {% else %}
-        Jump to another scheduled date in this trip.
-        {% endif %}
-      </p>
+      <h3>Other dates</h3>
     </div>
   </div>
   <div class="inline-badge-row">
@@ -164,8 +156,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Current options</p>
-      <h3>Searches being monitored for this date</h3>
+      <h3>Tracked searches</h3>
     </div>
     {% if total_fetch_targets %}
     <div class="section-actions">
@@ -226,7 +217,7 @@
       </div>
 
       {% if card.is_retrying %}
-      <p class="muted">A recent Google Flights request failed. Milemark will retry automatically.</p>
+      <p class="muted">A recent fetch failed. Milemark will retry.</p>
       {% endif %}
 
       {% if card.has_diagnostics %}
@@ -260,8 +251,7 @@
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No trackers for this scheduled trip.</strong>
-      <p>This usually means the parent trip does not currently have route options attached.</p>
+      <strong>No tracked searches yet.</strong>
     </article>
     {% endfor %}
   </div>
@@ -270,7 +260,7 @@
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
-      <p class="eyebrow">Trip controls</p>
+      <h3>Controls</h3>
     </div>
   </div>
   <div class="actions">

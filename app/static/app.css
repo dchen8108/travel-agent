@@ -257,44 +257,43 @@ p {
 }
 
 .hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px 18px;
   margin-bottom: 0;
   align-items: start;
-  padding: 34px 36px;
-  border: 1px solid rgba(200, 209, 204, 0.84);
-  border-radius: 36px;
-  background:
-    linear-gradient(135deg, rgba(255, 254, 251, 0.95), rgba(240, 247, 243, 0.82) 42%, rgba(247, 242, 235, 0.95));
-  box-shadow: var(--shadow);
+  padding: 4px 2px 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 
 .hero h2 {
-  margin: 8px 0 10px;
-  font-size: clamp(2.4rem, 4vw, 3.5rem);
-  max-width: 18ch;
+  margin: 0;
+  font-size: clamp(1.8rem, 2.7vw, 2.45rem);
+  max-width: none;
   text-wrap: balance;
 }
 
 .hero.compact h2 {
-  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-size: clamp(1.75rem, 2.5vw, 2.3rem);
 }
 
 .hero.form-hero h2 {
-  max-width: 26ch;
-  font-size: clamp(1.9rem, 2.8vw, 2.6rem);
+  max-width: none;
+  font-size: clamp(1.7rem, 2.35vw, 2.15rem);
 }
 
 .hero.form-hero p {
-  max-width: 46ch;
+  max-width: 48ch;
 }
 
 .hero p {
-  max-width: 760px;
+  max-width: 56ch;
   color: var(--muted);
-  font-size: 0.98rem;
-  line-height: 1.55;
+  font-size: 0.94rem;
+  line-height: 1.45;
   text-wrap: pretty;
 }
 
@@ -447,7 +446,7 @@ small,
 }
 
 .detail-breadcrumb {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
 
 .inline-badge-row {
@@ -2069,13 +2068,6 @@ textarea {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.dashboard-panel-intro {
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  max-width: 60ch;
 }
 
 .section-link {

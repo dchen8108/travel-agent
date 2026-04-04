@@ -5,23 +5,16 @@
   {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
-      <a class="inline-back-link" href="/#all-travel">Back to overview</a>
+      <a class="inline-back-link" href="/#all-travel">Back</a>
     </p>
     <p class="page-context">
       {% if trip.trip_kind == 'weekly' %}
-      Milemark · Recurring rule
+      Recurring rule
       {% else %}
-      Milemark · One-time trip
+      Trip
       {% endif %}
     </p>
     <h2>{{ trip.label }}</h2>
-    <p>
-      {% if trip.trip_kind == 'weekly' %}
-      Defines the cadence, target groups, and route template for future scheduled trips.
-      {% else %}
-      Owns one scheduled date and the route definitions behind it.
-      {% endif %}
-    </p>
     {% if trip_groups %}
     <div class="inline-badge-row top-gap-small">
       {% for linked_group in trip_groups %}
@@ -32,7 +25,7 @@
   </div>
   <div class="hero-actions">
     {% if primary_trip_group %}
-    <a class="button ghost" href="/groups/{{ primary_trip_group.trip_group_id }}">Open group</a>
+    <a class="button ghost" href="/groups/{{ primary_trip_group.trip_group_id }}">Open collection</a>
     {% endif %}
     <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">{{ 'Edit rule' if trip.trip_kind == 'weekly' else 'Edit trip' }}</a>
     {% if trip.trip_kind == 'weekly' %}
@@ -62,8 +55,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Rule setup</p>
-      <h3>How this trip is configured</h3>
+      <h3>Setup</h3>
     </div>
   </div>
   <div class="card travel-overview-card">
@@ -80,8 +72,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Route options</p>
-      <h3>Ranked route definitions</h3>
+      <h3>Routes</h3>
     </div>
   </div>
   <div class="stack">
@@ -93,12 +84,10 @@
           <strong>Option {{ option.rank }}</strong>
           <p class="muted">
             {{ day_offset_label(trip.effective_anchor_weekday, option.day_offset) }} ·
-            {{ option.start_time }}–{{ option.end_time }} departure
+            {{ option.start_time }}–{{ option.end_time }} ·
+            {{ 'Includes Basic' if option.fare_class_policy == 'include_basic' else 'Excludes Basic' }} ·
+            {{ option_view.preference_note }}
           </p>
-          <p class="muted">
-            {{ 'Includes Basic fares' if option.fare_class_policy == 'include_basic' else 'Excludes Basic fares' }}
-          </p>
-          <p class="muted">{{ option_view.preference_note }}</p>
         </div>
       </div>
       <div class="route-summary-grid">
@@ -130,8 +119,7 @@
     </article>
     {% else %}
     <article class="empty-state">
-      <strong>No route options.</strong>
-      <p>Edit the trip to add at least one ranked route option.</p>
+      <strong>No routes yet.</strong>
     </article>
     {% endfor %}
   </div>
@@ -140,8 +128,7 @@
 <section class="section">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Scheduled trips</p>
-      <h3>{{ 'Scheduled trips created by this rule' if trip.trip_kind == 'weekly' else 'Scheduled trips created by this trip' }}</h3>
+      <h3>Trips</h3>
     </div>
   </div>
   <div class="stack">
@@ -161,8 +148,7 @@
     {% include "partials/scheduled_trip_card.html" %}
     {% else %}
     <article class="empty-state">
-      <strong>No upcoming scheduled trips.</strong>
-      <p>{{ 'Pause is on or the rolling horizon has not generated anything yet.' if trip.trip_kind == 'weekly' else 'This trip does not currently have a live scheduled instance.' }}</p>
+      <strong>No upcoming trips.</strong>
     </article>
     {% endfor %}
   </div>
@@ -171,7 +157,7 @@
 <section class="section section-tight">
   <div class="section-header compact">
     <div>
-      <p class="eyebrow">Trip controls</p>
+      <h3>Controls</h3>
     </div>
   </div>
   <div class="actions">
