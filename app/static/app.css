@@ -2159,6 +2159,39 @@ textarea {
   gap: 10px;
 }
 
+.attention-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.attention-group {
+  display: grid;
+  gap: 12px;
+}
+
+.attention-group + .attention-group {
+  padding-top: 2px;
+  border-top: 1px solid rgba(214, 220, 214, 0.7);
+}
+
+.attention-group-header {
+  display: grid;
+  gap: 3px;
+}
+
+.attention-group-header strong {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.attention-group-header p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .dashboard-card-grid {
   display: grid;
   gap: 14px;

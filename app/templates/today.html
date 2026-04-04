@@ -47,49 +47,153 @@
         <h3>What needs a decision right now</h3>
       </div>
     </div>
-    {% if not rebook_views and not book_now_views %}
+    {% if not unmatched_views and not rebook_views and not book_now_views %}
     <div class="quiet-state-row mission-quiet-state">
       <div>
-        <strong>No trip decisions are waiting.</strong>
-        <p>Nearer departures are covered and there are no current rebooking opportunities to review.</p>
+        <strong>No travel decisions are waiting.</strong>
+        <p>Upcoming trips are covered, bookings are linked, and there are no fare changes to review.</p>
       </div>
       <a class="button secondary" href="/#all-travel">Browse travel</a>
     </div>
     {% else %}
-    <div class="signal-list">
-      {% for card in book_now_views %}
-      <article class="signal-item">
-        <div class="signal-copy">
-          <div class="signal-headline">
-            <strong>Needs booking</strong>
-            <span class="signal-badge">{{ card.instance.anchor_date.strftime('%b %d') }}</span>
-          </div>
-          <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
-          <p class="compact-meta">
-            {% if card.context_label %}{{ card.context_label }} · {% endif %}{{ card.detail }}
-          </p>
+    <div class="attention-stack">
+      {% if unmatched_views %}
+      <section class="attention-group" id="needs-linking">
+        <div class="attention-group-header">
+          <strong>Link bookings</strong>
+          <p>Attach these itineraries to a trip before Milemark can track them.</p>
         </div>
-        <a class="button secondary" href="{{ card.href }}">View trip</a>
-      </article>
-      {% endfor %}
-      {% for card in rebook_views %}
-      <article class="signal-item signal-item-accent">
-        <div class="signal-copy">
-          <div class="signal-headline">
-            <strong>Price drop</strong>
-            {% if card.savings %}
-            <span class="signal-badge">{{ money(card.savings) }} lower</span>
-            {% endif %}
-          </div>
-          <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
-          <p class="compact-meta">
-            {{ card.instance.anchor_date.strftime('%a, %b %d') }}{% if card.context_label %} · {{ card.context_label }}{% endif %}
-          </p>
-          <p class="signal-detail">{{ card.detail }}</p>
+        <div class="stack">
+          {% for card in unmatched_views %}
+          {% set unmatched = card.unmatched %}
+          <article class="card resolve-card booking-card">
+            <div class="card-header">
+              <div>
+                <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
+                <p class="muted">
+                  {{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }}{% if unmatched.arrival_time %}–{{ unmatched.arrival_time }}{% endif %} ·
+                  {{ airline_label(unmatched.airline) }}
+                </p>
+              </div>
+              <span class="badge">{{ money(unmatched.booked_price) }}</span>
+            </div>
+            <div class="meta-grid">
+              <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
+              <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
+              <div><dt>Status</dt><dd>Needs linking</dd></div>
+            </div>
+            <div class="two-column top-gap-small">
+              <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
+                <h4>Link to an existing scheduled trip</h4>
+                <label>
+                  <span>Scheduled trip</span>
+                  <div class="select-shell">
+                    <select name="trip_instance_id" required>
+                      <option value="">Choose one</option>
+                      {% if card.suggested_trip_instances %}
+                      <optgroup label="Suggested matches">
+                        {% for trip_instance in card.suggested_trip_instances %}
+                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                        {% endfor %}
+                      </optgroup>
+                      {% endif %}
+                      {% if card.upcoming_trip_instances %}
+                      <optgroup label="{{ 'Other upcoming trips' if card.suggested_trip_instances else 'Upcoming trips' }}">
+                        {% for trip_instance in card.upcoming_trip_instances %}
+                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                        {% endfor %}
+                      </optgroup>
+                      {% endif %}
+                      {% if card.past_trip_instances %}
+                      <optgroup label="Past trips">
+                        {% for trip_instance in card.past_trip_instances %}
+                        <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
+                        {% endfor %}
+                      </optgroup>
+                      {% endif %}
+                    </select>
+                  </div>
+                </label>
+                <button type="submit" class="button primary">Link booking</button>
+              </form>
+
+              <form method="get" action="/trips/new" class="subcard">
+                <h4>Create a new one-time trip</h4>
+                <input type="hidden" name="unmatched_booking_id" value="{{ unmatched.unmatched_booking_id }}">
+                <label>
+                  <span>New trip label</span>
+                  <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
+                </label>
+                <button type="submit" class="button secondary">Create trip from booking</button>
+              </form>
+            </div>
+            <div class="actions action-row booking-card-footer-actions">
+              <div class="action-cluster">
+                <form method="post" action="/bookings/{{ unmatched.unmatched_booking_id }}/delete">
+                  <button type="submit" class="button danger-outline">Delete</button>
+                </form>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
         </div>
-        <a class="button secondary" href="{{ card.href }}">See savings</a>
-      </article>
-      {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if rebook_views %}
+      <section class="attention-group">
+        <div class="attention-group-header">
+          <strong>Review savings</strong>
+          <p>These booked trips have a lower fare available right now.</p>
+        </div>
+        <div class="signal-list">
+          {% for card in rebook_views %}
+          <article class="signal-item signal-item-accent">
+            <div class="signal-copy">
+              <div class="signal-headline">
+                <strong>Price drop</strong>
+                {% if card.savings %}
+                <span class="signal-badge">{{ money(card.savings) }} lower</span>
+                {% endif %}
+              </div>
+              <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
+              <p class="compact-meta">
+                {{ card.instance.anchor_date.strftime('%a, %b %d') }}{% if card.context_label %} · {{ card.context_label }}{% endif %}
+              </p>
+              <p class="signal-detail">{{ card.detail }}</p>
+            </div>
+            <a class="button secondary" href="{{ card.href }}">See savings</a>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if book_now_views %}
+      <section class="attention-group">
+        <div class="attention-group-header">
+          <strong>Book upcoming trips</strong>
+          <p>These departures are coming up soon and still need a booking.</p>
+        </div>
+        <div class="signal-list">
+          {% for card in book_now_views %}
+          <article class="signal-item">
+            <div class="signal-copy">
+              <div class="signal-headline">
+                <strong>Needs booking</strong>
+                <span class="signal-badge">{{ card.instance.anchor_date.strftime('%b %d') }}</span>
+              </div>
+              <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
+              <p class="compact-meta">
+                {% if card.context_label %}{{ card.context_label }} · {% endif %}{{ card.detail }}
+              </p>
+            </div>
+            <a class="button secondary" href="{{ card.href }}">View trip</a>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
     </div>
     {% endif %}
   </section>
@@ -127,94 +231,6 @@
       </div>
     </section>
   </aside>
-
-  {% if unmatched_views %}
-  <section class="dashboard-panel dashboard-full-panel" id="needs-linking">
-    <div class="panel-header">
-      <div>
-        <p class="eyebrow">Unlinked bookings</p>
-        <h3>Bookings that need your review</h3>
-      </div>
-    </div>
-    <p class="dashboard-panel-intro">
-      Attach these itineraries to a trip before Milemark can track them.
-    </p>
-    <div class="stack">
-      {% for card in unmatched_views %}
-      {% set unmatched = card.unmatched %}
-      <article class="card resolve-card booking-card">
-        <div class="card-header">
-          <div>
-            <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
-            <p class="muted">
-              {{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }}{% if unmatched.arrival_time %}–{{ unmatched.arrival_time }}{% endif %} ·
-              {{ airline_label(unmatched.airline) }}
-            </p>
-          </div>
-          <span class="badge">{{ money(unmatched.booked_price) }}</span>
-        </div>
-        <div class="meta-grid">
-          <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
-          <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
-          <div><dt>Status</dt><dd>Needs linking</dd></div>
-        </div>
-        <div class="two-column top-gap-small">
-          <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
-            <h4>Link to an existing scheduled trip</h4>
-            <label>
-              <span>Scheduled trip</span>
-              <div class="select-shell">
-                <select name="trip_instance_id" required>
-                  <option value="">Choose one</option>
-                  {% if card.suggested_trip_instances %}
-                  <optgroup label="Suggested matches">
-                    {% for trip_instance in card.suggested_trip_instances %}
-                    <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
-                    {% endfor %}
-                  </optgroup>
-                  {% endif %}
-                  {% if card.upcoming_trip_instances %}
-                  <optgroup label="{{ 'Other upcoming trips' if card.suggested_trip_instances else 'Upcoming trips' }}">
-                    {% for trip_instance in card.upcoming_trip_instances %}
-                    <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
-                    {% endfor %}
-                  </optgroup>
-                  {% endif %}
-                  {% if card.past_trip_instances %}
-                  <optgroup label="Past trips">
-                    {% for trip_instance in card.past_trip_instances %}
-                    <option value="{{ trip_instance.trip_instance_id }}">{{ trip_instance.display_label }}</option>
-                    {% endfor %}
-                  </optgroup>
-                  {% endif %}
-                </select>
-              </div>
-            </label>
-            <button type="submit" class="button primary">Link booking</button>
-          </form>
-
-          <form method="get" action="/trips/new" class="subcard">
-            <h4>Create a new one-time trip</h4>
-            <input type="hidden" name="unmatched_booking_id" value="{{ unmatched.unmatched_booking_id }}">
-            <label>
-              <span>New trip label</span>
-              <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
-            </label>
-            <button type="submit" class="button secondary">Create trip from booking</button>
-          </form>
-        </div>
-        <div class="actions action-row booking-card-footer-actions">
-          <div class="action-cluster">
-            <form method="post" action="/bookings/{{ unmatched.unmatched_booking_id }}/delete">
-              <button type="submit" class="button danger-outline">Delete</button>
-            </form>
-          </div>
-        </div>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
 
   <section class="dashboard-panel dashboard-full-panel dashboard-collections-panel" id="dashboard-groups">
     <div class="panel-header">

@@ -312,8 +312,8 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "All upcoming dates, one list" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
-    assert "Unlinked bookings" in page.text
-    assert "Bookings that need your review" in page.text
+    assert "Link bookings" in page.text
+    assert "Attach these itineraries to a trip before Milemark can track them." in page.text
     assert "/bookings/unmatched/" in page.text
 
 
