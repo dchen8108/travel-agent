@@ -98,10 +98,10 @@
               </form>
 
               <form method="get" action="/trips/new" class="subcard">
-                <h4>Create a new one-time trip</h4>
+                <h4>Create a one-time trip</h4>
                 <input type="hidden" name="unmatched_booking_id" value="{{ unmatched.unmatched_booking_id }}">
                 <label>
-                  <span>New trip label</span>
+                  <span>Trip name</span>
                   <input type="text" name="trip_label" value="{{ card.suggested_trip_label }}" required>
                 </label>
                 <button type="submit" class="button secondary">Create trip from booking</button>
@@ -224,7 +224,7 @@
   <section class="dashboard-panel dashboard-full-panel dashboard-collections-panel" id="dashboard-groups">
     <div class="panel-header">
       <h3>Collections</h3>
-      <a class="section-link" href="/groups/new">New collection</a>
+      <a class="button primary compact" href="/groups/new">Create collection</a>
     </div>
     <div class="collection-board">
       {% for item in group_views %}
@@ -232,8 +232,8 @@
         <div class="collection-card-head">
           <div class="collection-card-titleline">
             <strong><a class="dashboard-item-title" href="/groups/{{ item.group.trip_group_id }}">{{ item.group.label }}</a></strong>
-            <a class="section-link" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">New trip</a>
           </div>
+          <a class="button primary compact" href="/trips/new?trip_group_id={{ item.group.trip_group_id }}">Create trip</a>
         </div>
 
         {% if item.upcoming_trip_views %}
