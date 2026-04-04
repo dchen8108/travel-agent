@@ -15,7 +15,9 @@
   "inbox_label_ids": [
     "INBOX"
   ],
-  "allowed_from_addresses": [],
+  "allowed_from_addresses": [
+    "david.yinghao.chen@gmail.com"
+  ],
   "max_body_chars": 12000,
   "max_messages_per_poll": 20,
   "max_retry_attempts": 2,
