@@ -133,26 +133,6 @@
 </section>
 {% endif %}
 
-{% if sibling_instances %}
-<section class="section section-tight">
-  <div class="section-header compact">
-    <div>
-      <h3>Other dates</h3>
-    </div>
-  </div>
-  <div class="inline-badge-row">
-    <span class="badge is-best">{{ trip_instance.anchor_date.strftime('%b %d') }}</span>
-    {% for instance in sibling_instances %}
-    <a
-      class="badge horizon-badge"
-      href="{{ tracker_detail_url(instance.trip_instance_id) }}"
-      title="Scheduled trip"
-    >{{ instance.anchor_date.strftime('%b %d') }}</a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
 <section class="section">
   <div class="section-header">
     <div>
