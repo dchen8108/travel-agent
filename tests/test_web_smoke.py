@@ -1640,7 +1640,7 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
     group_page = client.get(f"/groups/{group.trip_group_id}")
     assert group_page.status_code == 200
     assert "Weekly Commute" in group_page.text
-    assert group_page.text.count('class="card scheduled-card"') == 15
+    assert group_page.text.count('class="timeline-row"') == 15
 
 
 def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
@@ -1910,6 +1910,49 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert filtered_page.status_code == 200
     assert "Weekly Commute A" in filtered_page.text
     assert "One-off Flight" not in filtered_page.text
+
+
+def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    work_group = save_trip_group(repository, trip_group_id=None, label="Work Travel")
+
+    grouped = client.post(
+        "/trips",
+        data={
+            "label": "Grouped Commute",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([work_group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    ungrouped = client.post(
+        "/trips",
+        data={
+            "label": "Ungrouped One-off",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-05-10",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["SFO"],"destination_airports":["JFK"],"airlines":["United"],"day_offset":0,"start_time":"08:00","end_time":"12:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert grouped.status_code == 303
+    assert ungrouped.status_code == 303
+
+    filtered_page = client.get("/?partial=scheduled-results&trip_group_id=__ungrouped__")
+    assert filtered_page.status_code == 200
+    assert "Ungrouped One-off" in filtered_page.text
+    assert "Grouped Commute" not in filtered_page.text
 
 
 def test_editing_grouped_rule_cannot_remove_all_target_groups(tmp_path: Path) -> None:

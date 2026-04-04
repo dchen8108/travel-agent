@@ -127,7 +127,12 @@
         if (values.length === 1) {
           return options.find((option) => option.value === values[0])?.label || values[0];
         }
-        return `${values.length} collections`;
+        if (values.length === 2) {
+          return values
+            .map((value) => options.find((option) => option.value === value)?.label || value)
+            .join(", ");
+        }
+        return `${values.length} selected`;
       },
       onChange(values) {
         setSelectedTripGroupIds(values);

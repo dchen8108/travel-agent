@@ -600,6 +600,7 @@ def scheduled_ledger_view(
     today = today or date.today()
     group_items = trip_groups(snapshot)
     valid_group_ids = {group.trip_group_id for group in group_items}
+    include_ungrouped = UNGROUPED_TRIPS_FILTER_VALUE in (selected_trip_group_ids or [])
     selected_ids = [
         trip_group_id
         for trip_group_id in (selected_trip_group_ids or [])
@@ -610,6 +611,7 @@ def scheduled_ledger_view(
     scheduled_items = scheduled_instances(
         snapshot,
         trip_group_ids=selected_id_set or None,
+        include_ungrouped=include_ungrouped,
         today=today,
     )
     query = search_query.strip()
@@ -643,16 +645,39 @@ def scheduled_ledger_view(
     return {
         "group_items": group_items,
         "scheduled_items": scheduled_items,
-        "selected_trip_group_ids": selected_ids,
+        "selected_trip_group_ids": [*selected_ids, *([UNGROUPED_TRIPS_FILTER_VALUE] if include_ungrouped else [])],
         "search_query": query,
         "total_active_scheduled": total_active_scheduled,
         "total_booked_scheduled": total_booked_scheduled,
         "group_filter_options": [
-            {"value": group.trip_group_id, "label": group.label}
-            for group in group_items
+            {"value": UNGROUPED_TRIPS_FILTER_VALUE, "label": "No collection", "hideValue": True},
+            *(
+                {"value": group.trip_group_id, "label": group.label}
+                for group in group_items
+            ),
         ],
         "today": today,
     }
+
+
+UNGROUPED_TRIPS_FILTER_VALUE = "__ungrouped__"
+
+
+def _instance_matches_group_filter(
+    snapshot: AppSnapshot,
+    trip_instance_id: str,
+    *,
+    trip_group_ids: set[str] | None = None,
+    include_ungrouped: bool = False,
+) -> bool:
+    if not trip_group_ids and not include_ungrouped:
+        return True
+    instance_groups = groups_for_instance(snapshot, trip_instance_id)
+    if trip_group_ids and any(group.trip_group_id in trip_group_ids for group in instance_groups):
+        return True
+    if include_ungrouped and not instance_groups:
+        return True
+    return False
 
 
 def recurring_rules_for_group(snapshot: AppSnapshot, trip_group_id: str) -> list[Trip]:
@@ -707,6 +732,7 @@ def scheduled_instances(
     *,
     trip_group_ids: set[str] | None = None,
     recurring_trip_ids: set[str] | None = None,
+    include_ungrouped: bool = False,
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
@@ -722,11 +748,16 @@ def scheduled_instances(
             and not trip.active
         )
     ]
-    if trip_group_ids:
+    if trip_group_ids or include_ungrouped:
         items = [
             item
             for item in items
-            if any(group.trip_group_id in trip_group_ids for group in groups_for_instance(snapshot, item.trip_instance_id))
+            if _instance_matches_group_filter(
+                snapshot,
+                item.trip_instance_id,
+                trip_group_ids=trip_group_ids,
+                include_ungrouped=include_ungrouped,
+            )
         ]
     if recurring_trip_ids:
         items = [
@@ -748,15 +779,21 @@ def past_instances(
     *,
     trip_group_ids: set[str] | None = None,
     recurring_trip_ids: set[str] | None = None,
+    include_ungrouped: bool = False,
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
     items = [item for item in snapshot.trip_instances if not item.deleted and is_past_instance(item, today=today)]
-    if trip_group_ids:
+    if trip_group_ids or include_ungrouped:
         items = [
             item
             for item in items
-            if any(group.trip_group_id in trip_group_ids for group in groups_for_instance(snapshot, item.trip_instance_id))
+            if _instance_matches_group_filter(
+                snapshot,
+                item.trip_instance_id,
+                trip_group_ids=trip_group_ids,
+                include_ungrouped=include_ungrouped,
+            )
         ]
     if recurring_trip_ids:
         items = [

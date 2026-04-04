@@ -46,7 +46,7 @@
   }
 
   function formatOption(option) {
-    if (option.label && isInternalIdentifier(option.value)) {
+    if (option.label && (isInternalIdentifier(option.value) || option.hideValue)) {
       return option.label;
     }
     return option.label ? `${option.value} · ${option.label}` : option.value;

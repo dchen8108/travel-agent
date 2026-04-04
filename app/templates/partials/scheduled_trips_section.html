@@ -44,7 +44,8 @@
           <div class="filter-noscript">
             <label class="filter-field">
               <span>Collections</span>
-              <select name="trip_group_id" multiple size="{{ 4 if group_items|length > 4 else (group_items|length if group_items else 1) }}">
+              <select name="trip_group_id" multiple size="{{ 4 if (group_items|length + 1) > 4 else ((group_items|length + 1) if group_items else 2) }}">
+                <option value="__ungrouped__" {{ 'selected' if '__ungrouped__' in selected_trip_group_ids else '' }}>No collection</option>
                 {% for group in group_items %}
                 <option value="{{ group.trip_group_id }}" {{ 'selected' if group.trip_group_id in selected_trip_group_ids else '' }}>{{ group.label }}</option>
                 {% endfor %}

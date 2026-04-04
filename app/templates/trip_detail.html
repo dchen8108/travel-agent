@@ -131,27 +131,11 @@
       <h3>Trips</h3>
     </div>
   </div>
-  <div class="stack">
-    {% for instance in future_instances %}
-    {% set scheduled_instance = instance %}
-    {% set scheduled_parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_trip_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_title = instance.display_label %}
-    {% set scheduled_subtitle_html = (scheduled_trip_groups|map(attribute='label')|join(' · ')) ~ ((scheduled_trip_groups and trip.trip_kind == 'weekly') and ' · ' or '') ~ (trip.label if trip.trip_kind == 'weekly' else '') %}
-    {% set scheduled_allow_detach = trip.trip_kind == 'weekly' %}
-    {% set scheduled_allow_delete_generated = scheduled_allow_detach %}
-    {% set scheduled_allow_add_booking = scheduled_active_booking_count == 0 %}
-    {% include "partials/scheduled_trip_card.html" %}
-    {% else %}
-    <article class="empty-state">
-      <strong>No upcoming trips.</strong>
-    </article>
-    {% endfor %}
-  </div>
+  {% set scheduled_items = future_instances %}
+  {% set show_scheduled_results_copy = False %}
+  {% set scheduled_empty_title = 'No upcoming trips.' %}
+  {% set scheduled_empty_detail = '' %}
+  {% include "partials/scheduled_trips_results.html" %}
 </section>
 {% if trip.trip_kind != 'weekly' %}
 <section class="section section-tight">
