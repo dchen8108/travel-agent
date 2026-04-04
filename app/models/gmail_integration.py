@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from email.utils import parseaddr
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -8,6 +10,7 @@ class GmailIntegrationConfig(BaseModel):
 
     enabled: bool = True
     inbox_label_ids: list[str] = Field(default_factory=lambda: ["INBOX"])
+    allowed_from_addresses: list[str] = Field(default_factory=list)
     max_messages_per_poll: int = 20
     booking_keywords: list[str] = Field(
         default_factory=lambda: [
@@ -46,6 +49,27 @@ class GmailIntegrationConfig(BaseModel):
         if value < 1:
             raise ValueError("max_messages_per_poll must be at least 1.")
         return value
+
+    @field_validator("allowed_from_addresses")
+    @classmethod
+    def normalize_allowed_from_addresses(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            raw = value.strip()
+            if not raw:
+                continue
+            _name, address = parseaddr(raw)
+            candidate = (address or raw).strip().lower()
+            if not candidate:
+                continue
+            if "@" not in candidate:
+                raise ValueError("allowed_from_addresses must contain email addresses.")
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            normalized.append(candidate)
+        return normalized
 
     @field_validator("max_body_chars")
     @classmethod

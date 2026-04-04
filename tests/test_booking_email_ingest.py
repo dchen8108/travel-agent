@@ -83,6 +83,32 @@ def test_booking_email_ingest_ignores_clear_spam_without_llm(repository: Reposit
     assert not result.created_unmatched_bookings
 
 
+def test_booking_email_ingest_ignores_sender_outside_allowlist_without_llm(repository: Repository, monkeypatch) -> None:
+    def should_not_extract(**_: object) -> None:
+        raise AssertionError("LLM extraction should not be called for sender-filtered emails")
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        should_not_extract,
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="sender-filtered-1",
+            subject="Your flight booking confirmation",
+            body_text="Confirmation code ABC123",
+        ),
+        config=GmailIntegrationConfig(allowed_from_addresses=["forwarder@example.com"]),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.IGNORED
+    assert result.event.email_kind == "not_booking"
+    assert result.event.notes == "Ignored because sender bookings@example-airline.com is not in allowed_from_addresses."
+    assert not result.created_bookings
+    assert not result.created_unmatched_bookings
+
+
 def test_booking_email_ingest_auto_creates_booking(repository: Repository, monkeypatch) -> None:
     trip_instance_id = _seed_trip(repository)
 

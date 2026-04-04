@@ -82,13 +82,17 @@ def list_recent_inbox_message_ids(
     *,
     label_ids: list[str],
     max_results: int,
+    query: str = "",
 ) -> list[str]:
-    response = (
-        service.users()
-        .messages()
-        .list(userId="me", labelIds=label_ids, maxResults=max_results)
-        .execute()
-    )
+    request_kwargs: dict[str, object] = {
+        "userId": "me",
+        "labelIds": label_ids,
+        "maxResults": max_results,
+    }
+    if query:
+        request_kwargs["q"] = query
+    request = service.users().messages().list(**request_kwargs)
+    response = request.execute()
     return [str(item["id"]) for item in response.get("messages", [])]
 
 
@@ -96,16 +100,20 @@ def list_all_inbox_message_ids(
     service,
     *,
     label_ids: list[str],
+    query: str = "",
 ) -> list[str]:
     message_ids: list[str] = []
     next_page_token: str | None = None
     while True:
-        request = service.users().messages().list(
-            userId="me",
-            labelIds=label_ids,
-            maxResults=500,
-            pageToken=next_page_token,
-        )
+        request_kwargs: dict[str, object] = {
+            "userId": "me",
+            "labelIds": label_ids,
+            "maxResults": 500,
+            "pageToken": next_page_token,
+        }
+        if query:
+            request_kwargs["q"] = query
+        request = service.users().messages().list(**request_kwargs)
         response = request.execute()
         message_ids.extend(str(item["id"]) for item in response.get("messages", []) or [])
         next_page_token = response.get("nextPageToken")

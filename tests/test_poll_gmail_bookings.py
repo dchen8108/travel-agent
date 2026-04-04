@@ -92,6 +92,37 @@ def test_select_message_ids_for_poll_uses_incremental_history(repository, monkey
     assert selection.source_mode == "incremental"
 
 
+def test_select_message_ids_for_poll_uses_sender_query_for_backfill(repository, monkeypatch) -> None:
+    seen_queries: list[str] = []
+
+    def list_all(service, *, label_ids, query=""):
+        seen_queries.append(query)
+        return ["msg-new"]
+
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.list_all_inbox_message_ids",
+        list_all,
+    )
+    monkeypatch.setattr(
+        "app.jobs.poll_gmail_bookings.get_mailbox_profile",
+        lambda service: {"email_address": "booking@example.com", "history_id": "200"},
+    )
+
+    selection = _select_message_ids_for_poll(
+        repository,
+        object(),
+        inbox_label_ids=["INBOX"],
+        allowed_from_addresses=["Forwarder <forwarder@example.com>"],
+        sync_state_last_history_id="",
+        max_messages=5,
+        retry_limit=5,
+        max_retry_attempts=2,
+    )
+
+    assert selection.message_ids == ["msg-new"]
+    assert seen_queries == ["from:forwarder@example.com"]
+
+
 def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(repository, monkeypatch) -> None:
     repository.save_booking_email_events([_event("msg-known", "resolved_auto", hour=9)])
 

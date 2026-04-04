@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from email.utils import parseaddr
 import json
 import os
 import sys
@@ -66,6 +67,20 @@ def _retry_message_ids(repository: Repository, *, limit: int, max_retry_attempts
     return [event.gmail_message_id for event in errored_events]
 
 
+def _normalized_from_address(value: str) -> str:
+    _name, address = parseaddr(value)
+    return (address or value).strip().lower()
+
+
+def _sender_query(allowed_from_addresses: list[str]) -> str:
+    normalized = [_normalized_from_address(value) for value in allowed_from_addresses if value.strip()]
+    if not normalized:
+        return ""
+    if len(normalized) == 1:
+        return f"from:{normalized[0]}"
+    return "(" + " OR ".join(f"from:{address}" for address in normalized) + ")"
+
+
 @dataclass
 class MessageSelection:
     message_ids: list[str]
@@ -125,6 +140,7 @@ def _select_message_ids_for_poll(
     service,
     *,
     inbox_label_ids: list[str],
+    allowed_from_addresses: list[str] | None = None,
     sync_state_last_history_id: str,
     max_messages: int,
     retry_limit: int,
@@ -132,6 +148,7 @@ def _select_message_ids_for_poll(
 ) -> MessageSelection:
     existing_message_ids = repository.load_booking_email_message_ids()
     retry_ids = _retry_message_ids(repository, limit=retry_limit, max_retry_attempts=max_retry_attempts)
+    sender_query = _sender_query(allowed_from_addresses or [])
 
     if sync_state_last_history_id:
         latest_history_id = sync_state_last_history_id
@@ -144,7 +161,14 @@ def _select_message_ids_for_poll(
             source_mode = "incremental"
         except HttpError as exc:
             if _http_error_status(exc) == 404 or "startHistoryId" in str(exc):
-                incremental_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
+                if sender_query:
+                    incremental_ids = list_all_inbox_message_ids(
+                        service,
+                        label_ids=inbox_label_ids,
+                        query=sender_query,
+                    )
+                else:
+                    incremental_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
                 latest_history_id = get_mailbox_profile(service)["history_id"]
                 source_mode = "history_reset_backfill"
             else:
@@ -160,7 +184,10 @@ def _select_message_ids_for_poll(
         )
 
     mailbox_profile = get_mailbox_profile(service)
-    backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
+    if sender_query:
+        backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids, query=sender_query)
+    else:
+        backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
     new_ids = [message_id for message_id in backfill_ids if message_id not in existing_message_ids]
     return MessageSelection(
         message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
@@ -202,6 +229,7 @@ def main() -> None:
             repository,
             service,
             inbox_label_ids=config.inbox_label_ids,
+            allowed_from_addresses=config.allowed_from_addresses,
             sync_state_last_history_id=sync_state.last_history_id,
             max_messages=effective_max_messages,
             retry_limit=effective_max_messages,

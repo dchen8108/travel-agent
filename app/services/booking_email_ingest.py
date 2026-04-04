@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 from datetime import date
+from email.utils import parseaddr
 import json
 
 from app.catalog import normalize_airline_code
@@ -69,6 +70,7 @@ def process_gmail_booking_message(
     debug_fields: dict[str, object] = {
         "message_body_chars": len(message.body_text),
         "gmail_history_id": message.gmail_history_id,
+        "sender_gate": "passed",
         "keyword_gate": "passed",
         "llm": {
             "model": config.model,
@@ -78,6 +80,22 @@ def process_gmail_booking_message(
             "auto_create_confidence_threshold": config.min_auto_create_confidence,
         },
     }
+    normalized_from_address = _normalized_from_address(message.from_address)
+    if not _sender_allowed(message.from_address, config):
+        event.processing_status = BookingEmailEventStatus.IGNORED
+        event.email_kind = "not_booking"
+        event.notes = f"Ignored because sender {normalized_from_address or 'unknown'} is not in allowed_from_addresses."
+        event.updated_at = utcnow()
+        debug_fields["sender_gate"] = "ignored"
+        debug_fields["sender_gate_reason"] = "sender_not_allowlisted"
+        _upsert_booking_email_event(repository, event)
+        return BookingEmailProcessResult(
+            event=event,
+            created_bookings=[],
+            created_unmatched_bookings=[],
+            state_changed=False,
+            debug_fields=debug_fields,
+        )
     lowered = _message_search_text(message)
     if _looks_like_non_booking(lowered, config):
         event.processing_status = BookingEmailEventStatus.IGNORED
@@ -310,6 +328,18 @@ def _message_search_text(message: GmailMessage) -> str:
             message.body_text,
         ]
     ).lower()
+
+
+def _normalized_from_address(value: str) -> str:
+    _name, address = parseaddr(value)
+    return (address or value).strip().lower()
+
+
+def _sender_allowed(message_from_address: str, config: GmailIntegrationConfig) -> bool:
+    if not config.allowed_from_addresses:
+        return True
+    normalized = _normalized_from_address(message_from_address)
+    return normalized in set(config.allowed_from_addresses)
 
 
 def _looks_like_non_booking(text: str, config: GmailIntegrationConfig) -> bool:
