@@ -55,16 +55,16 @@
         </noscript>
       </div>
 
-      <div class="filter-toggle-field">
-        <span>Booked trips</span>
+      <div class="filter-toggle-field filter-toggle-field--solo">
         <input type="hidden" name="include_booked" value="{{ 'true' if include_booked else 'false' }}" data-filter-booked-input>
         <button
           type="button"
           class="toggle-switch filter-toggle {{ 'is-on' if include_booked else '' }}"
           data-filter-booked-toggle
           aria-pressed="{{ 'true' if include_booked else 'false' }}"
+          aria-label="Show booked"
         >
-          <span class="toggle-switch-label">{{ 'Included' if include_booked else 'Hidden' }}</span>
+          <span class="toggle-switch-label">Show booked</span>
           <span class="toggle-switch-track" aria-hidden="true">
             <span class="toggle-switch-thumb"></span>
           </span>
@@ -72,10 +72,10 @@
         <noscript>
           <div class="filter-noscript">
             <label class="filter-field">
-              <span>Booked trips</span>
+              <span>Show booked</span>
               <select name="include_booked">
-                <option value="true" {{ 'selected' if include_booked else '' }}>Included</option>
-                <option value="false" {{ '' if include_booked else 'selected' }}>Hidden</option>
+                <option value="true" {{ 'selected' if include_booked else '' }}>On</option>
+                <option value="false" {{ '' if include_booked else 'selected' }}>Off</option>
               </select>
             </label>
           </div>

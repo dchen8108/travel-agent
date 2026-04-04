@@ -67,10 +67,6 @@
       includeBookedInput.value = isOn ? "true" : "false";
       includeBookedToggle.classList.toggle("is-on", isOn);
       includeBookedToggle.setAttribute("aria-pressed", isOn ? "true" : "false");
-      const label = includeBookedToggle.querySelector(".toggle-switch-label");
-      if (label) {
-        label.textContent = isOn ? "Included" : "Hidden";
-      }
     }
 
     async function refreshScheduledPanel(params, { preservePickerUi = false } = {}) {

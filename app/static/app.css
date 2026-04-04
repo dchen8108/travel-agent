@@ -506,6 +506,12 @@ small,
   min-width: 220px;
 }
 
+.filter-toggle-field--solo {
+  gap: 0;
+  align-self: end;
+  padding-top: 1.85rem;
+}
+
 .filter-meta {
   display: flex;
   align-items: center;
