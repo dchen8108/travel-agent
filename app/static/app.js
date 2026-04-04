@@ -133,6 +133,7 @@
       return;
     }
 
+    const maxPreviewRows = 3;
     const controllers = [];
 
     clusters.forEach((cluster) => {
@@ -166,7 +167,7 @@
 
       function visibleCountWithExpandButton() {
         preview.replaceChildren(...allPills);
-        if (rowCountForNodes(allPills) <= 2) {
+        if (rowCountForNodes(allPills) <= maxPreviewRows) {
           return allPills.length;
         }
 
@@ -175,7 +176,7 @@
           const overflowCount = allPills.length - count;
           expandButton.textContent = `+${overflowCount} more`;
           preview.replaceChildren(...allPills.slice(0, count), expandButton);
-          if (rowCountForNodes(Array.from(preview.children)) <= 2) {
+          if (rowCountForNodes(Array.from(preview.children)) <= maxPreviewRows) {
             return count;
           }
         }
