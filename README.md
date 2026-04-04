@@ -44,8 +44,7 @@ Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) 
 - `Tracker`: one Google Flights tracker/search envelope for a route option on a trip instance
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Price Record`: one append-only fetched offer row captured for analytics history
-- `Booking`: a purchased itinerary attached to a trip instance and, when uniquely matchable, to one tracked route option
-- `Unmatched Booking`: a booking the system could not confidently place
+- `Booking`: a purchased itinerary that may be linked to a trip instance and, when uniquely matchable, to one tracked route option
 - `Booking Email Event`: one Gmail intake result, including ignored, auto-linked, duplicate, and needs-resolution outcomes
 
 ## Run
@@ -65,12 +64,12 @@ Then open `http://127.0.0.1:8000`.
 4. Add ranked `Route Options`.
 5. For each route option, choose whether Google Flights should include or exclude Basic economy fares.
 6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
-7. Use `Trips` to browse groups and every scheduled date still in play.
+7. Use the dashboard to review collections, upcoming travel, and any bookings that still need linking.
 8. Open a recurring rule for template-level details, route options, and generated dates.
 9. Open any scheduled trip to review trackers, prices, Google Flights links, group memberships, and booking state.
 10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
 11. Record bookings manually or let Gmail automation create them automatically.
-12. Let the app continue comparing booked prices against the best current trip option.
+12. Use the scheduled-trip page as the canonical place to manage linked and cancelled bookings.
 
 ## Gmail Booking Automation
 
@@ -131,7 +130,7 @@ Playwright is installed as a dev dependency for targeted browser debugging, not 
 Quick smoke against a temporary local server:
 
 ```bash
-uv run python scripts/playwright_smoke.py --serve --path /trips
+uv run python scripts/playwright_smoke.py --serve --path /
 ```
 
 Example filter/screenshot check:
@@ -139,10 +138,10 @@ Example filter/screenshot check:
 ```bash
 uv run python scripts/playwright_smoke.py \
   --serve \
-  --path /trips \
+  --path / \
   --fill '[data-filter-search]=New York' \
   --wait-ms 500 \
-  --screenshot /tmp/trips-filtered.png
+  --screenshot /tmp/dashboard-filtered.png
 ```
 
 Use `--base-url http://127.0.0.1:8000` instead of `--serve` if the app is already running.

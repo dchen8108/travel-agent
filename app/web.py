@@ -11,6 +11,7 @@ from app.money import format_money
 from app.route_options import day_offset_label, route_option_summary
 from app.services.dashboard import (
     active_booking_count_for_instance,
+    best_tracker,
     bookings_for_instance,
     booking_for_instance,
     group_for_instance,
@@ -31,6 +32,24 @@ from app.settings import Settings, get_settings
 from app.storage.repository import Repository
 
 templates = Jinja2Templates(directory=str(get_settings().templates_dir))
+
+
+def _canonical_dashboard_target(path: str, query: str = "") -> str:
+    dashboard_targets = {
+        "/trips": ("", "all-travel"),
+        "/trackers": ("", "all-travel"),
+        "/bookings": ("", "needs-linking"),
+        "/resolve": ("", "needs-linking"),
+    }
+    if path not in dashboard_targets:
+        return f"{path}{f'?{query}' if query else ''}"
+    canonical_path, fragment = dashboard_targets[path]
+    target = canonical_path or "/"
+    if query:
+        target = f"{target}?{query}"
+    if fragment:
+        target = f"{target}#{fragment}"
+    return target
 
 
 def get_repository(request: Request) -> Repository:
@@ -82,9 +101,7 @@ def redirect_back(
             )
         )
         if same_origin and parsed.path.startswith("/"):
-            target = parsed.path
-            if parsed.query:
-                target = f"{target}?{parsed.query}"
+            target = _canonical_dashboard_target(parsed.path, parsed.query)
             if message:
                 target = with_message(target, message, message_kind=message_kind)
             return RedirectResponse(url=target, status_code=status_code)
@@ -110,6 +127,7 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "booking_for_instance": booking_for_instance,
         "bookings_for_instance": bookings_for_instance,
         "active_booking_count_for_instance": active_booking_count_for_instance,
+        "best_tracker": best_tracker,
         "trip_lifecycle_status_label": trip_lifecycle_status_label,
         "trip_lifecycle_status_tone": trip_lifecycle_status_tone,
         "trip_monitoring_status_label": trip_monitoring_status_label,

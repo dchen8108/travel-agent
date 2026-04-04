@@ -18,18 +18,19 @@ Core product shape:
 - `Trip Instance` is the concrete dated trip you actually manage
 - `Route Option` is a ranked itinerary definition under a trip
 - `Tracker` and `Tracker Fetch Target` are derived monitoring objects
-- `Booking` belongs to a scheduled trip and can optionally link to a uniquely matched route option
+- `Booking` may be linked to a scheduled trip and can optionally link to a uniquely matched route option
 
-There is no primary `Resolve` workspace anymore. `Bookings` is the booking-management surface.
+There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with trip, group, rule, and booking detail pages branching from it.
 
 ## Current UX Model
 
 Primary screens:
 
-- `Today`
-- `Trips`
-- `Bookings`
+- dashboard at `/`
 - scheduled-trip detail pages at `/trip-instances/{trip_instance_id}`
+- group detail pages at `/groups/{trip_group_id}`
+- trip/rule detail pages at `/trips/{trip_id}`
+- focused create/edit flows such as `/trips/new` and `/bookings/new`
 
 Important hierarchy:
 
@@ -37,6 +38,8 @@ Important hierarchy:
 - recurring rules still keep a parent rule page
 - groups are organizational only
 - scheduled trips are the operational surface where you inspect prices, refresh, book, detach, unlink, or delete
+- linked and cancelled bookings are managed from the scheduled-trip page
+- unlinked bookings are resolved inline on the dashboard
 
 ## Runtime Architecture
 
@@ -127,7 +130,6 @@ Known-good on this machine after the latest cleanup pass:
 - `uv run python -m compileall app tests`
 - Playwright/browser smoke on:
   - `/`
-  - `/trips`
   - `/bookings/new`
   - `/groups/{id}`
   - `/trip-instances/{id}`
@@ -140,13 +142,12 @@ High-signal docs:
 - [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md)
 - [planning/sqlite-storage.md](/Users/davidchen/code/travel-agent/planning/sqlite-storage.md)
 - [planning/gmail-booking-ingestion.md](/Users/davidchen/code/travel-agent/planning/gmail-booking-ingestion.md)
-- [planning/trip-groups-and-recurring-rules.md](/Users/davidchen/code/travel-agent/planning/trip-groups-and-recurring-rules.md)
+- [planning/trip-groups-and-recurring-rules.md](/Users/davidchen/code/travel-agent/planning/trip-groups-and-recurring-rules.md) for transition context only
 
 Entrypoints:
 
 - [app/main.py](/Users/davidchen/code/travel-agent/app/main.py)
 - [app/routes/today.py](/Users/davidchen/code/travel-agent/app/routes/today.py)
-- [app/routes/trips.py](/Users/davidchen/code/travel-agent/app/routes/trips.py)
 - [app/routes/bookings.py](/Users/davidchen/code/travel-agent/app/routes/bookings.py)
 - [app/routes/groups.py](/Users/davidchen/code/travel-agent/app/routes/groups.py)
 - [app/routes/trackers.py](/Users/davidchen/code/travel-agent/app/routes/trackers.py)

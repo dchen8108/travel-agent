@@ -28,7 +28,7 @@
       </label>
     </div>
     <div class="actions top-gap">
-      <a class="button ghost" href="{{ '/groups/' ~ group.trip_group_id if group else '/trips' }}">Cancel</a>
+      <a class="button ghost" href="{{ '/groups/' ~ group.trip_group_id if group else '/' }}">Cancel</a>
       <button type="submit" class="button primary">Save group</button>
     </div>
   </form>

@@ -27,10 +27,12 @@ def test_core_pages_render(tmp_path: Path) -> None:
     for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/bookings/new", "/resolve", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
-    trips_page = client.get("/trips")
-    assert "Independent rules" not in trips_page.text
-    assert "New recurring rule" not in trips_page.text
-    assert "New one-time trip" not in trips_page.text
+    trips_redirect = client.get("/trips", follow_redirects=False)
+    assert trips_redirect.status_code == 303
+    assert trips_redirect.headers["location"] == "/#all-travel"
+    bookings_redirect = client.get("/bookings", follow_redirects=False)
+    assert bookings_redirect.status_code == 303
+    assert bookings_redirect.headers["location"] == "/#needs-linking"
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/#all-travel"
@@ -445,7 +447,7 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert unlink.status_code == 303
-    assert unlink.headers["location"].startswith("/bookings?message=Booking+needs+linking")
+    assert unlink.headers["location"].startswith("/?message=Booking+needs+linking#needs-linking")
 
     repository = Repository(settings)
     assert not repository.load_bookings()
@@ -1049,7 +1051,7 @@ def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -
         follow_redirects=False,
     )
     assert delete.status_code == 303
-    assert delete.headers["location"] == "/bookings?message=Booking+deleted"
+    assert delete.headers["location"] == "/?message=Booking+deleted#needs-linking"
     assert repository.load_bookings() == []
 
     detail = client.get(f"/trip-instances/{trip_instance_id}")
@@ -1283,7 +1285,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
         follow_redirects=False,
     )
     assert pause_from_page.status_code == 303
-    assert pause_from_page.headers["location"] == "/trips?q=Test+Weekly+Trip&message=Trip+paused"
+    assert pause_from_page.headers["location"] == "/?q=Test+Weekly+Trip&message=Trip+paused#all-travel"
 
     activate_from_page = client.post(
         f"/trips/{trip_id}/activate",
@@ -1293,7 +1295,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
     assert activate_from_page.status_code == 303
     assert (
         activate_from_page.headers["location"]
-        == "/trips?q=Test+Weekly+Trip&message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches."
+        == "/?q=Test+Weekly+Trip&message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches.#all-travel"
     )
 
 
@@ -1428,7 +1430,7 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
     assert f'id="scheduled-{trip_instance_id}"' not in filtered_page.text
 
 
-def test_recurring_trip_preview_shows_full_horizon_after_deleting_an_occurrence(tmp_path: Path) -> None:
+def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1473,10 +1475,10 @@ def test_recurring_trip_preview_shows_full_horizon_after_deleting_an_occurrence(
     assert delete_response.status_code == 303
     assert delete_response.headers["location"] == f"/groups/{group.trip_group_id}?message=Trip+deleted"
 
-    trips_page = client.get("/trips")
-    assert trips_page.status_code == 200
-    assert trips_page.text.count('class="badge horizon-badge"') >= 15
-    assert 'is-skipped' not in trips_page.text
+    group_page = client.get(f"/groups/{group.trip_group_id}")
+    assert group_page.status_code == 200
+    assert "Weekly Commute" in group_page.text
+    assert group_page.text.count('class="card scheduled-card"') == 15
 
 
 def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
@@ -1704,7 +1706,7 @@ def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
         follow_redirects=False,
     )
 
-    partial = client.get("/trips?partial=scheduled")
+    partial = client.get("/?partial=scheduled")
     assert partial.status_code == 200
     assert 'data-scheduled-filter-form' in partial.text
     assert "Show skipped" not in partial.text

@@ -1,6 +1,6 @@
 ## V1 UI/Product Pass
 
-Historical note: this doc captures the first major UI consolidation pass. It is useful for intent, but some references below still predate the current group/rule model and the removal of the user-facing skip state.
+Historical note: this doc captures the first major UI consolidation pass. It is useful for intent, but the surface model below is no longer current: the product is now dashboard-first, with `/trips` and `/bookings` demoted from primary workspaces.
 
 ### Product framing
 - `Today` is the action inbox.
