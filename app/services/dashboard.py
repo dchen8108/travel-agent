@@ -664,7 +664,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     current_price = tracker.latest_observed_price if tracker is not None else None
 
     current_offer: dict[str, object] | None = None
-    current_offer_label = "Current best"
+    current_offer_label = "Live best"
     current_offer_price = ""
     current_offer_href = ""
     current_offer_tone = "success" if booking is None else "accent"
@@ -694,7 +694,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     booked_offer: dict[str, object] | None = None
     if booking is not None:
         booked_offer = {
-            "label": "Latest booked" if active_booking_count > 1 else "Booked",
+            "label": "Booked at",
             "detail": _booking_route_label(booking),
             "meta_label": _format_departure_time_label(booking.departure_time),
             "day_delta_label": _travel_day_delta_label(

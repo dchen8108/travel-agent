@@ -29,7 +29,6 @@
           <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">
             <div class="timeline-offer-main">
               <div class="timeline-offer-copy">
-                <span class="timeline-offer-label">{{ row.booked_offer.label }}</span>
                 {% if row.booked_offer.detail %}
                 <p class="timeline-offer-detail">{{ row.booked_offer.detail }}</p>
                 {% endif %}
@@ -44,7 +43,8 @@
                 </div>
                 {% endif %}
               </div>
-              <div class="timeline-offer-price-row">
+              <div class="timeline-offer-price-stack">
+                <span class="timeline-offer-label timeline-offer-label--price">{{ row.booked_offer.label }}</span>
                 <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
                   {{ row.booked_offer.price_label }}
                 </span>
@@ -56,7 +56,6 @@
           <div class="timeline-offer-item timeline-offer-item--current timeline-offer-item--{{ row.current_offer.tone }}{% if not row.booked_offer %} timeline-offer-item--current-only{% endif %}">
             <div class="timeline-offer-main">
               <div class="timeline-offer-copy">
-                <span class="timeline-offer-label">{{ row.current_offer.label }}</span>
                 {% if row.current_offer.detail %}
                 <p class="timeline-offer-detail">{{ row.current_offer.detail }}</p>
                 {% endif %}
@@ -71,7 +70,8 @@
                 </div>
                 {% endif %}
               </div>
-              <div class="timeline-offer-price-row">
+              <div class="timeline-offer-price-stack">
+                <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
                 {% if row.current_offer.href %}
                 <a class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }} timeline-offer-price--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
                   {{ row.current_offer.price_label }}

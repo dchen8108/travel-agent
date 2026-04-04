@@ -76,7 +76,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
     assert row["title"] == "Work commute"
     assert row["booked_offer"] is None
     assert row["current_offer"] == {
-        "label": "Current best",
+        "label": "Live best",
         "detail": "BUR → SFO · Southwest",
         "meta_label": "6:35 AM",
         "day_delta_label": "",
@@ -163,7 +163,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     row = trip_row_summary(snapshot, "inst_1")
 
     assert row["booked_offer"] == {
-        "label": "Booked",
+        "label": "Booked at",
         "detail": "LAX → SFO · Delta",
         "meta_label": "8:15 AM",
         "day_delta_label": "",
@@ -172,7 +172,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
         "tone": "neutral",
     }
     assert row["current_offer"] == {
-        "label": "Current best",
+        "label": "Live best",
         "detail": "BUR → SFO · Southwest",
         "meta_label": "",
         "day_delta_label": "",
@@ -260,7 +260,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
     row = trip_row_summary(snapshot, "inst_1")
 
     assert row["booked_offer"] == {
-        "label": "Booked",
+        "label": "Booked at",
         "detail": "LAX → SFO · Delta",
         "meta_label": "11:30 PM",
         "day_delta_label": "-1 day",
@@ -269,7 +269,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
         "tone": "neutral",
     }
     assert row["current_offer"] == {
-        "label": "Current best",
+        "label": "Live best",
         "detail": "BUR → SFO · Southwest",
         "meta_label": "6:10 AM",
         "day_delta_label": "+1 day",
