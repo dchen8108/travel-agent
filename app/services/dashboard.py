@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import urlencode
 
 from app.catalog import airline_display
@@ -537,6 +537,29 @@ def _booking_route_label(booking: Booking) -> str:
     return f"{route} · {airline}" if airline else route
 
 
+def _format_departure_time_label(value: str) -> str:
+    raw = value.strip()
+    if not raw:
+        return ""
+    if "am" in raw.lower() or "pm" in raw.lower():
+        return raw
+    try:
+        parsed = datetime.strptime(raw, "%H:%M")
+    except ValueError:
+        return raw
+    return parsed.strftime("%I:%M %p").lstrip("0")
+
+
+def _travel_day_delta_label(anchor_date: date, travel_date: date | None) -> str:
+    if travel_date is None:
+        return ""
+    delta = (travel_date - anchor_date).days
+    if delta == 0:
+        return ""
+    unit = "day" if abs(delta) == 1 else "days"
+    return f"{delta:+d} {unit}"
+
+
 def _tracker_display_label(
     tracker: Tracker | None,
     *,
@@ -623,6 +646,7 @@ def tracker_best_fetch_target(snapshot: AppSnapshot, tracker: Tracker | None) ->
 
 
 def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
     booking = booking_for_instance(snapshot, trip_instance_id)
     tracker = comparison_tracker(snapshot, trip_instance_id)
     display_tracker = _row_tracker(snapshot, trip_instance_id)
@@ -650,6 +674,11 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         current_offer = {
             "label": current_offer_label,
             "detail": current_offer_detail,
+            "meta_label": _format_departure_time_label(current_target.latest_departure_label) if current_target else "",
+            "day_delta_label": _travel_day_delta_label(
+                instance.anchor_date if instance is not None else date.today(),
+                display_tracker.travel_date if display_tracker is not None else None,
+            ),
             "price_label": current_offer_price,
             "href": current_offer_href,
             "tone": current_offer_tone,
@@ -660,6 +689,11 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         booked_offer = {
             "label": "Latest booked" if active_booking_count > 1 else "Booked",
             "detail": _booking_route_label(booking),
+            "meta_label": _format_departure_time_label(booking.departure_time),
+            "day_delta_label": _travel_day_delta_label(
+                instance.anchor_date if instance is not None else date.today(),
+                booking.departure_date,
+            ),
             "price_label": format_money(booking.booked_price),
             "href": "",
             "tone": "neutral",
