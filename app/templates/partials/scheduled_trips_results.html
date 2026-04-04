@@ -11,19 +11,11 @@
   <div class="timeline-list scheduled-results-stack" data-scheduled-results>
     {% for instance in scheduled_items %}
     {% set scheduled_instance = instance %}
-    {% set scheduled_parent_trip = trip_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_trip_groups = groups_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
     {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_title = trip_ui_label(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_context = [] %}
-    {% if not scheduled_trip_groups and scheduled_recurring_rule and (not scheduled_parent_trip or scheduled_recurring_rule.trip_id != scheduled_parent_trip.trip_id) %}
-      {% set scheduled_context = scheduled_context + [scheduled_recurring_rule.label] %}
-    {% elif instance.display_label != scheduled_title %}
-      {% set scheduled_context = scheduled_context + [instance.display_label] %}
-    {% endif %}
+    {% set scheduled_context = trip_ui_context_label(snapshot, instance.trip_instance_id) %}
     <article class="timeline-row" id="scheduled-{{ scheduled_instance.trip_instance_id }}">
       <div class="timeline-date">
         <span class="timeline-day">{{ scheduled_instance.anchor_date.strftime('%a') }}</span>
@@ -37,7 +29,7 @@
           </span>
         </div>
         {% if scheduled_context %}
-        <p class="compact-meta">{{ scheduled_context | join(' · ') }}</p>
+        <p class="compact-meta">{{ scheduled_context }}</p>
         {% endif %}
         <p class="travel-detail">{{ trip_status_detail(snapshot, scheduled_instance.trip_instance_id) }}</p>
       </div>

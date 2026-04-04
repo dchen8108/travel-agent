@@ -495,6 +495,19 @@ def trip_ui_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     return instance.display_label if instance is not None else ""
 
 
+def trip_ui_context_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    title = trip_ui_label(snapshot, trip_instance_id)
+    trip = trip_for_instance(snapshot, trip_instance_id)
+    if group_for_instance(snapshot, trip_instance_id) is not None:
+        if trip is not None and trip.label and trip.label != title:
+            return trip.label
+        return ""
+    recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
+    if recurring_rule is not None and (trip is None or recurring_rule.trip_id != trip.trip_id):
+        return recurring_rule.label
+    return ""
+
+
 def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:

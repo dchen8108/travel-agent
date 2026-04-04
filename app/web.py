@@ -27,6 +27,7 @@ from app.services.dashboard import (
     trip_monitoring_status_label,
     trip_recommended_action,
     trip_status_detail,
+    trip_ui_context_label,
     trip_ui_label,
     trip_ui_picker_label,
 )
@@ -141,6 +142,7 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "trip_monitoring_status_label": trip_monitoring_status_label,
         "trip_recommended_action": trip_recommended_action,
         "trip_status_detail": trip_status_detail,
+        "trip_ui_context_label": trip_ui_context_label,
         "trip_ui_label": trip_ui_label,
         "trip_ui_picker_label": trip_ui_picker_label,
         "rebook_savings": rebook_savings,

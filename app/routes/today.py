@@ -10,15 +10,14 @@ from app.services.dashboard import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
-    groups_for_instance,
     scheduled_instances,
     load_snapshot,
     rebook_savings,
-    recurring_rule_for_instance,
     scheduled_ledger_view,
     trip_groups,
     trip_for_instance,
     trip_focus_url,
+    trip_ui_context_label,
     trip_lifecycle_status_label,
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
@@ -44,7 +43,6 @@ def _best_route_signal(tracker) -> str:
 
 def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
     trip = trip_for_instance(snapshot, instance.trip_instance_id)
-    recurring_rule = recurring_rule_for_instance(snapshot, instance.trip_instance_id)
     tracker = best_tracker(snapshot, instance.trip_instance_id)
     booking = booking_for_instance(snapshot, instance.trip_instance_id)
     active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
@@ -52,16 +50,8 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
     lifecycle_label = trip_lifecycle_status_label(snapshot, instance.trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, instance.trip_instance_id)
     recommended_action = trip_recommended_action(snapshot, instance.trip_instance_id)
-    group_labels = [group.label for group in groups_for_instance(snapshot, instance.trip_instance_id)]
     title = trip_ui_label(snapshot, instance.trip_instance_id)
-    if group_labels:
-        context_label = ""
-    elif recurring_rule is not None and (trip is None or recurring_rule.trip_id != trip.trip_id):
-        context_label = recurring_rule.label
-    elif instance.display_label != title:
-        context_label = instance.display_label
-    else:
-        context_label = ""
+    context_label = trip_ui_context_label(snapshot, instance.trip_instance_id)
 
     best_signal = _best_route_signal(tracker)
     if booking is not None:
