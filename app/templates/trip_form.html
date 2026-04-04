@@ -35,7 +35,7 @@
   {% endif %}
   {% if source_unmatched_booking %}
   <section class="info-card top-gap-small">
-    <strong>Starting from booking {{ source_unmatched_booking.record_locator or source_unmatched_booking.unmatched_booking_id }}.</strong>
+    <strong>Starting from {{ source_booking_reference_label }}.</strong>
     <p>
       {{ source_unmatched_booking.origin_airport }} → {{ source_unmatched_booking.destination_airport }}
       · {{ source_unmatched_booking.departure_date.isoformat() }}

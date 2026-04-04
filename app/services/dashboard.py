@@ -71,6 +71,16 @@ def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Bookin
     return active[0] if active else None
 
 
+def booking_reference_label(booking: Booking) -> str:
+    return f"Booking {booking.record_locator}" if booking.record_locator else "Imported booking"
+
+
+def default_trip_label_for_booking(booking: Booking) -> str:
+    if booking.origin_airport and booking.destination_airport:
+        return f"{booking.origin_airport} to {booking.destination_airport}"
+    return booking_reference_label(booking)
+
+
 def active_booking_count_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> int:
     return len(bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE}))
 
@@ -570,6 +580,8 @@ def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, 
         cards.append(
             {
                 "unmatched": unmatched,
+                "booking_reference_label": booking_reference_label(unmatched),
+                "suggested_trip_label": default_trip_label_for_booking(unmatched),
                 "suggested_trip_instances": suggested_trip_instances,
                 "upcoming_trip_instances": upcoming_trip_instances,
                 "past_trip_instances": past_trip_instances,

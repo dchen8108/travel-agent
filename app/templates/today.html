@@ -109,7 +109,7 @@
                 <input type="hidden" name="unmatched_booking_id" value="{{ unmatched.unmatched_booking_id }}">
                 <label>
                   <span>New trip label</span>
-                  <input type="text" name="trip_label" value="Booking {{ unmatched.record_locator or unmatched.unmatched_booking_id }}" required>
+                  <input type="text" name="trip_label" value="{{ card.suggested_trip_label }}" required>
                 </label>
                 <button type="submit" class="button secondary">Create trip from booking</button>
               </form>

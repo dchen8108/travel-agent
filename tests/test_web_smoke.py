@@ -126,7 +126,7 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
         f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}&trip_label=Conference%20Arrival"
     )
     assert form_page.status_code == 200
-    assert "Starting from booking ZZZ999." in form_page.text
+    assert "Starting from Booking ZZZ999." in form_page.text
     assert 'name="source_unmatched_booking_id" value="' + unmatched.unmatched_booking_id + '"' in form_page.text
     assert 'name="label" value="Conference Arrival"' in form_page.text
     assert '"origin_airports": ["LAX"]' in form_page.text
@@ -151,6 +151,44 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
     stored_booking = next(item for item in repository.load_bookings() if item.record_locator == "ZZZ999")
     assert stored_booking.route_option_id != ""
     assert repository.load_unmatched_bookings() == []
+
+
+def test_unmatched_booking_ui_does_not_fall_back_to_internal_ids(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="SFO",
+            destination_airport="BUR",
+            departure_date=date(2026, 6, 10),
+            departure_time="19:40",
+            arrival_time="21:05",
+            booked_price=58.40,
+            record_locator="",
+        ),
+    )
+    assert booking is None
+    assert unmatched is not None
+
+    dashboard = client.get("/")
+    assert dashboard.status_code == 200
+    assert 'name="trip_label" value="SFO to BUR"' in dashboard.text
+    assert f'Booking {unmatched.unmatched_booking_id}' not in dashboard.text
+
+    form_page = client.get(f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}")
+    assert form_page.status_code == 200
+    assert "Starting from Imported booking." in form_page.text
+    assert 'name="label" value="SFO to BUR"' in form_page.text
+    assert f"Starting from booking {unmatched.unmatched_booking_id}." not in form_page.text
 
 
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:

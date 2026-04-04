@@ -18,6 +18,8 @@ from app.services.dashboard import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
+    booking_reference_label,
+    default_trip_label_for_booking,
     groups_for_trip,
     groups_for_rule,
     horizon_instances_for_rule,
@@ -218,6 +220,11 @@ def _render_trip_form(
             trip_form_state=trip_form_state,
             route_option_state=route_option_state,
             source_unmatched_booking=source_unmatched_booking,
+            source_booking_reference_label=(
+                booking_reference_label(source_unmatched_booking)
+                if source_unmatched_booking is not None
+                else ""
+            ),
             trip_groups=trip_groups(snapshot),
             trip_group_picker_options=[
                 {"value": group.trip_group_id, "label": group.label}
@@ -297,7 +304,7 @@ def new_trip(
             booked_price=source_unmatched_booking.booked_price,
             record_locator=source_unmatched_booking.record_locator,
         )
-        suggested_label = trip_label or f"Booking {source_unmatched_booking.record_locator or source_unmatched_booking.unmatched_booking_id}"
+        suggested_label = trip_label or default_trip_label_for_booking(source_unmatched_booking)
         trip_form_state.update(
             {
                 "label": suggested_label,
