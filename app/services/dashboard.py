@@ -798,6 +798,7 @@ def scheduled_ledger_view(
     today: date | None = None,
     selected_trip_group_ids: list[str] | None = None,
     search_query: str = "",
+    include_booked: bool = True,
 ) -> dict[str, object]:
     today = today or date.today()
     group_items = trip_groups(snapshot)
@@ -816,6 +817,12 @@ def scheduled_ledger_view(
         include_ungrouped=include_ungrouped,
         today=today,
     )
+    if not include_booked:
+        scheduled_items = [
+            instance
+            for instance in scheduled_items
+            if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
+        ]
     query = search_query.strip()
     if query:
         lowered = query.lower()
@@ -849,6 +856,7 @@ def scheduled_ledger_view(
         "scheduled_items": scheduled_items,
         "selected_trip_group_ids": [*selected_ids, *([UNGROUPED_TRIPS_FILTER_VALUE] if include_ungrouped else [])],
         "search_query": query,
+        "include_booked": include_booked,
         "total_active_scheduled": total_active_scheduled,
         "total_booked_scheduled": total_booked_scheduled,
         "group_filter_options": [

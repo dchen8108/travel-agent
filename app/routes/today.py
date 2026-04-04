@@ -159,6 +159,7 @@ def today(
         today=today,
         selected_trip_group_ids=request.query_params.getlist("trip_group_id"),
         search_query=str(request.query_params.get("q", "")),
+        include_booked=request.query_params.get("include_booked", "true").lower() != "false",
     )
     partial = request.query_params.get("partial")
     if partial in {"scheduled", "scheduled-results"}:

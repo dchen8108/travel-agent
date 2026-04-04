@@ -361,6 +361,11 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "Link booking" in page.text
     assert "/bookings/unmatched/" in page.text
 
+    planned_only_page = client.get("/?include_booked=false&partial=scheduled-results")
+    assert planned_only_page.status_code == 200
+    assert "Planned Commute" in planned_only_page.text
+    assert "Booked Commute" not in planned_only_page.text
+
 
 def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None:
     settings = Settings(

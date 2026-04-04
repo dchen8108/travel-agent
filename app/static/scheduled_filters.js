@@ -20,13 +20,15 @@
     const searchInput = form.querySelector("[data-filter-search]");
     const groupRoot = form.querySelector("[data-group-filter-root]");
     const hiddenInputsRoot = form.querySelector("[data-group-hidden-inputs]");
+    const includeBookedInput = form.querySelector("[data-filter-booked-input]");
+    const includeBookedToggle = form.querySelector("[data-filter-booked-toggle]");
     let resultsShell = panel.querySelector("[data-scheduled-results-shell]");
     const clearLink = form.querySelector("[data-clear-filters]");
     const actionPath = new URL(form.getAttribute("action") || window.location.pathname, window.location.origin).pathname;
     const panelAnchor = panel.id ? `#${panel.id}` : "";
     let debounceTimer = null;
 
-    if (!searchInput || !groupRoot || !hiddenInputsRoot) {
+    if (!searchInput || !groupRoot || !hiddenInputsRoot || !includeBookedInput || !includeBookedToggle) {
       return;
     }
 
@@ -56,7 +58,19 @@
       selectedTripGroupIds().forEach((value) => {
         params.append("trip_group_id", value);
       });
+      params.set("include_booked", includeBookedInput.value === "false" ? "false" : "true");
       return params;
+    }
+
+    function setIncludeBooked(nextValue) {
+      const isOn = nextValue !== false;
+      includeBookedInput.value = isOn ? "true" : "false";
+      includeBookedToggle.classList.toggle("is-on", isOn);
+      includeBookedToggle.setAttribute("aria-pressed", isOn ? "true" : "false");
+      const label = includeBookedToggle.querySelector(".toggle-switch-label");
+      if (label) {
+        label.textContent = isOn ? "Included" : "Hidden";
+      }
     }
 
     async function refreshScheduledPanel(params, { preservePickerUi = false } = {}) {
@@ -154,6 +168,12 @@
       window.clearTimeout(debounceTimer);
       searchInput.value = "";
       setSelectedTripGroupIds([]);
+      setIncludeBooked(true);
+      submitFilters();
+    });
+
+    includeBookedToggle.addEventListener("click", () => {
+      setIncludeBooked(includeBookedInput.value === "false");
       submitFilters();
     });
   }
