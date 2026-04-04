@@ -2,7 +2,7 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="eyebrow">{{ 'Edit booking' if editing_booking else 'Add booking' }}</p>
+    <p class="page-context">Milemark · {{ 'Edit booking' if editing_booking else 'Add booking' }}</p>
     <h2>{{ 'Update a flight already in Milemark.' if editing_booking else 'Capture a flight you already booked.' }}</h2>
     <p>{% if editing_booking %}Change the itinerary or trip link, then Milemark will re-check whether this exact route is being tracked.{% else %}Record the itinerary first. If Milemark can place it confidently, it will attach it automatically.{% endif %}</p>
   </div>

@@ -7,11 +7,11 @@
     <p class="detail-breadcrumb">
       <a class="inline-back-link" href="/#all-travel">Back to overview</a>
     </p>
-    <p class="eyebrow">
+    <p class="page-context">
       {% if trip.trip_kind == 'weekly' %}
-      Recurring rule
+      Milemark · Recurring rule
       {% else %}
-      One-time trip
+      Milemark · One-time trip
       {% endif %}
     </p>
     <h2>{{ trip.label }}</h2>

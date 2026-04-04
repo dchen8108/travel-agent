@@ -2,7 +2,7 @@
 {% block content %}
 <section class="hero compact form-hero">
   <div>
-    <p class="eyebrow">{{ 'Edit trip group' if group else 'New trip group' }}</p>
+    <p class="page-context">Milemark · {{ 'Edit trip group' if group else 'New trip group' }}</p>
     <h2>{{ group.label if group else 'Create a group to organize related travel.' }}</h2>
     <p>Groups are pure organization. They can hold recurring rules, manual one-time trips, or both.</p>
   </div>
