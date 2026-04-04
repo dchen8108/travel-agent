@@ -7,11 +7,11 @@ from datetime import date, datetime, timedelta
 
 import httpx
 
-from app.models.base import FetchTargetStatus, utcnow
+from app.models.base import AppState, FetchTargetStatus, utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
-from app.services.fetch_targets import FETCH_STAGGER_SECONDS, next_refresh_time
+from app.services.fetch_targets import fetch_stagger_seconds, next_refresh_time
 from app.services.google_flights_fetcher import (
     GoogleFlightsFetchError,
     GoogleFlightsNoResultsError,
@@ -23,9 +23,29 @@ from app.services.google_flights_fetcher import (
 from app.services.price_records import SuccessfulFetchRecord
 from app.storage.repository import Repository
 
-MAX_FETCH_TARGETS_PER_RUN = 3
-SLEEP_RANGE_SECONDS = (FETCH_STAGGER_SECONDS, FETCH_STAGGER_SECONDS + 3.0)
-FETCH_TARGET_CLAIM_LEASE = timedelta(minutes=15)
+def _app_state(app_state: AppState | None) -> AppState:
+    return app_state or AppState()
+
+
+def fetch_max_targets_per_run(app_state: AppState | None = None) -> int:
+    return _app_state(app_state).fetch_max_targets_per_run
+
+
+def fetch_sleep_range_seconds(app_state: AppState | None = None) -> tuple[float, float]:
+    state = _app_state(app_state)
+    stagger_seconds = fetch_stagger_seconds(state)
+    return (
+        float(stagger_seconds),
+        float(stagger_seconds + state.fetch_request_sleep_max_extra_seconds),
+    )
+
+
+def fetch_target_claim_lease(app_state: AppState | None = None) -> timedelta:
+    return timedelta(minutes=_app_state(app_state).fetch_claim_lease_minutes)
+
+
+def fetch_request_timeout_seconds(app_state: AppState | None = None) -> float:
+    return _app_state(app_state).fetch_request_timeout_seconds
 
 
 @dataclass(frozen=True)
@@ -67,6 +87,7 @@ def queue_rolling_refresh(
     now: datetime | None = None,
     trip_instance_ids: set[str] | None = None,
     include_test_data: bool = True,
+    app_state: AppState | None = None,
 ) -> int:
     now = now or utcnow()
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
@@ -95,7 +116,7 @@ def queue_rolling_refresh(
         target.next_fetch_not_before = next_scheduled_at
         target.updated_at = now
         queued_count += 1
-        next_scheduled_at = next_scheduled_at + timedelta(seconds=FETCH_STAGGER_SECONDS)
+        next_scheduled_at = next_scheduled_at + timedelta(seconds=fetch_stagger_seconds(app_state))
     return queued_count
 
 
@@ -104,11 +125,14 @@ def claim_due_fetch_targets(
     *,
     run_id: str,
     now: datetime | None = None,
-    max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
+    max_targets: int | None = None,
     include_test_data: bool = True,
-    lease_duration: timedelta = FETCH_TARGET_CLAIM_LEASE,
+    lease_duration: timedelta | None = None,
+    app_state: AppState | None = None,
 ) -> list[str]:
     now = now or utcnow()
+    max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
+    lease_duration = fetch_target_claim_lease(app_state) if lease_duration is None else lease_duration
     if max_targets <= 0:
         return []
     with repository.transaction():
@@ -122,6 +146,7 @@ def claim_due_fetch_targets(
             now=now,
             max_targets=max_targets,
             include_test_data=include_test_data,
+            app_state=app_state,
         )
         if not due_targets:
             return []
@@ -140,10 +165,12 @@ def select_due_fetch_targets(
     fetch_targets: list[TrackerFetchTarget],
     *,
     now: datetime | None = None,
-    max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
+    max_targets: int | None = None,
     include_test_data: bool = True,
+    app_state: AppState | None = None,
 ) -> list[TrackerFetchTarget]:
     now = now or utcnow()
+    max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
     if max_targets <= 0:
         return []
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
@@ -194,13 +221,15 @@ def run_fetch_batch(
     fetch_targets: list[TrackerFetchTarget],
     *,
     now: datetime | None = None,
-    max_targets: int = MAX_FETCH_TARGETS_PER_RUN,
+    max_targets: int | None = None,
     sleep_between_requests: bool = True,
     startup_jitter_seconds: float = 0.0,
     due_targets: list[TrackerFetchTarget] | None = None,
     include_test_data: bool = True,
+    app_state: AppState | None = None,
 ) -> FetchBatchResult:
     now = now or utcnow()
+    max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
     if max_targets <= 0 and due_targets is None:
         return FetchBatchResult(
             fetched_count=0,
@@ -220,6 +249,7 @@ def run_fetch_batch(
             now=now,
             max_targets=max_targets,
             include_test_data=include_test_data,
+            app_state=app_state,
         )
     if not due_targets:
         return FetchBatchResult(
@@ -235,7 +265,7 @@ def run_fetch_batch(
         startup_jitter_applied_seconds = random.uniform(0.0, startup_jitter_seconds)
         time.sleep(startup_jitter_applied_seconds)
 
-    client = httpx.Client(timeout=20.0, follow_redirects=True)
+    client = httpx.Client(timeout=fetch_request_timeout_seconds(app_state), follow_redirects=True)
     successful_fetches: list[SuccessfulFetchRecord] = []
     attempts: list[FetchAttemptResult] = []
     try:
@@ -283,7 +313,7 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.SUCCESS
                 target.last_fetch_error = ""
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at)
+                target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at, app_state=app_state)
                 _release_fetch_claim(target)
                 target.updated_at = fetched_at
                 attempts.append(
@@ -318,7 +348,7 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.NO_RESULTS
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at)
+                target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at, app_state=app_state)
                 _release_fetch_claim(target)
                 target.updated_at = no_results_at
                 attempts.append(
@@ -352,7 +382,7 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.NO_WINDOW_MATCH
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = success_backoff_for_tracker(target, no_window_match_at)
+                target.next_fetch_not_before = success_backoff_for_tracker(target, no_window_match_at, app_state=app_state)
                 _release_fetch_claim(target)
                 target.updated_at = no_window_match_at
                 attempts.append(
@@ -381,8 +411,8 @@ def run_fetch_batch(
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures += 1
                 target.next_fetch_not_before = max(
-                    next_refresh_time(failed_at, target.schedule_offset_seconds),
-                    failed_at + failure_backoff(target.consecutive_failures),
+                    next_refresh_time(failed_at, target.schedule_offset_seconds, app_state=app_state),
+                    failed_at + failure_backoff(target.consecutive_failures, app_state=app_state),
                 )
                 _release_fetch_claim(target)
                 target.updated_at = failed_at
@@ -405,7 +435,7 @@ def run_fetch_batch(
                     )
                 )
             if sleep_between_requests and index < len(due_targets) - 1:
-                time.sleep(random.uniform(*SLEEP_RANGE_SECONDS))
+                time.sleep(random.uniform(*fetch_sleep_range_seconds(app_state)))
     finally:
         client.close()
 
@@ -419,16 +449,22 @@ def run_fetch_batch(
     )
 
 
-def success_backoff_for_tracker(target: TrackerFetchTarget, fetched_at: datetime) -> datetime:
-    return next_refresh_time(fetched_at, target.schedule_offset_seconds)
+def success_backoff_for_tracker(
+    target: TrackerFetchTarget,
+    fetched_at: datetime,
+    *,
+    app_state: AppState | None = None,
+) -> datetime:
+    return next_refresh_time(fetched_at, target.schedule_offset_seconds, app_state=app_state)
 
 
-def failure_backoff(consecutive_failures: int) -> timedelta:
+def failure_backoff(consecutive_failures: int, *, app_state: AppState | None = None) -> timedelta:
+    state = _app_state(app_state)
     if consecutive_failures <= 1:
-        return timedelta(hours=12)
+        return timedelta(hours=state.fetch_failure_backoff_hours_first)
     if consecutive_failures == 2:
-        return timedelta(hours=24)
-    return timedelta(hours=48)
+        return timedelta(hours=state.fetch_failure_backoff_hours_second)
+    return timedelta(hours=state.fetch_failure_backoff_hours_repeated)
 
 
 def _has_active_claim(target: TrackerFetchTarget, now: datetime) -> bool:

@@ -96,6 +96,8 @@ uv run python -m app.jobs.install_launchd_booking_poller
 
 If `OPENAI_API_KEY` is present in your shell when you run the installer, the installer will persist it to `config/local/openai_api_key.txt` so the launchd job can use it without relying on shell startup files.
 
+The installer uses the checked-in defaults from `config/gmail_integration.json` unless you override them on the CLI.
+
 How it behaves:
 
 - polls the inbox directly; no Gmail labels are required
@@ -172,9 +174,9 @@ uv run python -m app.jobs.install_launchd_fetcher
 
 That installs a LaunchAgent that:
 
-- runs at login and every 60 seconds after that
-- fetches at most 2 due airport-pair targets per run
-- relies on the app's own persisted queue and 4-hour cadence
+- runs at login and then on the checked-in interval in `config/app_state.json`
+- fetches up to the configured per-run target cap from `config/app_state.json`
+- relies on the app's own persisted queue and configured fetch cadence
 - adds a small random startup delay before each Google Flights request batch
 - keeps a small random delay between requests inside a multi-target batch
 - writes structured JSON-line logs under `data/logs/`
@@ -193,8 +195,8 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 
 ## Config Files
 
-- `config/app_state.json`: checked-in runtime config such as timezone, horizon length, and whether test data is shown/processed
-- `config/gmail_integration.json`: checked-in Gmail poller behavior such as inbox labels, model choice, retry caps, and debug logging
+- `config/app_state.json`: checked-in app/runtime policy such as timezone, horizon length, dashboard action windows, fetch cadence/backoff, and launchd fetcher defaults
+- `config/gmail_integration.json`: checked-in Gmail poller behavior such as inbox labels, model choice, retry caps, and launchd poller defaults
 - `config/local/*`: machine-local secrets and state such as Gmail OAuth credentials, Gmail sync checkpoint, and optional OpenAI API key cache. These files are not product config and should not be checked in.
 
 ## Storage
@@ -215,6 +217,10 @@ That file is the source of truth for:
 - `timezone`
 - `future_weeks`
 - `enable_background_fetcher`
+- dashboard attention windows
+- fare freshness window
+- background fetch cadence, jitter, backoff, and lease defaults
+- launchd fetcher defaults
 - `show_test_data`
 - `process_test_data`
 - config schema `version`

@@ -7,6 +7,7 @@ from datetime import datetime
 import httpx
 from selectolax.lexbor import LexborHTMLParser
 
+from app.models.base import AppState
 from app.route_options import time_in_window
 
 
@@ -65,10 +66,15 @@ def fetch_google_flights_offers(
     url: str,
     *,
     client: httpx.Client | None = None,
-    timeout: float = 20.0,
+    timeout: float | None = None,
 ) -> list[GoogleFlightsOffer]:
     owns_client = client is None
-    http_client = client or httpx.Client(headers=GOOGLE_FLIGHTS_HEADERS, timeout=timeout, follow_redirects=True)
+    effective_timeout = AppState().fetch_request_timeout_seconds if timeout is None else timeout
+    http_client = client or httpx.Client(
+        headers=GOOGLE_FLIGHTS_HEADERS,
+        timeout=effective_timeout,
+        follow_redirects=True,
+    )
     try:
         response = http_client.get(url, headers=GOOGLE_FLIGHTS_HEADERS)
     finally:

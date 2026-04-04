@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from app.storage.repository import Repository
 from app.services.launchd import (
     FETCH_LAUNCH_AGENT_LABEL,
     build_launch_agent_plist,
@@ -27,12 +28,13 @@ def _bootout_if_loaded(plist_path: Path) -> None:
 
 
 def main() -> None:
+    settings = get_settings()
+    app_state = Repository(settings).load_app_state()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--interval-seconds", type=int, default=60)
-    parser.add_argument("--max-targets", type=int, default=2)
+    parser.add_argument("--interval-seconds", type=int, default=app_state.launchd_fetch_interval_seconds)
+    parser.add_argument("--max-targets", type=int, default=app_state.launchd_fetch_max_targets)
     args = parser.parse_args()
 
-    settings = get_settings()
     project_root = settings.project_root
     uv_executable = shutil.which("uv")
     if not uv_executable:

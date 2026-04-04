@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from itertools import product
 
-from app.models.base import FetchTargetStatus, utcnow
+from app.models.base import AppState, FetchTargetStatus, utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
@@ -11,8 +11,21 @@ from app.models.trip_instance import TripInstance
 from app.services.google_flights import build_google_flights_query_url_for_search
 from app.services.ids import stable_id
 
-FETCH_STAGGER_SECONDS = 10
-FETCH_INTERVAL_SECONDS = 4 * 60 * 60
+def _app_state(app_state: AppState | None) -> AppState:
+    return app_state or AppState()
+
+
+def fetch_stagger_seconds(app_state: AppState | None = None) -> int:
+    return _app_state(app_state).fetch_stagger_seconds
+
+
+def fetch_interval_seconds(app_state: AppState | None = None) -> int:
+    return _app_state(app_state).fetch_interval_seconds
+
+
+# Compatibility exports for tests/callers that still import the default values directly.
+FETCH_STAGGER_SECONDS = fetch_stagger_seconds()
+FETCH_INTERVAL_SECONDS = fetch_interval_seconds()
 
 
 def reconcile_fetch_targets(
@@ -22,6 +35,7 @@ def reconcile_fetch_targets(
     existing_targets: list[TrackerFetchTarget],
     *,
     now: datetime | None = None,
+    app_state: AppState | None = None,
 ) -> list[TrackerFetchTarget]:
     existing_by_id = {target.fetch_target_id: target for target in existing_targets}
     trip_by_id = {trip.trip_id: trip for trip in trips}
@@ -35,7 +49,8 @@ def reconcile_fetch_targets(
         trip_instance = trip_instance_by_id.get(tracker.trip_instance_id)
         trip = trip_by_id.get(trip_instance.trip_id) if trip_instance else None
         schedule_offset_seconds = schedule_offset_for_trip(
-            trip.created_at if trip else (trip_instance.created_at if trip_instance else tracker.created_at)
+            trip.created_at if trip else (trip_instance.created_at if trip_instance else tracker.created_at),
+            app_state=app_state,
         )
         for origin_airport, destination_airport in product(tracker.origin_codes, tracker.destination_codes):
             fetch_target_id = stable_id("ft", tracker.tracker_id, origin_airport, destination_airport)
@@ -96,21 +111,31 @@ def reconcile_fetch_targets(
     for target in desired:
         if target.fetch_target_id in immediate_target_ids:
             target.next_fetch_not_before = next_immediate_at
-            next_immediate_at = next_immediate_at + timedelta(seconds=FETCH_STAGGER_SECONDS)
+            next_immediate_at = next_immediate_at + timedelta(seconds=fetch_stagger_seconds(app_state))
         elif target.next_fetch_not_before is None or target.fetch_target_id in reschedule_basis_by_id:
             basis = reschedule_basis_by_id.get(target.fetch_target_id, max(now, target.last_fetch_finished_at or now))
-            target.next_fetch_not_before = next_refresh_time(basis, target.schedule_offset_seconds)
+            target.next_fetch_not_before = next_refresh_time(
+                basis,
+                target.schedule_offset_seconds,
+                app_state=app_state,
+            )
     return desired
 
 
-def schedule_offset_for_trip(created_at: datetime) -> int:
-    return int(created_at.timestamp()) % FETCH_INTERVAL_SECONDS
+def schedule_offset_for_trip(created_at: datetime, *, app_state: AppState | None = None) -> int:
+    return int(created_at.timestamp()) % fetch_interval_seconds(app_state)
 
 
-def next_refresh_time(after: datetime, schedule_offset_seconds: int) -> datetime:
+def next_refresh_time(
+    after: datetime,
+    schedule_offset_seconds: int,
+    *,
+    app_state: AppState | None = None,
+) -> datetime:
     timestamp = int(after.timestamp())
-    cycle_start = timestamp - (timestamp % FETCH_INTERVAL_SECONDS)
+    interval_seconds = fetch_interval_seconds(app_state)
+    cycle_start = timestamp - (timestamp % interval_seconds)
     candidate_timestamp = cycle_start + schedule_offset_seconds
     if candidate_timestamp <= timestamp:
-        candidate_timestamp += FETCH_INTERVAL_SECONDS
+        candidate_timestamp += interval_seconds
     return after.fromtimestamp(candidate_timestamp, tz=after.tzinfo)

@@ -172,13 +172,13 @@ def _select_message_ids_for_poll(
 
 
 def main() -> None:
+    settings = get_settings()
+    config = load_gmail_integration_config(settings)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max-messages", type=_positive_int, default=10)
+    parser.add_argument("--max-messages", type=_positive_int, default=config.launchd_max_messages)
     args = parser.parse_args()
 
-    settings = get_settings()
     repository = Repository(settings)
-    config = load_gmail_integration_config(settings)
     run_id = new_id("gmailpoll")
     stage = "config"
     processed_count = 0

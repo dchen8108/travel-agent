@@ -72,13 +72,13 @@ Frontend JS is split by concern:
 
 - entrypoint: `app/jobs/fetch_google_flights.py`
 - conservative serial worker
-- queue-based cadence, with launchd defaulting to every `60s`
+- queue-based cadence, with launchd defaults coming from `config/app_state.json`
 - fetch-target leases prevent overlapping workers from fetching the same tracker concurrently
 
 ### Gmail Booking Poller
 
 - entrypoint: `app/jobs/poll_gmail_bookings.py`
-- launchd default: every `180s`, max `10` messages per run
+- launchd defaults come from `config/gmail_integration.json`
 - one-time backfill, then Gmail History API incremental sync
 - dedupe by `booking_email_events.gmail_message_id`
 - retries only retryable `error` events, bounded by `max_retry_attempts`

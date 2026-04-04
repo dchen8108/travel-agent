@@ -17,9 +17,6 @@ from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository
 
-DEFAULT_STARTUP_JITTER_SECONDS = 8.0
-
-
 def _non_negative_int(value: str) -> int:
     parsed = int(value)
     if parsed < 0:
@@ -38,9 +35,9 @@ def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max-targets", type=_non_negative_int, default=3)
+    parser.add_argument("--max-targets", type=_non_negative_int, default=None)
     parser.add_argument("--no-sleep", action="store_true")
-    parser.add_argument("--startup-jitter-seconds", type=float, default=DEFAULT_STARTUP_JITTER_SECONDS)
+    parser.add_argument("--startup-jitter-seconds", type=float, default=None)
     args = parser.parse_args()
 
     repository = Repository(get_settings())
@@ -54,6 +51,16 @@ def main() -> None:
         if not snapshot.app_state.enable_background_fetcher:
             _emit_log("run_disabled", run_id=run_id, pid=os.getpid())
             return
+        effective_max_targets = (
+            snapshot.app_state.fetch_max_targets_per_run
+            if args.max_targets is None
+            else args.max_targets
+        )
+        effective_startup_jitter_seconds = (
+            snapshot.app_state.fetch_startup_jitter_seconds
+            if args.startup_jitter_seconds is None
+            else max(args.startup_jitter_seconds, 0.0)
+        )
 
         selection_now = utcnow()
         all_due_targets = select_due_fetch_targets(
@@ -63,13 +70,15 @@ def main() -> None:
             now=selection_now,
             max_targets=len(snapshot.tracker_fetch_targets),
             include_test_data=include_test_data,
+            app_state=snapshot.app_state,
         )
         selected_target_ids = claim_due_fetch_targets(
             repository,
             run_id=run_id,
             now=selection_now,
-            max_targets=args.max_targets,
+            max_targets=effective_max_targets,
             include_test_data=include_test_data,
+            app_state=snapshot.app_state,
         )
         target_by_id = {
             target.fetch_target_id: target
@@ -85,9 +94,9 @@ def main() -> None:
             "run_started",
             run_id=run_id,
             pid=os.getpid(),
-            max_targets=args.max_targets,
+            max_targets=effective_max_targets,
             sleep_between_requests=not args.no_sleep,
-            startup_jitter_seconds=max(args.startup_jitter_seconds, 0.0),
+            startup_jitter_seconds=effective_startup_jitter_seconds,
             total_trackers=len(snapshot.trackers),
             total_fetch_targets=len(snapshot.tracker_fetch_targets),
             total_due_target_count=total_due_target_count,
@@ -101,11 +110,12 @@ def main() -> None:
             snapshot.trip_instances,
             snapshot.tracker_fetch_targets,
             now=selection_now,
-            max_targets=args.max_targets,
+            max_targets=effective_max_targets,
             sleep_between_requests=not args.no_sleep,
-            startup_jitter_seconds=max(args.startup_jitter_seconds, 0.0),
+            startup_jitter_seconds=effective_startup_jitter_seconds,
             due_targets=due_targets,
             include_test_data=include_test_data,
+            app_state=snapshot.app_state,
         )
         trip_label_by_instance_id = {}
         for instance in snapshot.trip_instances:

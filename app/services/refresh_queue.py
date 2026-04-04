@@ -66,6 +66,7 @@ def queue_refresh_for_trip_instances(
         snapshot.tracker_fetch_targets,
         trip_instance_ids=trip_instance_ids,
         include_test_data=include_test_data,
+        app_state=snapshot.app_state,
     )
     if queued_count:
         repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)

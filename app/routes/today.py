@@ -227,7 +227,7 @@ def today(
     booked_instances = [
         instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     ]
-    overbooked_window_cutoff = today + timedelta(days=7)
+    overbooked_window_cutoff = today + timedelta(days=snapshot.app_state.dashboard_overbooked_window_days)
     overbooked_instances = [
         instance
         for instance in booked_instances
@@ -247,7 +247,7 @@ def today(
 
     overbooked_views = [_instance_dashboard_view(snapshot, instance) for instance in overbooked_instances]
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances]
-    action_window_cutoff = today + timedelta(weeks=6)
+    action_window_cutoff = today + timedelta(weeks=snapshot.app_state.dashboard_needs_booking_window_weeks)
     book_now_views = [
         _instance_dashboard_view(snapshot, instance)
         for instance in planned_instances

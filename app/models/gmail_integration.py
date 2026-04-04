@@ -36,6 +36,8 @@ class GmailIntegrationConfig(BaseModel):
     max_body_chars: int = 12000
     max_retry_attempts: int = 2
     min_auto_create_confidence: float = 0.85
+    launchd_poll_interval_seconds: int = 180
+    launchd_max_messages: int = 10
     debug_log_model_io: bool = False
 
     @field_validator("max_messages_per_poll")
@@ -57,6 +59,13 @@ class GmailIntegrationConfig(BaseModel):
     def validate_max_retry_attempts(cls, value: int) -> int:
         if value < 0:
             raise ValueError("max_retry_attempts must be at least 0.")
+        return value
+
+    @field_validator("launchd_poll_interval_seconds", "launchd_max_messages")
+    @classmethod
+    def validate_positive_runtime_values(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("Runtime values must be at least 1.")
         return value
 
     @field_validator("min_auto_create_confidence")

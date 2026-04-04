@@ -14,6 +14,7 @@ from app.services.launchd import (
     launch_agent_plist_path,
     launch_agent_target,
 )
+from app.services.gmail_config import load_gmail_integration_config
 from app.services.runtime_secrets import ensure_local_secret_from_env, openai_api_key
 from app.settings import get_settings
 
@@ -28,12 +29,13 @@ def _bootout_if_loaded(plist_path: Path) -> None:
 
 
 def main() -> None:
+    settings = get_settings()
+    config = load_gmail_integration_config(settings)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--interval-seconds", type=int, default=180)
-    parser.add_argument("--max-messages", type=int, default=10)
+    parser.add_argument("--interval-seconds", type=int, default=config.launchd_poll_interval_seconds)
+    parser.add_argument("--max-messages", type=int, default=config.launchd_max_messages)
     args = parser.parse_args()
 
-    settings = get_settings()
     project_root = settings.project_root
     ensure_local_secret_from_env(
         settings,

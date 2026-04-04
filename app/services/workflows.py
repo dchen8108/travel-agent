@@ -80,6 +80,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         trips,
         trip_instances,
         existing_fetch_targets,
+        app_state=app_state,
     )
 
     valid_trip_instance_ids = {item.trip_instance_id for item in trip_instances}
@@ -104,7 +105,7 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
             valid_trip_instance_ids,
         )
 
-    apply_fetch_target_rollups(trackers, tracker_fetch_targets)
+    apply_fetch_target_rollups(trackers, tracker_fetch_targets, app_state=app_state)
     recompute_trip_states(trip_instances, trackers, bookings, today=today)
 
     with repository.transaction():

@@ -23,7 +23,7 @@ def build_job_launch_agent_plist(
     module_name: str,
     stdout_log_path: Path,
     stderr_log_path: Path,
-    start_interval_seconds: int = 60,
+    start_interval_seconds: int,
     module_args: list[str] | None = None,
 ) -> bytes:
     plist = {
@@ -55,8 +55,8 @@ def build_launch_agent_plist(
     project_root: Path,
     stdout_log_path: Path,
     stderr_log_path: Path,
-    start_interval_seconds: int = 60,
-    max_targets: int = 2,
+    start_interval_seconds: int,
+    max_targets: int,
 ) -> bytes:
     return build_job_launch_agent_plist(
         label=FETCH_LAUNCH_AGENT_LABEL,
@@ -76,8 +76,8 @@ def build_booking_poller_launch_agent_plist(
     project_root: Path,
     stdout_log_path: Path,
     stderr_log_path: Path,
-    start_interval_seconds: int = 180,
-    max_messages: int = 10,
+    start_interval_seconds: int,
+    max_messages: int,
 ) -> bytes:
     return build_job_launch_agent_plist(
         label=BOOKING_POLLER_LAUNCH_AGENT_LABEL,

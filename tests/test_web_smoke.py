@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from app.models.base import AppState
 from app.models.base import FetchTargetStatus, utcnow
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.groups import save_trip_group
@@ -364,6 +365,73 @@ def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None
     assert "Multiple bookings" in page.text
     assert "Crowded Commute" in page.text
     assert "2 active" in page.text
+
+
+def test_today_page_respects_configured_attention_windows(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    repository.save_app_state(
+        AppState(
+            dashboard_needs_booking_window_weeks=1,
+            dashboard_overbooked_window_days=2,
+        )
+    )
+    client = TestClient(create_app(settings))
+
+    planned_response = client.post(
+        "/trips",
+        data={
+            "label": "Farther Planned Trip",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=10)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert planned_response.status_code == 303
+
+    overbooked_response = client.post(
+        "/trips",
+        data={
+            "label": "Farther Overbooked Trip",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=4)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert overbooked_response.status_code == 303
+
+    for record_locator, booked_price in [("CFG1", "119"), ("CFG2", "129")]:
+        booking_response = client.post(
+            "/bookings",
+            data={
+                "trip_instance_id": "",
+                "airline": "Alaska",
+                "origin_airport": "BUR",
+                "destination_airport": "SFO",
+                "departure_date": (date.today() + timedelta(days=4)).isoformat(),
+                "departure_time": "07:10",
+                "arrival_time": "08:35",
+                "booked_price": booked_price,
+                "record_locator": record_locator,
+                "notes": "",
+            },
+            follow_redirects=False,
+        )
+        assert booking_response.status_code == 303
+
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "Book upcoming trips" not in page.text
+    assert "Resolve multiple bookings" not in page.text
 
 
 def test_new_weekly_rule_without_groups_creates_matching_group(tmp_path: Path) -> None:

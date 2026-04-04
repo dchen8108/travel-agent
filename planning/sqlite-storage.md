@@ -15,6 +15,10 @@ The migration strategy is pragmatic:
 - `timezone`
 - `future_weeks`
 - `enable_background_fetcher`
+- dashboard attention windows
+- fare freshness window
+- background fetch cadence/backoff defaults
+- launchd fetcher defaults
 - `show_test_data`
 - `process_test_data`
 - config schema `version`

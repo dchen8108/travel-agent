@@ -1,8 +1,23 @@
 {
   "enable_background_fetcher": true,
   "future_weeks": 16,
+  "dashboard_needs_booking_window_weeks": 6,
+  "dashboard_overbooked_window_days": 7,
+  "tracker_freshness_window_hours": 72,
+  "fetch_interval_seconds": 14400,
+  "fetch_stagger_seconds": 10,
+  "fetch_max_targets_per_run": 3,
+  "fetch_claim_lease_minutes": 15,
+  "fetch_request_timeout_seconds": 20.0,
+  "fetch_request_sleep_max_extra_seconds": 3.0,
+  "fetch_failure_backoff_hours_first": 12,
+  "fetch_failure_backoff_hours_second": 24,
+  "fetch_failure_backoff_hours_repeated": 48,
+  "fetch_startup_jitter_seconds": 8.0,
+  "launchd_fetch_interval_seconds": 60,
+  "launchd_fetch_max_targets": 2,
   "process_test_data": false,
   "show_test_data": false,
   "timezone": "America/Los_Angeles",
-  "version": 5
+  "version": 6
 }

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from app.models.base import utcnow
+from app.models.base import AppState, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
@@ -13,8 +13,11 @@ from app.models.trip_instance import TripInstance
 def apply_fetch_target_rollups(
     trackers: list[Tracker],
     fetch_targets: list[TrackerFetchTarget],
+    *,
+    app_state: AppState | None = None,
 ) -> list[Tracker]:
-    fresh_window = timedelta(hours=72)
+    state = app_state or AppState()
+    fresh_window = timedelta(hours=state.tracker_freshness_window_hours)
     freshness_cutoff = utcnow() - fresh_window
     by_tracker: dict[str, list[TrackerFetchTarget]] = defaultdict(list)
     for target in fetch_targets:
