@@ -242,12 +242,6 @@ def detach_generated_trip_instance(repository: Repository, trip_instance_id: str
         raise ValueError("Deleted trip instances cannot be detached.")
     if trip_instance.inheritance_mode != TripInstanceInheritanceMode.ATTACHED or not trip_instance.recurring_rule_trip_id:
         raise ValueError("Only attached recurring-rule trips can be detached.")
-    if any(
-        booking.trip_instance_id == trip_instance_id and booking.status == "active"
-        for booking in repository.load_bookings()
-    ):
-        raise ValueError("Detach is not available while an active booking is linked.")
-
     trips = repository.load_trips()
     recurring_rule = next((item for item in trips if item.trip_id == trip_instance.recurring_rule_trip_id), None)
     if recurring_rule is None or recurring_rule.trip_kind != TripKind.WEEKLY:
@@ -286,11 +280,6 @@ def delete_generated_trip_instance(repository: Repository, trip_instance_id: str
         raise KeyError("Trip instance not found")
     if trip_instance.inheritance_mode != TripInstanceInheritanceMode.ATTACHED or not trip_instance.recurring_rule_trip_id:
         raise ValueError("Only attached recurring-rule trips can be deleted this way.")
-    if any(
-        booking.trip_instance_id == trip_instance_id and booking.status == "active"
-        for booking in repository.load_bookings()
-    ):
-        raise ValueError("Unlink or cancel the booking before deleting this trip.")
     trip_instance.deleted = True
     trip_instance.updated_at = utcnow()
     repository.save_trip_instances(trip_instances)

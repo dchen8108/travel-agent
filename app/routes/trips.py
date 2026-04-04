@@ -12,6 +12,8 @@ from app.services.bookings import (
     BookingCandidate,
     resolve_unmatched_booking_to_trip,
     suggested_route_option_payload_for_booking,
+    unlink_bookings_for_trip,
+    unlink_bookings_for_trip_instance,
 )
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
@@ -601,29 +603,16 @@ def delete_trip_action(
         raise HTTPException(status_code=404, detail="Trip not found")
     if trip.trip_kind != "one_time":
         raise HTTPException(status_code=400, detail="Only one-time trips can be deleted from the UI.")
-    active_booking = next(
-        (
-            item
-            for item in repository.load_bookings()
-            if item.trip_instance_id in {
-                instance.trip_instance_id
-                for instance in repository.load_trip_instances()
-                if instance.trip_id == trip.trip_id
-            }
-            and item.status == "active"
-        ),
-        None,
-    )
-    if active_booking is not None:
-        return redirect_back(
-            request,
-            fallback_url=f"/trips/{trip_id}",
-            message="Unlink or cancel the booking before deleting this trip.",
-            message_kind="error",
-        )
+    unlinked_bookings = unlink_bookings_for_trip(repository, trip_id=trip.trip_id)
     delete_trip(repository, trip_id)
     sync_and_persist(repository)
-    return redirect_with_message("/#all-travel", "Trip deleted")
+    active_unlinked_count = sum(1 for item in unlinked_bookings if item.status == "active")
+    message = "Trip deleted"
+    if active_unlinked_count == 1:
+        message = "Trip deleted. 1 booking needs linking."
+    elif active_unlinked_count > 1:
+        message = f"Trip deleted. {active_unlinked_count} bookings need linking."
+    return redirect_with_message("/#all-travel", message)
 
 
 @router.post("/trip-instances/{trip_instance_id}/detach")
@@ -672,6 +661,7 @@ def delete_generated_trip_instance_action(
         recurring_rule_groups = groups_for_rule(snapshot, recurring_rule) if recurring_rule else []
         if len(recurring_rule_groups) == 1:
             redirect_url = f"/groups/{recurring_rule_groups[0].trip_group_id}"
+    unlinked_bookings = unlink_bookings_for_trip_instance(repository, trip_instance_id=trip_instance_id)
     try:
         delete_generated_trip_instance(repository, trip_instance_id)
     except KeyError as exc:
@@ -684,4 +674,10 @@ def delete_generated_trip_instance_action(
             message_kind="error",
         )
     sync_and_persist(repository)
-    return redirect_with_message(redirect_url, "Trip deleted")
+    active_unlinked_count = sum(1 for item in unlinked_bookings if item.status == "active")
+    message = "Trip deleted"
+    if active_unlinked_count == 1:
+        message = "Trip deleted. 1 booking needs linking."
+    elif active_unlinked_count > 1:
+        message = f"Trip deleted. {active_unlinked_count} bookings need linking."
+    return redirect_with_message(redirect_url, message)

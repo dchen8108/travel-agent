@@ -267,12 +267,10 @@ def trackers_detail(
     can_delete_parent_trip = (
         parent_trip.trip_kind == "one_time"
         and parent_trip.active
-        and booking is None
     )
     can_detach_trip_instance = (
         trip_instance.inheritance_mode == "attached"
         and recurring_rule is not None
-        and booking is None
     )
     can_delete_generated_trip_instance = can_detach_trip_instance
 

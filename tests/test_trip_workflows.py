@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from base64 import urlsafe_b64decode
 from datetime import date
+from decimal import Decimal
 from urllib.parse import parse_qs, urlsplit
 
+from app.models.base import DataScope
+from app.services.bookings import BookingCandidate, record_booking
 from app.services.groups import save_trip_group
 from app.services.google_flights import build_google_flights_query_url
 from app.services.dashboard import (
@@ -682,6 +685,58 @@ def test_detaching_generated_trip_instance_preserves_occurrence_and_groups(repos
     assert len(matching_occurrences) == 1
 
 
+def test_detaching_generated_trip_instance_keeps_linked_booking(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Detach With Booking",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    initial = sync_and_persist(repository, today=date(2026, 3, 31))
+    generated = next(item for item in initial.trip_instances if item.trip_id == trip.trip_id)
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=generated.anchor_date,
+            departure_time="07:10",
+            arrival_time="08:35",
+            booked_price=Decimal("119"),
+            record_locator="DETBOOK",
+        ),
+        trip_instance_id=generated.trip_instance_id,
+        data_scope=DataScope.LIVE,
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    detach_generated_trip_instance(repository, generated.trip_instance_id)
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+
+    same_instance = next(item for item in refreshed.trip_instances if item.trip_instance_id == generated.trip_instance_id)
+    refreshed_booking = next(item for item in refreshed.bookings if item.booking_id == booking.booking_id)
+
+    assert same_instance.inheritance_mode == "detached"
+    assert same_instance.trip_id != trip.trip_id
+    assert refreshed_booking.trip_instance_id == same_instance.trip_instance_id
+
+
 def test_weekly_rule_horizon_includes_detached_occurrences(repository: Repository) -> None:
     trip = save_trip(
         repository,
@@ -785,6 +840,34 @@ def test_deleting_generated_trip_instance_tombstones_and_suppresses_regeneration
             if item.recurring_rule_trip_id == trip.trip_id and item.rule_occurrence_date == generated.anchor_date
         ]
     ) == 1
+
+
+def test_delete_trip_can_hide_one_time_trip_after_service_call(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Delete One Time",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    delete_trip(repository, trip.trip_id)
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+
+    deleted_trip = next(item for item in refreshed.trips if item.trip_id == trip.trip_id)
+    assert deleted_trip.active is False
 
 
 def test_save_past_trip_creates_historical_instance_without_trackers(repository: Repository) -> None:

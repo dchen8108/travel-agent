@@ -87,6 +87,15 @@ def _booking_to_unmatched(booking: Booking) -> Booking:
     )
 
 
+def _unlink_booking_record(repository: Repository, booking: Booking) -> Booking:
+    replacement = _booking_to_unmatched(booking)
+    with repository.transaction():
+        repository.delete_bookings_by_ids([booking.booking_id])
+        repository.delete_unmatched_bookings_by_ids([booking.booking_id])
+        repository.upsert_unmatched_bookings([replacement])
+    return replacement
+
+
 def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[Tracker]) -> list[Tracker]:
     matches: list[Tracker] = []
     for tracker in trackers:
@@ -507,14 +516,38 @@ def unlink_booking(
     booking = next((item for item in bookings if item.booking_id == booking_id), None)
     if booking is None or booking.status != "active":
         raise KeyError("Booking not found")
+    return _unlink_booking_record(repository, booking)
 
-    replacement = _booking_to_unmatched(booking)
 
-    with repository.transaction():
-        repository.delete_bookings_by_ids([booking_id])
-        repository.delete_unmatched_bookings_by_ids([booking_id])
-        repository.upsert_unmatched_bookings([replacement])
-    return replacement
+def unlink_bookings_for_trip_instance(
+    repository: Repository,
+    *,
+    trip_instance_id: str,
+) -> list[Booking]:
+    linked_bookings = [
+        item
+        for item in repository.load_bookings()
+        if item.trip_instance_id == trip_instance_id
+    ]
+    return [_unlink_booking_record(repository, booking) for booking in linked_bookings]
+
+
+def unlink_bookings_for_trip(
+    repository: Repository,
+    *,
+    trip_id: str,
+) -> list[Booking]:
+    trip_instance_ids = {
+        item.trip_instance_id
+        for item in repository.load_trip_instances()
+        if item.trip_id == trip_id
+    }
+    linked_bookings = [
+        item
+        for item in repository.load_bookings()
+        if item.trip_instance_id in trip_instance_ids
+    ]
+    return [_unlink_booking_record(repository, booking) for booking in linked_bookings]
 
 
 def update_booking(

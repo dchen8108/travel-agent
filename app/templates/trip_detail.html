@@ -142,7 +142,7 @@
     {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
     {% set scheduled_title = instance.display_label %}
     {% set scheduled_subtitle_html = (scheduled_trip_groups|map(attribute='label')|join(' · ')) ~ ((scheduled_trip_groups and trip.trip_kind == 'weekly') and ' · ' or '') ~ (trip.label if trip.trip_kind == 'weekly' else '') %}
-    {% set scheduled_allow_detach = trip.trip_kind == 'weekly' and scheduled_active_booking_count == 0 %}
+    {% set scheduled_allow_detach = trip.trip_kind == 'weekly' %}
     {% set scheduled_allow_delete_generated = scheduled_allow_detach %}
     {% set scheduled_allow_add_booking = scheduled_active_booking_count == 0 %}
     {% include "partials/scheduled_trip_card.html" %}
@@ -153,7 +153,7 @@
     {% endfor %}
   </div>
 </section>
-{% if trip.trip_kind != 'weekly' and booked_count == 0 %}
+{% if trip.trip_kind != 'weekly' %}
 <section class="section section-tight">
   <div class="section-header compact">
     <div>

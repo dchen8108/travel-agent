@@ -1730,6 +1730,126 @@ def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> N
     assert "return confirm(" not in detail.text
 
 
+def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Delete Booked Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "DELBOOK1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    assert detail.status_code == 200
+    assert 'data-confirm-title="Delete this one-time trip?"' in detail.text
+
+    parent_trip_id = repository.load_trip_instances()[0].trip_id
+    delete = client.post(
+        f"/trips/{parent_trip_id}/delete",
+        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        follow_redirects=False,
+    )
+    assert delete.status_code == 303
+    assert "Trip+deleted.+1+booking+needs+linking." in delete.headers["location"]
+
+    dashboard = client.get("/")
+    assert "Link booking" in dashboard.text
+    assert "DELBOOK1" in dashboard.text
+
+
+def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Delete booked rule")
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Delete Generated With Booking",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "DELGEN1",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    assert detail.status_code == 200
+    assert "Detach trip" in detail.text
+    assert detail.text.count('data-confirm-action="Delete trip"') >= 1
+
+    delete = client.post(
+        f"/trip-instances/{trip_instance_id}/delete-generated",
+        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        follow_redirects=False,
+    )
+    assert delete.status_code == 303
+    assert "Trip+deleted.+1+booking+needs+linking." in delete.headers["location"]
+
+    dashboard = client.get("/")
+    assert "Link booking" in dashboard.text
+    assert "DELGEN1" in dashboard.text
+
+
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
