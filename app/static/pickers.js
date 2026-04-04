@@ -41,7 +41,14 @@
     return [option.value, option.label, option.keywords || ""].join(" ").toLowerCase();
   }
 
+  function isInternalIdentifier(value) {
+    return /^(grp|trip|inst|book|ub|opt|fetch|tracker|mail|price)_[a-z0-9]+$/i.test(String(value || ""));
+  }
+
   function formatOption(option) {
+    if (option.label && isInternalIdentifier(option.value)) {
+      return option.label;
+    }
     return option.label ? `${option.value} · ${option.label}` : option.value;
   }
 

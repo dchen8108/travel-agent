@@ -115,8 +115,8 @@
       root: groupRoot,
       options: scheduledFiltersState.groupOptions || [],
       values: selectedTripGroupIds(),
-      placeholder: "Search trip groups",
-      emptyText: "All trip groups",
+      placeholder: "Search collections",
+      emptyText: "All collections",
       compact: true,
       checkable: true,
       allowSelectAll: true,
@@ -127,7 +127,7 @@
         if (values.length === 1) {
           return options.find((option) => option.value === values[0])?.label || values[0];
         }
-        return `${values.length} groups selected`;
+        return `${values.length} collections`;
       },
       onChange(values) {
         setSelectedTripGroupIds(values);
