@@ -30,10 +30,7 @@
 <div class="dashboard-grid-v4">
   <section class="dashboard-panel dashboard-primary-panel" id="needs-attention">
     <div class="panel-header">
-      <div>
-        <p class="eyebrow">Needs attention</p>
-        <h3>What needs a decision right now</h3>
-      </div>
+      <h3>Needs attention</h3>
     </div>
     {% if not unmatched_views and not overbooked_views and not rebook_views and not book_now_views %}
     <div class="quiet-state-row mission-quiet-state">
@@ -199,10 +196,7 @@
   <aside class="dashboard-rail">
     <section class="dashboard-panel dashboard-rail-panel">
     <div class="panel-header">
-      <div>
-        <p class="eyebrow">Tracking health</p>
-        <h3>Fare coverage across upcoming dates</h3>
-      </div>
+      <h3>Tracking</h3>
     </div>
     <div class="status-stack">
       <article class="status-stat">
@@ -229,10 +223,7 @@
 
   <section class="dashboard-panel dashboard-full-panel dashboard-collections-panel" id="dashboard-groups">
     <div class="panel-header">
-      <div>
-        <p class="eyebrow">Collections</p>
-        <h3>Related travel</h3>
-      </div>
+      <h3>Collections</h3>
       <a class="section-link" href="/groups/new">New collection</a>
     </div>
     <div class="collection-board">
@@ -299,10 +290,7 @@
 
   <section class="dashboard-panel dashboard-travel-panel" id="all-travel">
     <div class="panel-header">
-      <div>
-        <p class="eyebrow">Upcoming trips</p>
-        <h3>All upcoming dates, one list</h3>
-      </div>
+      <h3>Upcoming trips</h3>
       <div class="dashboard-inline-summary">
         <span class="board-count">{{ planned_instances|length }} to book</span>
         <span class="board-count">{{ total_booked_monitoring }} booked</span>

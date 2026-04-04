@@ -347,8 +347,8 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     page = client.get("/")
     assert page.status_code == 200
     assert "Milemark" in page.text
-    assert "What needs a decision right now" in page.text
-    assert "All upcoming dates, one list" in page.text
+    assert "Needs attention" in page.text
+    assert "Upcoming trips" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
     assert "Link booking" in page.text
@@ -1531,7 +1531,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert "Collections" in trips_page.text
-    assert "Filter trips" in trips_page.text
+    assert "Search trips" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text
