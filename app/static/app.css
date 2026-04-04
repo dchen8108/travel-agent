@@ -538,7 +538,7 @@ small,
 .filter-toolbar {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(220px, 1.25fr) minmax(280px, 1.4fr) auto;
+  grid-template-columns: minmax(220px, 1.15fr) minmax(280px, 1.25fr) auto auto;
   align-items: start;
 }
 
@@ -558,16 +558,15 @@ small,
   padding-top: 1.85rem;
 }
 
-.filter-meta {
+.filter-inline-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-  grid-column: 1 / -1;
   flex-wrap: wrap;
 }
 
-.filter-meta .button.ghost {
+.filter-inline-actions .button.ghost {
   padding: 9px 14px;
 }
 
