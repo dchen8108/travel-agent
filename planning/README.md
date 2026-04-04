@@ -46,3 +46,8 @@ Read them as historical design context, not current schema or route documentatio
 - unlinked bookings are handled inline on the dashboard, not through a separate primary `Resolve` or `Bookings` workspace
 - Gmail booking automation is incremental and checkpointed
 - runtime data is stored in SQLite, while checked-in config lives under `config/`
+
+## Current Hygiene Notes
+
+- there is no active legacy CSV/JSON import path in the app anymore; any `legacy/` artifacts in local working trees should be treated as user-local leftovers, not runtime inputs
+- compatibility URLs like `/trips`, `/bookings`, `/resolve`, and `/trackers` still exist only as redirects; new work should target the dashboard and the real detail/create routes

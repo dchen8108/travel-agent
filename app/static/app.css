@@ -1634,28 +1634,6 @@ textarea {
   line-height: 1.45;
 }
 
-.action-card {
-  border-color: rgba(31, 92, 82, 0.18);
-  background:
-    linear-gradient(135deg, rgba(255, 254, 250, 0.98), rgba(245, 241, 233, 0.96)),
-    var(--panel);
-  box-shadow: 0 20px 44px rgba(18, 32, 44, 0.08);
-}
-
-.action-card.status-rebook {
-  border-color: rgba(145, 95, 18, 0.22);
-  background:
-    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(248, 234, 212, 0.66)),
-    var(--panel);
-}
-
-.action-card.status-book_now {
-  border-color: rgba(31, 92, 82, 0.2);
-  background:
-    linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(216, 235, 230, 0.56)),
-    var(--panel);
-}
-
 .callout-card {
   margin-bottom: 22px;
   padding: 20px 22px;
@@ -1863,8 +1841,7 @@ textarea {
 }
 
 .booking-card .meta-grid,
-.trip-card .meta-grid,
-.action-card .meta-grid {
+.trip-card .meta-grid {
   padding-top: 4px;
   border-top: 1px solid rgba(200, 209, 204, 0.44);
 }
@@ -2085,10 +2062,6 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
-.dashboard-card-grid-compact {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
 .collection-board {
   display: grid;
   gap: 16px;
@@ -2226,55 +2199,6 @@ button.collection-trip-pill[hidden] {
   padding: 14px 16px;
 }
 
-.dashboard-plan-list {
-  display: grid;
-  gap: 10px;
-}
-
-.dashboard-plan-row {
-  display: grid;
-  gap: 8px;
-  padding: 13px 14px;
-  border: 1px solid rgba(212, 218, 212, 0.5);
-  border-radius: 18px;
-  background: rgba(255, 254, 250, 0.84);
-}
-
-.dashboard-plan-copy {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.dashboard-plan-copy p {
-  margin-top: 4px;
-}
-
-.dashboard-plan-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.plan-inline-metric {
-  color: var(--muted);
-  font-size: 0.84rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.dashboard-plan-stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
 .quiet-state-row {
   display: flex;
   align-items: center;
@@ -2299,9 +2223,7 @@ button.collection-trip-pill[hidden] {
   margin-top: 4px;
 }
 
-.signal-item,
-.dashboard-item,
-.travel-row {
+.signal-item {
   display: grid;
   gap: 12px;
   align-items: start;
@@ -2329,9 +2251,7 @@ button.collection-trip-pill[hidden] {
   min-width: 0;
 }
 
-.signal-headline,
-.dashboard-item-head,
-.travel-head {
+.signal-headline {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2372,27 +2292,10 @@ button.collection-trip-pill[hidden] {
   white-space: nowrap;
 }
 
-.compact-meta,
-.dashboard-item-detail,
-.signal-detail,
-.travel-detail {
+.compact-meta {
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.46;
-}
-
-.dashboard-item,
-.travel-row {
-  padding: 13px 14px;
-}
-
-.dashboard-rich-card {
-  display: grid;
-  gap: 12px;
-}
-
-.dashboard-rich-card .meta-grid {
-  margin: 0;
 }
 
 .timeline-section {
@@ -2628,87 +2531,13 @@ button.collection-trip-pill[hidden] {
   padding-top: 2px;
 }
 
-.dashboard-link-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.dashboard-date-pill-row {
-  margin-top: -2px;
-}
-
-.dashboard-date-pill-row .horizon-badge {
-  min-width: 82px;
-  justify-content: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.dashboard-disclosure {
-  grid-column: 1 / -1;
-  border: 1px solid rgba(205, 212, 206, 0.68);
-  border-radius: 22px;
-  background: rgba(255, 253, 249, 0.9);
-  box-shadow: 0 8px 20px rgba(18, 32, 44, 0.025);
-  overflow: hidden;
-}
-
-.dashboard-disclosure summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
-  cursor: pointer;
-  list-style: none;
-}
-
-.dashboard-disclosure summary::-webkit-details-marker {
-  display: none;
-}
-
-.dashboard-disclosure-body {
-  padding: 0 18px 18px;
-}
-
-.dashboard-item-main,
-.travel-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
 .dashboard-item-title,
 .travel-title {
   font-size: 1rem;
 }
 
-.booking-activity-row .dashboard-item-title,
 .signal-title {
   font-size: 1.02rem;
-}
-
-.dashboard-board {
-  gap: 18px;
-}
-
-.dashboard-board-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.board-column {
-  display: grid;
-  gap: 12px;
-}
-
-.board-column-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .dashboard-ledger-section {
@@ -2737,44 +2566,6 @@ button.collection-trip-pill[hidden] {
 .dashboard-travel-panel .scheduled-results-stack {
   border-radius: 20px;
   overflow: hidden;
-}
-
-.board-column-header p {
-  color: var(--muted);
-  font-size: 0.92rem;
-  margin-top: 4px;
-}
-
-.travel-row {
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
-.travel-date {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 72px;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(247, 239, 228, 0.95);
-  border: 1px solid rgba(200, 209, 204, 0.84);
-  color: #445767;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.travel-action {
-  color: var(--warning);
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.travel-action.accent {
-  color: var(--accent);
 }
 
 .compact-empty-state {
@@ -2846,8 +2637,7 @@ code {
   }
 
   .dashboard-header,
-  .panel-header,
-  .board-column-header {
+  .panel-header {
     display: grid;
     grid-template-columns: 1fr;
   }
@@ -2855,7 +2645,6 @@ code {
   .mission-control,
   .dashboard-grid-v4,
   .dashboard-card-grid,
-  .dashboard-board-grid,
   .dashboard-utility-grid {
     grid-template-columns: 1fr;
   }
@@ -2863,11 +2652,6 @@ code {
   .mission-head {
     grid-template-columns: 1fr;
     align-items: start;
-  }
-
-  .dashboard-plan-copy {
-    display: grid;
-    grid-template-columns: 1fr;
   }
 
   .collection-card-head {
@@ -2881,13 +2665,8 @@ code {
   }
 
   .signal-item,
-  .travel-row,
   .timeline-row {
     grid-template-columns: 1fr;
-  }
-
-  .travel-date {
-    justify-self: start;
   }
 
   .quiet-state-row {

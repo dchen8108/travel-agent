@@ -6,17 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.dashboard import (
-    active_booking_count_for_instance,
-    best_tracker,
-    booking_for_instance,
     horizon_instances_for_rule,
     load_snapshot,
     recurring_rules_for_group,
     scheduled_instances,
-    trackers_for_instance,
     trip_group_by_id,
-    trip_groups,
-    trip_for_instance,
 )
 from app.services.groups import delete_trip_group, save_trip_group
 from app.storage.repository import Repository
@@ -94,17 +88,6 @@ def group_detail(
     today = date.today()
     recurring_rules = recurring_rules_for_group(snapshot, trip_group_id)
     grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, today=today)
-    planned_count = sum(
-        1
-        for instance in grouped_instances
-        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
-    )
-    booked_count = sum(
-        1
-        for instance in grouped_instances
-        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
-    )
-    next_instance = next(iter(grouped_instances), None)
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -113,17 +96,11 @@ def group_detail(
             request,
             page="trips",
             snapshot=snapshot,
+            back_href=back_url(request, fallback_url="/#dashboard-groups"),
             group=group,
             recurring_rules=recurring_rules,
             grouped_instances=grouped_instances,
-            planned_count=planned_count,
-            booked_count=booked_count,
-            next_instance=next_instance,
             today=today,
-            best_tracker=best_tracker,
-            booking_for_instance=booking_for_instance,
-            trackers_for_instance=trackers_for_instance,
-            trip_for_instance=trip_for_instance,
             horizon_instances_for_rule=horizon_instances_for_rule,
         ),
     )

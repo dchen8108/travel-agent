@@ -5,7 +5,7 @@
   {% set trip_groups = groups_for_trip(snapshot, trip) %}
   <div>
     <p class="detail-breadcrumb">
-      <a class="inline-back-link" href="/#all-travel">Back</a>
+      <a class="inline-back-link" href="{{ back_href }}">Back</a>
     </p>
     <p class="page-context">
       {% if trip.trip_kind == 'weekly' %}

@@ -2191,7 +2191,7 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     assert "is-unavailable" in trackers_page.text
 
 
-def test_unmatched_booking_can_be_linked_from_bookings_page(tmp_path: Path) -> None:
+def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -2235,8 +2235,8 @@ def test_unmatched_booking_can_be_linked_from_bookings_page(tmp_path: Path) -> N
     dashboard_page = client.get("/")
     unmatched_id = dashboard_page.text.split('/bookings/unmatched/', 1)[1].split('/link', 1)[0]
 
-    trips_page = client.get("/trips?q=Resolve+Redirect+Trip")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
+    repository = Repository(settings)
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     resolve_response = client.post(
         f"/bookings/unmatched/{unmatched_id}/link",
         data={"trip_instance_id": trip_instance_id},

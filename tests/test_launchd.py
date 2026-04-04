@@ -14,6 +14,7 @@ from app.services.launchd import (
     LAUNCH_AGENT_LABEL,
     build_booking_poller_launch_agent_plist,
     build_launch_agent_plist,
+    launch_agent_target,
 )
 from app.services.runtime_secrets import ensure_local_secret_from_env
 from app.settings import Settings
@@ -174,3 +175,58 @@ def test_install_launchd_booking_poller_fails_cleanly_when_uv_missing(settings, 
 
     with pytest.raises(SystemExit, match="Could not find `uv` in PATH."):
         install_launchd_booking_poller.main()
+
+
+def test_install_launchd_booking_poller_writes_plist_and_persists_secret(tmp_path, monkeypatch, capsys) -> None:
+    settings = Settings(data_dir=tmp_path / "data", config_dir=tmp_path / "config")
+    plist_path = tmp_path / "LaunchAgents" / "com.test.poller.plist"
+    stdout_log_path = tmp_path / "logs" / "poll.stdout.log"
+    stderr_log_path = tmp_path / "logs" / "poll.stderr.log"
+    run_calls: list[list[str]] = []
+
+    monkeypatch.setattr(install_launchd_booking_poller, "get_settings", lambda: settings)
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "load_gmail_integration_config",
+        lambda _settings: GmailIntegrationConfig(),
+    )
+    monkeypatch.setattr(install_launchd_booking_poller.shutil, "which", lambda _name: "/usr/local/bin/uv")
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "launch_agent_plist_path",
+        lambda _label: plist_path,
+    )
+    monkeypatch.setattr(
+        install_launchd_booking_poller,
+        "default_log_paths",
+        lambda _project_root, _job_name: (stdout_log_path, stderr_log_path),
+    )
+    monkeypatch.setattr(
+        install_launchd_booking_poller.subprocess,
+        "run",
+        lambda args, **_kwargs: run_calls.append(list(args)),
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-launchd-secret")
+    monkeypatch.setattr(sys, "argv", ["install_launchd_booking_poller", "--interval-seconds", "240", "--max-messages", "12"])
+
+    install_launchd_booking_poller.main()
+
+    assert plist_path.exists()
+    plist = plistlib.loads(plist_path.read_bytes())
+    assert plist["ProgramArguments"] == [
+        "/usr/local/bin/uv",
+        "run",
+        "python",
+        "-m",
+        "app.jobs.poll_gmail_bookings",
+        "--max-messages",
+        "12",
+    ]
+    assert settings.config_local_dir.joinpath("openai_api_key.txt").read_text(encoding="utf-8").strip() == "sk-launchd-secret"
+    assert run_calls == [
+        ["launchctl", "bootout", "gui/501", str(plist_path)],
+        ["launchctl", "bootstrap", "gui/501", str(plist_path)],
+        ["launchctl", "kickstart", "-k", launch_agent_target(BOOKING_POLLER_LAUNCH_AGENT_LABEL)],
+    ]
+    captured = capsys.readouterr()
+    assert BOOKING_POLLER_LAUNCH_AGENT_LABEL in captured.out

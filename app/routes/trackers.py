@@ -10,14 +10,11 @@ from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
     booking_route_tracking_state,
     bookings_for_instance,
-    best_tracker,
     booking_for_instance,
     comparison_tracker,
     fetch_targets_for_tracker,
-    group_for_instance,
     groups_for_instance,
     load_snapshot,
-    rebook_savings,
     recurring_rule_for_instance,
     trip_lifecycle_status_label,
     trip_lifecycle_status_tone,
@@ -32,7 +29,7 @@ from app.services.refresh_queue import queued_refresh_message, queue_refresh_for
 from app.services.data_scope import include_test_data_for_processing
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_with_message
+from app.web import back_url, base_context, get_repository, get_templates, redirect_with_message
 
 router = APIRouter(tags=["trackers"])
 
@@ -187,7 +184,6 @@ def trackers_detail(
     total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)
     tracker_cards = [_tracker_card_view(snapshot, tracker) for tracker in trackers]
     recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
-    trip_group = group_for_instance(snapshot, trip_instance_id)
     trip_groups = groups_for_instance(snapshot, trip_instance_id)
     booking = booking_for_instance(snapshot, trip_instance_id)
     bookings = bookings_for_instance(snapshot, trip_instance_id)
@@ -202,13 +198,11 @@ def trackers_detail(
         1 for item in booking_views if item["route_tracking"].get("warning")
     )
     active_bookings = [item for item in bookings if item.status == "active"]
-    best_current_tracker = best_tracker(snapshot, trip_instance_id)
     comparison = comparison_tracker(snapshot, trip_instance_id)
     lifecycle_label = trip_lifecycle_status_label(snapshot, trip_instance_id)
     lifecycle_tone = trip_lifecycle_status_tone(snapshot, trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
     action_label = trip_recommended_action(snapshot, trip_instance_id)
-    savings = rebook_savings(snapshot, trip_instance_id)
     current_fare_label = (
         format_money(comparison.latest_observed_price)
         if comparison and comparison.latest_observed_price is not None
@@ -237,10 +231,13 @@ def trackers_detail(
             request,
             page="trips",
             snapshot=snapshot,
+            back_href=back_url(
+                request,
+                fallback_url=trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id),
+            ),
             trip_instance=trip_instance,
             parent_trip=parent_trip,
             recurring_rule=recurring_rule,
-            trip_group=trip_group,
             trip_groups=trip_groups,
             tracker_cards=tracker_cards,
             total_fetch_targets=total_fetch_targets,
@@ -252,8 +249,6 @@ def trackers_detail(
             can_delete_parent_trip=can_delete_parent_trip,
             can_detach_trip_instance=can_detach_trip_instance,
             can_delete_generated_trip_instance=can_delete_generated_trip_instance,
-            best_tracker=best_current_tracker,
-            comparison_tracker=comparison,
             current_fare_label=current_fare_label,
             booked_fare_label=booked_fare_label,
             lifecycle_label=lifecycle_label,

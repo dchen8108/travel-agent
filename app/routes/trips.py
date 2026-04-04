@@ -362,6 +362,7 @@ def trip_detail(
             request,
             page="trips",
             snapshot=snapshot,
+            back_href=back_url(request, fallback_url="/#all-travel"),
             best_tracker=best_tracker,
             booking_for_instance=booking_for_instance,
             trackers_for_instance=trackers_for_instance,
