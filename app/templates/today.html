@@ -47,16 +47,13 @@
     <div class="attention-stack">
       {% if unmatched_views %}
       <section class="attention-group" id="needs-linking">
-        <div class="attention-group-header">
-          <strong>Link bookings</strong>
-        </div>
         <div class="stack">
           {% for card in unmatched_views %}
           {% set unmatched = card.unmatched %}
           <article class="card resolve-card booking-card">
             <div class="card-header">
               <div>
-                <strong>{{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
+                <strong>Link booking · {{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
                 <p class="muted">
                   {{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }}{% if unmatched.arrival_time %}–{{ unmatched.arrival_time }}{% endif %} ·
                   {{ airline_label(unmatched.airline) }}
@@ -67,7 +64,6 @@
             <div class="meta-grid">
               <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
               <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
-              <div><dt>Status</dt><dd>Needs linking</dd></div>
             </div>
             <div class="two-column top-gap-small">
               <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
@@ -129,9 +125,6 @@
 
       {% if overbooked_views %}
       <section class="attention-group">
-        <div class="attention-group-header">
-          <strong>Resolve multiple bookings</strong>
-        </div>
         <div class="signal-list">
           {% for card in overbooked_views %}
           <article class="signal-item signal-item-warning">
@@ -155,9 +148,6 @@
 
       {% if rebook_views %}
       <section class="attention-group">
-        <div class="attention-group-header">
-          <strong>Review savings</strong>
-        </div>
         <div class="signal-list">
           {% for card in rebook_views %}
           <article class="signal-item signal-item-accent">
@@ -183,9 +173,6 @@
 
       {% if book_now_views %}
       <section class="attention-group">
-        <div class="attention-group-header">
-          <strong>Book upcoming trips</strong>
-        </div>
         <div class="signal-list">
           {% for card in book_now_views %}
           <article class="signal-item">

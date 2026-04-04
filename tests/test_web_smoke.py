@@ -351,7 +351,7 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "All upcoming dates, one list" in page.text
     assert "Planned Commute" in page.text
     assert "Booked Commute" in page.text
-    assert "Link bookings" in page.text
+    assert "Link booking" in page.text
     assert "/bookings/unmatched/" in page.text
 
 
@@ -398,7 +398,6 @@ def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None
 
     page = client.get("/")
     assert page.status_code == 200
-    assert "Resolve multiple bookings" in page.text
     assert "Multiple bookings" in page.text
     assert "Crowded Commute" in page.text
     assert "2 active" in page.text
