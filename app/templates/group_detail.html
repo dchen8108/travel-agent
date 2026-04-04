@@ -38,18 +38,12 @@
   </div>
   <div class="card-grid">
     {% for trip in recurring_rules %}
-    {% set rule_instances = horizon_instances_for_rule(snapshot, trip.trip_id, today=today) %}
     <article class="card" id="rule-{{ trip.trip_id }}">
       <div class="card-header">
         <div>
-          <strong>{{ trip.label }}</strong>
-          <p class="muted">Repeats on {{ trip.anchor_weekday }} · {{ 'active' if trip.active else 'paused' }}</p>
+          <strong><a class="dashboard-item-title" href="/trips/{{ trip.trip_id }}">{{ trip.label }}</a></strong>
+          <p class="muted">Repeats on {{ trip.anchor_weekday }}</p>
         </div>
-        <span class="badge">{{ rule_instances|length }} upcoming</span>
-      </div>
-      <div class="actions top-gap-small">
-        <a class="button primary" href="/trips/{{ trip.trip_id }}">Open rule</a>
-        <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
         <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
           <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
             <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
