@@ -2151,19 +2151,16 @@ textarea {
 }
 
 .collection-card-head {
-  display: grid;
-  gap: 14px;
-}
-
-.collection-card-titleblock {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .collection-card-titleline {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -2171,36 +2168,6 @@ textarea {
 .collection-card-titleline strong {
   font-size: 1.14rem;
   line-height: 1.15;
-}
-
-.collection-card-summary {
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.55;
-  max-width: 52ch;
-  text-wrap: pretty;
-}
-
-.collection-card-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.collection-metric-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.collection-metric {
-  display: grid;
-  gap: 4px;
-  padding: 12px 13px;
-  border-radius: 16px;
-  background: rgba(255, 251, 245, 0.92);
-  border: 1px solid rgba(209, 216, 210, 0.68);
 }
 
 .collection-metric-label {
@@ -2917,8 +2884,7 @@ code {
     grid-template-columns: 1fr;
   }
 
-  .collection-card-titleline,
-  .collection-card-actions {
+  .collection-card-head {
     display: grid;
     grid-template-columns: 1fr;
     justify-items: start;
