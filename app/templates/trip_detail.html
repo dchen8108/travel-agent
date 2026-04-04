@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="hero compact">
+<div class="detail-page-stack">
+<section class="hero compact dashboard-panel detail-top-panel">
   {% set trip_groups = groups_for_trip(snapshot, trip) %}
   {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
@@ -39,21 +40,20 @@
     </form>
     {% endif %}
   </div>
+  <section class="summary-strip detail-summary-strip">
+    {% if trip_groups %}
+    <div class="summary-pill"><span>{{ trip_groups[0].label if trip_groups|length == 1 else trip_groups|length }}</span><small>{{ 'group' if trip_groups|length == 1 else 'groups' }}</small></div>
+    {% endif %}
+    <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
+    <div class="summary-pill"><span>{{ 'equal' if trip.preference_mode == 'equal' else 'preferred order' }}</span><small>preference</small></div>
+    <div class="summary-pill"><span>{{ route_options|length }}</span><small>route option{{ '' if route_options|length == 1 else 's' }}</small></div>
+    <div class="summary-pill"><span>{{ future_instances|length }}</span><small>upcoming dates</small></div>
+    <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
+  </section>
 </section>
 
-<section class="summary-strip">
-  {% if trip_groups %}
-  <div class="summary-pill"><span>{{ trip_groups[0].label if trip_groups|length == 1 else trip_groups|length }}</span><small>{{ 'group' if trip_groups|length == 1 else 'groups' }}</small></div>
-  {% endif %}
-  <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
-  <div class="summary-pill"><span>{{ 'equal' if trip.preference_mode == 'equal' else 'preferred order' }}</span><small>preference</small></div>
-  <div class="summary-pill"><span>{{ route_options|length }}</span><small>route option{{ '' if route_options|length == 1 else 's' }}</small></div>
-  <div class="summary-pill"><span>{{ future_instances|length }}</span><small>upcoming dates</small></div>
-  <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
-</section>
-
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Setup</h3>
     </div>
@@ -69,8 +69,8 @@
   </div>
 </section>
 
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Routes</h3>
     </div>
@@ -125,8 +125,8 @@
   </div>
 </section>
 
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Trips</h3>
     </div>
@@ -138,8 +138,8 @@
   {% include "partials/scheduled_trips_results.html" %}
 </section>
 {% if trip.trip_kind != 'weekly' %}
-<section class="section section-tight">
-  <div class="section-header compact">
+<section class="section section-tight dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Controls</h3>
     </div>
@@ -158,4 +158,5 @@
   </div>
 </section>
 {% endif %}
+</div>
 {% endblock %}

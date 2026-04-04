@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="hero compact">
+<div class="detail-page-stack">
+<section class="hero compact dashboard-panel detail-top-panel">
   <div>
     <p class="detail-breadcrumb">
       <a class="inline-back-link" href="/#dashboard-groups">Back</a>
@@ -29,8 +30,8 @@
   </div>
 </section>
 
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Rules</h3>
     </div>
@@ -67,8 +68,8 @@
   </div>
 </section>
 
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Trips</h3>
     </div>
@@ -79,4 +80,5 @@
   {% set scheduled_empty_detail = '' %}
   {% include "partials/scheduled_trips_results.html" %}
 </section>
+</div>
 {% endblock %}

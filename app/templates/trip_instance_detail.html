@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block content %}
-<section class="hero compact">
+<div class="detail-page-stack">
+<section class="hero compact dashboard-panel detail-top-panel">
   {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
@@ -41,18 +42,17 @@
     {% endif %}
     <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
   </div>
-</section>
-
-<section class="summary-strip">
-  <div class="summary-pill"><span>{{ trip_instance.anchor_date.strftime('%b %d') }}</span><small>travel date</small></div>
-  <div class="summary-pill"><span>{{ lifecycle_label }}</span><small>status</small></div>
-  <div class="summary-pill"><span>{{ current_fare_label }}</span><small>best current fare</small></div>
-  <div class="summary-pill"><span>{{ booked_fare_label }}</span><small>booked fare</small></div>
+  <section class="summary-strip detail-summary-strip">
+    <div class="summary-pill"><span>{{ trip_instance.anchor_date.strftime('%b %d') }}</span><small>travel date</small></div>
+    <div class="summary-pill"><span>{{ lifecycle_label }}</span><small>status</small></div>
+    <div class="summary-pill"><span>{{ current_fare_label }}</span><small>best current fare</small></div>
+    <div class="summary-pill"><span>{{ booked_fare_label }}</span><small>booked fare</small></div>
+  </section>
 </section>
 
 {% if bookings %}
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Bookings</h3>
     </div>
@@ -133,8 +133,8 @@
 </section>
 {% endif %}
 
-<section class="section">
-  <div class="section-header">
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Tracked searches</h3>
     </div>
@@ -237,8 +237,8 @@
   </div>
 </section>
 {% if can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip %}
-<section class="section section-tight">
-  <div class="section-header compact">
+<section class="section section-tight dashboard-panel detail-section-panel">
+  <div class="panel-header">
     <div>
       <h3>Controls</h3>
     </div>
@@ -276,4 +276,5 @@
   </div>
 </section>
 {% endif %}
+</div>
 {% endblock %}

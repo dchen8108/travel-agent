@@ -449,6 +449,31 @@ small,
   margin: 0 0 8px;
 }
 
+.detail-page-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.detail-page-stack > .section {
+  margin: 0;
+}
+
+.detail-top-panel {
+  gap: 18px;
+  padding: 18px;
+  border-color: rgba(164, 194, 184, 0.58);
+  box-shadow: 0 14px 34px rgba(18, 32, 44, 0.05);
+}
+
+.detail-top-panel .summary-strip {
+  margin: 2px 0 0;
+}
+
+.detail-section-panel {
+  gap: 14px;
+  padding: 18px;
+}
+
 .inline-badge-row {
   display: flex;
   gap: 8px;
