@@ -29,14 +29,6 @@
   </div>
 </section>
 
-<section class="summary-strip">
-  <div class="summary-pill"><span>{{ recurring_rules|length }}</span><small>rules</small></div>
-  <div class="summary-pill"><span>{{ grouped_instances|length }}</span><small>upcoming trips</small></div>
-  <div class="summary-pill"><span>{{ planned_count }}</span><small>planned</small></div>
-  <div class="summary-pill"><span>{{ booked_count }}</span><small>booked</small></div>
-  <div class="summary-pill"><span>{{ next_instance.anchor_date.isoformat() if next_instance else '—' }}</span><small>next trip</small></div>
-</section>
-
 <section class="section">
   <div class="section-header">
     <div>
