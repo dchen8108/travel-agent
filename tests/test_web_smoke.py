@@ -317,6 +317,55 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     assert "/bookings/unmatched/" in page.text
 
 
+def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    trip_response = client.post(
+        "/trips",
+        data={
+            "label": "Crowded Commute",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=4)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert trip_response.status_code == 303
+
+    for record_locator, booked_price in [("MULTI1", "119"), ("MULTI2", "129")]:
+        booking_response = client.post(
+            "/bookings",
+            data={
+                "trip_instance_id": "",
+                "airline": "Alaska",
+                "origin_airport": "BUR",
+                "destination_airport": "SFO",
+                "departure_date": (date.today() + timedelta(days=4)).isoformat(),
+                "departure_time": "07:10",
+                "arrival_time": "08:35",
+                "booked_price": booked_price,
+                "record_locator": record_locator,
+                "notes": "",
+            },
+            follow_redirects=False,
+        )
+        assert booking_response.status_code == 303
+
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "Resolve multiple bookings" in page.text
+    assert "Multiple bookings" in page.text
+    assert "Crowded Commute" in page.text
+    assert "2 active" in page.text
+
+
 def test_new_weekly_rule_without_groups_creates_matching_group(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

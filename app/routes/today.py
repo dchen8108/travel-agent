@@ -227,11 +227,25 @@ def today(
     booked_instances = [
         instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     ]
+    overbooked_window_cutoff = today + timedelta(days=7)
+    overbooked_instances = [
+        instance
+        for instance in booked_instances
+        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 1
+        and instance.anchor_date <= overbooked_window_cutoff
+    ]
+    overbooked_instance_ids = {
+        instance.trip_instance_id for instance in overbooked_instances
+    }
     rebook_instances = [
-        instance for instance in booked_instances if rebook_savings(snapshot, instance.trip_instance_id) is not None
+        instance
+        for instance in booked_instances
+        if instance.trip_instance_id not in overbooked_instance_ids
+        and rebook_savings(snapshot, instance.trip_instance_id) is not None
     ]
     next_trip = upcoming_instances[0] if upcoming_instances else None
 
+    overbooked_views = [_instance_dashboard_view(snapshot, instance) for instance in overbooked_instances]
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances]
     action_window_cutoff = today + timedelta(weeks=6)
     book_now_views = [
@@ -239,7 +253,7 @@ def today(
         for instance in planned_instances
         if instance.anchor_date <= action_window_cutoff
     ]
-    action_count = len(unmatched_views) + len(rebook_views) + len(book_now_views)
+    action_count = len(unmatched_views) + len(overbooked_views) + len(rebook_views) + len(book_now_views)
 
     monitoring_labels = [
         trip_monitoring_status_label(snapshot, instance.trip_instance_id)
@@ -274,6 +288,7 @@ def today(
             snapshot=snapshot,
             unmatched_views=unmatched_views,
             planned_instances=planned_instances,
+            overbooked_views=overbooked_views,
             rebook_views=rebook_views,
             book_now_views=book_now_views,
             group_views=group_views,

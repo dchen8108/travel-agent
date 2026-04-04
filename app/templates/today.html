@@ -47,7 +47,7 @@
         <h3>What needs a decision right now</h3>
       </div>
     </div>
-    {% if not unmatched_views and not rebook_views and not book_now_views %}
+    {% if not unmatched_views and not overbooked_views and not rebook_views and not book_now_views %}
     <div class="quiet-state-row mission-quiet-state">
       <div>
         <strong>No travel decisions are waiting.</strong>
@@ -134,6 +134,33 @@
                 </form>
               </div>
             </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if overbooked_views %}
+      <section class="attention-group">
+        <div class="attention-group-header">
+          <strong>Resolve multiple bookings</strong>
+          <p>These trips depart within the next week and still have more than one active booking attached.</p>
+        </div>
+        <div class="signal-list">
+          {% for card in overbooked_views %}
+          <article class="signal-item signal-item-warning">
+            <div class="signal-copy">
+              <div class="signal-headline">
+                <strong>Multiple bookings</strong>
+                <span class="signal-badge">{{ card.active_booking_count }} active</span>
+              </div>
+              <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
+              <p class="compact-meta">
+                {{ card.instance.anchor_date.strftime('%a, %b %d') }}{% if card.context_label %} · {{ card.context_label }}{% endif %}
+              </p>
+              <p class="signal-detail">{{ card.detail }}</p>
+            </div>
+            <a class="button secondary" href="{{ card.href }}">Review trip</a>
           </article>
           {% endfor %}
         </div>
