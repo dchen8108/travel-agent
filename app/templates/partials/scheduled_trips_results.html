@@ -11,11 +11,7 @@
   <div class="timeline-list scheduled-results-stack" data-scheduled-results>
     {% for instance in scheduled_items %}
     {% set scheduled_instance = instance %}
-    {% set scheduled_tracker = best_tracker(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_booking = booking_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_title = trip_ui_label(snapshot, instance.trip_instance_id) %}
-    {% set scheduled_context = trip_ui_context_label(snapshot, instance.trip_instance_id) %}
+    {% set row = trip_row_summary(snapshot, instance.trip_instance_id) %}
     <article class="timeline-row" id="scheduled-{{ scheduled_instance.trip_instance_id }}">
       <div class="timeline-date">
         <span class="timeline-day">{{ scheduled_instance.anchor_date.strftime('%a') }}</span>
@@ -23,32 +19,28 @@
       </div>
       <div class="timeline-main">
         <div class="timeline-title-row">
-          <a class="travel-title" href="/trip-instances/{{ scheduled_instance.trip_instance_id }}">{{ scheduled_title }}</a>
-          <span class="status-inline status-inline--{{ trip_lifecycle_status_tone(snapshot, scheduled_instance.trip_instance_id) }}">
-            {{ trip_lifecycle_status_label(snapshot, scheduled_instance.trip_instance_id) }}
+          <a class="travel-title" href="/trip-instances/{{ scheduled_instance.trip_instance_id }}">{{ row.title }}</a>
+          <span class="status-inline status-inline--{{ row.lifecycle_tone }}">
+            {{ row.lifecycle_label }}
           </span>
         </div>
-        {% if scheduled_context %}
-        <p class="compact-meta">{{ scheduled_context }}</p>
+        {% if row.detail_line %}
+        <p class="compact-meta travel-meta-line">{{ row.detail_line }}</p>
         {% endif %}
-        <p class="travel-detail">{{ trip_status_detail(snapshot, scheduled_instance.trip_instance_id) }}</p>
-      </div>
-      <div class="timeline-side">
-        {% if rebook_savings(snapshot, scheduled_instance.trip_instance_id) %}
-        <span class="timeline-metric">{{ money(rebook_savings(snapshot, scheduled_instance.trip_instance_id)) }} lower</span>
-        {% elif scheduled_tracker and scheduled_tracker.latest_observed_price is not none %}
-        <span class="timeline-metric">{{ money(scheduled_tracker.latest_observed_price) }}</span>
-        {% elif scheduled_booking %}
-        <span class="timeline-metric">{{ money(scheduled_booking.booked_price) }}</span>
-        {% else %}
-        <span class="timeline-metric muted">No price</span>
-        {% endif %}
-        {% if scheduled_active_booking_count > 1 %}
-        <span class="timeline-side-note">{{ scheduled_active_booking_count }} bookings</span>
-        {% elif scheduled_booking %}
-        <span class="timeline-side-note">Booked</span>
-        {% else %}
-        <span class="timeline-side-note">{{ trip_monitoring_status_label(snapshot, scheduled_instance.trip_instance_id) }}</span>
+        {% if row.fact_chips %}
+        <div class="timeline-facts">
+          {% for chip in row.fact_chips %}
+          {% if chip.href %}
+          <a class="timeline-fact timeline-fact--{{ chip.tone }} timeline-fact--link" href="{{ chip.href }}" target="_blank" rel="noreferrer">
+            {{ chip.label }}
+          </a>
+          {% else %}
+          <span class="timeline-fact timeline-fact--{{ chip.tone }}">
+            {{ chip.label }}
+          </span>
+          {% endif %}
+          {% endfor %}
+        </div>
         {% endif %}
       </div>
     </article>

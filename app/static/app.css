@@ -2417,7 +2417,7 @@ button.collection-trip-pill[hidden] {
 
 .timeline-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
   align-items: start;
   padding: 14px 16px;
@@ -2462,40 +2462,74 @@ button.collection-trip-pill[hidden] {
 
 .timeline-main {
   display: grid;
-  gap: 3px;
+  gap: 7px;
   min-width: 0;
 }
 
 .timeline-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.timeline-side {
-  display: grid;
-  gap: 4px;
-  justify-items: end;
-  min-width: 84px;
+.travel-meta-line {
+  line-height: 1.38;
 }
 
-.timeline-metric {
-  color: var(--ink);
-  font-size: 0.92rem;
+.timeline-facts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.timeline-fact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(208, 215, 208, 0.72);
+  background: rgba(247, 240, 230, 0.94);
+  color: #4d5f70;
+  font-size: 0.84rem;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.timeline-metric.muted {
-  color: var(--muted);
+.timeline-fact--link {
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
 }
 
-.timeline-side-note {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-align: right;
+.timeline-fact--link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(18, 32, 44, 0.055);
+}
+
+.timeline-fact--neutral {
+  background: rgba(247, 240, 230, 0.94);
+  border-color: rgba(208, 215, 208, 0.72);
+  color: #4d5f70;
+}
+
+.timeline-fact--warning {
+  background: linear-gradient(180deg, rgba(251, 239, 213, 0.98), rgba(255, 250, 241, 0.96));
+  border-color: rgba(212, 183, 126, 0.72);
+  color: var(--warning);
+}
+
+.timeline-fact--success {
+  background: linear-gradient(180deg, rgba(230, 244, 238, 0.98), rgba(247, 252, 249, 0.96));
+  border-color: rgba(152, 199, 180, 0.76);
+  color: var(--accent-strong);
+}
+
+.timeline-fact--accent {
+  background: linear-gradient(180deg, rgba(219, 242, 234, 0.98), rgba(242, 251, 247, 0.96));
+  border-color: rgba(89, 168, 144, 0.76);
+  color: var(--accent-strong);
 }
 
 .status-inline {
@@ -2504,6 +2538,7 @@ button.collection-trip-pill[hidden] {
   gap: 6px;
   padding: 5px 10px;
   border-radius: 999px;
+  border: 1px solid transparent;
   font-size: 0.77rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -2511,17 +2546,20 @@ button.collection-trip-pill[hidden] {
 }
 
 .status-inline--warning {
-  background: var(--warning-soft);
+  background: linear-gradient(180deg, rgba(251, 239, 213, 0.98), rgba(255, 250, 241, 0.96));
+  border-color: rgba(212, 183, 126, 0.72);
   color: var(--warning);
 }
 
 .status-inline--success {
-  background: rgba(235, 240, 236, 0.92);
-  color: #4b6271;
+  background: linear-gradient(180deg, rgba(230, 244, 238, 0.98), rgba(247, 252, 249, 0.96));
+  border-color: rgba(152, 199, 180, 0.76);
+  color: var(--accent-strong);
 }
 
 .status-inline--accent {
-  background: rgba(226, 242, 237, 0.9);
+  background: linear-gradient(180deg, rgba(219, 242, 234, 0.98), rgba(242, 251, 247, 0.96));
+  border-color: rgba(89, 168, 144, 0.76);
   color: var(--accent-strong);
 }
 

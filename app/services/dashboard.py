@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from urllib.parse import urlencode
 
+from app.catalog import airline_display
 from app.money import format_money
 from app.models.base import BookingStatus, FetchTargetStatus
 from app.models.booking import Booking
@@ -506,6 +507,175 @@ def trip_ui_context_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     if recurring_rule is not None and (trip is None or recurring_rule.trip_id != trip.trip_id):
         return recurring_rule.label
     return ""
+
+
+def _compact_airport_codes(codes: list[str]) -> str:
+    return "|".join(code for code in codes if code)
+
+
+def _row_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    if tracker is not None:
+        return tracker
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    return trackers[0] if trackers else None
+
+
+def _tracker_route_label(tracker: Tracker) -> str:
+    if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
+        return f"{tracker.latest_winning_origin_airport} → {tracker.latest_winning_destination_airport}"
+    origins = _compact_airport_codes(tracker.origin_codes)
+    destinations = _compact_airport_codes(tracker.destination_codes)
+    if origins and destinations:
+        return f"{origins} → {destinations}"
+    return ""
+
+
+def trip_route_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    if booking is not None:
+        route = f"{booking.origin_airport} → {booking.destination_airport}"
+        airline = airline_display(booking.airline)
+        return f"{route} · {airline}" if airline else route
+    tracker = _row_tracker(snapshot, trip_instance_id)
+    if tracker is None:
+        return ""
+    route = _tracker_route_label(tracker)
+    if not route:
+        return ""
+    if len(tracker.airline_codes) == 1:
+        return f"{route} · {airline_display(tracker.airline_codes[0])}"
+    return route
+
+
+def tracker_best_fetch_target(snapshot: AppSnapshot, tracker: Tracker | None) -> TrackerFetchTarget | None:
+    if tracker is None:
+        return None
+    targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+    if not targets:
+        return None
+    if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
+        exact_targets = [
+            target
+            for target in targets
+            if target.origin_airport == tracker.latest_winning_origin_airport
+            and target.destination_airport == tracker.latest_winning_destination_airport
+        ]
+        if tracker.latest_observed_price is not None:
+            exact_price_match = [
+                target
+                for target in exact_targets
+                if target.latest_price == tracker.latest_observed_price
+            ]
+            if exact_price_match:
+                return sorted(
+                    exact_price_match,
+                    key=lambda item: (item.origin_airport, item.destination_airport),
+                )[0]
+        if exact_targets:
+            return sorted(
+                exact_targets,
+                key=lambda item: (item.origin_airport, item.destination_airport),
+            )[0]
+    if tracker.latest_observed_price is not None:
+        priced_targets = [
+            target
+            for target in targets
+            if target.latest_price == tracker.latest_observed_price
+        ]
+        if priced_targets:
+            return sorted(
+                priced_targets,
+                key=lambda item: (item.origin_airport, item.destination_airport),
+            )[0]
+    live_targets = [target for target in targets if target.latest_price is not None]
+    if live_targets:
+        return sorted(
+            live_targets,
+            key=lambda item: (
+                item.latest_price or 10**9,
+                item.origin_airport,
+                item.destination_airport,
+            ),
+        )[0]
+    return sorted(
+        targets,
+        key=lambda item: (item.origin_airport, item.destination_airport),
+    )[0]
+
+
+def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    route_tracker = tracker or (trackers[0] if trackers else None)
+    active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
+    savings = rebook_savings(snapshot, trip_instance_id)
+    monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
+    current_target = tracker_best_fetch_target(snapshot, tracker)
+    current_price = tracker.latest_observed_price if tracker is not None else None
+    context_label = trip_ui_context_label(snapshot, trip_instance_id)
+    route_label = trip_route_label(snapshot, trip_instance_id)
+    detail_parts = [part for part in [context_label, route_label] if part]
+    fact_chips: list[dict[str, object]] = []
+
+    if booking is not None:
+        fact_chips.append(
+            {
+                "label": f"Booked {format_money(booking.booked_price)}",
+                "tone": "neutral",
+                "href": "",
+            }
+        )
+    if current_price is not None:
+        current_tone = "accent" if savings is not None else ("success" if booking is None else "neutral")
+        fact_chips.append(
+            {
+                "label": f"Best {format_money(current_price)}",
+                "tone": current_tone,
+                "href": current_target.google_flights_url if current_target and current_target.google_flights_url else "",
+            }
+        )
+    if savings is not None:
+        fact_chips.append(
+            {
+                "label": f"Save {format_money(savings)}",
+                "tone": "accent",
+                "href": "",
+            }
+        )
+    if active_booking_count > 1:
+        fact_chips.append(
+            {
+                "label": f"{active_booking_count} bookings",
+                "tone": "warning",
+                "href": "",
+            }
+        )
+    if current_price is None:
+        fact_chips.append(
+            {
+                "label": "No fares" if monitoring_label == "No matches" else "Checking",
+                "tone": "warning" if monitoring_label == "No matches" else "neutral",
+                "href": "",
+            }
+        )
+    elif booking is None and len(trackers) > 1:
+        fact_chips.append(
+            {
+                "label": f"{len(trackers)} routes",
+                "tone": "neutral",
+                "href": "",
+            }
+        )
+
+    return {
+        "title": trip_ui_label(snapshot, trip_instance_id),
+        "lifecycle_label": trip_lifecycle_status_label(snapshot, trip_instance_id),
+        "lifecycle_tone": trip_lifecycle_status_tone(snapshot, trip_instance_id),
+        "detail_line": " · ".join(detail_parts),
+        "fact_chips": fact_chips,
+    }
 
 
 def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
