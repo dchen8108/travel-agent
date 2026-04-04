@@ -1967,46 +1967,10 @@ textarea {
 }
 
 .mission-side {
-  display: grid;
-  gap: 8px;
-  justify-items: end;
-  align-content: start;
-}
-
-.mission-stat-row {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.mission-stat {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  min-width: 0;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(209, 216, 210, 0.74);
-  background: rgba(255, 252, 246, 0.7);
-  text-align: left;
-}
-
-.mission-stat span {
-  font-family: var(--font-sans);
-  font-size: 0.96rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.mission-stat small {
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  align-self: start;
 }
 
 .mission-actions {
@@ -2958,10 +2922,6 @@ code {
   }
 
   .mission-side {
-    justify-items: start;
-  }
-
-  .mission-stat-row {
     justify-content: flex-start;
   }
 
