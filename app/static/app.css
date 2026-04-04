@@ -82,44 +82,47 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 6px 0 2px;
+  padding: 2px 0 0;
   color: var(--ink);
 }
 
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   max-width: 100%;
   color: inherit;
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.08rem;
   color: #f6fbff;
   background:
     linear-gradient(135deg, rgba(141, 211, 198, 0.96), rgba(13, 122, 109, 0.9)),
     rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 22px rgba(13, 122, 109, 0.16);
+  box-shadow: 0 10px 18px rgba(13, 122, 109, 0.14);
 }
 
 .brand {
   display: grid;
-  gap: 1px;
+  gap: 0;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: 1.6rem;
-  color: var(--ink);
-  line-height: 0.94;
+  font-family: var(--font-sans);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #445361;
+  line-height: 1;
 }
 
 .brand p {
@@ -1942,46 +1945,55 @@ textarea {
 
 .mission-control {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   align-items: start;
-  padding: 10px 2px 2px;
+  padding: 2px 0 0;
 }
 
 .mission-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
-  align-items: end;
+  gap: 14px 18px;
+  align-items: start;
 }
 
 .mission-copy {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
-.mission-copy h2 {
-  font-family: var(--font-sans);
-  font-size: clamp(1.65rem, 2.1vw, 2.1rem);
+.mission-label {
+  color: var(--muted);
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 0.95;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mission-summary {
+  font-family: var(--font-sans);
+  font-size: clamp(1.28rem, 1.9vw, 1.7rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
   max-width: none;
   margin: 0;
   text-wrap: pretty;
 }
 
 .mission-digest {
-  max-width: 58ch;
+  max-width: none;
   color: var(--muted);
-  font-size: 1.02rem;
-  line-height: 1.5;
+  font-size: 0.98rem;
+  line-height: 1.45;
   text-wrap: pretty;
 }
 
 .mission-side {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   justify-items: end;
+  align-content: start;
 }
 
 .mission-stat-row {
@@ -1995,18 +2007,18 @@ textarea {
 .mission-stat {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid rgba(209, 216, 210, 0.74);
-  background: rgba(255, 252, 246, 0.78);
+  background: rgba(255, 252, 246, 0.7);
   text-align: left;
 }
 
 .mission-stat span {
   font-family: var(--font-sans);
-  font-size: 1.05rem;
+  font-size: 0.96rem;
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -2014,7 +2026,7 @@ textarea {
 
 .mission-stat small {
   color: var(--muted);
-  font-size: 0.69rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2022,7 +2034,7 @@ textarea {
 
 .mission-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;

@@ -3,8 +3,8 @@
 <section class="mission-control">
   <div class="mission-head">
     <div class="mission-copy">
-      <h2>Upcoming travel</h2>
-      <p class="mission-digest">
+      <p class="mission-label">Overview</p>
+      <p class="mission-summary">
         {% if action_count %}
         {{ action_count }} thing{{ '' if action_count == 1 else 's' }} need review
         {% else %}
@@ -13,6 +13,9 @@
         {% if next_trip %}
         · Next departure {{ next_trip.anchor_date.strftime('%a, %b %d') }}
         {% endif %}
+      </p>
+      <p class="mission-digest">
+        {{ planned_instances|length }} still to book · {{ total_booked_monitoring }} already booked
       </p>
     </div>
     <div class="mission-side">
