@@ -233,7 +233,7 @@ def today(
     next_trip = upcoming_instances[0] if upcoming_instances else None
 
     rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances[:6]]
-    action_window_cutoff = today + timedelta(days=10)
+    action_window_cutoff = today + timedelta(weeks=6)
     book_now_views = [
         _instance_dashboard_view(snapshot, instance)
         for instance in planned_instances
