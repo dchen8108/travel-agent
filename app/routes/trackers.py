@@ -23,7 +23,6 @@ from app.services.dashboard import (
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
     trip_recommended_action,
-    trip_status_detail,
     tracker_detail_url,
     trackers_for_instance,
     trip_focus_url,
@@ -209,7 +208,6 @@ def trackers_detail(
     lifecycle_tone = trip_lifecycle_status_tone(snapshot, trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
     action_label = trip_recommended_action(snapshot, trip_instance_id)
-    status_detail = trip_status_detail(snapshot, trip_instance_id)
     savings = rebook_savings(snapshot, trip_instance_id)
     current_fare_label = (
         format_money(comparison.latest_observed_price)
@@ -222,35 +220,6 @@ def trackers_detail(
         booked_fare_label = f"{len(active_bookings)} active"
     else:
         booked_fare_label = "Not booked"
-    fare_snapshot_note = ""
-    if booking and len(active_bookings) > 1 and savings is not None and comparison and comparison.latest_observed_price is not None:
-        fare_snapshot_note = (
-            f"There are {len(active_bookings)} active bookings linked to this trip. "
-            f"The latest booked fare is {format_money(booking.booked_price)}, and the best current trip option is "
-            f"{format_money(comparison.latest_observed_price)}."
-        )
-    elif booking and len(active_bookings) > 1:
-        fare_snapshot_note = (
-            f"There are {len(active_bookings)} active bookings linked to this trip. "
-            f"The latest booked fare is {format_money(booking.booked_price)}."
-        )
-    elif booking and savings is not None and comparison and comparison.latest_observed_price is not None:
-        fare_snapshot_note = (
-            f"Milemark found a better current trip option at {format_money(comparison.latest_observed_price)}, "
-            f"{format_money(savings)} below what you booked."
-        )
-    elif booking and comparison and comparison.latest_observed_price is not None:
-        fare_snapshot_note = (
-            f"Booked at {format_money(booking.booked_price)}. "
-            f"The best current trip option is {format_money(comparison.latest_observed_price)}."
-        )
-    elif booking:
-        fare_snapshot_note = (
-            f"Booked at {format_money(booking.booked_price)}. "
-            "A current trip-level comparison fare is not available yet."
-        )
-    elif trackers and not (best_current_tracker and best_current_tracker.latest_observed_price is not None):
-        fare_snapshot_note = "Milemark is still checking the monitored searches for this date."
     can_delete_parent_trip = (
         parent_trip.trip_kind == "one_time"
         and parent_trip.active
@@ -287,12 +256,10 @@ def trackers_detail(
             comparison_tracker=comparison,
             current_fare_label=current_fare_label,
             booked_fare_label=booked_fare_label,
-            fare_snapshot_note=fare_snapshot_note,
             lifecycle_label=lifecycle_label,
             lifecycle_tone=lifecycle_tone,
             monitoring_label=monitoring_label,
             action_label=action_label,
-            status_detail=status_detail,
             trip_focus_url=trip_focus_url,
             tracker_detail_url=tracker_detail_url,
         ),
