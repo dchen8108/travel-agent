@@ -2,7 +2,6 @@
 {% block content %}
 <div class="detail-page-stack">
 <section class="hero compact dashboard-panel detail-top-panel">
-  {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
       <a class="inline-back-link" href="{{ trip_focus_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id) }}">Back</a>
@@ -15,28 +14,28 @@
       {% if action_label %}
       <span class="badge warning">{{ action_label }}</span>
       {% endif %}
-      <p class="muted">
-        {% if trip_groups %}
-        In
-        {% for linked_group in trip_groups %}
-        <a href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>{% if not loop.last %}, {% endif %}
-        {% endfor %}
-        {% endif %}
-        {% if recurring_rule %}
-        {% if trip_groups %} · {% endif %}Rule <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
-        {% if trip_instance.inheritance_mode == 'detached' %} · Detached{% endif %}
-        {% elif parent_trip.trip_kind == 'one_time' %}
-        {% if trip_groups %} · {% endif %}One-time trip
-        {% else %}
-        {% if trip_groups %} · {% endif %}Standalone trip
-        {% endif %}
-      </p>
     </div>
+    {% if trip_groups or recurring_rule %}
+    <p class="muted detail-related-links">
+      {% if trip_groups %}
+      In
+      {% for linked_group in trip_groups %}
+      <a href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+      {% endif %}
+      {% if recurring_rule %}
+      {% if trip_groups %} · {% endif %}
+      {% if trip_instance.inheritance_mode == 'detached' %}
+      Detached from <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
+      {% else %}
+      Managed by <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
+      {% endif %}
+      {% endif %}
+    </p>
+    {% endif %}
   </div>
   <div class="hero-actions">
-    {% if recurring_rule and parent_trip.trip_kind == 'weekly' %}
-    <a class="button secondary" href="/trips/{{ recurring_rule.trip_id }}">Open rule</a>
-    {% else %}
+    {% if not (recurring_rule and parent_trip.trip_kind == 'weekly') %}
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
     <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>

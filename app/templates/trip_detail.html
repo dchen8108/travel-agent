@@ -3,7 +3,6 @@
 <div class="detail-page-stack">
 <section class="hero compact dashboard-panel detail-top-panel">
   {% set trip_groups = groups_for_trip(snapshot, trip) %}
-  {% set primary_trip_group = trip_groups[0] if trip_groups|length == 1 else None %}
   <div>
     <p class="detail-breadcrumb">
       <a class="inline-back-link" href="/#all-travel">Back</a>
@@ -17,17 +16,15 @@
     </p>
     <h2>{{ trip.label }}</h2>
     {% if trip_groups %}
-    <div class="inline-badge-row top-gap-small">
+    <p class="muted detail-related-links">
+      In
       {% for linked_group in trip_groups %}
-      <a class="badge" href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>
+      <a href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>{% if not loop.last %}, {% endif %}
       {% endfor %}
-    </div>
+    </p>
     {% endif %}
   </div>
   <div class="hero-actions">
-    {% if primary_trip_group %}
-    <a class="button ghost" href="/groups/{{ primary_trip_group.trip_group_id }}">Open collection</a>
-    {% endif %}
     <a class="button secondary" href="/trips/{{ trip.trip_id }}/edit">{{ 'Edit rule' if trip.trip_kind == 'weekly' else 'Edit trip' }}</a>
     {% if trip.trip_kind == 'weekly' %}
     <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
@@ -41,9 +38,6 @@
     {% endif %}
   </div>
   <section class="summary-strip detail-summary-strip">
-    {% if trip_groups %}
-    <div class="summary-pill"><span>{{ trip_groups[0].label if trip_groups|length == 1 else trip_groups|length }}</span><small>{{ 'group' if trip_groups|length == 1 else 'groups' }}</small></div>
-    {% endif %}
     <div class="summary-pill"><span>{{ trip.trip_kind|replace('_', ' ') }}</span><small>trip type</small></div>
     <div class="summary-pill"><span>{{ 'equal' if trip.preference_mode == 'equal' else 'preferred order' }}</span><small>preference</small></div>
     <div class="summary-pill"><span>{{ route_options|length }}</span><small>route option{{ '' if route_options|length == 1 else 's' }}</small></div>

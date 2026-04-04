@@ -1789,6 +1789,14 @@ textarea {
   margin-bottom: 8px;
 }
 
+.detail-related-links {
+  margin-top: 2px;
+}
+
+.detail-related-links a {
+  color: var(--accent);
+}
+
 .tracker-option-label {
   margin-bottom: 6px;
 }
