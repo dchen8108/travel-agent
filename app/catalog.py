@@ -57,7 +57,7 @@ SUPPORTED_AIRLINES = [
 AIRPORT_CODES = {item["code"] for item in SUPPORTED_AIRPORTS}
 AIRLINE_CODES = {item["code"] for item in SUPPORTED_AIRLINES}
 AIRPORT_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRPORTS}
-AIRLINE_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRLINES}
+AIRLINE_FULL_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRLINES}
 AIRLINE_ALIASES = {
     "as": "Alaska",
     "alaska": "Alaska",
@@ -107,8 +107,12 @@ def airline_options() -> list[dict[str, str]]:
     return [
         {
             "value": item["code"],
-            "label": item["label"],
-            "keywords": item.get("keywords", ""),
+            "label": item["code"],
+            "keywords": " ".join(
+                part
+                for part in [item["code"], item["label"], item.get("keywords", "")]
+                if part
+            ),
         }
         for item in SUPPORTED_AIRLINES
     ]
@@ -138,7 +142,7 @@ def airport_label(code: str) -> str:
 
 def airline_label(code: str) -> str:
     normalized = normalize_airline_code(code)
-    return AIRLINE_LABELS[normalized]
+    return normalized
 
 
 def airport_display(code: str) -> str:
@@ -146,8 +150,7 @@ def airport_display(code: str) -> str:
 
 
 def airline_display(code: str) -> str:
-    normalized = normalize_airline_code(code)
-    return f"{normalized} · {airline_label(normalized)}"
+    return airline_label(code)
 
 
 def catalogs_json() -> str:
