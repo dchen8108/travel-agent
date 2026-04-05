@@ -59,7 +59,7 @@ def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path:
     repository.ensure_data_dir()
     repository.save_app_state(AppState(show_test_data=False, process_test_data=False))
 
-    repository.save_trip_instances(
+    repository.replace_trip_instances(
         [
             TripInstance(
                 trip_instance_id="inst_test",
@@ -71,7 +71,7 @@ def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path:
             )
         ]
     )
-    repository.save_trackers(
+    repository.replace_trackers(
         [
             Tracker(
                 tracker_id="trk_test",

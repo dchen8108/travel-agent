@@ -130,6 +130,45 @@ def test_build_reconciled_snapshot_does_not_persist_until_requested(repository: 
     assert len(persisted_instances) == 16
 
 
+def test_persist_reconciled_snapshot_uses_narrow_runtime_writes(repository: Repository, monkeypatch) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Narrow persistence trip",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = build_reconciled_snapshot(repository, today=date(2026, 3, 31))
+
+    def fail_save(*_args, **_kwargs):
+        raise AssertionError("Broad save_* runtime persistence should not be used here.")
+
+    monkeypatch.setattr(repository, "replace_trip_instances", fail_save)
+    monkeypatch.setattr(repository, "replace_trip_instance_group_memberships", fail_save)
+    monkeypatch.setattr(repository, "replace_trackers", fail_save)
+    monkeypatch.setattr(repository, "replace_tracker_fetch_targets", fail_save)
+    monkeypatch.setattr(repository, "replace_bookings", fail_save)
+    monkeypatch.setattr(repository, "replace_unmatched_bookings", fail_save)
+
+    persist_reconciled_snapshot(repository, snapshot)
+
+    assert repository.load_trip_instances() != []
+    assert repository.load_trackers() != []
+
+
 def test_deleted_generated_occurrence_stays_suppressed_after_reconciliation(repository: Repository) -> None:
     trip = save_trip(
         repository,

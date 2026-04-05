@@ -41,7 +41,7 @@ def test_queue_refresh_upserts_only_changed_fetch_targets(repository, monkeypatc
     def record_upsert(targets):
         upserted_ids.extend(target.fetch_target_id for target in targets)
 
-    monkeypatch.setattr(repository, "save_tracker_fetch_targets", fail_save)
+    monkeypatch.setattr(repository, "replace_tracker_fetch_targets", fail_save)
     monkeypatch.setattr(repository, "upsert_tracker_fetch_targets", record_upsert)
 
     queued_count = queue_refresh_for_trip_instance(

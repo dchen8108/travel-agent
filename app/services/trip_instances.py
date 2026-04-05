@@ -269,7 +269,7 @@ def detach_generated_trip_instance(repository: Repository, trip_instance_id: str
     trip_instance.recurring_rule_trip_id = recurring_rule.trip_id
     trip_instance.rule_occurrence_date = trip_instance.rule_occurrence_date or trip_instance.anchor_date
     trip_instance.updated_at = utcnow()
-    repository.save_trip_instances(trip_instances)
+    repository.upsert_trip_instances([trip_instance])
     return trip_instance
 
 
@@ -282,5 +282,5 @@ def delete_generated_trip_instance(repository: Repository, trip_instance_id: str
         raise ValueError("Only attached recurring-rule trips can be deleted this way.")
     trip_instance.deleted = True
     trip_instance.updated_at = utcnow()
-    repository.save_trip_instances(trip_instances)
+    repository.upsert_trip_instances([trip_instance])
     return trip_instance

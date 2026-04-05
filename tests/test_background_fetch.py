@@ -526,7 +526,7 @@ def test_claim_due_fetch_targets_prevents_overlap_between_workers(repository: Re
     now = utcnow()
     for target in snapshot.tracker_fetch_targets:
         target.next_fetch_not_before = now - timedelta(seconds=1)
-    repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+    repository.replace_tracker_fetch_targets(snapshot.tracker_fetch_targets)
 
     first_claim = claim_due_fetch_targets(
         repository,
@@ -577,7 +577,7 @@ def test_sync_and_persist_preserves_active_fetch_claims(repository: Repository) 
     claim_until = utcnow() + timedelta(minutes=10)
     target.fetch_claim_owner = "fetchrun_live"
     target.fetch_claim_expires_at = claim_until
-    repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+    repository.replace_tracker_fetch_targets(snapshot.tracker_fetch_targets)
 
     refreshed = sync_and_persist(repository)
     updated_target = next(item for item in refreshed.tracker_fetch_targets if item.fetch_target_id == target.fetch_target_id)

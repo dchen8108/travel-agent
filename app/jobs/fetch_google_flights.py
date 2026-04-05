@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import traceback
+from typing import Callable, Hashable, TypeVar
 
 from app.jobs.cli_types import non_negative_float_argument, non_negative_int_argument
 from app.models.base import utcnow
@@ -17,6 +18,25 @@ from app.services.snapshot_queries import trip_for_instance
 from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository
+
+ModelT = TypeVar("ModelT")
+
+
+def _changed_models(
+    current_items: list[ModelT],
+    desired_items: list[ModelT],
+    *,
+    key: Callable[[ModelT], Hashable],
+) -> list[ModelT]:
+    current_by_key = {
+        key(item): item.model_dump(mode="json")
+        for item in current_items
+    }
+    return [
+        item
+        for item in desired_items
+        if current_by_key.get(key(item)) != item.model_dump(mode="json")
+    ]
 
 def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
     payload = {
@@ -164,10 +184,20 @@ def main() -> None:
                 for target in due_targets
                 if target.fetch_target_id in existing_target_ids
             ]
+            changed_trackers = _changed_models(
+                repository.load_trackers(),
+                snapshot.trackers,
+                key=lambda item: item.tracker_id,
+            )
+            changed_trip_instances = _changed_models(
+                repository.load_trip_instances(),
+                snapshot.trip_instances,
+                key=lambda item: item.trip_instance_id,
+            )
             repository.append_price_records(price_records)
             repository.upsert_tracker_fetch_targets(updated_due_targets)
-            repository.save_trackers(snapshot.trackers)
-            repository.save_trip_instances(snapshot.trip_instances)
+            repository.upsert_trackers(changed_trackers)
+            repository.upsert_trip_instances(changed_trip_instances)
         status_counts: dict[str, int] = {}
         for attempt in result.attempts:
             key = str(attempt.status)

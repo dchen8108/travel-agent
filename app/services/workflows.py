@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Callable, Hashable, TypeVar
 
 from app.models.base import utcnow
 from app.models.booking import Booking
@@ -18,6 +19,8 @@ from app.services.snapshots import AppSnapshot
 from app.services.trackers import reconcile_trackers
 from app.services.trip_instances import reconcile_trip_instances
 from app.storage.repository import Repository
+
+ModelT = TypeVar("ModelT")
 
 
 def _filter_candidate_trip_ids(value: str, valid_ids: set[str]) -> str:
@@ -42,6 +45,33 @@ def _preserve_active_fetch_claims(
             continue
         target.fetch_claim_owner = current.fetch_claim_owner
         target.fetch_claim_expires_at = current.fetch_claim_expires_at
+
+
+def _diff_models(
+    current_items: list[ModelT],
+    desired_items: list[ModelT],
+    *,
+    key: Callable[[ModelT], Hashable],
+) -> tuple[list[ModelT], list[Hashable]]:
+    current_by_key = {
+        key(item): item.model_dump(mode="json")
+        for item in current_items
+    }
+    desired_by_key = {
+        key(item): item.model_dump(mode="json")
+        for item in desired_items
+    }
+    changed_items = [
+        item
+        for item in desired_items
+        if current_by_key.get(key(item)) != desired_by_key[key(item)]
+    ]
+    removed_keys = [
+        item_key
+        for item_key in current_by_key
+        if item_key not in desired_by_key
+    ]
+    return changed_items, removed_keys
 
 
 def build_reconciled_snapshot(repository: Repository, *, today: date | None = None) -> AppSnapshot:
@@ -127,17 +157,63 @@ def build_reconciled_snapshot(repository: Repository, *, today: date | None = No
 
 def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -> AppSnapshot:
     with repository.transaction():
+        current_trip_instances = repository.load_trip_instances()
+        current_memberships = repository.load_trip_instance_group_memberships()
+        current_trackers = repository.load_trackers()
         current_fetch_targets = repository.load_tracker_fetch_targets()
+        current_bookings = repository.load_bookings()
+        current_unmatched_bookings = repository.load_unmatched_bookings()
         _preserve_active_fetch_claims(
             snapshot.tracker_fetch_targets,
             current_fetch_targets,
         )
-        repository.save_trip_instances(snapshot.trip_instances)
-        repository.save_trip_instance_group_memberships(snapshot.trip_instance_group_memberships)
-        repository.save_trackers(snapshot.trackers)
-        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
-        repository.save_unmatched_bookings(snapshot.unmatched_bookings)
-        repository.save_bookings(snapshot.bookings)
+
+        trip_instances_to_upsert, trip_instance_ids_to_delete = _diff_models(
+            current_trip_instances,
+            snapshot.trip_instances,
+            key=lambda item: item.trip_instance_id,
+        )
+        memberships_to_upsert, membership_keys_to_delete = _diff_models(
+            current_memberships,
+            snapshot.trip_instance_group_memberships,
+            key=lambda item: (item.trip_instance_id, item.trip_group_id),
+        )
+        trackers_to_upsert, tracker_ids_to_delete = _diff_models(
+            current_trackers,
+            snapshot.trackers,
+            key=lambda item: item.tracker_id,
+        )
+        fetch_targets_to_upsert, fetch_target_ids_to_delete = _diff_models(
+            current_fetch_targets,
+            snapshot.tracker_fetch_targets,
+            key=lambda item: item.fetch_target_id,
+        )
+        bookings_to_upsert, booking_ids_to_delete = _diff_models(
+            current_bookings,
+            snapshot.bookings,
+            key=lambda item: item.booking_id,
+        )
+        unmatched_to_upsert, unmatched_ids_to_delete = _diff_models(
+            current_unmatched_bookings,
+            snapshot.unmatched_bookings,
+            key=lambda item: item.booking_id,
+        )
+
+        repository.upsert_trip_instances(trip_instances_to_upsert)
+        repository.upsert_trackers(trackers_to_upsert)
+        repository.upsert_tracker_fetch_targets(fetch_targets_to_upsert)
+        repository.upsert_bookings(bookings_to_upsert)
+        repository.upsert_unmatched_bookings(unmatched_to_upsert)
+        repository.upsert_trip_instance_group_memberships(memberships_to_upsert)
+
+        repository.delete_bookings_by_ids([str(item) for item in booking_ids_to_delete])
+        repository.delete_unmatched_bookings_by_ids([str(item) for item in unmatched_ids_to_delete])
+        repository.delete_tracker_fetch_targets_by_ids([str(item) for item in fetch_target_ids_to_delete])
+        repository.delete_trackers_by_ids([str(item) for item in tracker_ids_to_delete])
+        repository.delete_trip_instance_group_memberships_by_keys(
+            [(str(trip_instance_id), str(trip_group_id)) for trip_instance_id, trip_group_id in membership_keys_to_delete]
+        )
+        repository.delete_trip_instances_by_ids([str(item) for item in trip_instance_ids_to_delete])
     return snapshot
 
 

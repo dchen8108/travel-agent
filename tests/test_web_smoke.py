@@ -1497,7 +1497,7 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
     delayed_until = utcnow() + timedelta(hours=6)
     for target in fetch_targets:
         target.next_fetch_not_before = delayed_until
-    repository.save_tracker_fetch_targets(fetch_targets)
+    repository.replace_tracker_fetch_targets(fetch_targets)
 
     pause = client.post(f"/trips/{trip_id}/pause", follow_redirects=False)
     assert pause.status_code == 303
@@ -2185,7 +2185,7 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     fetch_targets[0].last_fetch_finished_at = utcnow()
     fetch_targets[0].next_fetch_not_before = utcnow() + timedelta(hours=4)
     fetch_targets[0].latest_price = None
-    repository.save_tracker_fetch_targets(fetch_targets)
+    repository.replace_tracker_fetch_targets(fetch_targets)
 
     trips_page = client.get("/trips?q=No+results+tracker")
     trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
