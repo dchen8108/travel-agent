@@ -6,7 +6,7 @@ from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
-from app.services.dashboard import trip_row_summary
+from app.services.scheduled_trip_views import trip_row_summary
 from app.services.snapshots import AppSnapshot
 
 

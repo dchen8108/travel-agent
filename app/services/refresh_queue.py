@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import date
 
 from app.services.background_fetch import queue_rolling_refresh
-from app.services.dashboard import AppSnapshot, horizon_instances_for_trip
+from app.services.snapshot_queries import horizon_instances_for_trip
+from app.services.snapshots import AppSnapshot
 from app.storage.repository import Repository
 
 

@@ -9,12 +9,14 @@ from fastapi.templating import Jinja2Templates
 from app.catalog import airline_display, airline_label, airport_display, airport_label
 from app.money import format_money
 from app.route_options import day_offset_label, route_option_summary
-from app.services.dashboard import (
-    group_for_trip,
-    groups_for_trip,
+from app.services.scheduled_trip_views import (
     trip_row_summary,
     trip_ui_label,
     trip_ui_picker_label,
+)
+from app.services.snapshot_queries import (
+    group_for_trip,
+    groups_for_trip,
 )
 from app.settings import Settings, get_settings
 from app.storage.repository import Repository

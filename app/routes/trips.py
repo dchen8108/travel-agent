@@ -17,26 +17,18 @@ from app.services.bookings import (
 )
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard import (
+    booking_reference_label,
+    default_trip_label_for_booking,
+    load_live_snapshot,
+    load_persisted_snapshot,
+    trip_groups,
+    trip_focus_url,
+)
+from app.services.scheduled_trip_views import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
-    booking_reference_label,
-    default_trip_label_for_booking,
-    groups_for_trip,
-    groups_for_rule,
-    horizon_instances_for_rule,
-    horizon_instances_for_trip,
-    instances_for_rule,
-    instances_for_trip,
-    load_live_snapshot,
-    load_persisted_snapshot,
-    route_options_for_trip,
-    trip_groups,
-    trip_by_id,
     trackers_for_instance,
-    trip_for_instance,
-    trip_focus_url,
-    recurring_rule_for_instance,
 )
 from app.services.group_memberships import replace_manual_trip_instance_groups
 from app.services.groups import find_or_create_trip_group
@@ -44,6 +36,18 @@ from app.services.refresh_queue import (
     queued_refresh_message,
     queue_refresh_for_trip,
     queue_refresh_for_trip_instance,
+)
+from app.services.snapshot_queries import (
+    groups_for_rule,
+    groups_for_trip,
+    horizon_instances_for_rule,
+    horizon_instances_for_trip,
+    instances_for_rule,
+    instances_for_trip,
+    recurring_rule_for_instance,
+    route_options_for_trip,
+    trip_by_id,
+    trip_for_instance,
 )
 from app.services.trip_instances import delete_generated_trip_instance, detach_generated_trip_instance
 from app.services.trips import delete_trip, save_trip, set_trip_active

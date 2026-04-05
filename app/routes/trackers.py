@@ -8,21 +8,25 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.money import format_money
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard import (
+    load_live_snapshot,
+    tracker_detail_url,
+    trip_focus_url,
+)
+from app.services.scheduled_trip_views import (
     booking_route_tracking_state,
     bookings_for_instance,
     booking_for_instance,
     comparison_tracker,
-    fetch_targets_for_tracker,
-    groups_for_instance,
-    load_live_snapshot,
-    recurring_rule_for_instance,
+    trackers_for_instance,
     trip_lifecycle_status_label,
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
     trip_recommended_action,
-    tracker_detail_url,
-    trackers_for_instance,
-    trip_focus_url,
+)
+from app.services.snapshot_queries import (
+    fetch_targets_for_tracker,
+    groups_for_instance,
+    recurring_rule_for_instance,
     trip_for_instance,
 )
 from app.services.refresh_queue import queued_refresh_message, queue_refresh_for_trip_instance

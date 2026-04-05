@@ -7,17 +7,19 @@ from urllib.parse import parse_qs, urlsplit
 
 from app.models.base import DataScope
 from app.services.bookings import BookingCandidate, record_booking
-from app.services.groups import save_trip_group
-from app.services.google_flights import build_google_flights_query_url
 from app.services.dashboard import (
     deleted_one_time_trips,
-    groups_for_rule,
+    recurring_rules_for_group,
+    scheduled_instances,
+)
+from app.services.google_flights import build_google_flights_query_url
+from app.services.groups import save_trip_group
+from app.services.snapshot_queries import (
     groups_for_instance,
+    groups_for_rule,
     horizon_instances_for_rule,
     horizon_instances_for_trip,
     past_instances_for_trip,
-    recurring_rules_for_group,
-    scheduled_instances,
 )
 from app.services.trip_instances import delete_generated_trip_instance, detach_generated_trip_instance
 from app.services.trips import delete_trip, save_past_trip, save_trip, set_trip_active

@@ -10,10 +10,10 @@ from app.jobs.cli_types import non_negative_float_argument, non_negative_int_arg
 from app.models.base import utcnow
 from app.services.background_fetch import claim_due_fetch_targets, run_fetch_batch, select_due_fetch_targets
 from app.services.data_scope import include_test_data_for_processing
-from app.services.dashboard import trip_for_instance
 from app.services.ids import new_id
 from app.services.price_records import build_price_records
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
+from app.services.snapshot_queries import trip_for_instance
 from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository

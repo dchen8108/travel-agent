@@ -6,14 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.dashboard import (
-    horizon_instances_for_rule,
     load_live_snapshot,
     load_persisted_snapshot,
     recurring_rules_for_group,
     scheduled_instances,
-    trip_group_by_id,
 )
 from app.services.groups import delete_trip_group, save_trip_group
+from app.services.snapshot_queries import horizon_instances_for_rule, trip_group_by_id
 from app.storage.repository import Repository
 from app.web import back_url, base_context, get_repository, get_templates, redirect_back, redirect_with_message
 

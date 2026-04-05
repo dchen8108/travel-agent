@@ -15,7 +15,7 @@ from app.services.background_fetch import (
     run_fetch_batch,
     select_due_fetch_targets,
 )
-from app.services.dashboard import trip_lifecycle_status_label, trip_status_detail
+from app.services.scheduled_trip_views import trip_lifecycle_status_label, trip_status_detail
 from app.services.fetch_targets import (
     FETCH_INTERVAL_SECONDS,
     next_refresh_time,

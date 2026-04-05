@@ -7,24 +7,26 @@ from fastapi.responses import HTMLResponse
 
 from app.money import format_money
 from app.services.dashboard import (
+    scheduled_instances,
+    load_live_snapshot,
+    scheduled_ledger_view,
+    trip_groups,
+    trip_focus_url,
+    unmatched_booking_resolution_views,
+)
+from app.services.scheduled_trip_views import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
-    scheduled_instances,
-    load_live_snapshot,
     rebook_savings,
-    scheduled_ledger_view,
-    trip_groups,
-    trip_for_instance,
-    trip_focus_url,
-    trip_ui_context_label,
     trip_lifecycle_status_label,
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
     trip_recommended_action,
-    unmatched_booking_resolution_views,
+    trip_ui_context_label,
     trip_ui_label,
 )
+from app.services.snapshot_queries import trip_for_instance
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 

@@ -1,0 +1,386 @@
+from __future__ import annotations
+
+from datetime import date
+
+from app.money import format_money
+from app.models.base import BookingStatus, FetchTargetStatus
+from app.models.booking import Booking
+from app.models.tracker import Tracker
+from app.services.itinerary_display import (
+    booking_route_label,
+    format_departure_time_label,
+    tracker_best_fetch_target,
+    tracker_display_label,
+    travel_day_delta_label,
+)
+from app.services.recommendations import best_tracker_for_instance
+from app.services.snapshot_queries import (
+    fetch_targets_for_tracker,
+    group_for_instance,
+    recurring_rule_for_instance,
+    route_option_by_id,
+    trip_for_instance,
+    trip_instance_by_id,
+)
+from app.services.snapshots import AppSnapshot
+
+
+def bookings_for_instance(
+    snapshot: AppSnapshot,
+    trip_instance_id: str,
+    *,
+    statuses: set[str] | None = None,
+) -> list[Booking]:
+    relevant = [
+        booking
+        for booking in snapshot.bookings
+        if booking.trip_instance_id == trip_instance_id
+        and (statuses is None or booking.status in statuses)
+    ]
+    return sorted(
+        relevant,
+        key=lambda item: (
+            item.status != BookingStatus.ACTIVE,
+            -(item.booked_at.timestamp()),
+            item.booking_id,
+        ),
+    )
+
+
+def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Booking | None:
+    active = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
+    return active[0] if active else None
+
+
+def active_booking_count_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> int:
+    return len(bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE}))
+
+
+def trackers_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[Tracker]:
+    return sorted(
+        [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id],
+        key=lambda item: (item.rank, item.travel_date),
+    )
+
+
+def best_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
+    return best_tracker_for_instance(trackers_for_instance(snapshot, trip_instance_id))
+
+
+def tracker_option_fetch_state(snapshot: AppSnapshot, tracker: Tracker) -> dict[str, object]:
+    targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+    statuses = {target.last_fetch_status for target in targets}
+    has_live_price = tracker.latest_observed_price is not None
+    all_unavailable = bool(targets) and statuses.issubset(
+        {FetchTargetStatus.NO_RESULTS, FetchTargetStatus.NO_WINDOW_MATCH}
+    )
+    return {
+        "targets": targets,
+        "has_live_price": has_live_price,
+        "all_unavailable": all_unavailable,
+        "has_failure": FetchTargetStatus.FAILED in statuses,
+        "is_resolved": has_live_price or all_unavailable,
+    }
+
+
+def tracker_fetch_state(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    tracker_states = [tracker_option_fetch_state(snapshot, tracker) for tracker in trackers]
+    targets = [target for state in tracker_states for target in state["targets"]]
+    has_live_price = any(bool(state["has_live_price"]) for state in tracker_states)
+    all_unavailable = bool(tracker_states) and all(bool(state["all_unavailable"]) for state in tracker_states)
+    all_trackers_resolved = bool(trackers) and all(bool(state["is_resolved"]) for state in tracker_states)
+    return {
+        "has_trackers": bool(trackers),
+        "has_targets": bool(targets),
+        "has_live_price": has_live_price,
+        "all_trackers_resolved": all_trackers_resolved,
+        "has_failure": any(bool(state["has_failure"]) for state in tracker_states),
+        "has_pending": any(
+            target.last_fetch_status == FetchTargetStatus.PENDING
+            for target in targets
+        ) or any(not bool(state["is_resolved"]) for state in tracker_states),
+        "all_unavailable": all_unavailable,
+    }
+
+
+def comparison_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
+    return best_tracker(snapshot, trip_instance_id)
+
+
+def booking_route_tracking_state(snapshot: AppSnapshot, booking: Booking) -> dict[str, object]:
+    trip_instance = trip_instance_by_id(snapshot, booking.trip_instance_id)
+    if trip_instance is None:
+        return {
+            "route_option": None,
+            "summary_label": "—",
+            "warning": "",
+        }
+    trackers = trackers_for_instance(snapshot, booking.trip_instance_id)
+    matched_route_option = route_option_by_id(snapshot, booking.route_option_id) if booking.route_option_id else None
+    if matched_route_option is not None:
+        return {
+            "route_option": matched_route_option,
+            "summary_label": f"Matches option {matched_route_option.rank}",
+            "warning": "",
+        }
+    if trackers:
+        return {
+            "route_option": None,
+            "summary_label": "No tracked route match",
+            "warning": "This booking is linked to the trip, but it does not match any tracked route on this date yet.",
+        }
+    return {
+        "route_option": None,
+        "summary_label": "No tracked routes",
+        "warning": "This trip does not have any tracked routes yet, so Milemark cannot monitor this exact itinerary.",
+    }
+
+
+def rebook_savings(snapshot: AppSnapshot, trip_instance_id: str) -> int | None:
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    if (
+        booking is None
+        or tracker is None
+        or tracker.latest_observed_price is None
+        or tracker.latest_observed_price >= booking.booked_price
+    ):
+        return None
+    return booking.booked_price - tracker.latest_observed_price
+
+
+def trip_lifecycle_status_key(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return "unknown"
+    if active_booking_count_for_instance(snapshot, trip_instance_id) > 0:
+        return "booked"
+    return "planned"
+
+
+def trip_lifecycle_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    return {
+        "planned": "Planned",
+        "booked": "Booked",
+    }.get(trip_lifecycle_status_key(snapshot, trip_instance_id), "Unknown")
+
+
+def trip_lifecycle_status_tone(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    lifecycle = trip_lifecycle_status_key(snapshot, trip_instance_id)
+    if lifecycle == "booked":
+        return "success"
+    if lifecycle == "planned":
+        return "warning"
+    return "neutral"
+
+
+def trip_monitoring_status_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return "Unknown"
+    fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
+    if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
+        return "Tracking"
+    if fetch_state["all_unavailable"] and fetch_state["all_trackers_resolved"]:
+        return "No matches"
+    return "Initializing"
+
+
+def trip_recommended_action(snapshot: AppSnapshot, trip_instance_id: str) -> str | None:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return None
+    active_bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
+    if active_bookings:
+        return "Rebook" if rebook_savings(snapshot, trip_instance_id) is not None else None
+    fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
+    if fetch_state["has_live_price"] and fetch_state["all_trackers_resolved"]:
+        return "Book"
+    return None
+
+
+def trip_status_detail(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return ""
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    active_bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
+    active_count = len(active_bookings)
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
+    if booking is not None:
+        savings = rebook_savings(snapshot, trip_instance_id)
+        if active_count > 1:
+            if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
+                return (
+                    f"{monitoring_label}. There are {active_count} active bookings linked. "
+                    f"The latest booked fare is {format_money(booking.booked_price)}, and the best current trip option is "
+                    f"{format_money(tracker.latest_observed_price)}."
+                )
+            if tracker is not None and tracker.latest_observed_price is not None:
+                return (
+                    f"{monitoring_label}. There are {active_count} active bookings linked. "
+                    f"The latest booked fare is {format_money(booking.booked_price)}. "
+                    f"Current best option is {format_money(tracker.latest_observed_price)}."
+                )
+            return (
+                f"{monitoring_label}. There are {active_count} active bookings linked. "
+                f"The latest booked fare is {format_money(booking.booked_price)}."
+            )
+        if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
+            return (
+                f"{monitoring_label}. Current comparable price is {format_money(tracker.latest_observed_price)}, "
+                f"{format_money(savings)} below your booked price of {format_money(booking.booked_price)}."
+            )
+        if tracker is not None and tracker.latest_observed_price is not None:
+            return (
+                f"{monitoring_label}. Booked at {format_money(booking.booked_price)}. Current comparable price is "
+                f"{format_money(tracker.latest_observed_price)}."
+            )
+        return f"{monitoring_label}. Booked at {format_money(booking.booked_price)}. No current comparison price yet."
+    tracker = best_tracker(snapshot, trip_instance_id)
+    fetch_state = tracker_fetch_state(snapshot, trip_instance_id)
+    if tracker is not None and tracker.latest_observed_price is not None and fetch_state["all_trackers_resolved"]:
+        if tracker.preference_bias_dollars > 0:
+            return (
+                f"Tracking. Best current price is {format_money(tracker.latest_observed_price)} on option {tracker.rank}, "
+                f"after applying a {format_money(tracker.preference_bias_dollars)} preference buffer."
+            )
+        return f"Tracking. Best current price is {format_money(tracker.latest_observed_price)}."
+    if tracker is not None and tracker.latest_observed_price is not None:
+        return (
+            f"Initializing. Best current price so far is {format_money(tracker.latest_observed_price)}. "
+            "Milemark is still checking the remaining options."
+        )
+    if fetch_state["all_unavailable"]:
+        return "No matches. Google Flights is not returning any matching flights right now."
+    if fetch_state["has_failure"]:
+        return "Initializing. A recent Google Flights request failed. Milemark will retry automatically."
+    if fetch_state["has_trackers"]:
+        return "Initializing. Milemark is still fetching current prices for this date."
+    return "Initializing. Milemark is still preparing this date for price tracking."
+
+
+def trip_ui_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    group = group_for_instance(snapshot, trip_instance_id)
+    if group is not None:
+        return group.label
+    trip = trip_for_instance(snapshot, trip_instance_id)
+    if trip is not None:
+        return trip.label
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    return instance.display_label if instance is not None else ""
+
+
+def trip_ui_context_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    title = trip_ui_label(snapshot, trip_instance_id)
+    trip = trip_for_instance(snapshot, trip_instance_id)
+    if group_for_instance(snapshot, trip_instance_id) is not None:
+        if trip is not None and trip.label and trip.label != title:
+            return trip.label
+        return ""
+    recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
+    if recurring_rule is not None and (trip is None or recurring_rule.trip_id != trip.trip_id):
+        return recurring_rule.label
+    return ""
+
+
+def _row_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    if tracker is not None:
+        return tracker
+    trackers = trackers_for_instance(snapshot, trip_instance_id)
+    return trackers[0] if trackers else None
+
+
+def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    booking = booking_for_instance(snapshot, trip_instance_id)
+    tracker = comparison_tracker(snapshot, trip_instance_id)
+    display_tracker = _row_tracker(snapshot, trip_instance_id)
+    active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
+    savings = rebook_savings(snapshot, trip_instance_id)
+    monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
+    current_target = tracker_best_fetch_target(
+        display_tracker,
+        fetch_targets_for_tracker(snapshot, display_tracker.tracker_id) if display_tracker is not None else [],
+    )
+    current_price = tracker.latest_observed_price if tracker is not None else None
+
+    current_offer: dict[str, object] | None = None
+    current_offer_label = "Live best"
+    current_offer_price = ""
+    current_offer_href = ""
+    current_offer_tone = "success" if booking is None else "accent"
+    if current_price is not None:
+        current_offer_price = format_money(current_price)
+        current_offer_href = current_target.google_flights_url if current_target and current_target.google_flights_url else ""
+    else:
+        current_offer_label = "Watching"
+        current_offer_price = "No fares" if monitoring_label == "No matches" else "Checking"
+        current_offer_tone = "warning" if monitoring_label == "No matches" else "neutral"
+
+    current_offer_detail = tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
+    if current_offer_detail or current_offer_price:
+        current_offer = {
+            "label": current_offer_label,
+            "detail": current_offer_detail,
+            "meta_label": format_departure_time_label(current_target.latest_departure_label) if current_target else "",
+            "day_delta_label": travel_day_delta_label(
+                instance.anchor_date if instance is not None else date.today(),
+                display_tracker.travel_date if display_tracker is not None else None,
+            ),
+            "price_label": current_offer_price,
+            "href": current_offer_href,
+            "tone": current_offer_tone,
+        }
+
+    booked_offer: dict[str, object] | None = None
+    if booking is not None:
+        booked_offer = {
+            "label": "Booked at",
+            "detail": booking_route_label(booking),
+            "meta_label": format_departure_time_label(booking.departure_time),
+            "day_delta_label": travel_day_delta_label(
+                instance.anchor_date if instance is not None else date.today(),
+                booking.departure_date,
+            ),
+            "price_label": format_money(booking.booked_price),
+            "href": "",
+            "tone": "neutral",
+        }
+
+    state_chips: list[dict[str, object]] = []
+    if savings is not None:
+        state_chips.append(
+            {
+                "label": f"Save {format_money(savings)}",
+                "tone": "accent",
+            }
+        )
+    if active_booking_count > 1:
+        state_chips.append(
+            {
+                "label": f"{active_booking_count} bookings",
+                "tone": "warning",
+            }
+        )
+
+    return {
+        "title": trip_ui_label(snapshot, trip_instance_id),
+        "lifecycle_label": trip_lifecycle_status_label(snapshot, trip_instance_id),
+        "lifecycle_tone": trip_lifecycle_status_tone(snapshot, trip_instance_id),
+        "booked_offer": booked_offer,
+        "current_offer": current_offer,
+        "state_chips": state_chips,
+        "has_dual_offers": booked_offer is not None and current_offer is not None,
+    }
+
+
+def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if instance is None:
+        return ""
+    label = trip_ui_label(snapshot, trip_instance_id)
+    return f"{label} · {instance.anchor_date.strftime('%a, %b %d')}"

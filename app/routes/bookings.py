@@ -19,10 +19,10 @@ from app.services.bookings import (
     update_booking,
 )
 from app.services.dashboard import (
-    booking_route_tracking_state,
     load_persisted_snapshot,
-    trip_for_instance,
 )
+from app.services.scheduled_trip_views import booking_route_tracking_state
+from app.services.snapshot_queries import trip_for_instance
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message

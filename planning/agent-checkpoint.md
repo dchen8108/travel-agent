@@ -143,6 +143,7 @@ Known-good on this machine after the latest cleanup pass:
 - `initialize_schema()` is version-gated; legacy migrations should not mutate a current-schema database on normal startup
 - workflow reconciliation is split into `build_reconciled_snapshot()` and `persist_reconciled_snapshot()` in `app/services/workflows.py`; keep pure reconciliation separate from persistence where possible
 - dashboard/routes now distinguish explicit persisted reads vs live recompute via `load_persisted_snapshot()` and `load_live_snapshot()` in `app/services/dashboard.py`; prefer persisted reads for pure form/render paths
+- dashboard decomposition is in progress but materially improved: snapshot graph lookups now live in `app/services/snapshot_queries.py`, and shared scheduled-trip row/status helpers now live in `app/services/scheduled_trip_views.py`
 - if you touch storage init or migration code, add an explicit regression test in `tests/test_repository.py` that proves the current-schema startup path stays read-only
 
 ## Read These First
