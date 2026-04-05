@@ -21,7 +21,7 @@ from app.services.dashboard import (
 )
 from app.services.trip_instances import delete_generated_trip_instance, detach_generated_trip_instance
 from app.services.trips import delete_trip, save_past_trip, save_trip, set_trip_active
-from app.services.workflows import sync_and_persist
+from app.services.workflows import build_reconciled_snapshot, persist_reconciled_snapshot, sync_and_persist
 from app.storage.repository import Repository
 
 
@@ -93,6 +93,39 @@ def test_weekly_trip_generates_sixteen_future_instances(repository: Repository) 
     assert all(instance.display_label.startswith("LA to SF Outbound") for instance in trip_instances)
     assert all(instance.instance_kind == "generated" for instance in trip_instances)
     assert len([tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instances[0].trip_instance_id]) == 1
+
+
+def test_build_reconciled_snapshot_does_not_persist_until_requested(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Draft Snapshot Trip",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    assert repository.load_trip_instances() == []
+
+    snapshot = build_reconciled_snapshot(repository, today=date(2026, 3, 31))
+    trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
+    assert len(trip_instances) == 16
+    assert repository.load_trip_instances() == []
+
+    persist_reconciled_snapshot(repository, snapshot)
+    persisted_instances = [item for item in repository.load_trip_instances() if item.trip_id == trip.trip_id]
+    assert len(persisted_instances) == 16
 
 
 def test_deleted_generated_occurrence_stays_suppressed_after_reconciliation(repository: Repository) -> None:

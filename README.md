@@ -232,6 +232,15 @@ App-level config now lives outside the database in:
 
 - [config/app_state.json](/Users/davidchen/code/travel-agent/config/app_state.json)
 
+There is no longer any runtime fallback that migrates app config out of SQLite on startup. If `config/app_state.json` is missing, the app creates a fresh default config file there.
+
+UI/service reads now distinguish between:
+
+- persisted snapshot reads via `load_persisted_snapshot()`
+- live recompute-and-persist reads via `load_live_snapshot()`
+
+Pure form/render paths should prefer persisted reads unless they explicitly need fresh reconciliation.
+
 That file is the source of truth for:
 
 - `timezone`

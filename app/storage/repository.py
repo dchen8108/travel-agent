@@ -54,16 +54,13 @@ class Repository:
         connection = connect(self.db_path)
         try:
             initialize_schema(connection)
-            db_app_state = self._load_db_app_state(connection)
         finally:
             connection.close()
 
         self._initialized = True
         try:
             if not self.app_state_path.exists():
-                self.save_app_state(db_app_state or AppState())
-            if db_app_state is not None:
-                self._drop_db_app_state_table()
+                self.save_app_state(AppState())
         except Exception:
             self._initialized = False
             raise
@@ -94,17 +91,11 @@ class Repository:
     def load_trips(self) -> list[Trip]:
         return self._load_models("SELECT * FROM trips ORDER BY rowid", Trip)
 
-    def save_trips(self, trips: list[Trip]) -> None:
-        self._replace_table("trips", [item.model_dump(mode="json") for item in trips])
-
     def upsert_trip(self, trip: Trip) -> None:
         self._upsert_table("trips", [trip.model_dump(mode="json")], conflict_columns=("trip_id",))
 
     def load_trip_groups(self) -> list[TripGroup]:
         return self._load_models("SELECT * FROM trip_groups ORDER BY rowid", TripGroup)
-
-    def save_trip_groups(self, trip_groups: list[TripGroup]) -> None:
-        self._replace_table("trip_groups", [item.model_dump(mode="json") for item in trip_groups])
 
     def upsert_trip_group(self, trip_group: TripGroup) -> None:
         self._upsert_table("trip_groups", [trip_group.model_dump(mode="json")], conflict_columns=("trip_group_id",))
@@ -119,9 +110,6 @@ class Repository:
     def load_route_options(self) -> list[RouteOption]:
         return self._load_models("SELECT * FROM route_options ORDER BY rowid", RouteOption)
 
-    def save_route_options(self, route_options: list[RouteOption]) -> None:
-        self._replace_table("route_options", [item.model_dump(mode="json") for item in route_options])
-
     def replace_route_options_for_trip(self, trip_id: str, route_options: list[RouteOption]) -> None:
         self.ensure_data_dir()
         rows = [item.model_dump(mode="json") for item in route_options]
@@ -134,9 +122,6 @@ class Repository:
 
     def load_rule_group_targets(self) -> list[RuleGroupTarget]:
         return self._load_models("SELECT * FROM rule_group_targets ORDER BY rowid", RuleGroupTarget)
-
-    def save_rule_group_targets(self, targets: list[RuleGroupTarget]) -> None:
-        self._replace_table("rule_group_targets", [item.model_dump(mode="json") for item in targets])
 
     def replace_rule_group_targets_for_rule(self, rule_trip_id: str, targets: list[RuleGroupTarget]) -> None:
         self.ensure_data_dir()
@@ -371,12 +356,6 @@ class Repository:
             params = (max_retry_attempts, limit)
         return self._load_models(query, BookingEmailEvent, params)
 
-    def save_booking_email_events(self, events: list[BookingEmailEvent]) -> None:
-        self._replace_table(
-            "booking_email_events",
-            [item.model_dump(mode="json") for item in events],
-        )
-
     def upsert_booking_email_event(self, event: BookingEmailEvent) -> None:
         self._upsert_table(
             "booking_email_events",
@@ -465,24 +444,6 @@ class Repository:
             yield connection, True
         finally:
             connection.close()
-
-    def _load_db_app_state(self, connection: sqlite3.Connection) -> AppState | None:
-        try:
-            rows = fetch_all(
-                connection,
-                "SELECT timezone, future_weeks, enable_background_fetcher, version FROM app_state WHERE id = 1",
-            )
-        except sqlite3.OperationalError:
-            return None
-        if not rows:
-            return None
-        return AppState.model_validate(rows[0])
-
-    def _drop_db_app_state_table(self) -> None:
-        with self._borrow_connection() as (connection, own_connection):
-            connection.execute("DROP TABLE IF EXISTS app_state")
-            if own_connection:
-                connection.commit()
 
     @staticmethod
     def _booking_row(booking: Booking) -> dict[str, Any]:

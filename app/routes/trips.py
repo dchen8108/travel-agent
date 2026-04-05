@@ -28,7 +28,8 @@ from app.services.dashboard import (
     horizon_instances_for_trip,
     instances_for_rule,
     instances_for_trip,
-    load_snapshot,
+    load_live_snapshot,
+    load_persisted_snapshot,
     route_options_for_trip,
     trip_groups,
     trip_by_id,
@@ -276,7 +277,7 @@ def new_trip(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     trip_kind = str(request.query_params.get("trip_kind", "one_time")).strip() or "one_time"
     trip_group_id = str(request.query_params.get("trip_group_id", "")).strip()
     unmatched_booking_id = str(request.query_params.get("unmatched_booking_id", "")).strip()
@@ -345,7 +346,7 @@ def trip_detail(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> Response:
-    snapshot = load_snapshot(repository)
+    snapshot = load_live_snapshot(repository)
     detail_view = _trip_detail_view(snapshot, trip_id)
     trip = detail_view["trip"]
     if trip.trip_kind == "one_time":
@@ -378,7 +379,7 @@ def edit_trip(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
     if trip is None:
         raise HTTPException(status_code=404, detail="Trip not found")
@@ -494,7 +495,7 @@ async def save_trip_action(
                 trip_group_ids=trip_group_ids,
                 data_scope=trip.data_scope,
             )
-            snapshot = load_snapshot(repository)
+            snapshot = load_persisted_snapshot(repository)
         linked_booking = None
         if source_unmatched_booking_id:
             linked_booking = resolve_unmatched_booking_to_trip(
@@ -505,7 +506,7 @@ async def save_trip_action(
             if linked_booking is not None:
                 snapshot = sync_and_persist(repository)
             else:
-                snapshot = load_snapshot(repository)
+                snapshot = load_persisted_snapshot(repository)
         queued_count = queue_refresh_for_trip(
             snapshot,
             repository,
@@ -531,7 +532,7 @@ async def save_trip_action(
             return redirect_with_message(f"/trip-instances/{linked_booking.trip_instance_id}", message)
         return redirect_with_message(f"/trips/{trip.trip_id}", message)
     except ValueError as exc:
-        snapshot = load_snapshot(repository)
+        snapshot = load_persisted_snapshot(repository)
         source_unmatched_booking = next(
             (
                 item
@@ -669,7 +670,7 @@ def delete_generated_trip_instance_action(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> RedirectResponse:
-    snapshot = load_snapshot(repository, recompute=False)
+    snapshot = load_persisted_snapshot(repository)
     existing_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
     if existing_instance is None:
         raise HTTPException(status_code=404, detail="Trip instance not found")

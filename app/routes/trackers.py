@@ -14,7 +14,7 @@ from app.services.dashboard import (
     comparison_tracker,
     fetch_targets_for_tracker,
     groups_for_instance,
-    load_snapshot,
+    load_live_snapshot,
     recurring_rule_for_instance,
     trip_lifecycle_status_label,
     trip_lifecycle_status_tone,
@@ -170,7 +170,7 @@ def trackers_detail(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_live_snapshot(repository)
     trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
     if trip_instance is None or trip_instance.deleted:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")

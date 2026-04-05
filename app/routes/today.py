@@ -11,7 +11,7 @@ from app.services.dashboard import (
     best_tracker,
     booking_for_instance,
     scheduled_instances,
-    load_snapshot,
+    load_live_snapshot,
     rebook_savings,
     scheduled_ledger_view,
     trip_groups,
@@ -152,7 +152,7 @@ def today(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_live_snapshot(repository)
     today = date.today()
     scheduled_view = scheduled_ledger_view(
         snapshot,

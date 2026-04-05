@@ -10,7 +10,8 @@ from app.models.tracker import Tracker
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.services.bookings import BookingCandidate, record_booking
-from app.services.dashboard import load_snapshot
+from app.services.dashboard import load_live_snapshot, load_persisted_snapshot
+from app.services.trips import save_trip
 from app.settings import Settings
 from app.storage.repository import Repository
 
@@ -24,7 +25,7 @@ def _settings(tmp_path: Path) -> Settings:
     )
 
 
-def test_load_snapshot_hides_test_scoped_rows_by_default(tmp_path: Path) -> None:
+def test_load_persisted_snapshot_hides_test_scoped_rows_by_default(tmp_path: Path) -> None:
     settings = _settings(tmp_path)
     repository = Repository(settings)
     repository.ensure_data_dir()
@@ -44,9 +45,10 @@ def test_load_snapshot_hides_test_scoped_rows_by_default(tmp_path: Path) -> None
         data_scope=DataScope.TEST,
         anchor_date=date(2026, 4, 21),
     )
-    repository.save_trips([live_trip, test_trip])
+    repository.upsert_trip(live_trip)
+    repository.upsert_trip(test_trip)
 
-    snapshot = load_snapshot(repository, recompute=False)
+    snapshot = load_persisted_snapshot(repository)
 
     assert [trip.trip_id for trip in snapshot.trips] == ["trip_live"]
 
@@ -106,3 +108,41 @@ def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path:
     assert booking is None
     assert unmatched is not None
     assert unmatched.data_scope == DataScope.LIVE
+
+
+def test_load_live_snapshot_reconciles_and_persists_instances(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Weekly commute",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        trip_group_ids=[],
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "WN",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+                "fare_class_policy": "include_basic",
+            }
+        ],
+    )
+
+    persisted = load_persisted_snapshot(repository)
+    assert persisted.trip_instances == []
+
+    live = load_live_snapshot(repository, today=date(2026, 4, 6))
+    live_trip_instances = [item for item in live.trip_instances if item.trip_id == trip.trip_id]
+    assert len(live_trip_instances) == 16
+
+    stored_trip_instances = [item for item in repository.load_trip_instances() if item.trip_id == trip.trip_id]
+    assert len(stored_trip_instances) == 16

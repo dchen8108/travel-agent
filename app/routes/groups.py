@@ -7,7 +7,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.dashboard import (
     horizon_instances_for_rule,
-    load_snapshot,
+    load_live_snapshot,
+    load_persisted_snapshot,
     recurring_rules_for_group,
     scheduled_instances,
     trip_group_by_id,
@@ -64,7 +65,7 @@ def new_group(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     return _render_group_form(
         request,
         snapshot=snapshot,
@@ -80,7 +81,7 @@ def group_detail(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_live_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
@@ -112,7 +113,7 @@ def edit_group(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
@@ -143,7 +144,7 @@ async def save_group_action(
             description=description,
         )
     except ValueError as exc:
-        snapshot = load_snapshot(repository)
+        snapshot = load_persisted_snapshot(repository)
         existing_group = trip_group_by_id(snapshot, group_id) if group_id else None
         return _render_group_form(
             request,

@@ -33,7 +33,7 @@ def _event(
 
 
 def test_select_message_ids_for_poll_backfills_unseen_and_retries_errors(repository, monkeypatch) -> None:
-    repository.save_booking_email_events(
+    repository.append_booking_email_events(
         [
             _event("msg-known", "resolved_auto", hour=9),
             _event("msg-retry", "error", hour=8),
@@ -65,7 +65,7 @@ def test_select_message_ids_for_poll_backfills_unseen_and_retries_errors(reposit
 
 
 def test_select_message_ids_for_poll_uses_incremental_history(repository, monkeypatch) -> None:
-    repository.save_booking_email_events(
+    repository.append_booking_email_events(
         [
             _event("msg-known", "resolved_auto", hour=9),
             _event("msg-retry", "error", hour=8),
@@ -124,7 +124,7 @@ def test_select_message_ids_for_poll_uses_sender_query_for_backfill(repository, 
 
 
 def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(repository, monkeypatch) -> None:
-    repository.save_booking_email_events([_event("msg-known", "resolved_auto", hour=9)])
+    repository.append_booking_email_events([_event("msg-known", "resolved_auto", hour=9)])
 
     def raise_history_error(service, *, start_history_id, label_id=None):
         raise HttpError(Response({"status": "404"}), b'{"error":{"message":"startHistoryId invalid"}}')
@@ -158,7 +158,7 @@ def test_select_message_ids_for_poll_falls_back_to_backfill_on_expired_history(r
 
 
 def test_select_message_ids_for_poll_falls_back_to_backfill_on_http_error_status(repository, monkeypatch) -> None:
-    repository.save_booking_email_events([_event("msg-known", "resolved_auto", hour=9)])
+    repository.append_booking_email_events([_event("msg-known", "resolved_auto", hour=9)])
 
     class _RespOnlyHttpError(HttpError):
         @property
@@ -199,7 +199,7 @@ def test_select_message_ids_for_poll_falls_back_to_backfill_on_http_error_status
 
 
 def test_select_message_ids_for_poll_skips_nonretryable_and_exhausted_errors(repository, monkeypatch) -> None:
-    repository.save_booking_email_events(
+    repository.append_booking_email_events(
         [
             _event("msg-transient", "error", hour=8, extraction_attempt_count=1, retryable=True),
             _event("msg-terminal", "error", hour=7, extraction_attempt_count=1, retryable=False),
@@ -232,7 +232,7 @@ def test_select_message_ids_for_poll_skips_nonretryable_and_exhausted_errors(rep
 
 
 def test_select_message_ids_for_poll_applies_hard_cap_after_deduping(repository, monkeypatch) -> None:
-    repository.save_booking_email_events(
+    repository.append_booking_email_events(
         [
             _event("msg-retry", "error", hour=8),
         ]
@@ -264,7 +264,7 @@ def test_select_message_ids_for_poll_applies_hard_cap_after_deduping(repository,
 
 def test_record_message_processing_error_reuses_existing_event_and_marks_terminal_404(repository) -> None:
     existing = _event("msg-known", "error", hour=8, extraction_attempt_count=1, retryable=True)
-    repository.save_booking_email_events([existing])
+    repository.append_booking_email_events([existing])
 
     error = HttpError(Response({"status": "404"}), b'{"error":{"message":"Not Found"}}')
     updated = _record_message_processing_error(

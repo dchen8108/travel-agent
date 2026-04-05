@@ -20,7 +20,7 @@ from app.services.bookings import (
 )
 from app.services.dashboard import (
     booking_route_tracking_state,
-    load_snapshot,
+    load_persisted_snapshot,
     trip_for_instance,
 )
 from app.services.workflows import sync_and_persist
@@ -128,7 +128,7 @@ def new_booking(
     repository: Repository = Depends(get_repository),
     trip_instance_id: str | None = None,
 ) -> Response:
-    snapshot = load_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     selected_trip_instance = next(
         (item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id),
         None,
@@ -159,7 +159,7 @@ def edit_booking(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
     if booking is None or booking.status != "active":
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -233,10 +233,10 @@ async def save_booking(
             return redirect_with_message("/#needs-linking", "Booking needs linking")
         if booking is None:
             raise HTTPException(status_code=500, detail="Booking was not saved.")
-        snapshot = load_snapshot(repository)
+        snapshot = load_persisted_snapshot(repository)
         return _booking_redirect_response(snapshot, booking, message="Booking saved")
     except ValueError as exc:
-        snapshot = load_snapshot(repository)
+        snapshot = load_persisted_snapshot(repository)
         selected_trip_instance = next(
             (item for item in snapshot.trip_instances if item.trip_instance_id == booking_state["trip_instance_id"]),
             None,

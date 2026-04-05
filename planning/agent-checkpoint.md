@@ -59,6 +59,7 @@ Runtime storage/config:
 - checked-in app config: `config/app_state.json`
 - checked-in Gmail config: `config/gmail_integration.json`
 - local secrets and OAuth artifacts: `config/local/`
+- there is no remaining runtime bootstrap from SQLite `app_state`; JSON config is the only live app-config source now
 
 Frontend JS is split by concern:
 
@@ -140,6 +141,8 @@ Known-good on this machine after the latest cleanup pass:
 ## Storage Hygiene Notes
 
 - `initialize_schema()` is version-gated; legacy migrations should not mutate a current-schema database on normal startup
+- workflow reconciliation is split into `build_reconciled_snapshot()` and `persist_reconciled_snapshot()` in `app/services/workflows.py`; keep pure reconciliation separate from persistence where possible
+- dashboard/routes now distinguish explicit persisted reads vs live recompute via `load_persisted_snapshot()` and `load_live_snapshot()` in `app/services/dashboard.py`; prefer persisted reads for pure form/render paths
 - if you touch storage init or migration code, add an explicit regression test in `tests/test_repository.py` that proves the current-schema startup path stays read-only
 
 ## Read These First

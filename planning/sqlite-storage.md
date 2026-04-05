@@ -23,6 +23,8 @@ The migration strategy is pragmatic:
 - `process_test_data`
 - config schema `version`
 
+Startup no longer bootstraps app config back out of SQLite. `config/app_state.json` is the only live app-config store now; if it is missing, the repository creates a fresh default file.
+
 SQLite itself carries its schema version through `PRAGMA user_version`.
 
 ## Logical Tables
@@ -269,4 +271,7 @@ For this first migration, those relationships are maintained primarily by the re
 
 - The repository API is unchanged.
 - `sync_and_persist()` and the background fetch persistence path now write through SQLite transactions.
+- Snapshot loading is now explicit at the service layer:
+  - `load_persisted_snapshot()` reads the stored snapshot without reconciliation side effects.
+  - `load_live_snapshot()` runs `sync_and_persist()` first, then filters for UI data scope.
 - The launchd worker continues to use the same one-shot batch job; only the storage backend changed.

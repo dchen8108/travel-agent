@@ -44,7 +44,7 @@ def _preserve_active_fetch_claims(
         target.fetch_claim_expires_at = current.fetch_claim_expires_at
 
 
-def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+def build_reconciled_snapshot(repository: Repository, *, today: date | None = None) -> AppSnapshot:
     repository.ensure_data_dir()
     today = today or date.today()
 
@@ -108,19 +108,6 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
     apply_fetch_target_rollups(trackers, tracker_fetch_targets, app_state=app_state)
     recompute_trip_states(trip_instances, trackers, bookings, today=today)
 
-    with repository.transaction():
-        current_fetch_targets = repository.load_tracker_fetch_targets()
-        _preserve_active_fetch_claims(
-            tracker_fetch_targets,
-            current_fetch_targets,
-        )
-        repository.save_trip_instances(trip_instances)
-        repository.save_trip_instance_group_memberships(trip_instance_group_memberships)
-        repository.save_trackers(trackers)
-        repository.save_tracker_fetch_targets(tracker_fetch_targets)
-        repository.save_unmatched_bookings(unmatched_bookings)
-        repository.save_bookings(bookings)
-
     return AppSnapshot(
         trip_groups=trip_groups,
         trips=trips,
@@ -136,3 +123,24 @@ def sync_and_persist(repository: Repository, *, today: date | None = None) -> Ap
         price_records=price_records,
         app_state=app_state,
     )
+
+
+def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -> AppSnapshot:
+    with repository.transaction():
+        current_fetch_targets = repository.load_tracker_fetch_targets()
+        _preserve_active_fetch_claims(
+            snapshot.tracker_fetch_targets,
+            current_fetch_targets,
+        )
+        repository.save_trip_instances(snapshot.trip_instances)
+        repository.save_trip_instance_group_memberships(snapshot.trip_instance_group_memberships)
+        repository.save_trackers(snapshot.trackers)
+        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+        repository.save_unmatched_bookings(snapshot.unmatched_bookings)
+        repository.save_bookings(snapshot.bookings)
+    return snapshot
+
+
+def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+    snapshot = build_reconciled_snapshot(repository, today=today)
+    return persist_reconciled_snapshot(repository, snapshot)
