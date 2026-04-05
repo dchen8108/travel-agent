@@ -7,12 +7,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.money import format_money
 from app.services.google_flights import generated_tracker_seed_summary
-from app.services.dashboard import (
-    load_live_snapshot,
-    tracker_detail_url,
-    trip_focus_url,
-)
-from app.services.scheduled_trip_views import (
+from app.services.dashboard_navigation import tracker_detail_url, trip_focus_url
+from app.services.dashboard_snapshot import load_live_snapshot
+from app.services.scheduled_trip_state import (
     booking_route_tracking_state,
     bookings_for_instance,
     booking_for_instance,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.models.booking import Booking
-from app.services.scheduled_trip_views import (
+from app.services.scheduled_trip_state import (
     trackers_for_instance,
     trip_lifecycle_status_label,
     trip_status_detail,

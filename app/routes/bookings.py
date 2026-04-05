@@ -18,10 +18,8 @@ from app.services.bookings import (
     unlink_booking,
     update_booking,
 )
-from app.services.dashboard import (
-    load_persisted_snapshot,
-)
-from app.services.scheduled_trip_views import booking_route_tracking_state
+from app.services.dashboard_snapshot import load_persisted_snapshot
+from app.services.scheduled_trip_state import booking_route_tracking_state
 from app.services.snapshot_queries import trip_for_instance
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository

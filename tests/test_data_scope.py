@@ -10,7 +10,7 @@ from app.models.tracker import Tracker
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.services.bookings import BookingCandidate, record_booking
-from app.services.dashboard import load_live_snapshot, load_persisted_snapshot
+from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
 from app.services.trips import save_trip
 from app.settings import Settings
 from app.storage.repository import Repository

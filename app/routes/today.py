@@ -6,15 +6,19 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from app.money import format_money
-from app.services.dashboard import (
+from app.services.dashboard_booking_views import unmatched_booking_resolution_views
+from app.services.dashboard_navigation import trip_focus_url
+from app.services.dashboard_queries import (
     scheduled_instances,
-    load_live_snapshot,
     scheduled_ledger_view,
     trip_groups,
-    trip_focus_url,
-    unmatched_booking_resolution_views,
 )
-from app.services.scheduled_trip_views import (
+from app.services.dashboard_snapshot import load_live_snapshot
+from app.services.scheduled_trip_display import (
+    trip_ui_context_label,
+    trip_ui_label,
+)
+from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,
@@ -23,8 +27,6 @@ from app.services.scheduled_trip_views import (
     trip_lifecycle_status_tone,
     trip_monitoring_status_label,
     trip_recommended_action,
-    trip_ui_context_label,
-    trip_ui_label,
 )
 from app.services.snapshot_queries import trip_for_instance
 from app.storage.repository import Repository

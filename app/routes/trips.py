@@ -16,15 +16,14 @@ from app.services.bookings import (
     unlink_bookings_for_trip_instance,
 )
 from app.services.data_scope import include_test_data_for_processing
-from app.services.dashboard import (
+from app.services.dashboard_booking_views import (
     booking_reference_label,
     default_trip_label_for_booking,
-    load_live_snapshot,
-    load_persisted_snapshot,
-    trip_groups,
-    trip_focus_url,
 )
-from app.services.scheduled_trip_views import (
+from app.services.dashboard_navigation import trip_focus_url
+from app.services.dashboard_queries import trip_groups
+from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
+from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
     best_tracker,
     booking_for_instance,

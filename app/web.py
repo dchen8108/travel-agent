@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from app.catalog import airline_display, airline_label, airport_display, airport_label
 from app.money import format_money
 from app.route_options import day_offset_label, route_option_summary
-from app.services.scheduled_trip_views import (
+from app.services.scheduled_trip_display import (
     trip_row_summary,
     trip_ui_label,
     trip_ui_picker_label,

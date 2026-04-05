@@ -274,4 +274,5 @@ For this first migration, those relationships are maintained primarily by the re
 - Snapshot loading is now explicit at the service layer:
   - `load_persisted_snapshot()` reads the stored snapshot without reconciliation side effects.
   - `load_live_snapshot()` runs `sync_and_persist()` first, then filters for UI data scope.
+- Those entry points now live in `app/services/dashboard_snapshot.py` rather than a larger mixed dashboard service module.
 - The launchd worker continues to use the same one-shot batch job; only the storage backend changed.

@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from app.models.base import DataScope
 from app.services.bookings import BookingCandidate, record_booking
-from app.services.dashboard import (
+from app.services.dashboard_queries import (
     deleted_one_time_trips,
     recurring_rules_for_group,
     scheduled_instances,

@@ -142,8 +142,8 @@ Known-good on this machine after the latest cleanup pass:
 
 - `initialize_schema()` is version-gated; legacy migrations should not mutate a current-schema database on normal startup
 - workflow reconciliation is split into `build_reconciled_snapshot()` and `persist_reconciled_snapshot()` in `app/services/workflows.py`; keep pure reconciliation separate from persistence where possible
-- dashboard/routes now distinguish explicit persisted reads vs live recompute via `load_persisted_snapshot()` and `load_live_snapshot()` in `app/services/dashboard.py`; prefer persisted reads for pure form/render paths
-- dashboard decomposition is in progress but materially improved: snapshot graph lookups now live in `app/services/snapshot_queries.py`, and shared scheduled-trip row/status helpers now live in `app/services/scheduled_trip_views.py`
+- dashboard/routes now distinguish explicit persisted reads vs live recompute via `load_persisted_snapshot()` and `load_live_snapshot()` in `app/services/dashboard_snapshot.py`; prefer persisted reads for pure form/render paths
+- the old `dashboard.py` and `scheduled_trip_views.py` barrels are gone; shared trip row/state logic now lives in `app/services/scheduled_trip_display.py` and `app/services/scheduled_trip_state.py`, while dashboard-specific snapshot/query/navigation helpers live in the `dashboard_*` modules
 - if you touch storage init or migration code, add an explicit regression test in `tests/test_repository.py` that proves the current-schema startup path stays read-only
 
 ## Read These First
@@ -166,7 +166,12 @@ Entrypoints:
 
 Core services:
 
-- [app/services/dashboard.py](/Users/davidchen/code/travel-agent/app/services/dashboard.py)
+- [app/services/dashboard_snapshot.py](/Users/davidchen/code/travel-agent/app/services/dashboard_snapshot.py)
+- [app/services/dashboard_queries.py](/Users/davidchen/code/travel-agent/app/services/dashboard_queries.py)
+- [app/services/dashboard_booking_views.py](/Users/davidchen/code/travel-agent/app/services/dashboard_booking_views.py)
+- [app/services/dashboard_navigation.py](/Users/davidchen/code/travel-agent/app/services/dashboard_navigation.py)
+- [app/services/scheduled_trip_state.py](/Users/davidchen/code/travel-agent/app/services/scheduled_trip_state.py)
+- [app/services/scheduled_trip_display.py](/Users/davidchen/code/travel-agent/app/services/scheduled_trip_display.py)
 - [app/services/workflows.py](/Users/davidchen/code/travel-agent/app/services/workflows.py)
 - [app/services/trips.py](/Users/davidchen/code/travel-agent/app/services/trips.py)
 - [app/services/bookings.py](/Users/davidchen/code/travel-agent/app/services/bookings.py)
@@ -181,6 +186,7 @@ Persistence:
 
 ## Current Caution Areas
 
-- `dashboard.py` still owns a lot of derived view logic and remains the best future decomposition candidate
+- `scheduled_trip_state.py` and `scheduled_trip_display.py` are smaller than the old shared barrel, but they are now the main place to watch for future UI/runtime drift in trip-row logic
+- `dashboard_queries.py` is still fairly dense because it owns the snapshot-level scheduled/group query helpers
 - Google Flights parsing is still heuristic HTML parsing and should be treated as drift-prone
 - rule deletion is intentionally deferred because the attached-occurrence lifecycle needs an explicit product decision first
