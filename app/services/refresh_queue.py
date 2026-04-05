@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from app.services.background_fetch import queue_rolling_refresh
 from app.services.snapshot_queries import horizon_instances_for_trip
@@ -14,6 +15,20 @@ def queued_refresh_message(base_message: str, queued_count: int) -> str:
     if queued_count > 1:
         return f"{base_message}. Refresh queued for {queued_count} airport-pair searches."
     return base_message
+
+
+def _queued_targets(
+    snapshot: AppSnapshot,
+    *,
+    before_by_id: dict[str, tuple[Any, Any]],
+) -> list:
+    queued: list = []
+    for target in snapshot.tracker_fetch_targets:
+        before = before_by_id.get(target.fetch_target_id)
+        after = (target.next_fetch_not_before, target.updated_at)
+        if before != after:
+            queued.append(target)
+    return queued
 
 
 def queue_refresh_for_trip(
@@ -61,6 +76,10 @@ def queue_refresh_for_trip_instances(
 ) -> int:
     if not trip_instance_ids:
         return 0
+    before_by_id = {
+        target.fetch_target_id: (target.next_fetch_not_before, target.updated_at)
+        for target in snapshot.tracker_fetch_targets
+    }
     queued_count = queue_rolling_refresh(
         snapshot.trackers,
         snapshot.trip_instances,
@@ -70,5 +89,10 @@ def queue_refresh_for_trip_instances(
         app_state=snapshot.app_state,
     )
     if queued_count:
-        repository.save_tracker_fetch_targets(snapshot.tracker_fetch_targets)
+        queued_targets = _queued_targets(
+            snapshot,
+            before_by_id=before_by_id,
+        )
+        if queued_targets:
+            repository.upsert_tracker_fetch_targets(queued_targets)
     return queued_count
