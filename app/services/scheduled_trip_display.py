@@ -11,14 +11,10 @@ from app.services.itinerary_display import (
     travel_day_delta_label,
 )
 from app.services.scheduled_trip_state import (
-    active_booking_count_for_instance,
     booking_for_instance,
     best_tracker,
     comparison_tracker,
-    rebook_savings,
     trackers_for_instance,
-    trip_lifecycle_status_label,
-    trip_lifecycle_status_tone,
     trip_monitoring_status_label,
 )
 from app.services.snapshot_queries import (
@@ -69,8 +65,6 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     booking = booking_for_instance(snapshot, trip_instance_id)
     tracker = comparison_tracker(snapshot, trip_instance_id)
     display_tracker = _row_tracker(snapshot, trip_instance_id)
-    active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
-    savings = rebook_savings(snapshot, trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
     current_target = tracker_best_fetch_target(
         display_tracker,
@@ -121,30 +115,10 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             "tone": "neutral",
         }
 
-    state_chips: list[dict[str, object]] = []
-    if savings is not None:
-        state_chips.append(
-            {
-                "label": f"Save {format_money(savings)}",
-                "tone": "accent",
-            }
-        )
-    if active_booking_count > 1:
-        state_chips.append(
-            {
-                "label": f"{active_booking_count} bookings",
-                "tone": "warning",
-            }
-        )
-
     return {
         "title": trip_ui_label(snapshot, trip_instance_id),
-        "lifecycle_label": trip_lifecycle_status_label(snapshot, trip_instance_id),
-        "lifecycle_tone": trip_lifecycle_status_tone(snapshot, trip_instance_id),
         "booked_offer": booked_offer,
         "current_offer": current_offer,
-        "state_chips": state_chips,
-        "has_dual_offers": booked_offer is not None and current_offer is not None,
     }
 
 

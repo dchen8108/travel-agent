@@ -21,9 +21,6 @@
         <div class="timeline-summary-row">
           <div class="timeline-title-group">
             <a class="travel-title" href="/trip-instances/{{ scheduled_instance.trip_instance_id }}">{{ row.title }}</a>
-            <span class="status-inline status-inline--{{ row.lifecycle_tone }}">
-              {{ row.lifecycle_label }}
-            </span>
           </div>
           {% if row.booked_offer %}
           <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">

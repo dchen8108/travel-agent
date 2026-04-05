@@ -84,7 +84,6 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
         "href": "https://example.com/gf",
         "tone": "success",
     }
-    assert row["state_chips"] == []
 
 
 def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
@@ -180,7 +179,6 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
         "href": "https://example.com/gf",
         "tone": "accent",
     }
-    assert row["state_chips"] == [{"label": "Save $36", "tone": "accent"}]
 
 
 def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_anchor_date() -> None:
