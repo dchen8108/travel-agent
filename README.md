@@ -101,16 +101,24 @@ The installer uses the checked-in defaults from `config/gmail_integration.json` 
 How it behaves:
 
 - polls the inbox directly; no Gmail labels are required
+- can hard-gate processing to a sender allowlist via `allowed_from_addresses`, so only mail from trusted forwarded senders is eligible for extraction
 - backfills unseen inbox mail once, then switches to Gmail history sync so already-processed messages are not sent back through the LLM
 - quickly ignores obvious spam/newsletter messages with a cheap keyword gate
 - sends likely booking confirmations to an OpenAI extraction model
 - validates and matches extracted legs to existing trip instances
 - creates `Booking` rows automatically only when there is exactly one confident trip-instance match
 - marks existing bookings `cancelled` automatically when a cancellation email matches cleanly
-- creates unmatched `Booking` rows only when a real booking cannot be placed confidently
+- creates unlinked `Booking` rows only when a real booking cannot be placed confidently
 - records every processed message in `booking_email_events`
 - retries only retryable email-processing failures, with a bounded retry count
 - redacts model input/output from logs by default unless `debug_log_model_io` is enabled in `config/gmail_integration.json`
+
+The Gmail poller has two separate caps by design:
+
+- `launchd_poll_interval_seconds` / `launchd_max_messages` in `config/gmail_integration.json` control how often launchd starts the poller and the installer default for each run
+- `max_messages_per_poll` in `config/gmail_integration.json` is the runtime worker cap inside the poller itself
+
+The effective poll volume is the lower of those two message caps unless you override the CLI on a manual run.
 
 Useful commands:
 
@@ -198,6 +206,13 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 - `config/app_state.json`: checked-in app/runtime policy such as timezone, horizon length, dashboard action windows, fetch cadence/backoff, and launchd fetcher defaults
 - `config/gmail_integration.json`: checked-in Gmail poller behavior such as inbox labels, model choice, retry caps, and launchd poller defaults
 - `config/local/*`: machine-local secrets and state such as Gmail OAuth credentials, Gmail sync checkpoint, and optional OpenAI API key cache. These files are not product config and should not be checked in.
+
+`config/app_state.json` now acts as the policy surface for both:
+
+- runtime fetcher behavior (`fetch_interval_seconds`, backoff, lease, freshness window, per-run target cap)
+- launchd installer defaults (`launchd_fetch_interval_seconds`, `launchd_fetch_max_targets`)
+
+That means the launch cadence and the runtime worker cadence are related but distinct; changing one without the other may change when runs start without changing what each run is allowed to do.
 
 ## Storage
 

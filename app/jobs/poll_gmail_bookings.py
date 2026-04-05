@@ -211,7 +211,7 @@ def main() -> None:
     stage = "config"
     processed_count = 0
     created_booking_count = 0
-    created_unmatched_count = 0
+    created_unlinked_count = 0
     ignored_count = 0
     duplicate_count = 0
     error_count = 0
@@ -275,7 +275,7 @@ def main() -> None:
                     email_kind=event.email_kind,
                     extraction_confidence=event.extraction_confidence,
                     created_booking_ids=event.result_booking_ids,
-                    created_unmatched_booking_ids=event.result_unmatched_booking_ids,
+                    created_unlinked_booking_ids=event.result_unmatched_booking_ids,
                     notes=event.notes,
                     debug={"error_stage": "gmail_fetch", "retryable": event.retryable},
                 )
@@ -310,7 +310,7 @@ def main() -> None:
                     email_kind=event.email_kind,
                     extraction_confidence=event.extraction_confidence,
                     created_booking_ids=event.result_booking_ids,
-                    created_unmatched_booking_ids=event.result_unmatched_booking_ids,
+                    created_unlinked_booking_ids=event.result_unmatched_booking_ids,
                     notes=event.notes,
                     debug={
                         "error_stage": "message_processing",
@@ -322,7 +322,7 @@ def main() -> None:
 
             processed_count += 1
             created_booking_count += len(result.created_bookings)
-            created_unmatched_count += len(result.created_unmatched_bookings)
+            created_unlinked_count += len(result.created_unlinked_bookings)
             status = str(result.event.processing_status)
             if status == "ignored":
                 ignored_count += 1
@@ -342,7 +342,7 @@ def main() -> None:
                 email_kind=result.event.email_kind,
                 extraction_confidence=result.event.extraction_confidence,
                 created_booking_ids=result.event.result_booking_ids,
-                created_unmatched_booking_ids=result.event.result_unmatched_booking_ids,
+                created_unlinked_booking_ids=result.event.result_unmatched_booking_ids,
                 notes=result.event.notes,
                 debug=loggable_debug_fields(
                     result.debug_fields,
@@ -362,7 +362,7 @@ def main() -> None:
             pid=os.getpid(),
             processed_count=processed_count,
             created_booking_count=created_booking_count,
-            created_unmatched_count=created_unmatched_count,
+            created_unlinked_count=created_unlinked_count,
             ignored_count=ignored_count,
             duplicate_count=duplicate_count,
             error_count=error_count,

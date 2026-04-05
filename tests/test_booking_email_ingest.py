@@ -80,7 +80,7 @@ def test_booking_email_ingest_ignores_clear_spam_without_llm(repository: Reposit
     assert result.event.processing_status == BookingEmailEventStatus.IGNORED
     assert result.event.email_kind == "not_booking"
     assert not result.created_bookings
-    assert not result.created_unmatched_bookings
+    assert not result.created_unlinked_bookings
 
 
 def test_booking_email_ingest_ignores_sender_outside_allowlist_without_llm(repository: Repository, monkeypatch) -> None:
@@ -106,7 +106,7 @@ def test_booking_email_ingest_ignores_sender_outside_allowlist_without_llm(repos
     assert result.event.email_kind == "not_booking"
     assert result.event.notes == "Ignored because sender bookings@example-airline.com is not in allowed_from_addresses."
     assert not result.created_bookings
-    assert not result.created_unmatched_bookings
+    assert not result.created_unlinked_bookings
 
 
 def test_booking_email_ingest_auto_creates_booking(repository: Repository, monkeypatch) -> None:
@@ -207,8 +207,8 @@ def test_booking_email_ingest_creates_unmatched_when_no_tracker_matches(reposito
 
     assert result.event.processing_status == BookingEmailEventStatus.NEEDS_RESOLUTION
     assert not result.created_bookings
-    assert len(result.created_unmatched_bookings) == 1
-    assert result.created_unmatched_bookings[0].source == "gmail"
+    assert len(result.created_unlinked_bookings) == 1
+    assert result.created_unlinked_bookings[0].source == "gmail"
 
 
 def test_booking_email_ingest_low_confidence_booking_stays_unmatched(repository: Repository, monkeypatch) -> None:
@@ -246,8 +246,8 @@ def test_booking_email_ingest_low_confidence_booking_stays_unmatched(repository:
 
     assert result.event.processing_status == BookingEmailEventStatus.NEEDS_RESOLUTION
     assert not result.created_bookings
-    assert len(result.created_unmatched_bookings) == 1
-    assert result.created_unmatched_bookings[0].auto_link_enabled is False
+    assert len(result.created_unlinked_bookings) == 1
+    assert result.created_unlinked_bookings[0].auto_link_enabled is False
     assert result.debug_fields["matching"]["auto_create_allowed"] is False
 
 

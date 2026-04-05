@@ -24,7 +24,7 @@ from app.storage.repository import Repository
 class BookingEmailProcessResult:
     event: BookingEmailEvent
     created_bookings: list[Booking]
-    created_unmatched_bookings: list[Booking]
+    created_unlinked_bookings: list[Booking]
     state_changed: bool = False
     debug_fields: dict[str, object] = field(default_factory=dict)
 
@@ -40,14 +40,14 @@ def process_gmail_booking_message(
         return BookingEmailProcessResult(
             event=existing_event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
         )
     if existing_event is not None and not _event_should_retry(existing_event, config):
         return BookingEmailProcessResult(
             event=existing_event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
         )
 
@@ -92,7 +92,7 @@ def process_gmail_booking_message(
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
             debug_fields=debug_fields,
         )
@@ -108,7 +108,7 @@ def process_gmail_booking_message(
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
             debug_fields=debug_fields,
         )
@@ -150,7 +150,7 @@ def process_gmail_booking_message(
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
             debug_fields=debug_fields,
         )
@@ -185,7 +185,7 @@ def process_gmail_booking_message(
                 return BookingEmailProcessResult(
                     event=event,
                     created_bookings=[],
-                    created_unmatched_bookings=[],
+                    created_unlinked_bookings=[],
                     state_changed=False,
                     debug_fields=debug_fields,
                 )
@@ -210,7 +210,7 @@ def process_gmail_booking_message(
             return BookingEmailProcessResult(
                 event=event,
                 created_bookings=cancelled_bookings,
-                created_unmatched_bookings=[],
+                created_unlinked_bookings=[],
                 state_changed=bool(cancelled_bookings),
                 debug_fields=debug_fields,
             )
@@ -221,7 +221,7 @@ def process_gmail_booking_message(
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
             debug_fields=debug_fields,
         )
@@ -239,13 +239,13 @@ def process_gmail_booking_message(
         return BookingEmailProcessResult(
             event=event,
             created_bookings=[],
-            created_unmatched_bookings=[],
+            created_unlinked_bookings=[],
             state_changed=False,
             debug_fields=debug_fields,
         )
 
     created_bookings: list[Booking] = []
-    created_unmatched_bookings: list[Booking] = []
+    created_unlinked_bookings: list[Booking] = []
     duplicate_count = 0
     auto_create_allowed = extraction.confidence >= config.min_auto_create_confidence
     candidate_summaries: list[dict[str, object]] = []
@@ -279,10 +279,10 @@ def process_gmail_booking_message(
         if booking is not None:
             created_bookings.append(booking)
         if unmatched is not None:
-            created_unmatched_bookings.append(unmatched)
+            created_unlinked_bookings.append(unmatched)
 
     event.result_booking_ids = "|".join(item.booking_id for item in created_bookings)
-    event.result_unmatched_booking_ids = "|".join(item.unmatched_booking_id for item in created_unmatched_bookings)
+    event.result_unmatched_booking_ids = "|".join(item.unmatched_booking_id for item in created_unlinked_bookings)
     event.updated_at = utcnow()
     debug_fields["matching"] = {
         **debug_fields["matching"],
@@ -292,12 +292,12 @@ def process_gmail_booking_message(
         "duplicate_count": duplicate_count,
     }
 
-    if created_unmatched_bookings:
+    if created_unlinked_bookings:
         event.processing_status = BookingEmailEventStatus.NEEDS_RESOLUTION
         if not auto_create_allowed:
             event.notes = (
                 f"Extraction confidence {extraction.confidence:.2f} is below the auto-create "
-                f"threshold {config.min_auto_create_confidence:.2f}; created unmatched booking(s) for review."
+                f"threshold {config.min_auto_create_confidence:.2f}; created unlinked booking(s) for review."
             )
         else:
             event.notes = "One or more booking legs could not be matched confidently."
@@ -315,8 +315,8 @@ def process_gmail_booking_message(
     return BookingEmailProcessResult(
         event=event,
         created_bookings=created_bookings,
-        created_unmatched_bookings=created_unmatched_bookings,
-        state_changed=bool(created_bookings or created_unmatched_bookings),
+        created_unlinked_bookings=created_unlinked_bookings,
+        state_changed=bool(created_bookings or created_unlinked_bookings),
         debug_fields=debug_fields,
     )
 

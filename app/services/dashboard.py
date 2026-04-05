@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
-import re
+from datetime import date
 from urllib.parse import urlencode
 
-from app.catalog import airline_display
 from app.money import format_money
 from app.models.base import BookingStatus, FetchTargetStatus
 from app.models.booking import Booking
@@ -16,6 +14,13 @@ from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
 from app.route_options import split_pipe
 from app.services.recommendations import best_tracker_for_instance
+from app.services.itinerary_display import (
+    booking_route_label,
+    format_departure_time_label,
+    tracker_best_fetch_target,
+    tracker_display_label,
+    travel_day_delta_label,
+)
 from app.services.data_scope import filter_snapshot, include_test_data_for_ui
 from app.services.snapshots import AppSnapshot
 from app.services.workflows import sync_and_persist
@@ -510,146 +515,12 @@ def trip_ui_context_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     return ""
 
 
-def _compact_airport_codes(codes: list[str]) -> str:
-    return "|".join(code for code in codes if code)
-
-
 def _row_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
     tracker = comparison_tracker(snapshot, trip_instance_id)
     if tracker is not None:
         return tracker
     trackers = trackers_for_instance(snapshot, trip_instance_id)
     return trackers[0] if trackers else None
-
-
-def _tracker_route_label(tracker: Tracker) -> str:
-    if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
-        return f"{tracker.latest_winning_origin_airport} → {tracker.latest_winning_destination_airport}"
-    origins = _compact_airport_codes(tracker.origin_codes)
-    destinations = _compact_airport_codes(tracker.destination_codes)
-    if origins and destinations:
-        return f"{origins} → {destinations}"
-    return ""
-
-
-def _booking_route_label(booking: Booking) -> str:
-    route = f"{booking.origin_airport} → {booking.destination_airport}"
-    airline = airline_display(booking.airline)
-    return f"{route} · {airline}" if airline else route
-
-
-def _format_departure_time_label(value: str) -> str:
-    raw = value.strip()
-    if not raw:
-        return ""
-    meridiem_match = re.match(r"^\s*(\d{1,2}:\d{2})\s*([APap][Mm])", raw)
-    if meridiem_match:
-        return f"{meridiem_match.group(1)} {meridiem_match.group(2).upper()}"
-    time_match = re.match(r"^\s*(\d{1,2}:\d{2})", raw)
-    if time_match:
-        raw = time_match.group(1)
-    if "am" in raw.lower() or "pm" in raw.lower():
-        return raw
-    try:
-        parsed = datetime.strptime(raw, "%H:%M")
-    except ValueError:
-        return raw
-    return parsed.strftime("%I:%M %p").lstrip("0")
-
-
-def _travel_day_delta_label(anchor_date: date, travel_date: date | None) -> str:
-    if travel_date is None:
-        return ""
-    delta = (travel_date - anchor_date).days
-    if delta == 0:
-        return ""
-    unit = "day" if abs(delta) == 1 else "days"
-    return f"{delta:+d} {unit}"
-
-
-def _tracker_display_label(
-    tracker: Tracker | None,
-    *,
-    current_target: TrackerFetchTarget | None = None,
-) -> str:
-    if current_target is not None:
-        return _fetch_target_route_label(current_target, fallback_tracker=tracker)
-    if tracker is None:
-        return ""
-    route = _tracker_route_label(tracker)
-    if not route:
-        return ""
-    if len(tracker.airline_codes) == 1:
-        return f"{route} · {airline_display(tracker.airline_codes[0])}"
-    return route
-
-
-def _fetch_target_route_label(
-    target: TrackerFetchTarget,
-    *,
-    fallback_tracker: Tracker | None = None,
-) -> str:
-    route = f"{target.origin_airport} → {target.destination_airport}"
-    airline = airline_display(target.latest_airline) if target.latest_airline else ""
-    if not airline and fallback_tracker is not None and len(fallback_tracker.airline_codes) == 1:
-        airline = airline_display(fallback_tracker.airline_codes[0])
-    return f"{route} · {airline}" if airline else route
-
-
-def tracker_best_fetch_target(snapshot: AppSnapshot, tracker: Tracker | None) -> TrackerFetchTarget | None:
-    if tracker is None:
-        return None
-    targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
-    if not targets:
-        return None
-    if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
-        exact_targets = [
-            target
-            for target in targets
-            if target.origin_airport == tracker.latest_winning_origin_airport
-            and target.destination_airport == tracker.latest_winning_destination_airport
-        ]
-        if tracker.latest_observed_price is not None:
-            exact_price_match = [
-                target
-                for target in exact_targets
-                if target.latest_price == tracker.latest_observed_price
-            ]
-            if exact_price_match:
-                return sorted(
-                    exact_price_match,
-                    key=lambda item: (item.origin_airport, item.destination_airport),
-                )[0]
-        if exact_targets:
-            return sorted(
-                exact_targets,
-                key=lambda item: (item.origin_airport, item.destination_airport),
-            )[0]
-    if tracker.latest_observed_price is not None:
-        priced_targets = [
-            target
-            for target in targets
-            if target.latest_price == tracker.latest_observed_price
-        ]
-        if priced_targets:
-            return sorted(
-                priced_targets,
-                key=lambda item: (item.origin_airport, item.destination_airport),
-            )[0]
-    live_targets = [target for target in targets if target.latest_price is not None]
-    if live_targets:
-        return sorted(
-            live_targets,
-            key=lambda item: (
-                item.latest_price or 10**9,
-                item.origin_airport,
-                item.destination_airport,
-            ),
-        )[0]
-    return sorted(
-        targets,
-        key=lambda item: (item.origin_airport, item.destination_airport),
-    )[0]
 
 
 def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
@@ -660,7 +531,10 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
     savings = rebook_savings(snapshot, trip_instance_id)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
-    current_target = tracker_best_fetch_target(snapshot, display_tracker)
+    current_target = tracker_best_fetch_target(
+        display_tracker,
+        fetch_targets_for_tracker(snapshot, display_tracker.tracker_id) if display_tracker is not None else [],
+    )
     current_price = tracker.latest_observed_price if tracker is not None else None
 
     current_offer: dict[str, object] | None = None
@@ -676,13 +550,13 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         current_offer_price = "No fares" if monitoring_label == "No matches" else "Checking"
         current_offer_tone = "warning" if monitoring_label == "No matches" else "neutral"
 
-    current_offer_detail = _tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
+    current_offer_detail = tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
     if current_offer_detail or current_offer_price:
         current_offer = {
             "label": current_offer_label,
             "detail": current_offer_detail,
-            "meta_label": _format_departure_time_label(current_target.latest_departure_label) if current_target else "",
-            "day_delta_label": _travel_day_delta_label(
+            "meta_label": format_departure_time_label(current_target.latest_departure_label) if current_target else "",
+            "day_delta_label": travel_day_delta_label(
                 instance.anchor_date if instance is not None else date.today(),
                 display_tracker.travel_date if display_tracker is not None else None,
             ),
@@ -695,9 +569,9 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     if booking is not None:
         booked_offer = {
             "label": "Booked at",
-            "detail": _booking_route_label(booking),
-            "meta_label": _format_departure_time_label(booking.departure_time),
-            "day_delta_label": _travel_day_delta_label(
+            "detail": booking_route_label(booking),
+            "meta_label": format_departure_time_label(booking.departure_time),
+            "day_delta_label": travel_day_delta_label(
                 instance.anchor_date if instance is not None else date.today(),
                 booking.departure_date,
             ),
