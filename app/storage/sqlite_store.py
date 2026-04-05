@@ -21,23 +21,41 @@ def connect(db_path: Path) -> sqlite3.Connection:
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
-    _migrate_bookings_to_v5(connection)
-    _migrate_booking_email_events_to_v6(connection)
-    _migrate_price_records_to_v3(connection)
-    _migrate_data_scope_to_v7(connection)
-    _migrate_bookings_to_v8(connection)
-    _migrate_unmatched_bookings_to_v9(connection)
-    _migrate_trips_to_v10(connection)
-    _migrate_trip_groups_to_v11(connection)
-    _migrate_status_enums_to_v12(connection)
-    _migrate_group_memberships_to_v13(connection)
-    _migrate_weekly_rule_legacy_groups_to_v14(connection)
-    _migrate_fetch_target_claims_to_v15(connection)
-    _migrate_bookings_route_options_to_v16(connection)
-    _migrate_trip_state_override_to_v17(connection)
-    _migrate_trip_instances_remove_skip_state_to_v18(connection)
-    _migrate_trips_remove_legacy_group_column_to_v19(connection)
-    _migrate_trackers_remove_manual_import_signals_to_v20(connection)
+    current_version = _schema_version(connection)
+    if current_version < 5:
+        _migrate_bookings_to_v5(connection)
+    if current_version < 6:
+        _migrate_booking_email_events_to_v6(connection)
+    if current_version < 3:
+        _migrate_price_records_to_v3(connection)
+    if current_version < 7:
+        _migrate_data_scope_to_v7(connection)
+    if current_version < 8:
+        _migrate_bookings_to_v8(connection)
+    if current_version < 9:
+        _migrate_unmatched_bookings_to_v9(connection)
+    if current_version < 10:
+        _migrate_trips_to_v10(connection)
+    if current_version < 11:
+        _migrate_trip_groups_to_v11(connection)
+    if current_version < 12:
+        _migrate_status_enums_to_v12(connection)
+    if current_version < 13:
+        _migrate_group_memberships_to_v13(connection)
+    if current_version < 14:
+        _migrate_weekly_rule_legacy_groups_to_v14(connection)
+    if current_version < 15:
+        _migrate_fetch_target_claims_to_v15(connection)
+    if current_version < 16:
+        _migrate_bookings_route_options_to_v16(connection)
+    if current_version < 17:
+        _migrate_trip_state_override_to_v17(connection)
+    if current_version < 18:
+        _migrate_trip_instances_remove_skip_state_to_v18(connection)
+    if current_version < 19:
+        _migrate_trips_remove_legacy_group_column_to_v19(connection)
+    if current_version < 20:
+        _migrate_trackers_remove_manual_import_signals_to_v20(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -315,7 +333,7 @@ def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:
             """
         )
         connection.execute("DROP TABLE bookings_old")
-    _repair_gmail_booking_prices_to_v5(connection)
+        _repair_gmail_booking_prices_to_v5(connection)
 
 
 def _migrate_bookings_to_v8(connection: sqlite3.Connection) -> None:
@@ -1086,6 +1104,13 @@ def _repaired_event_booked_price(*, extracted_payload_json: str) -> float | None
     if repaired is None:
         return None
     return float(repaired)
+
+
+def _schema_version(connection: sqlite3.Connection) -> int:
+    row = connection.execute("PRAGMA user_version").fetchone()
+    if row is None:
+        return 0
+    return int(row[0] or 0)
 
 
 def _table_exists(connection: sqlite3.Connection, table: str) -> bool:

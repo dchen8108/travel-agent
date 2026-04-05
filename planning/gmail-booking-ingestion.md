@@ -35,6 +35,11 @@
    - ambiguous/no match => unlinked `Booking`
 10. Append one `booking_email_events` audit row for the Gmail message.
 
+Internal compatibility note:
+
+- the SQLite audit table still stores created unlinked-booking ids in the historical column `result_unmatched_booking_ids`
+- that schema name is retained only for storage compatibility; product/runtime language should prefer `unlinked bookings`
+
 The Gmail poller uses two checkpoints:
 
 - Gmail `historyId` state in `config/local/gmail_sync_state.json`

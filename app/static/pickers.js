@@ -1,5 +1,6 @@
 (() => {
   const pickerRegistry = [];
+  const singlePickerSubmitters = new WeakMap();
 
   function pruneDetachedPickers() {
     for (let index = pickerRegistry.length - 1; index >= 0; index -= 1) {
@@ -372,6 +373,44 @@
     const search = root.querySelector("[data-search]");
     const menu = root.querySelector("[data-menu]");
     let closeMenuTimer = null;
+    const form = field.closest("form");
+
+    function matchingOptions(query) {
+      const normalized = query.trim().toLowerCase();
+      if (!normalized) {
+        return [];
+      }
+      const exact = options.filter((option) => {
+        const value = String(option.value || "").toLowerCase();
+        const label = String(option.label || "").toLowerCase();
+        return value === normalized || label === normalized;
+      });
+      if (exact.length) {
+        return exact;
+      }
+      return options.filter((option) => buildSearchText(option).includes(normalized));
+    }
+
+    function commitSearchValue() {
+      const query = search.value.trim();
+      if (!query) {
+        search.setCustomValidity("");
+        return true;
+      }
+      const matches = matchingOptions(query);
+      if (matches.length === 1) {
+        state.value = matches[0].value;
+        hidden.value = matches[0].value;
+        search.value = "";
+        search.setCustomValidity("");
+        renderChip();
+        closeMenu();
+        return true;
+      }
+      search.setCustomValidity("Choose one option from the list first.");
+      search.reportValidity();
+      return false;
+    }
 
     function closeMenu() {
       if (closeMenuTimer) {
@@ -452,10 +491,14 @@
       closeAllPickers(root);
       renderMenu(search.value);
     });
-    search.addEventListener("input", () => renderMenu(search.value));
+    search.addEventListener("input", () => {
+      search.setCustomValidity("");
+      renderMenu(search.value);
+    });
     search.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
+        commitSearchValue();
         return;
       }
       if (event.key === "Escape") {
@@ -465,9 +508,29 @@
     });
     search.addEventListener("blur", () => {
       closeMenuTimer = window.setTimeout(() => {
+        if (!document.activeElement || !menu.contains(document.activeElement)) {
+          commitSearchValue();
+        }
         closeMenu();
       }, 150);
     });
+    if (form) {
+      const submitters = singlePickerSubmitters.get(form);
+      if (submitters) {
+        submitters.push(commitSearchValue);
+      } else {
+        singlePickerSubmitters.set(form, [commitSearchValue]);
+        form.addEventListener("submit", (event) => {
+          const activeSubmitters = singlePickerSubmitters.get(form) || [];
+          for (const submitter of activeSubmitters) {
+            if (!submitter()) {
+              event.preventDefault();
+              break;
+            }
+          }
+        });
+      }
+    }
   }
 
   window.travelAgentPickers = {

@@ -51,7 +51,6 @@ class Repository:
             return
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.config_dir.mkdir(parents=True, exist_ok=True)
-        db_exists = self.db_path.exists()
         connection = connect(self.db_path)
         try:
             initialize_schema(connection)

@@ -7,6 +7,8 @@ from pathlib import Path
 from app.models.base import AppState
 from app.settings import Settings
 from app.storage.repository import Repository
+from app.storage.sqlite_schema import DDL_STATEMENTS, SCHEMA_VERSION
+from app.storage.sqlite_store import initialize_schema
 
 
 def test_repository_stores_app_state_in_config_json(tmp_path: Path) -> None:
@@ -118,6 +120,38 @@ def test_repository_load_app_state_reads_checked_in_shape_from_config_json(tmp_p
     assert app_state.fetch_interval_seconds == 900
     assert app_state.launchd_fetch_interval_seconds == 120
     assert app_state.launchd_fetch_max_targets == 4
+
+
+def test_initialize_schema_skips_legacy_migrations_for_current_schema(tmp_path: Path) -> None:
+    db_path = tmp_path / "travel_agent.sqlite3"
+    connection = sqlite3.connect(db_path)
+    try:
+        for statement in DDL_STATEMENTS:
+            connection.execute(statement)
+        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        connection.commit()
+
+        statements: list[str] = []
+        connection.set_trace_callback(statements.append)
+        initialize_schema(connection)
+        connection.set_trace_callback(None)
+    finally:
+        connection.close()
+
+    forbidden_prefixes = (
+        "ALTER TABLE",
+        "DROP TABLE",
+        "UPDATE ",
+        "INSERT INTO rule_group_targets",
+        "INSERT INTO trip_instance_group_memberships",
+        "INSERT INTO trip_groups",
+    )
+    forbidden = [
+        statement
+        for statement in statements
+        if statement.startswith(forbidden_prefixes)
+    ]
+    assert forbidden == []
 
 
 def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_path: Path) -> None:
@@ -341,6 +375,111 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
     assert "data_scope" in booking_email_event_columns
 
 
+def test_repository_does_not_repair_gmail_booking_price_again_after_manual_edit(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(settings.data_dir / "travel_agent.sqlite3")
+    try:
+        connection.execute("PRAGMA user_version = 4")
+        connection.execute(
+            """
+            CREATE TABLE bookings (
+                booking_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL DEFAULT 'manual',
+                trip_instance_id TEXT NULL,
+                airline TEXT NOT NULL,
+                origin_airport TEXT NOT NULL,
+                destination_airport TEXT NOT NULL,
+                departure_date TEXT NOT NULL,
+                departure_time TEXT NOT NULL,
+                arrival_time TEXT NOT NULL DEFAULT '',
+                booked_price INTEGER NOT NULL,
+                record_locator TEXT NOT NULL DEFAULT '',
+                booked_at TEXT NOT NULL,
+                booking_status TEXT NOT NULL DEFAULT 'active',
+                match_status TEXT NOT NULL DEFAULT 'matched',
+                raw_summary TEXT NOT NULL DEFAULT '',
+                candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
+                resolution_status TEXT NOT NULL DEFAULT 'resolved',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE booking_email_events (
+                email_event_id TEXT PRIMARY KEY,
+                gmail_message_id TEXT NOT NULL UNIQUE,
+                gmail_thread_id TEXT NOT NULL DEFAULT '',
+                gmail_history_id TEXT NOT NULL DEFAULT '',
+                from_address TEXT NOT NULL DEFAULT '',
+                subject TEXT NOT NULL DEFAULT '',
+                received_at TEXT NOT NULL,
+                processing_status TEXT NOT NULL,
+                email_kind TEXT NOT NULL DEFAULT 'unknown',
+                extraction_confidence REAL NOT NULL DEFAULT 0,
+                extracted_payload_json TEXT NOT NULL DEFAULT '',
+                result_booking_ids TEXT NOT NULL DEFAULT '',
+                result_unmatched_booking_ids TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO bookings (
+                booking_id, source, trip_instance_id, airline, origin_airport, destination_airport,
+                departure_date, departure_time, arrival_time, booked_price, record_locator, booked_at, booking_status,
+                match_status, raw_summary, candidate_trip_instance_ids, resolution_status, notes, created_at, updated_at
+            ) VALUES (
+                'book_manual', 'gmail', 'inst_1', 'WN', 'LAX', 'SFO',
+                '2026-04-20', '06:00', '07:30', 7840, 'BDJ594', '2026-04-01T12:00:00+00:00', 'active',
+                'matched', '', '', 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO booking_email_events (
+                email_event_id, gmail_message_id, gmail_thread_id, gmail_history_id, from_address, subject, received_at,
+                processing_status, email_kind, extraction_confidence, extracted_payload_json, result_booking_ids,
+                result_unmatched_booking_ids, notes, created_at, updated_at
+            ) VALUES (
+                'mail_1', 'gmail_1', 'thread_1', '123', 'test@example.com', 'Booking', '2026-04-01T12:00:00+00:00',
+                'resolved_auto', 'booking_confirmation', 0.92,
+                '{"email_kind":"booking_confirmation","confidence":0.92,"record_locator":"BDJ594","currency":"USD","total_price":7840,"passenger_names":["Test"],"summary":"Total paid $78.40 USD.","notes":"","legs":[{"airline":"WN","origin_airport":"LAX","destination_airport":"SFO","departure_date":"2026-04-20","departure_time":"06:00","arrival_time":"07:30","flight_number":"1105","leg_status":"booked","fare_class":"basic","evidence":"Total $78.40"}]}',
+                'book_manual', '', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    booking = next(item for item in repository.load_bookings() if item.booking_id == "book_manual")
+    assert booking.booked_price == Decimal("78.40")
+
+    booking.booked_price = Decimal("95.40")
+    repository.upsert_bookings([booking])
+
+    fresh_repository = Repository(settings)
+    fresh_repository.ensure_data_dir()
+    reloaded = next(item for item in fresh_repository.load_bookings() if item.booking_id == "book_manual")
+    assert reloaded.booked_price == Decimal("95.40")
+
+
 def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -384,7 +523,7 @@ def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> N
             )
             """
         )
-        connection.execute("PRAGMA user_version = 7")
+        connection.execute("PRAGMA user_version = 6")
         connection.commit()
     finally:
         connection.close()

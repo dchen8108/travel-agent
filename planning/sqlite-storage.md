@@ -248,6 +248,8 @@ Key columns:
 - `created_at`
 - `updated_at`
 
+`result_unmatched_booking_ids` remains the historical schema name for the ids of created unlinked bookings. The product no longer treats them as a separate object type, but the column name is retained for on-disk compatibility.
+
 ## Relationships
 
 Logical ownership remains:

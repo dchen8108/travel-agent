@@ -34,6 +34,11 @@ This version is intentionally local and simple:
 
 Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) to distinguish current design notes from older historical planning docs.
 
+Compatibility note:
+
+- `/trips`, `/bookings`, and `/trackers` are redirect-only compatibility endpoints now
+- the real product surfaces are the dashboard at `/`, the detail pages under `/trip-instances/{id}`, `/groups/{id}`, `/trips/{id}`, and the focused create/edit flows
+
 ## Core Objects
 
 - `Trip Group`: pure organization/display for concrete trips

@@ -27,7 +27,6 @@ def _canonical_dashboard_target(path: str, query: str = "") -> str:
         "/trips": ("", "all-travel"),
         "/trackers": ("", "all-travel"),
         "/bookings": ("", "needs-linking"),
-        "/resolve": ("", "needs-linking"),
     }
     if path not in dashboard_targets:
         return f"{path}{f'?{query}' if query else ''}"

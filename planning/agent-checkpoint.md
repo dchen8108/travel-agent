@@ -1,6 +1,6 @@
 # Agent Checkpoint
 
-Last refreshed: `2026-04-04`
+Last refreshed: `2026-04-05`
 
 ## Purpose
 
@@ -32,6 +32,7 @@ Primary screens:
 - group detail pages at `/groups/{trip_group_id}`
 - trip/rule detail pages at `/trips/{trip_id}`
 - focused create/edit flows such as `/trips/new` and trip-scoped `/bookings/new?trip_instance_id=...`
+- the persistent Milemark mark/wordmark is the global route back to `/`; page-level `Back` links are only local navigation helpers
 
 Important hierarchy:
 
@@ -135,6 +136,11 @@ Known-good on this machine after the latest cleanup pass:
   - `/bookings/new?trip_instance_id={id}`
   - `/groups/{id}`
   - `/trip-instances/{id}`
+
+## Storage Hygiene Notes
+
+- `initialize_schema()` is version-gated; legacy migrations should not mutate a current-schema database on normal startup
+- if you touch storage init or migration code, add an explicit regression test in `tests/test_repository.py` that proves the current-schema startup path stays read-only
 
 ## Read These First
 

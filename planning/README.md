@@ -1,6 +1,6 @@
 # Planning
 
-This directory mixes current operational notes with older design docs from the v0 iteration. The repo has moved significantly since the early planning files were written.
+This directory is for current operational and architecture notes only. Old planning snapshots that no longer describe the live product should live in git history, not in the active repo.
 
 ## Current References
 
@@ -19,18 +19,13 @@ The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the m
 - background fetch behavior
 - storage/config layout
 
-## Historical Design Docs
+## Secondary References
 
-These files are still useful for intent and original tradeoffs, but they are not authoritative descriptions of the current product:
+These are still useful, but they are more focused background than canonical implementation docs:
 
-- `v0-product-spec.md`
-- `v0-wireframes.md`
-- `v0-data-model.md`
-- `v0-tech-spec.md`
-- `implementation-plan.md`
 - `google-flights-poc.md`
-
-Read them as historical design context, not current schema or route documentation.
+- `trip-groups-and-recurring-rules.md`
+- `v1-ui-pass.md`
 
 ## Current Product Baseline
 
@@ -49,5 +44,6 @@ Read them as historical design context, not current schema or route documentatio
 
 ## Current Hygiene Notes
 
-- there is no active legacy CSV/JSON import path in the app anymore; any `legacy/` artifacts in local working trees should be treated as user-local leftovers, not runtime inputs
-- compatibility URLs like `/trips`, `/bookings`, `/resolve`, and `/trackers` still exist only as redirects; new work should target the dashboard and the real detail/create routes
+- there is no active legacy CSV/JSON import path in the app anymore; historical snapshots that were once kept under `legacy/` were removed from the repo and should be recovered from git history if ever needed
+- compatibility URLs like `/trips`, `/bookings`, and `/trackers` still exist only as redirects; new work should target the dashboard and the real detail/create routes
+- older planning docs that stopped matching the live product were removed from this directory; use git history if you need that context

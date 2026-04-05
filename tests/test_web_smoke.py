@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -25,7 +26,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
     )
     client = TestClient(create_app(settings))
 
-    for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/resolve", "/trackers"]:
+    for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
     trips_redirect = client.get("/trips", follow_redirects=False)
@@ -1033,7 +1034,7 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
             "departure_date": "2026-04-06",
             "departure_time": "07:10",
             "arrival_time": "08:35",
-            "booked_price": "119",
+            "booked_price": "141.25",
             "record_locator": "EDIT01",
             "notes": "Changed airport",
         },
@@ -1045,11 +1046,13 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
     updated_booking = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
     assert updated_booking.trip_instance_id == trip_instance_id
     assert updated_booking.route_option_id == ""
+    assert updated_booking.booked_price == Decimal("141.25")
 
     detail = client.get(edited.headers["location"])
     assert detail.status_code == 200
     assert "No tracked route match" in detail.text
     assert "does not match any tracked route on this date yet" in detail.text
+    assert "$141.25" in detail.text
 
 
 def test_cancelling_booking_returns_trip_to_planned(tmp_path: Path) -> None:
