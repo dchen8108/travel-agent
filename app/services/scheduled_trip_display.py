@@ -88,10 +88,15 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
 
     current_offer_detail = tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
     if current_offer_detail or current_offer_price:
+        current_offer_meta_label = (
+            format_departure_time_label(current_target.latest_departure_label)
+            if current_target is not None and current_price is not None
+            else ""
+        )
         current_offer = {
             "label": current_offer_label,
             "detail": current_offer_detail,
-            "meta_label": format_departure_time_label(current_target.latest_departure_label) if current_target else "",
+            "meta_label": current_offer_meta_label,
             "day_delta_label": travel_day_delta_label(
                 instance.anchor_date if instance is not None else date.today(),
                 display_tracker.travel_date if display_tracker is not None else None,
@@ -131,3 +136,20 @@ def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
         return ""
     label = trip_ui_label(snapshot, trip_instance_id)
     return f"{label} · {instance.anchor_date.strftime('%a, %b %d')}"
+
+
+def booking_row_summary(booking_like: object) -> dict[str, object]:
+    return {
+        "title": getattr(booking_like, "record_locator", "") or "Imported booking",
+        "booked_offer": {
+            "label": "Booked at",
+            "detail": booking_route_label(booking_like),
+            "meta_label": format_departure_time_label(getattr(booking_like, "departure_time", "")),
+            "day_delta_label": "",
+            "price_label": format_money(getattr(booking_like, "booked_price", 0)),
+            "href": "",
+            "tone": "neutral",
+            "price_is_status": False,
+        },
+        "current_offer": None,
+    }

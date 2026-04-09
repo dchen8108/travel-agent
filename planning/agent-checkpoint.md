@@ -58,7 +58,7 @@ Runtime storage/config:
 - SQLite DB: `data/travel_agent.sqlite3`
 - checked-in app config: `config/app_state.json`
 - checked-in Gmail config: `config/gmail_integration.json`
-- local secrets and OAuth artifacts: `config/local/`
+- local secrets, OAuth artifacts, and machine-specific overrides: `config/local/`
 - there is no remaining runtime bootstrap from SQLite `app_state`; JSON config is the only live app-config source now
 
 Frontend JS is split by concern:
@@ -119,7 +119,7 @@ Frontend JS is split by concern:
 
 - booking comparison is trip-level, using the best current route after preference bias
 - bookings can optionally link back to the exact tracked route when the match is unique
-- there is no user-facing skip state anymore; recurring exceptions are handled by deleting occurrences
+- there is no separate user-facing skip lifecycle; recurring exceptions are represented by deleting attached occurrences or detaching them into standalone one-time trips
 - deleting a recurring occurrence suppresses regeneration for that rule/date
 - one-time trip deletion is a tombstone, not a hard delete
 - recurring rules are required to belong to at least one group in the normal UI

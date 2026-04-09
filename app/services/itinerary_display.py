@@ -140,4 +140,4 @@ def tracker_best_fetch_target(
 
 
 def _compact_airport_codes(codes: list[str]) -> str:
-    return "|".join(code for code in codes if code)
+    return " | ".join(code for code in codes if code)

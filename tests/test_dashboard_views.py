@@ -87,6 +87,67 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
     }
 
 
+def test_unbooked_trip_row_fallback_route_spaces_multi_airport_options() -> None:
+    snapshot = AppSnapshot(
+        trip_groups=[],
+        trips=[
+            Trip(
+                trip_id="trip_1",
+                label="Work commute",
+                trip_kind="one_time",
+                anchor_date="2026-04-06",
+            )
+        ],
+        rule_group_targets=[],
+        route_options=[],
+        trip_instances=[
+            TripInstance(
+                trip_instance_id="inst_1",
+                trip_id="trip_1",
+                display_label="Work commute (2026-04-06)",
+                anchor_date="2026-04-06",
+            )
+        ],
+        trip_instance_group_memberships=[],
+        trackers=[
+            Tracker(
+                tracker_id="tracker_1",
+                trip_instance_id="inst_1",
+                route_option_id="opt_1",
+                rank=1,
+                preference_bias_dollars=0,
+                origin_airports="LAX|BUR",
+                destination_airports="SFO|OAK",
+                airlines="Southwest",
+                day_offset=0,
+                travel_date="2026-04-06",
+                start_time="06:00",
+                end_time="10:00",
+                latest_observed_price=None,
+            )
+        ],
+        tracker_fetch_targets=[],
+        bookings=[],
+        unmatched_bookings=[],
+        booking_email_events=[],
+        price_records=[],
+        app_state=AppState(),
+    )
+
+    row = trip_row_summary(snapshot, "inst_1")
+
+    assert row["current_offer"] == {
+        "label": "Live best",
+        "detail": "LAX | BUR → SFO | OAK · Southwest",
+        "meta_label": "",
+        "day_delta_label": "",
+        "price_label": "Checking",
+        "href": "",
+        "tone": "neutral",
+        "price_is_status": True,
+    }
+
+
 def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     snapshot = AppSnapshot(
         trip_groups=[],

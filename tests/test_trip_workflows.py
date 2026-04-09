@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from base64 import urlsafe_b64decode
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from urllib.parse import parse_qs, urlsplit
+
+import pytest
 
 from app.models.base import DataScope
 from app.services.bookings import BookingCandidate, record_booking
@@ -809,6 +811,141 @@ def test_detaching_generated_trip_instance_keeps_linked_booking(repository: Repo
     assert same_instance.inheritance_mode == "detached"
     assert same_instance.trip_id != trip.trip_id
     assert refreshed_booking.trip_instance_id == same_instance.trip_instance_id
+
+
+def test_detach_generated_trip_instance_is_atomic(repository: Repository, monkeypatch) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Atomic Detach",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    initial = sync_and_persist(repository, today=date(2026, 3, 31))
+    generated = next(item for item in initial.trip_instances if item.trip_id == trip.trip_id)
+    trip_count_before = len(repository.load_trips())
+
+    original_upsert = repository.upsert_trip_instances
+
+    def fail_on_instance_write(items):
+        if any(item.trip_instance_id == generated.trip_instance_id for item in items):
+            raise RuntimeError("boom")
+        return original_upsert(items)
+
+    monkeypatch.setattr(repository, "upsert_trip_instances", fail_on_instance_write)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        detach_generated_trip_instance(repository, generated.trip_instance_id)
+
+    monkeypatch.setattr(repository, "upsert_trip_instances", original_upsert)
+
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+    same_instance = next(item for item in refreshed.trip_instances if item.trip_instance_id == generated.trip_instance_id)
+
+    assert len(repository.load_trips()) == trip_count_before
+    assert same_instance.trip_id == trip.trip_id
+    assert same_instance.inheritance_mode == "attached"
+
+
+def test_editing_detached_trip_anchor_date_reuses_existing_instance(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Detach And Edit Date",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Wednesday",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR|LAX",
+                "airlines": "Southwest|Alaska",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "22:00",
+            }
+        ],
+    )
+
+    initial = sync_and_persist(repository, today=date(2026, 3, 31))
+    generated = next(item for item in initial.trip_instances if item.trip_id == trip.trip_id)
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="SFO",
+            destination_airport="BUR",
+            departure_date=generated.anchor_date + timedelta(days=1),
+            departure_time="18:50",
+            arrival_time="20:15",
+            booked_price=Decimal("58.40"),
+            record_locator="EDITDET",
+        ),
+        trip_instance_id=generated.trip_instance_id,
+        data_scope=DataScope.LIVE,
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    detached = detach_generated_trip_instance(repository, generated.trip_instance_id)
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+    detached_trip = next(item for item in refreshed.trips if item.trip_id == detached.trip_id)
+    detached_route_options = [
+        option
+        for option in repository.load_route_options()
+        if option.trip_id == detached_trip.trip_id
+    ]
+
+    save_trip(
+        repository,
+        trip_id=detached_trip.trip_id,
+        label=detached_trip.label,
+        trip_kind="one_time",
+        active=True,
+        anchor_date=generated.anchor_date + timedelta(days=1),
+        anchor_weekday="",
+        preference_mode=detached_trip.preference_mode,
+        route_option_payloads=[
+            {
+                "origin_airports": option.origin_airports,
+                "destination_airports": option.destination_airports,
+                "airlines": option.airlines,
+                "day_offset": option.day_offset,
+                "start_time": option.start_time,
+                "end_time": option.end_time,
+                "fare_class_policy": option.fare_class_policy,
+                "savings_needed_vs_previous": option.savings_needed_vs_previous,
+            }
+            for option in detached_route_options
+        ],
+        data_scope=detached_trip.data_scope,
+    )
+    edited = sync_and_persist(repository, today=date(2026, 3, 31))
+
+    detached_instances = [
+        item
+        for item in edited.trip_instances
+        if item.trip_id == detached_trip.trip_id and not item.deleted
+    ]
+    assert len(detached_instances) == 1
+    assert detached_instances[0].trip_instance_id == generated.trip_instance_id
+    assert detached_instances[0].anchor_date == generated.anchor_date + timedelta(days=1)
+    refreshed_booking = next(item for item in edited.bookings if item.booking_id == booking.booking_id)
+    assert refreshed_booking.trip_instance_id == generated.trip_instance_id
 
 
 def test_weekly_rule_horizon_includes_detached_occurrences(repository: Repository) -> None:

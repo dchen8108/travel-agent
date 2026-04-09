@@ -349,11 +349,16 @@ def trip_detail(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> Response:
-    snapshot = load_live_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     detail_view = _trip_detail_view(snapshot, trip_id)
     trip = detail_view["trip"]
     if trip.trip_kind == "one_time":
         one_time_instances = instances_for_trip(snapshot, trip.trip_id)
+        if not one_time_instances:
+            snapshot = load_live_snapshot(repository)
+            detail_view = _trip_detail_view(snapshot, trip_id)
+            trip = detail_view["trip"]
+            one_time_instances = instances_for_trip(snapshot, trip.trip_id)
         if one_time_instances:
             return RedirectResponse(
                 url=f"/trip-instances/{one_time_instances[0].trip_instance_id}",

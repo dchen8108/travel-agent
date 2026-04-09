@@ -102,11 +102,12 @@ uv run python -m app.jobs.install_launchd_booking_poller
 If `OPENAI_API_KEY` is present in your shell when you run the installer, the installer will persist it to `config/local/openai_api_key.txt` so the launchd job can use it without relying on shell startup files. Re-running the installer with a different `OPENAI_API_KEY` refreshes that cached value.
 
 The installer uses the checked-in defaults from `config/gmail_integration.json` unless you override them on the CLI.
+Machine-specific Gmail policy such as sender allowlists can also live in `config/local/gmail_integration.json`, which is merged on top of the checked-in defaults and should not be checked in.
 
 How it behaves:
 
 - polls the inbox directly; no Gmail labels are required
-- can hard-gate processing to a sender allowlist via `allowed_from_addresses`, so only mail from trusted forwarded senders is eligible for extraction
+- can hard-gate processing to a sender allowlist via `allowed_from_addresses`; use `config/local/gmail_integration.json` for machine-specific sender filters so checked-in defaults stay generic
 - backfills unseen inbox mail once, then switches to Gmail history sync so already-processed messages are not sent back through the LLM
 - quickly ignores obvious spam/newsletter messages with a cheap keyword gate
 - sends likely booking confirmations to an OpenAI extraction model

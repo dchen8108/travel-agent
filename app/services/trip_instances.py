@@ -46,6 +46,35 @@ def _rule_key(*, recurring_rule_trip_id: str, rule_occurrence_date: date) -> tup
     return ("rule", recurring_rule_trip_id, rule_occurrence_date)
 
 
+def _select_reusable_standalone_instance(
+    existing_trip_instances: list[TripInstance],
+    *,
+    trip_id: str,
+    desired_anchor_date: date,
+    kept_ids: set[str],
+) -> TripInstance | None:
+    candidates = [
+        item
+        for item in existing_trip_instances
+        if item.trip_id == trip_id
+        and item.instance_kind == TripInstanceKind.STANDALONE
+        and not item.deleted
+        and item.trip_instance_id not in kept_ids
+    ]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda item: (
+            item.booking_id == "",
+            item.anchor_date != desired_anchor_date,
+            item.inheritance_mode != TripInstanceInheritanceMode.DETACHED,
+            item.created_at,
+            item.trip_instance_id,
+        ),
+    )
+
+
 def _record_existing_keys(
     instance: TripInstance,
     trip_map: dict[str, Trip],
@@ -91,12 +120,17 @@ def reconcile_trip_instances(
         if instance_kind != TripInstanceKind.STANDALONE:
             continue
         for anchor_date in desired_anchor_dates(trip, today=today, future_weeks=future_weeks):
-            key = _trip_key(trip_id=trip.trip_id, anchor_date=anchor_date)
-            existing = existing_by_key.get(key)
+            existing = _select_reusable_standalone_instance(
+                existing_trip_instances,
+                trip_id=trip.trip_id,
+                desired_anchor_date=anchor_date,
+                kept_ids=kept_ids,
+            )
             display_label = _display_label_for_trip(trip, anchor_date=anchor_date, instance_kind=instance_kind)
             if existing:
                 existing.display_label = display_label
                 existing.trip_id = trip.trip_id
+                existing.anchor_date = anchor_date
                 existing.data_scope = trip.data_scope
                 existing.instance_kind = instance_kind
                 existing.recurring_rule_trip_id = (
@@ -234,43 +268,44 @@ def _route_option_payloads(route_options: list[RouteOption]) -> list[dict[str, o
 
 
 def detach_generated_trip_instance(repository: Repository, trip_instance_id: str) -> TripInstance:
-    trip_instances = repository.load_trip_instances()
-    trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
-    if trip_instance is None:
-        raise KeyError("Trip instance not found")
-    if trip_instance.deleted:
-        raise ValueError("Deleted trip instances cannot be detached.")
-    if trip_instance.inheritance_mode != TripInstanceInheritanceMode.ATTACHED or not trip_instance.recurring_rule_trip_id:
-        raise ValueError("Only attached recurring-rule trips can be detached.")
-    trips = repository.load_trips()
-    recurring_rule = next((item for item in trips if item.trip_id == trip_instance.recurring_rule_trip_id), None)
-    if recurring_rule is None or recurring_rule.trip_kind != TripKind.WEEKLY:
-        raise KeyError("Recurring rule not found")
+    with repository.transaction():
+        trip_instances = repository.load_trip_instances()
+        trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
+        if trip_instance is None:
+            raise KeyError("Trip instance not found")
+        if trip_instance.deleted:
+            raise ValueError("Deleted trip instances cannot be detached.")
+        if trip_instance.inheritance_mode != TripInstanceInheritanceMode.ATTACHED or not trip_instance.recurring_rule_trip_id:
+            raise ValueError("Only attached recurring-rule trips can be detached.")
+        trips = repository.load_trips()
+        recurring_rule = next((item for item in trips if item.trip_id == trip_instance.recurring_rule_trip_id), None)
+        if recurring_rule is None or recurring_rule.trip_kind != TripKind.WEEKLY:
+            raise KeyError("Recurring rule not found")
 
-    new_trip = save_trip(
-        repository,
-        trip_id=None,
-        label=trip_instance.display_label,
-        trip_kind=TripKind.ONE_TIME,
-        active=True,
-        anchor_date=trip_instance.anchor_date,
-        anchor_weekday="",
-        preference_mode=recurring_rule.preference_mode,
-        route_option_payloads=_route_option_payloads(
-            [option for option in repository.load_route_options() if option.trip_id == recurring_rule.trip_id]
-        ),
-        data_scope=trip_instance.data_scope,
-    )
+        new_trip = save_trip(
+            repository,
+            trip_id=None,
+            label=trip_instance.display_label,
+            trip_kind=TripKind.ONE_TIME,
+            active=True,
+            anchor_date=trip_instance.anchor_date,
+            anchor_weekday="",
+            preference_mode=recurring_rule.preference_mode,
+            route_option_payloads=_route_option_payloads(
+                [option for option in repository.load_route_options() if option.trip_id == recurring_rule.trip_id]
+            ),
+            data_scope=trip_instance.data_scope,
+        )
 
-    trip_instance.trip_id = new_trip.trip_id
-    trip_instance.display_label = new_trip.label
-    trip_instance.instance_kind = TripInstanceKind.STANDALONE
-    trip_instance.inheritance_mode = TripInstanceInheritanceMode.DETACHED
-    trip_instance.recurring_rule_trip_id = recurring_rule.trip_id
-    trip_instance.rule_occurrence_date = trip_instance.rule_occurrence_date or trip_instance.anchor_date
-    trip_instance.updated_at = utcnow()
-    repository.upsert_trip_instances([trip_instance])
-    return trip_instance
+        trip_instance.trip_id = new_trip.trip_id
+        trip_instance.display_label = new_trip.label
+        trip_instance.instance_kind = TripInstanceKind.STANDALONE
+        trip_instance.inheritance_mode = TripInstanceInheritanceMode.DETACHED
+        trip_instance.recurring_rule_trip_id = recurring_rule.trip_id
+        trip_instance.rule_occurrence_date = trip_instance.rule_occurrence_date or trip_instance.anchor_date
+        trip_instance.updated_at = utcnow()
+        repository.upsert_trip_instances([trip_instance])
+        return trip_instance
 
 
 def delete_generated_trip_instance(repository: Repository, trip_instance_id: str) -> TripInstance:

@@ -71,3 +71,27 @@ def test_load_gmail_integration_config_rejects_invalid_allowed_from_addresses(tm
 
     with pytest.raises(ValueError):
         load_gmail_integration_config(settings)
+
+
+def test_load_gmail_integration_config_merges_local_override(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.config_dir.mkdir(parents=True, exist_ok=True)
+    settings.config_local_dir.mkdir(parents=True, exist_ok=True)
+    (settings.config_dir / "gmail_integration.json").write_text(
+        json.dumps({"allowed_from_addresses": [], "max_messages_per_poll": 11}),
+        encoding="utf-8",
+    )
+    (settings.config_local_dir / "gmail_integration.json").write_text(
+        json.dumps({"allowed_from_addresses": ["Owner <owner@example.com>"]}),
+        encoding="utf-8",
+    )
+
+    config = load_gmail_integration_config(settings)
+
+    assert config.allowed_from_addresses == ["owner@example.com"]
+    assert config.max_messages_per_poll == 11

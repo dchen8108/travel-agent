@@ -5,20 +5,15 @@ from dataclasses import dataclass
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.models.base import utcnow
 from app.money import format_money
 from app.services.google_flights import generated_tracker_seed_summary
 from app.services.dashboard_navigation import tracker_detail_url, trip_focus_url
-from app.services.dashboard_snapshot import load_live_snapshot
+from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.scheduled_trip_state import (
     booking_route_tracking_state,
     bookings_for_instance,
-    booking_for_instance,
-    comparison_tracker,
     trackers_for_instance,
-    trip_lifecycle_status_label,
-    trip_lifecycle_status_tone,
-    trip_monitoring_status_label,
-    trip_recommended_action,
 )
 from app.services.snapshot_queries import (
     fetch_targets_for_tracker,
@@ -54,9 +49,11 @@ class TrackerCardView:
     generated_seed_summary: str
 
 
-def _format_tracker_timestamp(value) -> str:
+def _format_tracker_timestamp(value, *, past_due_label: str | None = None) -> str:
     if value is None:
         return "Not yet"
+    if past_due_label is not None and value <= utcnow():
+        return past_due_label
     hour = value.strftime("%I").lstrip("0") or "12"
     return f"{value.strftime('%b %d')}, {hour}:{value.strftime('%M %p')}"
 
@@ -151,7 +148,7 @@ def _tracker_card_view(snapshot, tracker) -> TrackerCardView:
         headline=headline,
         summary=summary,
         last_updated_label=_format_tracker_timestamp(monitor["last_updated_at"]),
-        next_refresh_label=_format_tracker_timestamp(monitor["next_refresh_at"]),
+        next_refresh_label=_format_tracker_timestamp(monitor["next_refresh_at"], past_due_label="Due now"),
         is_retrying=bool(monitor["is_retrying"]),
         has_diagnostics=bool(fetch_targets) or not bool(tracker.latest_observed_price),
         fetch_targets=fetch_targets,
@@ -171,7 +168,7 @@ def trackers_detail(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_live_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
     if trip_instance is None or trip_instance.deleted:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
@@ -186,7 +183,6 @@ def trackers_detail(
     tracker_cards = [_tracker_card_view(snapshot, tracker) for tracker in trackers]
     recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
     trip_groups = groups_for_instance(snapshot, trip_instance_id)
-    booking = booking_for_instance(snapshot, trip_instance_id)
     bookings = bookings_for_instance(snapshot, trip_instance_id)
     booking_views = [
         {
@@ -195,26 +191,6 @@ def trackers_detail(
         }
         for linked_booking in bookings
     ]
-    untracked_booking_count = sum(
-        1 for item in booking_views if item["route_tracking"].get("warning")
-    )
-    active_bookings = [item for item in bookings if item.status == "active"]
-    comparison = comparison_tracker(snapshot, trip_instance_id)
-    lifecycle_label = trip_lifecycle_status_label(snapshot, trip_instance_id)
-    lifecycle_tone = trip_lifecycle_status_tone(snapshot, trip_instance_id)
-    monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
-    action_label = trip_recommended_action(snapshot, trip_instance_id)
-    current_fare_label = (
-        format_money(comparison.latest_observed_price)
-        if comparison and comparison.latest_observed_price is not None
-        else "None yet"
-    )
-    if len(active_bookings) == 1 and booking is not None:
-        booked_fare_label = format_money(booking.booked_price)
-    elif len(active_bookings) > 1:
-        booked_fare_label = f"{len(active_bookings)} active"
-    else:
-        booked_fare_label = "Not booked"
     can_delete_parent_trip = (
         parent_trip.trip_kind == "one_time"
         and parent_trip.active
@@ -244,18 +220,9 @@ def trackers_detail(
             total_fetch_targets=total_fetch_targets,
             bookings=bookings,
             booking_views=booking_views,
-            untracked_booking_count=untracked_booking_count,
-            active_bookings=active_bookings,
-            booking=booking,
             can_delete_parent_trip=can_delete_parent_trip,
             can_detach_trip_instance=can_detach_trip_instance,
             can_delete_generated_trip_instance=can_delete_generated_trip_instance,
-            current_fare_label=current_fare_label,
-            booked_fare_label=booked_fare_label,
-            lifecycle_label=lifecycle_label,
-            lifecycle_tone=lifecycle_tone,
-            monitoring_label=monitoring_label,
-            action_label=action_label,
             trip_focus_url=trip_focus_url,
             tracker_detail_url=tracker_detail_url,
         ),

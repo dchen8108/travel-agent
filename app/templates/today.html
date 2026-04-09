@@ -11,31 +11,32 @@
         <strong>No travel decisions are waiting.</strong>
         <p>Upcoming trips are covered, bookings are linked, and there are no fare changes to review.</p>
       </div>
-      <a class="button secondary" href="/#all-travel">Browse travel</a>
     </div>
     {% else %}
     <div class="attention-stack">
       {% if unmatched_views %}
       <section class="attention-group" id="needs-linking">
-        <div class="stack">
+        <div class="action-item-list">
           {% for card in unmatched_views %}
           {% set unmatched = card.unmatched %}
-          <article class="card resolve-card booking-card">
-            <div class="card-header">
-              <div>
-                <strong>Link booking · {{ unmatched.origin_airport }} → {{ unmatched.destination_airport }}</strong>
-                <p class="muted">
-                  {{ unmatched.departure_date.isoformat() }} · {{ unmatched.departure_time }}{% if unmatched.arrival_time %}–{{ unmatched.arrival_time }}{% endif %} ·
-                  {{ airline_label(unmatched.airline) }}
-                </p>
+          <article class="action-item-shell action-item-shell--booking">
+            <div class="action-item-header">
+              <div class="action-item-header-copy">
+                <strong>Link booking</strong>
+                <p class="compact-meta">{{ unmatched.record_locator or 'Imported booking' }} · {{ unmatched.source.replace('_', ' ') }}</p>
               </div>
-              <span class="badge">{{ money(unmatched.booked_price) }}</span>
+              <span class="signal-badge">{{ money(unmatched.booked_price) }}</span>
             </div>
-            <div class="meta-grid">
-              <div><dt>Record locator</dt><dd>{{ unmatched.record_locator or '—' }}</dd></div>
-              <div><dt>Source</dt><dd>{{ unmatched.source.replace('_', ' ') }}</dd></div>
+            <div class="timeline-list action-item-embedded-list">
+              {% set scheduled_instance = unmatched %}
+              {% set row = booking_row_summary(unmatched) %}
+              {% set row_date = unmatched.departure_date %}
+              {% set row_href = "" %}
+              {% set row_id_prefix = "action-unlinked-booking" %}
+              {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
+              {% include "partials/scheduled_trip_row.html" %}
             </div>
-            <div class="two-column top-gap-small">
+            <div class="two-column top-gap-small action-item-actions">
               <form method="post" action="/bookings/unmatched/{{ unmatched.unmatched_booking_id }}/link" class="subcard">
                 <h4>Link to an existing scheduled trip</h4>
                 <label>
@@ -80,7 +81,7 @@
                 <button type="submit" class="button secondary">Create trip from booking</button>
               </form>
             </div>
-            <div class="actions action-row booking-card-footer-actions">
+            <div class="actions action-row booking-card-footer-actions action-item-footer">
               <div class="action-cluster">
                 <form method="post" action="/bookings/{{ unmatched.unmatched_booking_id }}/delete">
                   <button type="submit" class="button danger-outline">Delete</button>
@@ -95,19 +96,20 @@
 
       {% if overbooked_views %}
       <section class="attention-group">
-        <div class="signal-list">
+        <div class="action-item-list">
           {% for card in overbooked_views %}
-          <article class="signal-item signal-item-warning">
-            <div class="signal-copy">
-              <div class="signal-headline">
+          <article class="action-item-shell action-item-shell--warning">
+            <div class="action-item-header">
+              <div class="action-item-header-copy">
                 <strong>Multiple bookings</strong>
-                <span class="signal-badge">{{ card.active_booking_count }} active</span>
               </div>
-              <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
-              <p class="compact-meta">
-                {{ card.instance.anchor_date.strftime('%a, %b %d') }}{% if card.context_label %} · {{ card.context_label }}{% endif %}
-              </p>
-              <p class="signal-detail">{{ card.detail }}</p>
+              <span class="signal-badge">{{ card.active_booking_count }} active</span>
+            </div>
+            {% set scheduled_instance = card.instance %}
+            {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
+            {% set row_id_prefix = "action-overbooked" %}
+            <div class="timeline-list action-item-embedded-list">
+              {% include "partials/scheduled_trip_row.html" %}
             </div>
           </article>
           {% endfor %}
@@ -117,21 +119,22 @@
 
       {% if rebook_views %}
       <section class="attention-group">
-        <div class="signal-list">
+        <div class="action-item-list">
           {% for card in rebook_views %}
-          <article class="signal-item signal-item-accent">
-            <div class="signal-copy">
-              <div class="signal-headline">
+          <article class="action-item-shell action-item-shell--accent">
+            <div class="action-item-header">
+              <div class="action-item-header-copy">
                 <strong>Price drop</strong>
-                {% if card.savings %}
-                <span class="signal-badge">{{ money(card.savings) }} lower</span>
-                {% endif %}
               </div>
-              <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
-              <p class="compact-meta">
-                {{ card.instance.anchor_date.strftime('%a, %b %d') }}{% if card.context_label %} · {{ card.context_label }}{% endif %}
-              </p>
-              <p class="signal-detail">{{ card.detail }}</p>
+              {% if card.savings %}
+              <span class="signal-badge">{{ money(card.savings) }} lower</span>
+              {% endif %}
+            </div>
+            {% set scheduled_instance = card.instance %}
+            {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
+            {% set row_id_prefix = "action-rebook" %}
+            <div class="timeline-list action-item-embedded-list">
+              {% include "partials/scheduled_trip_row.html" %}
             </div>
           </article>
           {% endfor %}
@@ -141,18 +144,20 @@
 
       {% if book_now_views %}
       <section class="attention-group">
-        <div class="signal-list">
+        <div class="action-item-list">
           {% for card in book_now_views %}
-          <article class="signal-item">
-            <div class="signal-copy">
-              <div class="signal-headline">
+          <article class="action-item-shell">
+            <div class="action-item-header">
+              <div class="action-item-header-copy">
                 <strong>Needs booking</strong>
-                <span class="signal-badge">{{ card.instance.anchor_date.strftime('%b %d') }}</span>
               </div>
-              <a class="signal-title" href="{{ card.href }}">{{ card.title }}</a>
-              <p class="compact-meta">
-                {% if card.context_label %}{{ card.context_label }} · {% endif %}{{ card.detail }}
-              </p>
+              <span class="signal-badge">{{ card.instance.anchor_date.strftime('%b %d') }}</span>
+            </div>
+            {% set scheduled_instance = card.instance %}
+            {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
+            {% set row_id_prefix = "action-book" %}
+            <div class="timeline-list action-item-embedded-list">
+              {% include "partials/scheduled_trip_row.html" %}
             </div>
           </article>
           {% endfor %}

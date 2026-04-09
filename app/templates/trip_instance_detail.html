@@ -8,13 +8,6 @@
     </p>
     <p class="page-context">Scheduled trip</p>
     <h2>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }}</h2>
-    <div class="detail-hero-meta">
-      <span class="status-pill {{ lifecycle_tone }}">{{ lifecycle_label }}</span>
-      <span class="badge neutral">{{ monitoring_label }}</span>
-      {% if action_label %}
-      <span class="badge warning">{{ action_label }}</span>
-      {% endif %}
-    </div>
     {% if trip_groups or recurring_rule %}
     <p class="muted detail-related-links">
       {% if trip_groups %}
@@ -38,98 +31,64 @@
     {% if not (recurring_rule and parent_trip.trip_kind == 'weekly') %}
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
-    <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
   </div>
-  <section class="summary-strip detail-summary-strip">
-    <div class="summary-pill"><span>{{ trip_instance.anchor_date.strftime('%b %d') }}</span><small>travel date</small></div>
-    <div class="summary-pill"><span>{{ lifecycle_label }}</span><small>status</small></div>
-    <div class="summary-pill"><span>{{ current_fare_label }}</span><small>best current fare</small></div>
-    <div class="summary-pill"><span>{{ booked_fare_label }}</span><small>booked fare</small></div>
-  </section>
+  {% set scheduled_instance = trip_instance %}
+  {% set row = trip_row_summary(snapshot, trip_instance.trip_instance_id) %}
+  {% set row_id_prefix = "detail-trip" %}
+  <div class="timeline-list detail-embedded-list">
+    {% include "partials/scheduled_trip_row.html" %}
+  </div>
 </section>
 
-{% if bookings %}
 <section class="section dashboard-panel detail-section-panel">
   <div class="panel-header">
-    <div>
-      <h3>Bookings</h3>
+    <h3>Bookings</h3>
+    <div class="section-actions">
+      <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
     </div>
   </div>
-  {% if untracked_booking_count %}
-  <section class="warning-card slim-callout booking-section-warning">
-    <strong>
-      {% if untracked_booking_count == 1 %}
-      1 linked booking is not being tracked by any route on this trip yet
-      {% else %}
-      {{ untracked_booking_count }} linked bookings are not being tracked by any route on this trip yet
-      {% endif %}
-    </strong>
-    <p>Add a matching route to compare these fares.</p>
-  </section>
-  {% endif %}
+  {% if booking_views %}
   <div class="stack">
     {% for booking_card in booking_views %}
     {% set linked_booking = booking_card.booking %}
     {% set route_tracking = booking_card.route_tracking %}
-    <article class="card booking-card {{ 'is-muted-card' if linked_booking.status != 'active' else '' }}">
-      <div class="card-header">
-        <div>
-          <strong>{{ linked_booking.origin_airport }} → {{ linked_booking.destination_airport }}</strong>
-          <p class="muted">
-            {{ linked_booking.departure_date.isoformat() }} · {{ linked_booking.departure_time }}{% if linked_booking.arrival_time %}–{{ linked_booking.arrival_time }}{% endif %} ·
-            {{ airline_label(linked_booking.airline) }}
-          </p>
-        </div>
-        <div class="badge-stack">
-          <span class="badge">{{ money(linked_booking.booked_price) }}</span>
-          <span class="status-pill {{ 'success' if linked_booking.status == 'active' else 'neutral' }}">{{ linked_booking.status }}</span>
-        </div>
+    <article class="action-item-shell action-item-shell--booking detail-booking-shell {{ 'is-muted-card' if linked_booking.status != 'active' else '' }}">
+      <div class="timeline-list action-item-embedded-list">
+        {% set scheduled_instance = linked_booking %}
+        {% set row = booking_row_summary(linked_booking) %}
+        {% set row_date = linked_booking.departure_date %}
+        {% set row_href = "" %}
+        {% set row_id_prefix = "detail-booking" %}
+        {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
+        {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status in ['active', 'cancelled'] else "" %}
+        {% include "partials/scheduled_trip_row.html" %}
       </div>
-      <div class="meta-grid">
-        <div><dt>Record locator</dt><dd>{{ linked_booking.record_locator or '—' }}</dd></div>
-        <div><dt>Route tracking</dt><dd>{{ route_tracking.summary_label }}</dd></div>
-        <div><dt>Booked on</dt><dd>{{ linked_booking.booked_at.strftime('%Y-%m-%d') }}</dd></div>
-        <div><dt>Source</dt><dd>{{ linked_booking.source.replace('_', ' ') }}</dd></div>
-        <div><dt>Notes</dt><dd>{{ linked_booking.notes or '—' }}</dd></div>
+      <div class="booking-inline-meta">
+        <span><strong>Status</strong> {{ linked_booking.status }}</span>
+        <span><strong>Record locator</strong> {{ linked_booking.record_locator or '—' }}</span>
+        <span><strong>Route tracking</strong> {{ route_tracking.summary_label }}</span>
+        <span><strong>Booked on</strong> {{ linked_booking.booked_at.strftime('%Y-%m-%d') }}</span>
+        <span><strong>Source</strong> {{ linked_booking.source.replace('_', ' ') }}</span>
       </div>
+      {% if linked_booking.notes %}
+      <p class="booking-inline-note">{{ linked_booking.notes }}</p>
+      {% endif %}
       {% if route_tracking.warning %}
       <section class="warning-card slim-callout booking-warning-callout">
         <strong>{{ route_tracking.summary_label }}</strong>
         <p>{{ route_tracking.warning }}</p>
       </section>
       {% endif %}
-      {% if linked_booking.status == 'active' %}
-      <div class="actions action-row">
-        <div class="action-cluster">
-          <a class="button secondary" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
-          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
-            <button class="button ghost" type="submit">Cancel</button>
-          </form>
-          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-            <button class="button ghost" type="submit">Unlink</button>
-          </form>
-          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
-            <button class="button danger-outline" type="submit">Delete</button>
-          </form>
-        </div>
-      </div>
-      {% elif linked_booking.status == 'cancelled' %}
-      <div class="actions action-row">
-        <div class="action-cluster">
-          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/restore">
-            <button class="button secondary" type="submit">Restore</button>
-          </form>
-          <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
-            <button class="button danger-outline" type="submit">Delete</button>
-          </form>
-        </div>
-      </div>
-      {% endif %}
     </article>
     {% endfor %}
   </div>
+  {% endif %}
+  {% if not booking_views %}
+  <article class="empty-state">
+    <strong>No bookings yet.</strong>
+  </article>
+  {% endif %}
 </section>
-{% endif %}
 
 <section class="section dashboard-panel detail-section-panel">
   <div class="panel-header">

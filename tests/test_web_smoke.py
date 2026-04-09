@@ -12,7 +12,9 @@ from app.models.base import AppState
 from app.models.base import FetchTargetStatus, utcnow
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.groups import save_trip_group
+from app.services.trip_instances import detach_generated_trip_instance
 from app.services.trips import save_trip
+from app.services.workflows import sync_and_persist
 from app.settings import Settings
 from app.storage.repository import Repository
 
@@ -927,6 +929,100 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
     assert f'name=\"trip_id\" value=\"{trip_id}\"' in response.text
 
 
+def test_editing_detached_trip_anchor_date_updates_same_instance(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Detach Edit UI",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Wednesday",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR|LAX",
+                "airlines": "Southwest|Alaska",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "22:00",
+            }
+        ],
+    )
+    initial = sync_and_persist(repository, today=date(2026, 3, 31))
+    generated = next(item for item in initial.trip_instances if item.trip_id == trip.trip_id)
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="SFO",
+            destination_airport="BUR",
+            departure_date=generated.anchor_date + timedelta(days=1),
+            departure_time="18:50",
+            arrival_time="20:15",
+            booked_price=Decimal("58.40"),
+            record_locator="UIEDIT",
+        ),
+        trip_instance_id=generated.trip_instance_id,
+    )
+    assert booking is not None
+    assert unmatched is None
+    detached = detach_generated_trip_instance(repository, generated.trip_instance_id)
+    refreshed = sync_and_persist(repository, today=date(2026, 3, 31))
+    detached_trip = next(item for item in refreshed.trips if item.trip_id == detached.trip_id)
+    route_options_json = json.dumps(
+        [
+            {
+                "route_option_id": option.route_option_id,
+                "origin_airports": option.origin_codes,
+                "destination_airports": option.destination_codes,
+                "airlines": option.airline_codes,
+                "day_offset": option.day_offset,
+                "start_time": option.start_time,
+                "end_time": option.end_time,
+                "fare_class_policy": option.fare_class_policy,
+                "savings_needed_vs_previous": option.savings_needed_vs_previous,
+            }
+            for option in repository.load_route_options()
+            if option.trip_id == detached_trip.trip_id
+        ]
+    )
+
+    client = TestClient(create_app(settings))
+    response = client.post(
+        "/trips",
+        data={
+            "trip_id": detached_trip.trip_id,
+            "label": detached_trip.label,
+            "trip_kind": "one_time",
+            "anchor_date": (generated.anchor_date + timedelta(days=1)).isoformat(),
+            "anchor_weekday": "",
+            "preference_mode": detached_trip.preference_mode,
+            "data_scope": detached_trip.data_scope,
+            "route_options_json": route_options_json,
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    final_snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
+    detached_instances = [
+        item
+        for item in final_snapshot.trip_instances
+        if item.trip_id == detached_trip.trip_id and not item.deleted
+    ]
+    assert len(detached_instances) == 1
+    assert detached_instances[0].trip_instance_id == generated.trip_instance_id
+    assert detached_instances[0].anchor_date == generated.anchor_date + timedelta(days=1)
+
+
 def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -1107,8 +1203,8 @@ def test_cancelling_booking_returns_trip_to_planned(tmp_path: Path) -> None:
 
     snapshot_page = client.get(f"/trip-instances/{trip_instance_id}")
     assert snapshot_page.status_code == 200
-    assert ">Planned<" in snapshot_page.text
-    assert ">cancelled<" in snapshot_page.text
+    assert "cancelled" in snapshot_page.text
+    assert snapshot_page.text.count("Booked at") == 1
 
 
 def test_restoring_cancelled_booking_returns_trip_to_booked(tmp_path: Path) -> None:
@@ -1171,8 +1267,8 @@ def test_restoring_cancelled_booking_returns_trip_to_booked(tmp_path: Path) -> N
 
     snapshot_page = client.get(f"/trip-instances/{trip_instance_id}")
     assert snapshot_page.status_code == 200
-    assert ">Booked<" in snapshot_page.text
-    assert ">active<" in snapshot_page.text
+    assert "active" in snapshot_page.text
+    assert snapshot_page.text.count("Booked at") == 2
 
 
 def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -> None:
@@ -1226,7 +1322,8 @@ def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -
 
     detail = client.get(f"/trip-instances/{trip_instance_id}")
     assert detail.status_code == 200
-    assert ">Planned<" in detail.text
+    assert "No bookings yet." in detail.text
+    assert "Booked at" not in detail.text
 
 
 def test_editing_trip_surfaces_warning_when_linked_bookings_stop_matching_routes(tmp_path: Path) -> None:
@@ -1411,7 +1508,44 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
     assert "Bookings" in detail.text
     assert "MULTI1" in detail.text
     assert "MULTI2" in detail.text
-    assert "2 active" in detail.text
+    assert detail.text.count("Booked at") == 3
+
+
+def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Priced Tracker Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    trip_instance_url = response.headers["location"]
+
+    tracker = repository.load_trackers()[0]
+    tracker.latest_observed_price = 185
+    tracker.latest_match_summary = "Alaska"
+    tracker.latest_winning_origin_airport = "BUR"
+    tracker.latest_winning_destination_airport = "SFO"
+    repository.upsert_trackers([tracker])
+
+    detail = client.get(trip_instance_url)
+    assert detail.status_code == 200
+    assert "$185" in detail.text
+    assert "Tracked searches" in detail.text
 
 
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
@@ -2126,6 +2260,43 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     assert "Next refresh:" in trackers_page.text
     assert "BUR to SFO" in trackers_page.text
     assert "LAX to SFO" in trackers_page.text
+
+
+def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Past due refresh",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    fetch_targets = repository.load_tracker_fetch_targets()
+    assert fetch_targets
+    target = fetch_targets[0]
+    target.next_fetch_not_before = utcnow() - timedelta(minutes=5)
+    repository.upsert_tracker_fetch_targets([target])
+
+    trips_page = client.get("/trips?q=Past+due+refresh")
+    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
+
+    assert "Next refresh:" in trackers_page.text
+    assert "Due now" in trackers_page.text
 
 
 def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:

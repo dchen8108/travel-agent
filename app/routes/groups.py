@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.services.dashboard_queries import recurring_rules_for_group, scheduled_instances
-from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
+from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.groups import delete_trip_group, save_trip_group
 from app.services.snapshot_queries import horizon_instances_for_rule, trip_group_by_id
 from app.storage.repository import Repository
@@ -76,7 +76,7 @@ def group_detail(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_live_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
