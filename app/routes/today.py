@@ -218,14 +218,6 @@ def today(
         if instance.anchor_date <= action_window_cutoff
     ]
 
-    monitoring_labels = [
-        trip_monitoring_status_label(snapshot, instance.trip_instance_id)
-        for instance in upcoming_instances
-    ]
-    tracking_count = sum(1 for label in monitoring_labels if label == "Tracking")
-    initializing_count = sum(1 for label in monitoring_labels if label == "Initializing")
-    no_match_count = sum(1 for label in monitoring_labels if label == "No matches")
-
     group_views = [
         _group_dashboard_view(snapshot, group, today=today)
         for group in sorted(
@@ -258,9 +250,6 @@ def today(
             scheduled_filter_action_path="/",
             scheduled_filter_clear_path="/#all-travel",
             total_upcoming=len(upcoming_instances),
-            tracking_count=tracking_count,
-            initializing_count=initializing_count,
-            no_match_count=no_match_count,
             booking_for_instance=booking_for_instance,
             best_tracker=best_tracker,
             trip_for_instance=trip_for_instance,

@@ -1916,28 +1916,15 @@ textarea {
 .dashboard-grid-v4 {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.72fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
 .dashboard-primary-panel {
-  grid-column: 1;
+  grid-column: 1 / -1;
   border-color: rgba(164, 194, 184, 0.58);
   box-shadow: 0 14px 34px rgba(18, 32, 44, 0.05);
   padding: 18px;
-}
-
-.dashboard-rail {
-  grid-column: 2;
-  display: grid;
-  gap: 16px;
-}
-
-.dashboard-rail-panel {
-  gap: 14px;
-  padding: 16px;
-  background: rgba(252, 248, 242, 0.88);
-  box-shadow: 0 8px 20px rgba(18, 32, 44, 0.025);
 }
 
 .timeline-panel {
@@ -2520,6 +2507,14 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-price--link:hover {
   transform: translateY(-1px);
   opacity: 0.82;
+}
+
+.timeline-offer-status {
+  color: var(--muted);
+  font-size: 0.96rem;
+  font-style: italic;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .timeline-fact {

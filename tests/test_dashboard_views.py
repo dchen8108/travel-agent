@@ -83,6 +83,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
         "price_label": "$88",
         "href": "https://example.com/gf",
         "tone": "success",
+        "price_is_status": False,
     }
 
 
@@ -169,6 +170,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
         "price_label": "$124",
         "href": "",
         "tone": "neutral",
+        "price_is_status": False,
     }
     assert row["current_offer"] == {
         "label": "Live best",
@@ -178,6 +180,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
         "price_label": "$88",
         "href": "https://example.com/gf",
         "tone": "accent",
+        "price_is_status": False,
     }
 
 
@@ -265,6 +268,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
         "price_label": "$124",
         "href": "",
         "tone": "neutral",
+        "price_is_status": False,
     }
     assert row["current_offer"] == {
         "label": "Live best",
@@ -274,4 +278,5 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
         "price_label": "$88",
         "href": "https://example.com/gf",
         "tone": "accent",
+        "price_is_status": False,
     }

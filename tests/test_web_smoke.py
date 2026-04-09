@@ -207,17 +207,17 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     response = client.post(
         "/trips",
         data={
-            "label": "LA to SF Outbound",
-            "trip_kind": "one_time",
-            "anchor_date": "2026-04-06",
-            "anchor_weekday": "",
-            "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+                "label": "LA to SF Outbound",
+                "trip_kind": "one_time",
+                "anchor_date": "2026-06-06",
+                "anchor_weekday": "",
+                "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
         },
         follow_redirects=False,
     )
     assert response.status_code == 303
 
-    trips_page = client.get("/trips")
+    trips_page = client.get("/")
     assert "LA to SF Outbound" in trips_page.text
 
     trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id

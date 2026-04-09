@@ -69,7 +69,11 @@
               </div>
               <div class="timeline-offer-price-stack">
                 <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
-                {% if row.current_offer.href %}
+                {% if row.current_offer.price_is_status %}
+                <span class="timeline-offer-status">
+                  {{ row.current_offer.price_label }}
+                </span>
+                {% elif row.current_offer.href %}
                 <a class="timeline-offer-price timeline-offer-price--{{ row.current_offer.tone }} timeline-offer-price--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
                   {{ row.current_offer.price_label }}
                 </a>
