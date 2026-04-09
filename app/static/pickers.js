@@ -149,19 +149,25 @@
           const button = document.createElement("button");
           button.type = "button";
           button.className = "multi-select-option";
+          button.dataset.optionValue = option.value;
           button.textContent = formatOption(option);
-          button.addEventListener("mousedown", (event) => {
-            event.preventDefault();
-            state.values = [...state.values, option.value];
-            renderChips();
-            onChange(Array.from(state.values));
-            search.value = "";
-            renderMenu("");
-          });
           menu.appendChild(button);
         });
         menu.hidden = false;
       }
+
+      menu.addEventListener("pointerdown", (event) => {
+        const optionButton = event.target.closest(".multi-select-option");
+        if (!optionButton) {
+          return;
+        }
+        event.preventDefault();
+        state.values = [...state.values, optionButton.dataset.optionValue];
+        renderChips();
+        onChange(Array.from(state.values));
+        search.value = "";
+        renderMenu("");
+      });
 
       renderChips();
       registerPicker(root, closeMenu);
@@ -186,6 +192,9 @@
       });
       search.addEventListener("blur", () => {
         closeMenuTimer = window.setTimeout(() => {
+          if (document.activeElement && menu.contains(document.activeElement)) {
+            return;
+          }
           closeMenu();
         }, 150);
       });
@@ -375,6 +384,18 @@
     let closeMenuTimer = null;
     const form = field.closest("form");
 
+    function selectOptionValue(nextValue) {
+      if (!nextValue) {
+        return;
+      }
+      state.value = nextValue;
+      hidden.value = nextValue;
+      search.value = "";
+      search.setCustomValidity("");
+      renderChip();
+      closeMenu();
+    }
+
     function matchingOptions(query) {
       const normalized = query.trim().toLowerCase();
       if (!normalized) {
@@ -467,19 +488,21 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "multi-select-option";
+        button.dataset.optionValue = option.value;
         button.textContent = formatOption(option);
-        button.addEventListener("mousedown", (event) => {
-          event.preventDefault();
-          state.value = option.value;
-          hidden.value = option.value;
-          search.value = "";
-          renderChip();
-          closeMenu();
-        });
         menu.appendChild(button);
       });
       menu.hidden = false;
     }
+
+    menu.addEventListener("pointerdown", (event) => {
+      const optionButton = event.target.closest(".multi-select-option");
+      if (!optionButton) {
+        return;
+      }
+      event.preventDefault();
+      selectOptionValue(optionButton.dataset.optionValue || "");
+    });
 
     renderChip();
     registerPicker(root, closeMenu);
@@ -508,9 +531,10 @@
     });
     search.addEventListener("blur", () => {
       closeMenuTimer = window.setTimeout(() => {
-        if (!document.activeElement || !menu.contains(document.activeElement)) {
-          commitSearchValue();
+        if (document.activeElement && menu.contains(document.activeElement)) {
+          return;
         }
+        commitSearchValue();
         closeMenu();
       }, 150);
     });

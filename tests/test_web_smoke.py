@@ -256,6 +256,36 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert "ABC123" in trip_page.text
 
 
+def test_booking_form_picker_fields_use_field_wrappers_not_labels(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Picker Trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-06-06",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
+    booking_page = client.get(f"/bookings/new?trip_instance_id={trip_instance_id}")
+
+    assert booking_page.status_code == 200
+    assert booking_page.text.count('class="field" data-single-picker-field') == 3
+    assert "<label data-single-picker-field" not in booking_page.text
+
+
 def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
