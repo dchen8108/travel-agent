@@ -68,7 +68,7 @@
           </label>
         </div>
       </div>
-      <label>
+      <div class="field">
         <span data-trip-group-label>{{ 'Target collections' if trip_form_state.trip_kind == 'weekly' else 'Collections' }}</span>
         <div data-trip-group-picker></div>
         <small class="muted" data-trip-group-help>
@@ -82,7 +82,7 @@
           No collections yet. <a href="/groups/new">Create one</a>.
           {% endif %}
         </small>
-      </label>
+      </div>
       <label class="kind-one-time {{ '' if trip_form_state.trip_kind == 'one_time' else 'is-hidden' }}" data-anchor-date-field>
         <span>Travel date</span>
         <input type="date" name="anchor_date" value="{{ trip_form_state.anchor_date }}">

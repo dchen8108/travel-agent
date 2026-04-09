@@ -93,6 +93,41 @@ def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: R
     assert repository.load_unmatched_bookings() == []
 
 
+def test_unmatched_booking_link_rejects_missing_trip_instance(repository: Repository) -> None:
+    _trip_instance_id = seed_trip(repository)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="United",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 7),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=149,
+            record_locator="BAD999",
+        ),
+    )
+
+    assert booking is None
+    assert unmatched is not None
+
+    try:
+        resolve_unmatched_booking_to_trip_instance(
+            repository,
+            unmatched_booking_id=unmatched.unmatched_booking_id,
+            trip_instance_id="inst_missing",
+        )
+    except KeyError as exc:
+        assert str(exc) == "'Scheduled trip not found'"
+    else:
+        raise AssertionError("Expected missing scheduled trip to be rejected")
+
+    assert repository.load_unmatched_bookings() != []
+    assert repository.load_bookings() == []
+
+
 def test_unmatched_booking_can_be_resolved_to_a_new_trip(repository: Repository) -> None:
     booking, unmatched = record_booking(
         repository,

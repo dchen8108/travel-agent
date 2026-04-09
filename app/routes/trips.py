@@ -145,6 +145,26 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
     return route_options
 
 
+def _parse_trip_group_ids(raw: str, repository: Repository) -> list[str]:
+    try:
+        payload = json.loads(raw or "[]")
+    except ValueError as exc:
+        raise ValueError("Collections selection is invalid.") from exc
+    if not isinstance(payload, list):
+        raise ValueError("Collections selection is invalid.")
+    known_group_ids = {group.trip_group_id for group in repository.load_trip_groups()}
+    trip_group_ids: list[str] = []
+    for item in payload:
+        trip_group_id = str(item).strip()
+        if not trip_group_id:
+            continue
+        if trip_group_id not in known_group_ids:
+            raise ValueError("Choose valid collections.")
+        if trip_group_id not in trip_group_ids:
+            trip_group_ids.append(trip_group_id)
+    return trip_group_ids
+
+
 def _route_option_views(trip, route_options):
     cumulative_bias = 0
     views = []
@@ -425,15 +445,7 @@ async def save_trip_action(
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
     route_options_json = str(form.get("route_options_json", "[]"))
-    try:
-        parsed_trip_group_ids = json.loads(trip_group_ids_json or "[]")
-    except ValueError:
-        parsed_trip_group_ids = []
-    trip_group_ids = [
-        str(item).strip()
-        for item in parsed_trip_group_ids
-        if str(item).strip()
-    ]
+    trip_group_ids: list[str] = []
     label = str(form.get("label", "")).strip()
     data_scope = (
         str(form.get("data_scope", existing_trip.data_scope if existing_trip else DataScope.LIVE)).strip()
@@ -445,6 +457,7 @@ async def save_trip_action(
     except ValueError:
         raw_route_option_state = []
     try:
+        trip_group_ids = _parse_trip_group_ids(trip_group_ids_json, repository)
         route_options = _parse_route_options(route_options_json)
         auto_created_group = False
         if trip_kind == "weekly" and not trip_group_ids:

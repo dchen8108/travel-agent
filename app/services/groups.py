@@ -64,6 +64,8 @@ def save_trip_group(
     trip_groups = repository.load_trip_groups()
     ensure_unique_group_label(trip_groups, label, existing_trip_group_id=trip_group_id)
     existing = next((item for item in trip_groups if item.trip_group_id == trip_group_id), None) if trip_group_id else None
+    if trip_group_id and existing is None:
+        raise ValueError("Trip group not found.")
     trip_group = build_trip_group(
         trip_group_id=trip_group_id,
         label=label,

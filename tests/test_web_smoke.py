@@ -286,6 +286,165 @@ def test_booking_form_picker_fields_use_field_wrappers_not_labels(tmp_path: Path
     assert "<label data-single-picker-field" not in booking_page.text
 
 
+def test_trip_form_collection_picker_uses_field_wrapper_not_label(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    trip_page = client.get("/trips/new")
+
+    assert trip_page.status_code == 200
+    assert 'class="field"' in trip_page.text
+    assert "<label>\n        <span data-trip-group-label>" not in trip_page.text
+
+
+def test_trip_create_rejects_invalid_collection_picker_payload(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Bad Collections",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "trip_group_ids_json": "not-json",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Collections selection is invalid." in response.text
+
+
+def test_trip_create_rejects_unknown_collection_picker_values(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/trips",
+        data={
+            "label": "Unknown Collections",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-04-06",
+            "anchor_weekday": "",
+            "trip_group_ids_json": '["grp_missing"]',
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Choose valid collections." in response.text
+
+
+def test_booking_create_rejects_missing_picker_backed_fields(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "inst_missing",
+            "airline": "",
+            "origin_airport": "",
+            "destination_airport": "",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "ABC123",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Choose an airline." in response.text
+
+
+def test_booking_create_rejects_invalid_explicit_trip_instance(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": "inst_missing",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "ABC123",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 400
+    assert "Choose a valid scheduled trip." in response.text
+
+
+def test_booking_edit_rejects_unknown_explicit_booking_id(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    response = client.post(
+        "/bookings",
+        data={
+            "booking_id": "book_missing",
+            "trip_instance_id": "",
+            "airline": "Alaska",
+            "origin_airport": "BUR",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "ABC123",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "'Booking not found'"
+
+
 def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -1511,8 +1670,8 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
         follow_redirects=False,
     )
     assert response.status_code == 303
-    trip_instance_url = response.headers["location"]
-    trip_instance_id = trip_instance_url.rsplit("/", 1)[1].split("?", 1)[0]
+    repository = Repository(settings)
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
 
     for locator in ["MULTI1", "MULTI2"]:
         booking_response = client.post(
@@ -1533,7 +1692,7 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
         )
         assert booking_response.status_code == 303
 
-    detail = client.get(trip_instance_url)
+    detail = client.get(f"/trip-instances/{trip_instance_id}")
     assert detail.status_code == 200
     assert "Bookings" in detail.text
     assert "MULTI1" in detail.text

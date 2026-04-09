@@ -167,6 +167,8 @@ def save_trip(
     )
 
     existing_trip = next((trip for trip in trips if trip.trip_id == trip_id), None) if trip_id else None
+    if trip_id and existing_trip is None:
+        raise ValueError("Trip not found.")
     trip = build_trip(
         trip_id=trip_id,
         label=label,

@@ -197,9 +197,28 @@ async def save_booking(
         "notes": str(form.get("notes", "")).strip(),
     }
     try:
+        if not booking_state["airline"]:
+            raise ValueError("Choose an airline.")
+        if not booking_state["origin_airport"]:
+            raise ValueError("Choose an origin airport.")
+        if not booking_state["destination_airport"]:
+            raise ValueError("Choose a destination airport.")
+        if not booking_state["departure_time"]:
+            raise ValueError("Departure time is required.")
+
         booked_price = parse_money(booking_state["booked_price"])
         if booked_price is None:
             raise ValueError("Booked price is required.")
+
+        if booking_state["trip_instance_id"]:
+            snapshot = load_persisted_snapshot(repository)
+            selected_trip_instance = next(
+                (item for item in snapshot.trip_instances if item.trip_instance_id == booking_state["trip_instance_id"]),
+                None,
+            )
+            if selected_trip_instance is None:
+                raise ValueError("Choose a valid scheduled trip.")
+
         candidate = BookingCandidate(
             airline=booking_state["airline"],
             origin_airport=booking_state["origin_airport"],
@@ -258,6 +277,8 @@ async def save_booking(
             booking_form_state=booking_state,
             status_code=400,
         )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/bookings/unmatched/{unmatched_booking_id}/link")

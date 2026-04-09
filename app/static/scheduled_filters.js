@@ -121,7 +121,7 @@
       refreshScheduledPanel(buildQuery(), { preservePickerUi });
     }
 
-    pickers.createMultiPicker({
+    pickers.createCompactMultiPicker({
       root: groupRoot,
       options: scheduledFiltersState.groupOptions || [],
       values: selectedTripGroupIds(),

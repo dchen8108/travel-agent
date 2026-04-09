@@ -1013,6 +1013,46 @@ def test_weekly_rules_ignore_legacy_group_field_after_targets_are_removed(reposi
     assert recurring_rules_for_group(refreshed, group.trip_group_id) == []
 
 
+def test_save_trip_rejects_unknown_explicit_trip_id(repository: Repository) -> None:
+    try:
+        save_trip(
+            repository,
+            trip_id="trip_missing",
+            label="Stale edit",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=date(2026, 4, 2),
+            anchor_weekday="",
+            route_option_payloads=[
+                {
+                    "origin_airports": "BUR",
+                    "destination_airports": "SFO",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "06:00",
+                    "end_time": "10:00",
+                }
+            ],
+        )
+    except ValueError as exc:
+        assert str(exc) == "Trip not found."
+    else:
+        raise AssertionError("Expected stale explicit trip_id to be rejected")
+
+
+def test_save_trip_group_rejects_unknown_explicit_group_id(repository: Repository) -> None:
+    try:
+        save_trip_group(
+            repository,
+            trip_group_id="grp_missing",
+            label="Stale group edit",
+        )
+    except ValueError as exc:
+        assert str(exc) == "Trip group not found."
+    else:
+        raise AssertionError("Expected stale explicit trip_group_id to be rejected")
+
+
 def test_deleting_generated_trip_instance_tombstones_and_suppresses_regeneration(repository: Repository) -> None:
     trip = save_trip(
         repository,

@@ -110,7 +110,7 @@
         tripGroupHelp.textContent = "";
       }
     }
-    pickers.createMultiPicker({
+    pickers.createCompactMultiPicker({
       root: tripGroupPickerRoot,
       options: tripGroups,
       values: tripGroupIds,
@@ -241,7 +241,7 @@
       } else {
         option.savings_needed_vs_previous = 0;
       }
-      pickers.createMultiPicker({
+      pickers.createChipMultiPicker({
         root: card.querySelector('[data-field="origin_airports"]'),
         options: airports,
         values: option.origin_airports,
@@ -252,7 +252,7 @@
           serialize();
         },
       });
-      pickers.createMultiPicker({
+      pickers.createChipMultiPicker({
         root: card.querySelector('[data-field="destination_airports"]'),
         options: airports,
         values: option.destination_airports,
@@ -263,7 +263,7 @@
           serialize();
         },
       });
-      pickers.createMultiPicker({
+      pickers.createChipMultiPicker({
         root: card.querySelector('[data-field="airlines"]'),
         options: airlines,
         values: option.airlines,

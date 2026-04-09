@@ -406,6 +406,17 @@ def resolve_unmatched_booking_to_trip_instance(
             return existing
         raise KeyError("Unmatched booking not found")
 
+    trip_instance = next(
+        (
+            item
+            for item in repository.load_trip_instances()
+            if item.trip_instance_id == trip_instance_id and not item.deleted
+        ),
+        None,
+    )
+    if trip_instance is None:
+        raise KeyError("Scheduled trip not found")
+
     candidate = BookingCandidate(
         airline=unmatched.airline,
         origin_airport=unmatched.origin_airport,
