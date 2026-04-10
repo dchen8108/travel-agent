@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
 from app.money import parse_money
-from app.models.base import DataScope
+from app.models.base import BookingStatus, DataScope
 from app.services.bookings import (
     BookingCandidate,
     cancel_booking,
@@ -33,6 +33,7 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
         return {
             "booking_id": "",
             "trip_instance_id": trip_instance_id,
+            "status": BookingStatus.ACTIVE,
             "airline": "",
             "origin_airport": "",
             "destination_airport": "",
@@ -46,6 +47,7 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
     return {
         "booking_id": booking.booking_id,
         "trip_instance_id": trip_instance_id or booking.trip_instance_id,
+        "status": booking.status,
         "airline": booking.airline,
         "origin_airport": booking.origin_airport,
         "destination_airport": booking.destination_airport,
@@ -159,7 +161,7 @@ def edit_booking(
 ) -> HTMLResponse:
     snapshot = load_persisted_snapshot(repository)
     booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
-    if booking is None or booking.status != "active":
+    if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     selected_trip_instance = next(
         (item for item in snapshot.trip_instances if item.trip_instance_id == booking.trip_instance_id),
@@ -186,6 +188,7 @@ async def save_booking(
     booking_state = {
         "booking_id": str(form.get("booking_id", "")).strip(),
         "trip_instance_id": str(form.get("trip_instance_id", "")).strip(),
+        "status": str(form.get("status", BookingStatus.ACTIVE)).strip() or BookingStatus.ACTIVE,
         "airline": str(form.get("airline", "")).strip(),
         "origin_airport": str(form.get("origin_airport", "")).strip(),
         "destination_airport": str(form.get("destination_airport", "")).strip(),
@@ -197,6 +200,8 @@ async def save_booking(
         "notes": str(form.get("notes", "")).strip(),
     }
     try:
+        if booking_state["status"] not in {BookingStatus.ACTIVE, BookingStatus.CANCELLED}:
+            raise ValueError("Choose a valid booking status.")
         if not booking_state["airline"]:
             raise ValueError("Choose an airline.")
         if not booking_state["origin_airport"]:
@@ -236,6 +241,7 @@ async def save_booking(
                 booking_id=booking_state["booking_id"],
                 trip_instance_id=booking_state["trip_instance_id"],
                 candidate=candidate,
+                status=booking_state["status"],
             )
             unmatched = None
         else:

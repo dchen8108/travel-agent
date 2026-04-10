@@ -567,15 +567,16 @@ def update_booking(
     booking_id: str,
     trip_instance_id: str,
     candidate: BookingCandidate,
+    status: str,
 ) -> Booking:
     bookings = repository.load_bookings()
     existing = next((item for item in bookings if item.booking_id == booking_id), None)
     if existing is None:
         raise KeyError("Booking not found")
-    if existing.status != BookingStatus.ACTIVE:
-        raise ValueError("Only active bookings can be edited.")
     if not trip_instance_id:
         raise ValueError("Choose a scheduled trip or unlink the booking instead.")
+    if status not in {BookingStatus.ACTIVE, BookingStatus.CANCELLED}:
+        raise ValueError("Choose a valid booking status.")
 
     app_state = repository.load_app_state()
     include_test_data = include_test_data_for_processing(app_state) or str(existing.data_scope) == DataScope.TEST
@@ -604,7 +605,7 @@ def update_booking(
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=existing.booked_at,
-        status=existing.status,
+        status=BookingStatus(status),
         notes=candidate.notes,
         created_at=existing.created_at,
         updated_at=utcnow(),
