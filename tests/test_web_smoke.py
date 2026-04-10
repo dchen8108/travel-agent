@@ -1980,7 +1980,7 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
     assert group_page.text.count('class="timeline-row"') == 15
 
 
-def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
+def test_weekly_trip_detail_redirects_to_edit_page(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -2004,10 +2004,8 @@ def test_trip_detail_renders_real_trip_page(tmp_path: Path) -> None:
     trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
 
     response = client.get(f"/trips/{trip_id}", follow_redirects=False)
-    assert response.status_code == 200
-    assert "Redirect Weekly Trip" in response.text
-    assert "Routes" in response.text
-    assert "Trips" in response.text
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/trips/{trip_id}/edit"
 
 
 def test_one_time_trip_detail_redirects_to_scheduled_trip_page(tmp_path: Path) -> None:
@@ -2036,6 +2034,107 @@ def test_one_time_trip_detail_redirects_to_scheduled_trip_page(tmp_path: Path) -
     response = client.get(f"/trips/{trip_id}", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"].startswith("/trip-instances/")
+
+
+def test_weekly_trip_edit_page_warns_about_linked_trips_and_locks_trip_type(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Protected Weekly Trip",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+
+    assert create.status_code == 303
+    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+
+    edit_page = client.get(f"/trips/{trip_id}/edit")
+    assert edit_page.status_code == 200
+    assert "Editing this recurring trip will affect" in edit_page.text
+    assert "detach that trip first" in edit_page.text
+    assert 'name="trip_kind" value="weekly"' in edit_page.text
+    assert "Trip type is fixed after creation." in edit_page.text
+    assert 'input type="radio" name="trip_kind"' not in edit_page.text
+
+
+def test_trip_instance_detail_links_attached_generated_trip_to_recurring_edit(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Managed Weekly Trip",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    assert detail.status_code == 200
+    assert "Managed by" not in detail.text
+    assert "Detached from" not in detail.text
+    assert "Edit recurring trip" in detail.text
+
+
+def test_group_detail_surfaces_rule_edit_button_without_rule_detail_link(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Rule On Group",
+            "trip_kind": "weekly",
+            "trip_group_ids_json": json.dumps([group.trip_group_id]),
+            "anchor_date": "",
+            "anchor_weekday": "Monday",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+
+    detail = client.get(f"/groups/{group.trip_group_id}")
+    assert detail.status_code == 200
+    assert f'href="/trips/{trip_id}/edit"' in detail.text
+    assert f'href="/trips/{trip_id}">' not in detail.text
 
 
 def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> None:

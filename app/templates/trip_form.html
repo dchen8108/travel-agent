@@ -42,6 +42,12 @@
     <p class="muted">Saving links this booking.</p>
   </section>
   {% endif %}
+  {% if recurring_edit_warning %}
+  <section class="warning-card top-gap-small">
+    <strong>Editing this recurring trip will affect {{ recurring_edit_warning.linked_trip_count }} {{ recurring_edit_warning.linked_trip_label }}.</strong>
+    <p>If you only want to edit one specific trip instance, detach that trip first and then edit it separately.</p>
+  </section>
+  {% endif %}
   <form method="post" action="/trips" id="trip-form" novalidate>
     <input type="hidden" name="trip_id" value="{{ trip.trip_id if trip else '' }}">
     <input type="hidden" name="route_options_json" value="">
@@ -57,6 +63,14 @@
       </label>
       <div class="field trip-type-field">
         <span>Trip type</span>
+        {% if trip %}
+        <input type="hidden" name="trip_kind" value="{{ trip_form_state.trip_kind }}">
+        <div class="trip-type-segmented trip-type-segmented--static" aria-readonly="true">
+          <span class="trip-type-pill trip-type-pill--static {{ 'is-selected' if trip_form_state.trip_kind == 'one_time' else '' }}">One-time</span>
+          <span class="trip-type-pill trip-type-pill--static {{ 'is-selected' if trip_form_state.trip_kind == 'weekly' else '' }}">Weekly</span>
+        </div>
+        <small class="muted">Trip type is fixed after creation.</small>
+        {% else %}
         <div class="trip-type-segmented">
           <label class="trip-type-pill">
             <input type="radio" name="trip_kind" value="one_time" data-trip-kind {{ 'checked' if trip_form_state.trip_kind == 'one_time' else '' }}>
@@ -67,6 +81,7 @@
             <span>Weekly</span>
           </label>
         </div>
+        {% endif %}
       </div>
       <div class="field">
         <span data-trip-group-label>{{ 'Target collections' if trip_form_state.trip_kind == 'weekly' else 'Collections' }}</span>

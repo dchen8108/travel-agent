@@ -1163,6 +1163,10 @@ textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.56);
 }
 
+.trip-type-segmented--static {
+  pointer-events: none;
+}
+
 .trip-type-pill {
   position: relative;
   display: block;
@@ -1209,6 +1213,26 @@ textarea {
   box-shadow:
     0 0 0 4px rgba(13, 122, 109, 0.12),
     inset 0 0 0 1px rgba(13, 122, 109, 0.18);
+}
+
+.trip-type-pill--static {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  color: #51606d;
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.trip-type-pill--static.is-selected {
+  background: rgba(216, 235, 230, 0.82);
+  color: var(--accent-strong);
+  box-shadow: inset 0 0 0 1px rgba(13, 122, 109, 0.18);
 }
 
 .trip-type-help {

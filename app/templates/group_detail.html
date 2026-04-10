@@ -44,17 +44,20 @@
     <article class="card" id="rule-{{ trip.trip_id }}">
       <div class="card-header">
         <div>
-          <strong><a class="dashboard-item-title" href="/trips/{{ trip.trip_id }}">{{ trip.label }}</a></strong>
+          <strong class="dashboard-item-title">{{ trip.label }}</strong>
           <p class="muted">Repeats on {{ trip.anchor_weekday }}</p>
         </div>
-        <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
-          <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
-            <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
-            <span class="toggle-switch-track" aria-hidden="true">
-              <span class="toggle-switch-thumb"></span>
-            </span>
-          </button>
-        </form>
+        <div class="inline-actions">
+          <a class="button ghost" href="/trips/{{ trip.trip_id }}/edit">Edit</a>
+          <form method="post" action="/trips/{{ trip.trip_id }}/{{ 'pause' if trip.active else 'activate' }}">
+            <button class="toggle-switch {{ 'is-on' if trip.active else '' }}" type="submit" aria-label="{{ 'Pause' if trip.active else 'Activate' }} {{ trip.label }}">
+              <span class="toggle-switch-label">{{ 'Active' if trip.active else 'Paused' }}</span>
+              <span class="toggle-switch-track" aria-hidden="true">
+                <span class="toggle-switch-thumb"></span>
+              </span>
+            </button>
+          </form>
+        </div>
       </div>
     </article>
     {% else %}

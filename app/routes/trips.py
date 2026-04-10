@@ -9,7 +9,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from app.catalog import catalogs_json
 from app.models.base import BookingStatus, DataScope, FareClassPolicy
 from app.route_options import day_offset_label
-from app.services.itinerary_display import route_option_display_label
 from app.services.bookings import (
     BookingCandidate,
     resolve_unmatched_booking_to_trip,
@@ -22,14 +21,10 @@ from app.services.dashboard_booking_views import (
     booking_reference_label,
     default_trip_label_for_booking,
 )
-from app.services.dashboard_navigation import trip_focus_url
 from app.services.dashboard_queries import trip_groups
 from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
 from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
-    best_tracker,
-    booking_for_instance,
-    trackers_for_instance,
 )
 from app.services.group_memberships import replace_manual_trip_instance_groups
 from app.services.groups import find_or_create_trip_group
@@ -41,8 +36,6 @@ from app.services.refresh_queue import (
 from app.services.snapshot_queries import (
     groups_for_rule,
     groups_for_trip,
-    horizon_instances_for_rule,
-    horizon_instances_for_trip,
     instances_for_rule,
     instances_for_trip,
     recurring_rule_for_instance,
@@ -167,81 +160,31 @@ def _parse_trip_group_ids(raw: str, repository: Repository) -> list[str]:
     return trip_group_ids
 
 
-def _route_option_views(trip, route_options):
-    cumulative_bias = 0
-    views = []
-    bias_enabled = getattr(trip, "preference_mode", "equal") == "ranked_bias"
-    for option in route_options:
-        pairwise_bias = option.savings_needed_vs_previous if bias_enabled else 0
-        cumulative_bias += pairwise_bias
-        if not bias_enabled:
-            preference_note = "Treated equally with the other route options."
-        elif option.rank == 1:
-            preference_note = "Highest preference. Lower options need extra savings to outrank it."
-        else:
-            preference_note = f"Needs at least ${pairwise_bias} savings versus option {option.rank - 1}."
-        fare_policy_label = (
-            "Includes Basic fares"
-            if option.fare_class_policy == "include_basic"
-            else "Excludes Basic fares"
-        )
-        views.append(
-            {
-                "option": option,
-                "pairwise_bias": pairwise_bias,
-                "cumulative_bias": cumulative_bias if bias_enabled else 0,
-                "preference_note": preference_note,
-                "route_label": route_option_display_label(
-                    option.origin_codes,
-                    option.destination_codes,
-                    option.airline_codes,
-                ),
-                "window_detail": f"{option.start_time}–{option.end_time} departure",
-                "window_day_label": (
-                    day_offset_label(trip.effective_anchor_weekday, option.day_offset)
-                    if option.day_offset != 0
-                    else ""
-                ),
-                "fare_label": "Basic fares",
-                "fare_value": "Included" if option.fare_class_policy == "include_basic" else "Excluded",
-                "origin_codes": option.origin_codes,
-                "destination_codes": option.destination_codes,
-                "airline_codes": option.airline_codes,
-            }
-        )
-    return views
-
-
-def _trip_detail_view(snapshot, trip_id: str, *, today: date | None = None) -> dict[str, object]:
-    today = today or date.today()
-    trip = trip_by_id(snapshot, trip_id)
-    if trip is None:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.trip_kind == "one_time" and not trip.active:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    route_options = route_options_for_trip(snapshot, trip.trip_id)
-    future_instances = (
-        horizon_instances_for_rule(snapshot, trip.trip_id, today=today)
-        if trip.trip_kind == "weekly"
-        else horizon_instances_for_trip(snapshot, trip.trip_id, today=today)
-    )
-    booked_count = sum(
+def _recurring_linked_trip_count(snapshot, trip) -> int:
+    if trip.trip_kind != "weekly":
+        return 0
+    return sum(
         1
-        for instance in future_instances
-        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+        for instance in instances_for_rule(snapshot, trip.trip_id)
+        if not instance.deleted and instance.inheritance_mode == "attached"
     )
-    planned_count = len(future_instances) - booked_count
-    next_open_instance = next(iter(future_instances), None)
-    return {
-        "trip": trip,
-        "route_options": route_options,
-        "route_option_views": _route_option_views(trip, route_options),
-        "future_instances": future_instances,
-        "planned_count": planned_count,
-        "booked_count": booked_count,
-        "next_open_instance": next_open_instance,
-        "today": today,
-    }
+
+
+def _trip_edit_cancel_url(request: Request, snapshot, trip) -> str:
+    if trip.trip_kind == "weekly":
+        recurring_groups = groups_for_rule(snapshot, trip)
+        if len(recurring_groups) == 1:
+            fallback_url = f"/groups/{recurring_groups[0].trip_group_id}"
+        else:
+            fallback_url = "/#all-travel"
+        return back_url(request, fallback_url=fallback_url)
+    one_time_instances = [
+        instance
+        for instance in instances_for_trip(snapshot, trip.trip_id)
+        if not instance.deleted
+    ]
+    fallback_url = f"/trip-instances/{one_time_instances[0].trip_instance_id}" if one_time_instances else "/#all-travel"
+    return back_url(request, fallback_url=fallback_url)
 
 
 def _render_trip_form(
@@ -254,6 +197,7 @@ def _render_trip_form(
     route_option_state,
     source_unmatched_booking=None,
     cancel_url: str,
+    recurring_edit_warning: dict[str, object] | None = None,
     error_message: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -271,6 +215,7 @@ def _render_trip_form(
             route_option_state=route_option_state,
             source_unmatched_booking=source_unmatched_booking,
             cancel_url=cancel_url,
+            recurring_edit_warning=recurring_edit_warning,
             source_booking_reference_label=(
                 booking_reference_label(source_unmatched_booking)
                 if source_unmatched_booking is not None
@@ -393,35 +338,25 @@ def trip_detail(
     repository: Repository = Depends(get_repository),
 ) -> Response:
     snapshot = load_persisted_snapshot(repository)
-    detail_view = _trip_detail_view(snapshot, trip_id)
-    trip = detail_view["trip"]
+    trip = trip_by_id(snapshot, trip_id)
+    if trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.trip_kind == "one_time" and not trip.active:
+        raise HTTPException(status_code=404, detail="Trip not found")
     if trip.trip_kind == "one_time":
         one_time_instances = instances_for_trip(snapshot, trip.trip_id)
         if not one_time_instances:
             snapshot = load_live_snapshot(repository)
-            detail_view = _trip_detail_view(snapshot, trip_id)
-            trip = detail_view["trip"]
+            trip = trip_by_id(snapshot, trip_id)
+            if trip is None:
+                raise HTTPException(status_code=404, detail="Trip not found")
             one_time_instances = instances_for_trip(snapshot, trip.trip_id)
         if one_time_instances:
             return RedirectResponse(
                 url=f"/trip-instances/{one_time_instances[0].trip_instance_id}",
                 status_code=303,
             )
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="trip_detail.html",
-        context=base_context(
-            request,
-            page="trips",
-            snapshot=snapshot,
-            back_href=back_url(request, fallback_url="/#all-travel"),
-            best_tracker=best_tracker,
-            booking_for_instance=booking_for_instance,
-            trackers_for_instance=trackers_for_instance,
-            trip_focus_url=trip_focus_url,
-            **detail_view,
-        ),
-    )
+    return RedirectResponse(url=f"/trips/{trip.trip_id}/edit", status_code=303)
 
 
 @router.get("/trips/{trip_id}/edit", response_class=HTMLResponse)
@@ -437,6 +372,13 @@ def edit_trip(
     if trip.trip_kind == "one_time" and not trip.active:
         raise HTTPException(status_code=404, detail="Trip not found")
     route_options = route_options_for_trip(snapshot, trip.trip_id)
+    recurring_edit_warning = None
+    if trip.trip_kind == "weekly":
+        linked_trip_count = _recurring_linked_trip_count(snapshot, trip)
+        recurring_edit_warning = {
+            "linked_trip_count": linked_trip_count,
+            "linked_trip_label": "linked trip" if linked_trip_count == 1 else "linked trips",
+        }
     return _render_trip_form(
         request,
         snapshot=snapshot,
@@ -448,7 +390,8 @@ def edit_trip(
             trip_group_ids=[group.trip_group_id for group in groups_for_trip(snapshot, trip)],
         ),
         route_option_state=_route_option_state(route_options),
-        cancel_url=back_url(request, fallback_url=f"/trips/{trip.trip_id}"),
+        cancel_url=_trip_edit_cancel_url(request, snapshot, trip),
+        recurring_edit_warning=recurring_edit_warning,
     )
 
 
@@ -461,6 +404,8 @@ async def save_trip_action(
     trip_id = str(form.get("trip_id", "")).strip() or None
     existing_trip = next((item for item in repository.load_trips() if item.trip_id == trip_id), None) if trip_id else None
     trip_kind = str(form.get("trip_kind", "weekly"))
+    if existing_trip is not None:
+        trip_kind = str(existing_trip.trip_kind)
     trip_group_ids_json = str(form.get("trip_group_ids_json", "[]") or "[]")
     preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
     source_unmatched_booking_id = str(form.get("source_unmatched_booking_id", "")).strip()
@@ -581,10 +526,17 @@ async def save_trip_action(
             (
                 item
                 for item in snapshot.unmatched_bookings
-                if item.unmatched_booking_id == source_unmatched_booking_id and item.resolution_status == "open"
+            if item.unmatched_booking_id == source_unmatched_booking_id and item.resolution_status == "open"
             ),
             None,
         ) if source_unmatched_booking_id else None
+        recurring_edit_warning = None
+        if existing_trip and existing_trip.trip_kind == "weekly":
+            linked_trip_count = _recurring_linked_trip_count(snapshot, existing_trip)
+            recurring_edit_warning = {
+                "linked_trip_count": linked_trip_count,
+                "linked_trip_label": "linked trip" if linked_trip_count == 1 else "linked trips",
+            }
         return _render_trip_form(
             request,
             snapshot=snapshot,
@@ -594,7 +546,7 @@ async def save_trip_action(
             trip_form_state={
                 "trip_id": trip_id or "",
                 "label": label,
-                "trip_kind": trip_kind,
+                "trip_kind": str(existing_trip.trip_kind) if existing_trip else trip_kind,
                 "trip_group_ids": trip_group_ids,
                 "preference_mode": preference_mode,
                 "anchor_date": anchor_date_value,
@@ -603,8 +555,9 @@ async def save_trip_action(
             },
             route_option_state=_route_option_state_from_payloads(raw_route_option_state),
             source_unmatched_booking=source_unmatched_booking,
+            recurring_edit_warning=recurring_edit_warning,
             cancel_url=cancel_url or (
-                f"/trips/{existing_trip.trip_id}" if existing_trip else (
+                _trip_edit_cancel_url(request, snapshot, existing_trip) if existing_trip else (
                     "/#needs-linking" if source_unmatched_booking is not None else "/"
                 )
             ),

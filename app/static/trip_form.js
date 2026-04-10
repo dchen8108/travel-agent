@@ -18,7 +18,7 @@
   const anchorDateField = form?.querySelector("[data-anchor-date-field]");
   const anchorWeekdayField = form?.querySelector("[data-anchor-weekday-field]");
   const addRouteOptionButton = document.querySelector("[data-add-route-option]");
-  if (!form || !root || !hidden || !tripGroupIdsHidden || !tripKindInputs.length || !anchorWeekdayInputs.length || !tripGroupPickerRoot || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
+  if (!form || !root || !hidden || !tripGroupIdsHidden || !anchorWeekdayInputs.length || !tripGroupPickerRoot || !anchorDateField || !anchorWeekdayField || !addRouteOptionButton) {
     return;
   }
 

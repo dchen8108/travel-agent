@@ -158,6 +158,11 @@ def save_trip(
     trips = repository.load_trips()
     route_options = repository.load_route_options()
     parsed_trip_kind = parse_trip_kind(trip_kind)
+    existing_trip = next((trip for trip in trips if trip.trip_id == trip_id), None) if trip_id else None
+    if trip_id and existing_trip is None:
+        raise ValueError("Trip not found.")
+    if existing_trip is not None and parsed_trip_kind != existing_trip.trip_kind:
+        raise ValueError("Trip type cannot be changed once created.")
     ensure_valid_trip_label(
         trips,
         label,
@@ -165,10 +170,6 @@ def save_trip(
         anchor_date=anchor_date,
         existing_trip_id=trip_id,
     )
-
-    existing_trip = next((trip for trip in trips if trip.trip_id == trip_id), None) if trip_id else None
-    if trip_id and existing_trip is None:
-        raise ValueError("Trip not found.")
     trip = build_trip(
         trip_id=trip_id,
         label=label,

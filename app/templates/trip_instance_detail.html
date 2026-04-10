@@ -8,7 +8,7 @@
     </p>
     <p class="page-context">Scheduled trip</p>
     <h2>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }}</h2>
-    {% if trip_groups or recurring_rule %}
+    {% if trip_groups %}
     <p class="muted detail-related-links">
       {% if trip_groups %}
       In
@@ -16,20 +16,14 @@
       <a href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>{% if not loop.last %}, {% endif %}
       {% endfor %}
       {% endif %}
-      {% if recurring_rule %}
-      {% if trip_groups %} · {% endif %}
-      {% if trip_instance.inheritance_mode == 'detached' %}
-      Detached from <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
-      {% else %}
-      Managed by <a href="/trips/{{ recurring_rule.trip_id }}">{{ recurring_rule.label }}</a>
-      {% endif %}
-      {% endif %}
     </p>
     {% endif %}
   </div>
-  {% if not (recurring_rule and parent_trip.trip_kind == 'weekly') or can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip %}
+  {% if recurring_rule or can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip or parent_trip.trip_kind != 'weekly' %}
   <div class="hero-actions">
-    {% if not (recurring_rule and parent_trip.trip_kind == 'weekly') %}
+    {% if recurring_rule and trip_instance.inheritance_mode == 'attached' and parent_trip.trip_kind == 'weekly' %}
+    <a class="button secondary" href="/trips/{{ recurring_rule.trip_id }}/edit">Edit recurring trip</a>
+    {% else %}
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
     {% if can_detach_trip_instance %}

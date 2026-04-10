@@ -292,6 +292,50 @@ def test_one_time_trip_labels_can_repeat_on_different_dates(repository: Reposito
     assert duplicate.label == "Conference Arrival"
 
 
+def test_save_trip_rejects_switching_trip_kind_for_existing_trip(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Locked Kind Trip",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="Trip type cannot be changed once created."):
+        save_trip(
+            repository,
+            trip_id=trip.trip_id,
+            label="Locked Kind Trip",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=date(2026, 4, 6),
+            anchor_weekday="",
+            route_option_payloads=[
+                {
+                    "route_option_id": repository.load_route_options()[0].route_option_id,
+                    "origin_airports": "BUR",
+                    "destination_airports": "SFO",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "06:00",
+                    "end_time": "10:00",
+                }
+            ],
+        )
+
+
 def test_one_time_trip_label_and_date_must_be_unique(repository: Repository) -> None:
     save_trip(
         repository,
