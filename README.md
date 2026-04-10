@@ -190,15 +190,15 @@ That installs a LaunchAgent that:
 
 - runs at login and then on the checked-in interval in `config/app_state.json`
 - fetches up to the configured per-run target cap from `config/app_state.json`
-- relies on the app's own persisted queue and configured fetch cadence
+- continuously refreshes the stalest active airport-pair searches first
 - adds a small random startup delay before each Google Flights request batch
 - keeps a small random delay between requests inside a multi-target batch
 - writes structured JSON-line logs under `data/logs/`
 
 The fetcher logs:
 
-- one `run_started` event with queue metadata, due backlog count, and selected target ids
-- one `target_processed` event per attempted airport-pair fetch with timings, travel metadata, price, and next refresh time
+- one `run_started` event with stale backlog metadata and selected target ids
+- one `target_processed` event per attempted airport-pair fetch with timings, travel metadata, price, and any fetch error
 - one `run_completed` or `run_failed` event per batch, including full traceback details on failures
 
 To remove it later:

@@ -23,6 +23,7 @@ class TrackerFetchTarget(CsvModel):
     last_fetch_status: FetchTargetStatus = FetchTargetStatus.PENDING
     last_fetch_error: str = ""
     consecutive_failures: int = 0
+    refresh_requested_at: datetime | None = None
     next_fetch_not_before: datetime | None = None
     fetch_claim_owner: str = ""
     fetch_claim_expires_at: datetime | None = None

@@ -978,7 +978,7 @@ def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> Non
     repository = Repository(settings)
     fetch_targets = repository.load_tracker_fetch_targets()
     assert len(fetch_targets) == 2
-    assert all(target.next_fetch_not_before is not None for target in fetch_targets)
+    assert all(target.refresh_requested_at is not None for target in fetch_targets)
     assert all(target.last_fetch_status == FetchTargetStatus.PENDING for target in fetch_targets)
 
 
@@ -1752,7 +1752,8 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
     fetch_targets = repository.load_tracker_fetch_targets()
     delayed_until = utcnow() + timedelta(hours=6)
     for target in fetch_targets:
-        target.next_fetch_not_before = delayed_until
+        target.refresh_requested_at = None
+        target.last_fetch_finished_at = delayed_until
     repository.replace_tracker_fetch_targets(fetch_targets)
 
     pause = client.post(f"/trips/{trip_id}/pause", follow_redirects=False)
@@ -1764,8 +1765,7 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
 
     refreshed_targets = repository.load_tracker_fetch_targets()
     assert len(refreshed_targets) == 16
-    assert all(target.next_fetch_not_before is not None for target in refreshed_targets)
-    assert all(target.next_fetch_not_before < delayed_until for target in refreshed_targets)
+    assert all(target.refresh_requested_at is not None for target in refreshed_targets)
 
 
 def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Path) -> None:
@@ -2514,7 +2514,7 @@ def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -
     fetch_targets = repository.load_tracker_fetch_targets()
     assert fetch_targets
     target = fetch_targets[0]
-    target.next_fetch_not_before = utcnow() - timedelta(minutes=5)
+    target.last_fetch_finished_at = utcnow() - timedelta(minutes=5)
     repository.upsert_tracker_fetch_targets([target])
 
     trips_page = client.get("/trips?q=Past+due+refresh")
@@ -2580,7 +2580,6 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     fetch_targets = repository.load_tracker_fetch_targets()
     fetch_targets[0].last_fetch_status = FetchTargetStatus.NO_RESULTS
     fetch_targets[0].last_fetch_finished_at = utcnow()
-    fetch_targets[0].next_fetch_not_before = utcnow() + timedelta(hours=4)
     fetch_targets[0].latest_price = None
     repository.replace_tracker_fetch_targets(fetch_targets)
 

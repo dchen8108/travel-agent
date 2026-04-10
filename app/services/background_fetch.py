@@ -11,7 +11,7 @@ from app.models.base import AppState, FetchTargetStatus, utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
-from app.services.fetch_targets import fetch_stagger_seconds, next_refresh_time
+from app.services.fetch_targets import fetch_stagger_seconds
 from app.services.google_flights_fetcher import (
     GoogleFlightsFetchError,
     GoogleFlightsNoResultsError,
@@ -70,7 +70,6 @@ class FetchAttemptResult:
     status: str
     started_at: datetime
     fetched_at: datetime
-    next_fetch_not_before: datetime | None
     duration_seconds: float
     price: int | None = None
     airline: str = ""
@@ -90,15 +89,10 @@ def queue_rolling_refresh(
     app_state: AppState | None = None,
 ) -> int:
     now = now or utcnow()
+    queued_count = 0
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
-    ordered = sorted(
-        fetch_targets,
-        key=lambda item: _selection_sort_key(item, tracker_by_id, instance_by_id, now.date()),
-    )
-    queued_count = 0
-    next_scheduled_at = now
-    for target in ordered:
+    for target in fetch_targets:
         tracker = tracker_by_id.get(target.tracker_id)
         instance = instance_by_id.get(target.trip_instance_id)
         if not tracker or not instance:
@@ -113,10 +107,10 @@ def queue_rolling_refresh(
             continue
         if instance.deleted or tracker.travel_date < now.date():
             continue
-        target.next_fetch_not_before = next_scheduled_at
+        target.refresh_requested_at = now
+        target.next_fetch_not_before = None
         target.updated_at = now
         queued_count += 1
-        next_scheduled_at = next_scheduled_at + timedelta(seconds=fetch_stagger_seconds(app_state))
     return queued_count
 
 
@@ -176,16 +170,9 @@ def select_due_fetch_targets(
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
     selected: list[TrackerFetchTarget] = []
-    active_claimed_tracker_ids = {
-        target.tracker_id
-        for target in fetch_targets
-        if _has_active_claim(target, now)
-    }
-    selected_tracker_ids: set[str] = set()
-
     ordered = sorted(
         fetch_targets,
-        key=lambda item: _selection_sort_key(item, tracker_by_id, instance_by_id, now.date()),
+        key=lambda item: _selection_sort_key(item, tracker_by_id, instance_by_id, now),
     )
     for target in ordered:
         tracker = tracker_by_id.get(target.tracker_id)
@@ -200,16 +187,11 @@ def select_due_fetch_targets(
             continue
         if instance.deleted or tracker.travel_date < now.date():
             continue
-        if target.tracker_id in active_claimed_tracker_ids:
-            continue
         if _has_active_claim(target, now):
             continue
-        if target.next_fetch_not_before and target.next_fetch_not_before > now:
-            continue
-        if target.tracker_id in selected_tracker_ids:
+        if _has_failure_backoff(target, now, app_state=app_state):
             continue
         selected.append(target)
-        selected_tracker_ids.add(target.tracker_id)
         if len(selected) >= max_targets:
             break
     return selected
@@ -313,7 +295,8 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.SUCCESS
                 target.last_fetch_error = ""
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = success_backoff_for_tracker(target, fetched_at, app_state=app_state)
+                target.refresh_requested_at = None
+                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = fetched_at
                 attempts.append(
@@ -328,7 +311,6 @@ def run_fetch_batch(
                         status=FetchTargetStatus.SUCCESS,
                         started_at=fetch_started_at,
                         fetched_at=fetched_at,
-                        next_fetch_not_before=target.next_fetch_not_before,
                         duration_seconds=(fetched_at - fetch_started_at).total_seconds(),
                         price=winner.price,
                         airline=winner.airline,
@@ -348,7 +330,8 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.NO_RESULTS
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = success_backoff_for_tracker(target, no_results_at, app_state=app_state)
+                target.refresh_requested_at = None
+                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = no_results_at
                 attempts.append(
@@ -363,7 +346,6 @@ def run_fetch_batch(
                         status=FetchTargetStatus.NO_RESULTS,
                         started_at=fetch_started_at,
                         fetched_at=no_results_at,
-                        next_fetch_not_before=target.next_fetch_not_before,
                         duration_seconds=(no_results_at - fetch_started_at).total_seconds(),
                         offer_count=len(offers),
                         matching_offer_count=0,
@@ -382,7 +364,8 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.NO_WINDOW_MATCH
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
-                target.next_fetch_not_before = success_backoff_for_tracker(target, no_window_match_at, app_state=app_state)
+                target.refresh_requested_at = None
+                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = no_window_match_at
                 attempts.append(
@@ -397,7 +380,6 @@ def run_fetch_batch(
                         status=FetchTargetStatus.NO_WINDOW_MATCH,
                         started_at=fetch_started_at,
                         fetched_at=no_window_match_at,
-                        next_fetch_not_before=target.next_fetch_not_before,
                         duration_seconds=(no_window_match_at - fetch_started_at).total_seconds(),
                         offer_count=len(offers),
                         matching_offer_count=0,
@@ -410,10 +392,8 @@ def run_fetch_batch(
                 target.last_fetch_status = FetchTargetStatus.FAILED
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures += 1
-                target.next_fetch_not_before = max(
-                    next_refresh_time(failed_at, target.schedule_offset_seconds, app_state=app_state),
-                    failed_at + failure_backoff(target.consecutive_failures, app_state=app_state),
-                )
+                target.refresh_requested_at = None
+                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = failed_at
                 attempts.append(
@@ -428,7 +408,6 @@ def run_fetch_batch(
                         status=FetchTargetStatus.FAILED,
                         started_at=fetch_started_at,
                         fetched_at=failed_at,
-                        next_fetch_not_before=target.next_fetch_not_before,
                         duration_seconds=(failed_at - fetch_started_at).total_seconds(),
                         offer_count=len(offers),
                         error=str(exc),
@@ -447,17 +426,6 @@ def run_fetch_batch(
         successful_fetches=successful_fetches,
         attempts=attempts,
     )
-
-
-def success_backoff_for_tracker(
-    target: TrackerFetchTarget,
-    fetched_at: datetime,
-    *,
-    app_state: AppState | None = None,
-) -> datetime:
-    return next_refresh_time(fetched_at, target.schedule_offset_seconds, app_state=app_state)
-
-
 def failure_backoff(consecutive_failures: int, *, app_state: AppState | None = None) -> timedelta:
     state = _app_state(app_state)
     if consecutive_failures <= 1:
@@ -471,6 +439,24 @@ def _has_active_claim(target: TrackerFetchTarget, now: datetime) -> bool:
     return bool(target.fetch_claim_expires_at and target.fetch_claim_expires_at > now)
 
 
+def _has_failure_backoff(
+    target: TrackerFetchTarget,
+    now: datetime,
+    *,
+    app_state: AppState | None = None,
+) -> bool:
+    if target.refresh_requested_at is not None:
+        return False
+    if target.last_fetch_status != FetchTargetStatus.FAILED:
+        return False
+    if target.last_fetch_finished_at is None:
+        return False
+    return target.last_fetch_finished_at + failure_backoff(
+        target.consecutive_failures,
+        app_state=app_state,
+    ) > now
+
+
 def _release_fetch_claim(target: TrackerFetchTarget) -> None:
     target.fetch_claim_owner = ""
     target.fetch_claim_expires_at = None
@@ -480,18 +466,22 @@ def _selection_sort_key(
     target: TrackerFetchTarget,
     tracker_by_id: dict[str, Tracker],
     instance_by_id: dict[str, TripInstance],
-    today: date,
-) -> tuple[int, date, datetime, int, str, str]:
+    now: datetime,
+) -> tuple[int, datetime, int, datetime, date, int, str, str]:
     instance = instance_by_id.get(target.trip_instance_id)
     tracker = tracker_by_id.get(target.tracker_id)
     travel_date = tracker.travel_date if tracker else (instance.anchor_date if instance else date.max)
-    last_finished = target.last_fetch_finished_at or datetime(1970, 1, 1).astimezone()
+    request_time = target.refresh_requested_at or datetime(9999, 12, 31, tzinfo=now.tzinfo)
+    last_finished = target.last_fetch_finished_at or datetime(1970, 1, 1, tzinfo=now.tzinfo)
     rank = tracker.rank if tracker else 999
-    initialization_priority = 0 if target.latest_price is None else 1
+    refresh_request_priority = 0 if target.refresh_requested_at is not None else 1
+    initialization_priority = 0 if target.last_fetch_finished_at is None else 1
     return (
+        refresh_request_priority,
+        request_time,
         initialization_priority,
-        travel_date,
         last_finished,
+        travel_date,
         rank,
         target.origin_airport,
         target.destination_airport,

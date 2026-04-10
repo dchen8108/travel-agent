@@ -62,7 +62,7 @@ def main() -> None:
     run_id = new_id("fetchrun")
     stage = "sync"
     selected_target_ids: list[str] = []
-    total_due_target_count = 0
+    total_stale_target_count = 0
     try:
         snapshot = sync_and_persist(repository)
         include_test_data = include_test_data_for_processing(snapshot.app_state)
@@ -81,7 +81,7 @@ def main() -> None:
         )
 
         selection_now = utcnow()
-        all_due_targets = select_due_fetch_targets(
+        all_stale_targets = select_due_fetch_targets(
             snapshot.trackers,
             snapshot.trip_instances,
             snapshot.tracker_fetch_targets,
@@ -107,7 +107,7 @@ def main() -> None:
             for target_id in selected_target_ids
             if target_id in target_by_id
         ]
-        total_due_target_count = len(all_due_targets)
+        total_stale_target_count = len(all_stale_targets)
         _emit_log(
             "run_started",
             run_id=run_id,
@@ -117,7 +117,7 @@ def main() -> None:
             startup_jitter_seconds=effective_startup_jitter_seconds,
             total_trackers=len(snapshot.trackers),
             total_fetch_targets=len(snapshot.tracker_fetch_targets),
-            total_due_target_count=total_due_target_count,
+            total_stale_target_count=total_stale_target_count,
             selected_target_count=len(due_targets),
             selected_fetch_target_ids=selected_target_ids,
         )
@@ -161,7 +161,6 @@ def main() -> None:
                 airline=attempt.airline,
                 offer_count=attempt.offer_count,
                 matching_offer_count=attempt.matching_offer_count,
-                next_refresh_at=attempt.next_fetch_not_before.isoformat() if attempt.next_fetch_not_before else "",
                 google_flights_url=target.google_flights_url if target else "",
                 error=attempt.error,
             )
@@ -206,7 +205,7 @@ def main() -> None:
             "run_completed",
             run_id=run_id,
             pid=os.getpid(),
-            total_due_target_count=total_due_target_count,
+            total_stale_target_count=total_stale_target_count,
             selected_target_count=result.selected_count,
             processed_target_count=len(result.attempts),
             startup_jitter_applied_seconds=round(result.startup_jitter_applied_seconds, 3),

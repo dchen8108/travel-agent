@@ -139,7 +139,7 @@ Key columns:
 - `last_fetch_status`
 - `last_fetch_error`
 - `consecutive_failures`
-- `next_fetch_not_before`
+- `refresh_requested_at`
 - `latest_price`
 - `latest_airline`
 - `latest_departure_label`

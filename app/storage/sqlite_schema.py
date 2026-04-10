@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -192,6 +192,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         last_fetch_status TEXT NOT NULL,
         last_fetch_error TEXT NOT NULL DEFAULT '',
         consecutive_failures INTEGER NOT NULL DEFAULT 0,
+        refresh_requested_at TEXT NULL,
         next_fetch_not_before TEXT NULL,
         fetch_claim_owner TEXT NOT NULL DEFAULT '',
         fetch_claim_expires_at TEXT NULL,

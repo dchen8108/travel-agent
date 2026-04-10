@@ -25,7 +25,7 @@ def _queued_targets(
     queued: list = []
     for target in snapshot.tracker_fetch_targets:
         before = before_by_id.get(target.fetch_target_id)
-        after = (target.next_fetch_not_before, target.updated_at)
+        after = (target.refresh_requested_at, target.updated_at)
         if before != after:
             queued.append(target)
     return queued
@@ -77,7 +77,7 @@ def queue_refresh_for_trip_instances(
     if not trip_instance_ids:
         return 0
     before_by_id = {
-        target.fetch_target_id: (target.next_fetch_not_before, target.updated_at)
+        target.fetch_target_id: (target.refresh_requested_at, target.updated_at)
         for target in snapshot.tracker_fetch_targets
     }
     queued_count = queue_rolling_refresh(

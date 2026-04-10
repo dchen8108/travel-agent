@@ -56,6 +56,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_trips_remove_legacy_group_column_to_v19(connection)
     if current_version < 20:
         _migrate_trackers_remove_manual_import_signals_to_v20(connection)
+    if current_version < 21:
+        _migrate_fetch_target_refresh_requests_to_v21(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -844,6 +846,16 @@ def _migrate_fetch_target_claims_to_v15(connection: sqlite3.Connection) -> None:
     if "fetch_claim_expires_at" not in columns:
         connection.execute(
             "ALTER TABLE tracker_fetch_targets ADD COLUMN fetch_claim_expires_at TEXT NULL"
+        )
+
+
+def _migrate_fetch_target_refresh_requests_to_v21(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "tracker_fetch_targets"):
+        return
+    columns = _table_columns(connection, "tracker_fetch_targets")
+    if "refresh_requested_at" not in columns:
+        connection.execute(
+            "ALTER TABLE tracker_fetch_targets ADD COLUMN refresh_requested_at TEXT NULL"
         )
 
 

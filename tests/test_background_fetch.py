@@ -16,12 +16,7 @@ from app.services.background_fetch import (
     select_due_fetch_targets,
 )
 from app.services.scheduled_trip_state import trip_lifecycle_status_label, trip_status_detail
-from app.services.fetch_targets import (
-    FETCH_INTERVAL_SECONDS,
-    next_refresh_time,
-    reconcile_fetch_targets,
-    schedule_offset_for_trip,
-)
+from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.ids import new_id
 from app.services.google_flights_fetcher import (
     GoogleFlightsNoResultsError,
@@ -80,15 +75,6 @@ def test_fetch_job_rejects_negative_startup_jitter() -> None:
         assert "--startup-jitter-seconds must be >= 0" in str(exc)
     else:
         raise AssertionError("Expected negative startup jitter to be rejected.")
-
-
-def test_next_refresh_time_uses_four_hour_cadence() -> None:
-    now = datetime(2026, 3, 31, 7, 12, tzinfo=timezone.utc)
-    assert FETCH_INTERVAL_SECONDS == 4 * 60 * 60
-    assert next_refresh_time(now, 0) == datetime(2026, 3, 31, 8, 0, tzinfo=timezone.utc)
-    assert next_refresh_time(now, 20) == datetime(2026, 3, 31, 8, 0, 20, tzinfo=timezone.utc)
-
-
 def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Repository) -> None:
     now = datetime(2026, 4, 1, 9, 0, tzinfo=timezone.utc)
     trip = save_trip(
@@ -125,10 +111,7 @@ def test_reconcile_fetch_targets_creates_every_airport_pair(repository: Reposito
     assert len(fetch_targets) == 6
     assert {item.origin_airport for item in fetch_targets} == {"BUR", "LAX", "SNA"}
     assert {item.destination_airport for item in fetch_targets} == {"SFO", "OAK"}
-    assert {item.schedule_offset_seconds for item in fetch_targets} == {schedule_offset_for_trip(trip.created_at)}
-    ordered_refreshes = sorted(item.next_fetch_not_before for item in fetch_targets if item.next_fetch_not_before)
-    assert ordered_refreshes[0] == now
-    assert ordered_refreshes[-1] == now + timedelta(seconds=50)
+    assert all(item.refresh_requested_at == now for item in fetch_targets)
 
 
 def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
@@ -232,7 +215,7 @@ def test_parse_google_flights_offers_distinguishes_no_results_from_parse_failure
         raise AssertionError("Expected broken parser input to raise an error.")
 
 
-def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: Repository) -> None:
+def test_select_due_fetch_targets_uses_oldest_targets_globally(repository: Repository) -> None:
     save_trip(
         repository,
         trip_id=None,
@@ -263,8 +246,8 @@ def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: R
 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     now = utcnow()
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now - timedelta(seconds=1)
+    for index, target in enumerate(sorted(snapshot.tracker_fetch_targets, key=lambda item: item.fetch_target_id)):
+        target.last_fetch_finished_at = now - timedelta(hours=index + 1)
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
@@ -274,11 +257,15 @@ def test_select_due_fetch_targets_limits_to_one_target_per_tracker(repository: R
         now=now,
     )
 
-    assert len(due_targets) == 2
-    assert len({item.tracker_id for item in due_targets}) == 2
+    assert len(due_targets) == 3
+    oldest_targets = sorted(
+        snapshot.tracker_fetch_targets,
+        key=lambda item: item.last_fetch_finished_at or now,
+    )[:3]
+    assert [item.fetch_target_id for item in due_targets] == [item.fetch_target_id for item in oldest_targets]
 
 
-def test_select_due_fetch_targets_prioritizes_targets_without_a_price(repository: Repository) -> None:
+def test_select_due_fetch_targets_prioritizes_never_fetched_targets(repository: Repository) -> None:
     save_trip(
         repository,
         trip_id=None,
@@ -321,7 +308,6 @@ def test_select_due_fetch_targets_prioritizes_targets_without_a_price(repository
     snapshot = sync_and_persist(repository)
     now = utcnow()
     for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now - timedelta(seconds=1)
         if target.origin_airport == "BUR":
             target.latest_price = 141
             target.latest_fetched_at = now - timedelta(hours=1)
@@ -329,7 +315,7 @@ def test_select_due_fetch_targets_prioritizes_targets_without_a_price(repository
         else:
             target.latest_price = None
             target.latest_fetched_at = None
-            target.last_fetch_finished_at = now - timedelta(minutes=5)
+            target.last_fetch_finished_at = None
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
@@ -586,7 +572,7 @@ def test_sync_and_persist_preserves_active_fetch_claims(repository: Repository) 
     assert updated_target.fetch_claim_expires_at == claim_until
 
 
-def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: Repository) -> None:
+def test_queue_rolling_refresh_marks_matching_targets_for_immediate_refresh(repository: Repository) -> None:
     save_trip(
         repository,
         trip_id=None,
@@ -629,7 +615,7 @@ def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: R
     snapshot = sync_and_persist(repository)
     now = utcnow()
     for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now + timedelta(hours=3)
+        target.refresh_requested_at = None
         if target.origin_airport == "BUR":
             target.latest_price = 141
             target.latest_fetched_at = now - timedelta(hours=1)
@@ -642,12 +628,7 @@ def test_queue_rolling_refresh_prioritizes_targets_without_a_price(repository: R
         now=now,
     )
 
-    queued_targets = sorted(
-        snapshot.tracker_fetch_targets,
-        key=lambda item: item.next_fetch_not_before or now,
-    )
-    assert queued_targets[0].origin_airport == "LAX"
-    assert queued_targets[0].destination_airport == "SEA"
+    assert all(target.refresh_requested_at == now for target in snapshot.tracker_fetch_targets)
 
 
 def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Repository, monkeypatch) -> None:
@@ -705,19 +686,19 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     )
     apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
 
-    assert result.fetched_count == 1
-    assert result.selected_count == 1
-    assert sum(target.latest_price is not None for target in snapshot.tracker_fetch_targets) == 1
+    assert result.fetched_count == 2
+    assert result.selected_count == 2
+    assert sum(target.latest_price is not None for target in snapshot.tracker_fetch_targets) == 2
     assert tracker.latest_observed_price == 141
     assert tracker.latest_signal_source == "background_fetch"
     assert tracker.latest_winning_origin_airport == "BUR"
     assert tracker.latest_winning_destination_airport == "SFO"
-    assert len(result.successful_fetches) == 1
-    assert len(result.attempts) == 1
-    assert result.attempts[0].status == "success"
-    assert result.attempts[0].price == 141
-    assert result.attempts[0].offer_count == 1
-    assert result.attempts[0].matching_offer_count == 1
+    assert len(result.successful_fetches) == 2
+    assert len(result.attempts) == 2
+    assert all(attempt.status == "success" for attempt in result.attempts)
+    assert {attempt.price for attempt in result.attempts} == {141, 188}
+    assert all(attempt.offer_count == 1 for attempt in result.attempts)
+    assert all(attempt.matching_offer_count == 1 for attempt in result.attempts)
 
 
 def test_run_fetch_batch_releases_claim_after_success(repository: Repository, monkeypatch) -> None:
@@ -1227,7 +1208,7 @@ def test_fetch_rollup_clears_tracker_when_only_stale_fetch_prices_remain() -> No
     assert tracker.latest_signal_source == ""
 
 
-def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repository) -> None:
+def test_reconcile_fetch_targets_preserves_existing_targets_without_rescheduling(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -1263,9 +1244,8 @@ def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repositor
             tracker_definition_signature=tracker.definition_signature,
             origin_airport=item.origin_airport,
             destination_airport=item.destination_airport,
-            schedule_offset_seconds=0,
             google_flights_url=item.google_flights_url,
-            next_fetch_not_before=utcnow(),
+            refresh_requested_at=None,
         )
         for item in initial.tracker_fetch_targets
         if item.tracker_id == tracker.tracker_id
@@ -1273,8 +1253,8 @@ def test_reconcile_fetch_targets_rebalances_legacy_offsets(repository: Repositor
 
     rebalanced = reconcile_fetch_targets([tracker], initial.trips, initial.trip_instances, legacy_targets)
 
-    assert {item.schedule_offset_seconds for item in rebalanced} == {schedule_offset_for_trip(trip.created_at)}
-    assert len({item.next_fetch_not_before for item in rebalanced}) == 1
+    assert len(rebalanced) == len(legacy_targets)
+    assert all(item.refresh_requested_at is None for item in rebalanced)
 
 
 def test_reconcile_fetch_targets_immediately_requeues_definition_changes(repository: Repository) -> None:
@@ -1312,7 +1292,7 @@ def test_reconcile_fetch_targets_immediately_requeues_definition_changes(reposit
     original_target.latest_summary = "Old price"
     original_target.latest_fetched_at = now - timedelta(hours=1)
     original_target.last_fetch_finished_at = now - timedelta(hours=1)
-    original_target.next_fetch_not_before = now + timedelta(hours=3)
+    original_target.refresh_requested_at = None
 
     tracker.start_time = "06:15"
     tracker.end_time = "10:15"
@@ -1327,7 +1307,7 @@ def test_reconcile_fetch_targets_immediately_requeues_definition_changes(reposit
     )
 
     updated_target = refreshed[0]
-    assert updated_target.next_fetch_not_before == now
+    assert updated_target.refresh_requested_at == now
     assert updated_target.latest_price is None
     assert updated_target.last_fetch_status == "pending"
     assert updated_target.tracker_definition_signature == "changed-definition"
@@ -1398,7 +1378,7 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
     assert "Current comparable price is $120" in trip_status_detail(snapshot, trip_instance.trip_instance_id)
 
 
-def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(repository: Repository) -> None:
+def test_queue_rolling_refresh_marks_all_matching_targets_requested_now(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -1436,10 +1416,8 @@ def test_queue_rolling_refresh_pulls_due_times_forward_in_staggered_order(reposi
     )
 
     targets = [item for item in snapshot.tracker_fetch_targets if item.tracker_id == tracker.tracker_id]
-    targets.sort(key=lambda item: item.next_fetch_not_before or now)
     assert queued_count == 2
-    assert targets[0].next_fetch_not_before == now
-    assert targets[1].next_fetch_not_before == now + timedelta(seconds=10)
+    assert all(target.refresh_requested_at == now for target in targets)
 
 
 def test_recompute_trip_states_uses_explicit_today_without_calling_date_today(monkeypatch) -> None:
