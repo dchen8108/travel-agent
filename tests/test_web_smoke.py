@@ -468,8 +468,8 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     detail = client.get(create.headers["location"])
     assert detail.status_code == 200
     assert "Work Trips" in detail.text
-    assert "Rules" in detail.text
-    assert "Trips" in detail.text
+    assert "Recurring Trips" in detail.text
+    assert "All Trips" in detail.text
 
 
 def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
