@@ -2,7 +2,7 @@
   <a class="button ghost booking-row-button" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
   {% if linked_booking.status == 'active' %}
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-    <button class="button ghost booking-row-button" type="submit">Unlink</button>
+    <button class="button ghost booking-row-button" type="submit">Detach</button>
   </form>
   {% endif %}
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">

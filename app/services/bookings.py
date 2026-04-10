@@ -573,7 +573,7 @@ def update_booking(
     if existing is None:
         raise KeyError("Booking not found")
     if not trip_instance_id:
-        raise ValueError("Choose a scheduled trip or unlink the booking instead.")
+        raise ValueError("Choose a scheduled trip or detach the booking instead.")
 
     app_state = repository.load_app_state()
     include_test_data = include_test_data_for_processing(app_state) or str(existing.data_scope) == DataScope.TEST
