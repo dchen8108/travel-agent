@@ -2102,6 +2102,7 @@ def test_trip_instance_detail_links_attached_generated_trip_to_recurring_edit(tm
     assert detail.status_code == 200
     assert "Managed by" not in detail.text
     assert "Detached from" not in detail.text
+    assert "View collection" in detail.text
     assert "Edit recurring trip" in detail.text
 
 
