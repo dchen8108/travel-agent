@@ -8,6 +8,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
 from app.models.base import BookingStatus, DataScope, FareClassPolicy
+from app.route_options import day_offset_label
+from app.services.itinerary_display import route_option_display_label
 from app.services.bookings import (
     BookingCandidate,
     resolve_unmatched_booking_to_trip,
@@ -178,12 +180,33 @@ def _route_option_views(trip, route_options):
             preference_note = "Highest preference. Lower options need extra savings to outrank it."
         else:
             preference_note = f"Needs at least ${pairwise_bias} savings versus option {option.rank - 1}."
+        fare_policy_label = (
+            "Includes Basic fares"
+            if option.fare_class_policy == "include_basic"
+            else "Excludes Basic fares"
+        )
         views.append(
             {
                 "option": option,
                 "pairwise_bias": pairwise_bias,
                 "cumulative_bias": cumulative_bias if bias_enabled else 0,
                 "preference_note": preference_note,
+                "route_label": route_option_display_label(
+                    option.origin_codes,
+                    option.destination_codes,
+                    option.airline_codes,
+                ),
+                "window_detail": f"{option.start_time}–{option.end_time} departure",
+                "window_day_label": (
+                    day_offset_label(trip.effective_anchor_weekday, option.day_offset)
+                    if option.day_offset != 0
+                    else ""
+                ),
+                "fare_label": "Basic fares",
+                "fare_value": "Included" if option.fare_class_policy == "include_basic" else "Excluded",
+                "origin_codes": option.origin_codes,
+                "destination_codes": option.destination_codes,
+                "airline_codes": option.airline_codes,
             }
         )
     return views

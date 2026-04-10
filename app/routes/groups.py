@@ -5,6 +5,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.services.collection_display import group_summary_view
 from app.services.dashboard_queries import recurring_rules_for_group, scheduled_instances
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.groups import delete_trip_group, save_trip_group
@@ -84,6 +85,7 @@ def group_detail(
     today = date.today()
     recurring_rules = recurring_rules_for_group(snapshot, trip_group_id)
     grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, today=today)
+    group_view = group_summary_view(snapshot, group, today=today)
 
     return get_templates(request).TemplateResponse(
         request=request,
@@ -94,6 +96,7 @@ def group_detail(
             snapshot=snapshot,
             back_href=back_url(request, fallback_url="/#dashboard-groups"),
             group=group,
+            group_view=group_view,
             recurring_rules=recurring_rules,
             grouped_instances=grouped_instances,
             today=today,

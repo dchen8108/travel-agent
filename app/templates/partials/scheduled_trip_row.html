@@ -3,13 +3,15 @@
 {% set row_class_names = row_class_names if row_class_names is defined else '' %}
 {% set row_date = row_date if row_date is defined else scheduled_instance.anchor_date %}
 {% set row_href = row_href if row_href is defined else '/trip-instances/' ~ scheduled_instance.trip_instance_id %}
-<article class="timeline-row{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_id_prefix }}-{{ scheduled_instance.trip_instance_id }}">
+{% set row_dom_id = row_dom_id if row_dom_id is defined else row_id_prefix ~ '-' ~ scheduled_instance.trip_instance_id %}
+<article class="timeline-row{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
   <div class="timeline-date">
     <span class="timeline-day">{{ row_date.strftime('%a') }}</span>
     <strong>{{ row_date.strftime('%b %d') }}</strong>
   </div>
   <div class="timeline-main">
     <div class="timeline-summary-row">
+      {% if row.title %}
       <div class="timeline-title-group">
         {% if row_href %}
         <a class="travel-title" href="{{ row_href }}">{{ row.title }}</a>
@@ -17,8 +19,6 @@
         <span class="travel-title">{{ row.title }}</span>
         {% endif %}
       </div>
-      {% if not row.booked_offer and row.current_offer %}
-      <div class="timeline-offer-item timeline-offer-item--spacer" aria-hidden="true"></div>
       {% endif %}
       {% if row.booked_offer %}
       <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">
@@ -67,7 +67,11 @@
           </div>
           <div class="timeline-offer-price-stack">
             <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
-            {% if row.current_offer.price_is_status %}
+            {% if row.current_offer.price_is_status and row.current_offer.href %}
+            <a class="timeline-offer-status timeline-offer-status--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
+              {{ row.current_offer.price_label }}
+            </a>
+            {% elif row.current_offer.price_is_status %}
             <span class="timeline-offer-status">
               {{ row.current_offer.price_label }}
             </span>

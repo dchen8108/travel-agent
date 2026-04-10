@@ -1,0 +1,62 @@
+{% set collection_card = collection_card if collection_card is defined else item %}
+{% set collection_link_href = collection_link_href if collection_link_href is defined else '/groups/' ~ collection_card.group.trip_group_id %}
+{% set collection_create_href = collection_create_href if collection_create_href is defined else '/trips/new?trip_group_id=' ~ collection_card.group.trip_group_id %}
+{% set collection_card_id = collection_card_id if collection_card_id is defined else 'group-' ~ collection_card.group.trip_group_id %}
+<article class="collection-card" id="{{ collection_card_id }}">
+  <div class="collection-card-head">
+    <div class="collection-card-titleline">
+      <strong>
+        {% if collection_link_href %}
+        <a class="dashboard-item-title" href="{{ collection_link_href }}">{{ collection_card.group.label }}</a>
+        {% else %}
+        <span class="dashboard-item-title">{{ collection_card.group.label }}</span>
+        {% endif %}
+      </strong>
+    </div>
+    <a class="button primary compact" href="{{ collection_create_href }}">Create trip</a>
+  </div>
+
+  {% if collection_card.upcoming_trip_views %}
+  <div class="collection-trip-cluster" data-collection-cluster>
+    <div
+      class="collection-trip-strip"
+      data-collection-preview
+      id="group-trips-{{ collection_card.group.trip_group_id }}"
+    >
+    {% for upcoming in collection_card.upcoming_trip_views %}
+    <a class="collection-trip-pill {{ upcoming.tone }}" href="{{ upcoming.href }}" title="{{ upcoming.title }}" data-collection-pill>
+      {{ upcoming.label }}
+    </a>
+    {% endfor %}
+    <button
+      type="button"
+      class="collection-trip-pill more"
+      data-collection-expand
+      aria-controls="group-trips-{{ collection_card.group.trip_group_id }}"
+      aria-expanded="false"
+      title="Show the remaining trips in this collection"
+      hidden
+    >
+      +0 more
+    </button>
+    <button
+      type="button"
+      class="collection-trip-pill more"
+      data-collection-collapse
+      aria-controls="group-trips-{{ collection_card.group.trip_group_id }}"
+      aria-expanded="true"
+      title="Collapse the remaining trips in this collection"
+      hidden
+    >
+      Show less
+    </button>
+    </div>
+  </div>
+  {% else %}
+  <div class="quiet-state-row collection-empty-row">
+    <div>
+      <strong>No trips yet.</strong>
+    </div>
+  </div>
+  {% endif %}
+</article>

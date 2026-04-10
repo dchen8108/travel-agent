@@ -27,180 +27,11 @@
     </p>
     {% endif %}
   </div>
+  {% if not (recurring_rule and parent_trip.trip_kind == 'weekly') or can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip %}
   <div class="hero-actions">
     {% if not (recurring_rule and parent_trip.trip_kind == 'weekly') %}
     <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
-  </div>
-  {% set scheduled_instance = trip_instance %}
-  {% set row = trip_row_summary(snapshot, trip_instance.trip_instance_id) %}
-  {% set row_id_prefix = "detail-trip" %}
-  <div class="timeline-list detail-embedded-list">
-    {% include "partials/scheduled_trip_row.html" %}
-  </div>
-</section>
-
-<section class="section dashboard-panel detail-section-panel">
-  <div class="panel-header">
-    <h3>Bookings</h3>
-    <div class="section-actions">
-      <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
-    </div>
-  </div>
-  {% if booking_views %}
-  <div class="stack">
-    {% for booking_card in booking_views %}
-    {% set linked_booking = booking_card.booking %}
-    {% set route_tracking = booking_card.route_tracking %}
-    <article class="action-item-shell action-item-shell--booking detail-booking-shell {{ 'is-muted-card' if linked_booking.status != 'active' else '' }}">
-      <div class="timeline-list action-item-embedded-list">
-        {% set scheduled_instance = linked_booking %}
-        {% set row = booking_row_summary(linked_booking) %}
-        {% set row_date = linked_booking.departure_date %}
-        {% set row_href = "" %}
-        {% set row_id_prefix = "detail-booking" %}
-        {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
-        {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status in ['active', 'cancelled'] else "" %}
-        {% include "partials/scheduled_trip_row.html" %}
-      </div>
-      <div class="booking-inline-meta">
-        <span><strong>Status</strong> {{ linked_booking.status }}</span>
-        <span><strong>Record locator</strong> {{ linked_booking.record_locator or '—' }}</span>
-        <span><strong>Route tracking</strong> {{ route_tracking.summary_label }}</span>
-        <span><strong>Booked on</strong> {{ linked_booking.booked_at.strftime('%Y-%m-%d') }}</span>
-        <span><strong>Source</strong> {{ linked_booking.source.replace('_', ' ') }}</span>
-      </div>
-      {% if linked_booking.notes %}
-      <p class="booking-inline-note">{{ linked_booking.notes }}</p>
-      {% endif %}
-      {% if route_tracking.warning %}
-      <section class="warning-card slim-callout booking-warning-callout">
-        <strong>{{ route_tracking.summary_label }}</strong>
-        <p>{{ route_tracking.warning }}</p>
-      </section>
-      {% endif %}
-    </article>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% if not booking_views %}
-  <article class="empty-state">
-    <strong>No bookings yet.</strong>
-  </article>
-  {% endif %}
-</section>
-
-<section class="section dashboard-panel detail-section-panel">
-  <div class="panel-header">
-    <div>
-      <h3>Tracked searches</h3>
-    </div>
-    {% if total_fetch_targets %}
-    <div class="section-actions">
-      <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/trackers/queue-refresh">
-        <button type="submit" class="button secondary">Check now</button>
-      </form>
-    </div>
-    {% endif %}
-  </div>
-  <div class="stack">
-    {% for card in tracker_cards %}
-    <article class="card tracker-card">
-      <div class="card-header">
-        <div>
-          <p class="eyebrow tracker-option-label">Option {{ card.rank }}</p>
-          <h4 class="tracker-headline">{{ card.headline }}</h4>
-          <p class="muted tracker-summary-copy">{{ card.summary }}</p>
-        </div>
-        <span class="badge">{{ card.search_count }} search{{ '' if card.search_count == 1 else 'es' }}</span>
-      </div>
-
-      <div class="meta-grid">
-        <div><dt>Departure window</dt><dd>{{ card.departure_window_label }}</dd></div>
-        <div><dt>Fare policy</dt><dd>{{ card.fare_policy_label }}</dd></div>
-        <div><dt>Selection rule</dt><dd>{{ card.preference_note }}</dd></div>
-      </div>
-
-      <div class="route-summary-grid compact">
-        <div>
-          <dt>Origins</dt>
-          <div class="inline-badge-row top-gap-small">
-            {% for code in card.tracker.origin_codes %}
-            <span class="badge">{{ airport_display(code) }}</span>
-            {% endfor %}
-          </div>
-        </div>
-        <div>
-          <dt>Destinations</dt>
-          <div class="inline-badge-row top-gap-small">
-            {% for code in card.tracker.destination_codes %}
-            <span class="badge">{{ airport_display(code) }}</span>
-            {% endfor %}
-          </div>
-        </div>
-        <div>
-          <dt>Airlines</dt>
-          <div class="inline-badge-row top-gap-small">
-            {% for code in card.tracker.airline_codes %}
-            <span class="badge">{{ airline_display(code) }}</span>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-
-      <div class="tracker-meta">
-        <p class="muted"><strong>Last updated:</strong> {{ card.last_updated_label }}</p>
-        <p class="muted"><strong>Next refresh:</strong> {{ card.next_refresh_label }}</p>
-      </div>
-
-      {% if card.is_retrying %}
-      <p class="muted">A recent fetch failed. Milemark will retry.</p>
-      {% endif %}
-
-      {% if card.has_diagnostics %}
-      <details class="tracker-details">
-        <summary>Search details</summary>
-        {% if card.fetch_targets %}
-        <div class="link-chip-list">
-          {% for target in card.fetch_targets %}
-          <a
-            class="link-chip {% if card.tracker.latest_winning_origin_airport == target.origin_airport and card.tracker.latest_winning_destination_airport == target.destination_airport %}is-best{% endif %}{% if target.last_fetch_status in ['no_results', 'no_window_match'] %} is-unavailable{% endif %}"
-            href="{{ target.google_flights_url }}"
-            target="_blank"
-            rel="noreferrer"
-            title="{{ target.origin_airport }} to {{ target.destination_airport }}{% if target.last_fetch_status in ['no_results', 'no_window_match'] %} · {{ target.last_fetch_error or 'No matching flights returned' }}{% endif %}{% if target.last_fetch_finished_at %} · Last checked {{ target.last_fetch_finished_at.isoformat() }}{% endif %}{% if target.next_fetch_not_before %} · Next refresh {{ target.next_fetch_not_before.isoformat() }}{% endif %}"
-          >
-            {{ target.origin_airport }} to {{ target.destination_airport }}
-            {% if target.latest_price is not none %}
-            · ${{ target.latest_price }}
-            {% elif target.last_fetch_status in ['no_results', 'no_window_match'] %}
-            · none
-            {% endif %}
-          </a>
-          {% endfor %}
-        </div>
-        {% endif %}
-        {% if card.generated_seed_summary %}
-        <p class="muted top-gap-small">{{ card.generated_seed_summary }}</p>
-        {% endif %}
-      </details>
-      {% endif %}
-    </article>
-    {% else %}
-    <article class="empty-state">
-      <strong>No tracked searches yet.</strong>
-    </article>
-    {% endfor %}
-  </div>
-</section>
-{% if can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip %}
-<section class="section section-tight dashboard-panel detail-section-panel">
-  <div class="panel-header">
-    <div>
-      <h3>Controls</h3>
-    </div>
-  </div>
-  <div class="actions">
     {% if can_detach_trip_instance %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/detach">
       <button class="button ghost" type="submit">Detach trip</button>
@@ -231,7 +62,75 @@
     </form>
     {% endif %}
   </div>
+  {% endif %}
+  {% set scheduled_instance = trip_instance %}
+  {% set row = trip_row_summary(snapshot, trip_instance.trip_instance_id) %}
+  {% set row_id_prefix = "detail-trip" %}
+  <div class="timeline-list detail-embedded-list">
+    {% include "partials/scheduled_trip_row.html" %}
+  </div>
 </section>
-{% endif %}
+
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
+    <h3>Bookings</h3>
+    <div class="section-actions">
+      <a class="button primary" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
+    </div>
+  </div>
+  {% if booking_views %}
+  <div class="timeline-list detail-booking-list">
+    {% for booking_card in booking_views %}
+    {% set linked_booking = booking_card.booking %}
+    {% set route_tracking = booking_card.route_tracking %}
+      {% set scheduled_instance = linked_booking %}
+      {% set row = booking_row_summary(linked_booking) %}
+      {% set row_date = linked_booking.departure_date %}
+      {% set row_href = "" %}
+      {% set row_id_prefix = "detail-booking" %}
+      {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
+      {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status in ['active', 'cancelled'] else "" %}
+      {% include "partials/scheduled_trip_row.html" %}
+      {% if route_tracking.warning %}
+      <section class="detail-booking-warning-row">
+        <strong>{{ route_tracking.summary_label }}</strong>
+        <p>{{ route_tracking.warning }}</p>
+      </section>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if not booking_views %}
+  <article class="compact-empty-state">
+    <strong>No bookings yet.</strong>
+  </article>
+  {% endif %}
+</section>
+
+<section class="section dashboard-panel detail-section-panel">
+  <div class="panel-header">
+    <div>
+      <h3>Trackers</h3>
+    </div>
+  </div>
+  {% if tracker_rows %}
+  <div class="timeline-list detail-tracker-list">
+    {% for tracker_row in tracker_rows %}
+      {% set scheduled_instance = trip_instance %}
+      {% set row = tracker_row.row %}
+      {% set row_date = tracker_row.travel_date %}
+      {% set row_href = "" %}
+      {% set row_id_prefix = "tracker-search" %}
+      {% set row_dom_id = "tracker-search-" ~ tracker_row.row_id %}
+      {% set row_class_names = "timeline-row--tracker timeline-row-subtle" %}
+      {% include "partials/scheduled_trip_row.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <article class="compact-empty-state">
+    <strong>No trackers yet.</strong>
+  </article>
+  {% endif %}
+</section>
 </div>
 {% endblock %}

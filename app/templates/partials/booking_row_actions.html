@@ -1,21 +1,21 @@
 <div class="timeline-row-actions">
   {% if linked_booking.status == 'active' %}
-  <a class="button secondary" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
+  <a class="button ghost booking-row-button" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/cancel">
-    <button class="button ghost" type="submit">Cancel</button>
+    <button class="button ghost booking-row-button" type="submit">Cancel</button>
   </form>
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-    <button class="button ghost" type="submit">Unlink</button>
+    <button class="button ghost booking-row-button" type="submit">Unlink</button>
   </form>
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
-    <button class="button danger-outline" type="submit">Delete</button>
+    <button class="button danger-outline booking-row-button" type="submit">Delete</button>
   </form>
   {% elif linked_booking.status == 'cancelled' %}
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/restore">
-    <button class="button secondary" type="submit">Restore</button>
+    <button class="button ghost booking-row-button" type="submit">Restore</button>
   </form>
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
-    <button class="button danger-outline" type="submit">Delete</button>
+    <button class="button danger-outline booking-row-button" type="submit">Delete</button>
   </form>
   {% endif %}
 </div>

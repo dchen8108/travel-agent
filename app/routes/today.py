@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from app.money import format_money
+from app.services.collection_display import group_summary_view
 from app.services.dashboard_booking_views import unmatched_booking_resolution_views
 from app.services.dashboard_navigation import trip_focus_url
 from app.services.dashboard_queries import (
@@ -120,37 +121,6 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
     }
 
 
-def _group_trip_pill_view(snapshot, instance) -> dict[str, object]:
-    active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
-    savings = rebook_savings(snapshot, instance.trip_instance_id)
-    if active_booking_count > 0 and savings is not None:
-        tone = "accent"
-        status_label = "Rebook"
-    elif active_booking_count > 0:
-        tone = "success"
-        status_label = "Booked"
-    else:
-        tone = "warning"
-        status_label = "Planned"
-    title = trip_ui_label(snapshot, instance.trip_instance_id)
-    return {
-        "instance": instance,
-        "href": f"/trip-instances/{instance.trip_instance_id}",
-        "label": instance.anchor_date.strftime("%b %d"),
-        "title": f"{title} · {status_label} · {instance.anchor_date.strftime('%a, %b %d')}",
-        "tone": tone,
-    }
-
-
-def _group_dashboard_view(snapshot, group, *, today: date) -> dict[str, object]:
-    upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
-    all_upcoming_trip_views = [_group_trip_pill_view(snapshot, instance) for instance in upcoming]
-    return {
-        "group": group,
-        "upcoming_trip_views": all_upcoming_trip_views,
-    }
-
-
 @router.get("/", response_class=HTMLResponse)
 def today(
     request: Request,
@@ -219,7 +189,7 @@ def today(
     ]
 
     group_views = [
-        _group_dashboard_view(snapshot, group, today=today)
+        group_summary_view(snapshot, group, today=today)
         for group in sorted(
             trip_groups(snapshot),
             key=lambda item: (

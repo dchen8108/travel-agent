@@ -1018,10 +1018,10 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
     assert route_options[0].savings_needed_vs_previous == 0
     assert route_options[1].savings_needed_vs_previous == 50
 
-    detail = client.get(response.headers["location"])
-    assert detail.status_code == 200
-    assert "Respect option order" not in detail.text
-    assert "Needs $50 more savings to outrank higher options." in detail.text
+    edit_page = client.get(f"/trips/{trip.trip_id}/edit")
+    assert edit_page.status_code == 200
+    assert '"preference_mode": "ranked_bias"' in edit_page.text
+    assert '"savings_needed_vs_previous": 50' in edit_page.text
 
 
 def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
@@ -1057,9 +1057,9 @@ def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
     assert route_option.fare_class_policy == "exclude_basic"
     assert tracker.fare_class_policy == "exclude_basic"
 
-    detail = client.get(response.headers["location"])
-    assert detail.status_code == 200
-    assert "Excludes Basic fares" in detail.text
+    edit_page = client.get(f"/trips/{repository.load_trips()[0].trip_id}/edit")
+    assert edit_page.status_code == 200
+    assert '"fare_class_policy": "exclude_basic"' in edit_page.text
 
 
 def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> None:
@@ -1392,7 +1392,8 @@ def test_cancelling_booking_returns_trip_to_planned(tmp_path: Path) -> None:
 
     snapshot_page = client.get(f"/trip-instances/{trip_instance_id}")
     assert snapshot_page.status_code == 200
-    assert "cancelled" in snapshot_page.text
+    assert "Restore" in snapshot_page.text
+    assert "CANCEL1" in snapshot_page.text
     assert snapshot_page.text.count("Booked at") == 1
 
 
@@ -1698,6 +1699,9 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
     assert "MULTI1" in detail.text
     assert "MULTI2" in detail.text
     assert detail.text.count("Booked at") == 3
+    assert "Route tracking" not in detail.text
+    assert "Booked on" not in detail.text
+    assert "Source" not in detail.text
 
 
 def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None:
@@ -1734,7 +1738,7 @@ def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None
     detail = client.get(trip_instance_url)
     assert detail.status_code == 200
     assert "$185" in detail.text
-    assert "Tracked searches" in detail.text
+    assert "Trackers" in detail.text
 
 
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
@@ -1971,6 +1975,8 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
     group_page = client.get(f"/groups/{group.trip_group_id}")
     assert group_page.status_code == 200
     assert "Weekly Commute" in group_page.text
+    assert 'id="group-summary-' in group_page.text
+    assert group_page.text.count("Create trip") == 1
     assert group_page.text.count('class="timeline-row"') == 15
 
 
@@ -2167,6 +2173,7 @@ def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: P
     assert detail.status_code == 200
     assert "Detach trip" in detail.text
     assert detail.text.count('data-confirm-action="Delete trip"') >= 1
+    assert "<h3>Controls</h3>" not in detail.text
 
     delete = client.post(
         f"/trip-instances/{trip_instance_id}/delete-generated",
@@ -2444,11 +2451,12 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
     assert "Scheduled trip" in trackers_page.text
-    assert "Tracked searches" in trackers_page.text
-    assert "Last updated:" in trackers_page.text
-    assert "Next refresh:" in trackers_page.text
-    assert "BUR to SFO" in trackers_page.text
-    assert "LAX to SFO" in trackers_page.text
+    assert "Trackers" in trackers_page.text
+    assert "Checking" in trackers_page.text
+    assert "BUR → SFO" in trackers_page.text
+    assert "LAX → SFO" in trackers_page.text
+    assert "https://www.google.com/travel/flights" in trackers_page.text
+    assert "Search details" not in trackers_page.text
 
 
 def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -> None:
@@ -2484,8 +2492,8 @@ def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -
     trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
-    assert "Next refresh:" in trackers_page.text
-    assert "Due now" in trackers_page.text
+    assert "Checking" in trackers_page.text
+    assert "Search details" not in trackers_page.text
 
 
 def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
@@ -2551,9 +2559,10 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
 
-    assert "No matching flights returned right now." in trackers_page.text
+    assert "N/A" in trackers_page.text
     assert "A recent Google Flights request failed. Milemark will retry automatically." not in trackers_page.text
-    assert "is-unavailable" in trackers_page.text
+    assert "google.com/travel/flights/search" in trackers_page.text
+    assert "Search details" not in trackers_page.text
 
 
 def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> None:

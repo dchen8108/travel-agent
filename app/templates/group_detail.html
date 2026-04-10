@@ -26,8 +26,11 @@
       <button class="button ghost danger-outline" type="submit">Delete collection</button>
     </form>
     {% endif %}
-    <a class="button primary" href="/trips/new?trip_group_id={{ group.trip_group_id }}">Create trip</a>
   </div>
+  {% set collection_card = group_view %}
+  {% set collection_link_href = "" %}
+  {% set collection_card_id = "group-summary-" ~ group.trip_group_id %}
+  {% include "partials/collection_summary_card.html" %}
 </section>
 
 <section class="section dashboard-panel detail-section-panel">

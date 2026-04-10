@@ -47,8 +47,8 @@ def travel_day_delta_label(anchor_date: date, travel_date: date | None) -> str:
 def tracker_route_label(tracker: Tracker) -> str:
     if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
         return f"{tracker.latest_winning_origin_airport} \u2192 {tracker.latest_winning_destination_airport}"
-    origins = _compact_airport_codes(tracker.origin_codes)
-    destinations = _compact_airport_codes(tracker.destination_codes)
+    origins = compact_airport_codes(tracker.origin_codes)
+    destinations = compact_airport_codes(tracker.destination_codes)
     if origins and destinations:
         return f"{origins} \u2192 {destinations}"
     return ""
@@ -81,6 +81,22 @@ def tracker_display_label(
     if len(tracker.airline_codes) == 1:
         return f"{route} \u00b7 {airline_display(tracker.airline_codes[0])}"
     return route
+
+
+def route_option_display_label(
+    origin_codes: list[str],
+    destination_codes: list[str],
+    airline_codes: list[str],
+) -> str:
+    route = ""
+    origins = compact_airport_codes(origin_codes)
+    destinations = compact_airport_codes(destination_codes)
+    if origins and destinations:
+        route = f"{origins} \u2192 {destinations}"
+    airlines = ", ".join(airline_display(code) for code in airline_codes if code)
+    if route and airlines:
+        return f"{route} \u00b7 {airlines}"
+    return route or airlines
 
 
 def tracker_best_fetch_target(
@@ -139,5 +155,5 @@ def tracker_best_fetch_target(
     )[0]
 
 
-def _compact_airport_codes(codes: list[str]) -> str:
+def compact_airport_codes(codes: list[str]) -> str:
     return " | ".join(code for code in codes if code)

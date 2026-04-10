@@ -1,0 +1,32 @@
+<article class="timeline-row route-summary-row">
+  <div class="route-summary-marker">
+    <span class="route-summary-kicker">Route</span>
+    <strong>{{ route_card.rank }}</strong>
+  </div>
+  <div class="timeline-main">
+    <div class="timeline-summary-row route-summary-ledger">
+      <div class="timeline-title-group route-summary-copy">
+        <span class="travel-title route-summary-title">{{ route_card.route_label }}</span>
+        {% if route_card.note %}
+        <p class="muted route-summary-note">{{ route_card.note }}</p>
+        {% endif %}
+      </div>
+      <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--neutral route-summary-offer">
+        <div class="timeline-offer-main">
+          <div class="timeline-offer-copy">
+            <p class="timeline-offer-detail">{{ route_card.window_detail }}</p>
+            {% if route_card.window_day_label %}
+            <div class="timeline-offer-meta">
+              <span class="timeline-offer-shift">{{ route_card.window_day_label }}</span>
+            </div>
+            {% endif %}
+          </div>
+          <div class="timeline-offer-price-stack">
+            <span class="timeline-offer-label timeline-offer-label--price">Route setup</span>
+            <span class="timeline-offer-price timeline-offer-price--neutral">{{ route_card.fare_value }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</article>
