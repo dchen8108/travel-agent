@@ -286,6 +286,10 @@ p {
   margin-bottom: 0;
 }
 
+.recurring-edit-warning {
+  margin-bottom: 18px;
+}
+
 .info-card {
   padding: 18px 20px;
   border: 1px solid rgba(154, 186, 181, 0.32);
