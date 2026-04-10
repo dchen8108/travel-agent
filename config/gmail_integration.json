@@ -20,7 +20,7 @@
   "max_messages_per_poll": 20,
   "max_retry_attempts": 2,
   "min_auto_create_confidence": 0.85,
-  "launchd_poll_interval_seconds": 180,
+  "launchd_poll_interval_seconds": 3600,
   "launchd_max_messages": 10,
   "model": "gpt-5.4",
   "spam_keywords": [
