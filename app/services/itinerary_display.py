@@ -34,6 +34,18 @@ def format_departure_time_label(value: str) -> str:
     return parsed.strftime("%I:%M %p").lstrip("0")
 
 
+def format_departure_window_label(start_time: str, end_time: str) -> str:
+    start_label = format_departure_time_label(start_time)
+    end_label = format_departure_time_label(end_time)
+    if start_label and end_label:
+        return f"{start_label} \u2013 {end_label} departure"
+    if start_label:
+        return f"{start_label} departure"
+    if end_label:
+        return f"Until {end_label} departure"
+    return "Departure window"
+
+
 def travel_day_delta_label(anchor_date: date, travel_date: date | None) -> str:
     if travel_date is None:
         return ""

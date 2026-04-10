@@ -12,6 +12,7 @@ from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.itinerary_display import (
     fetch_target_route_label,
     format_departure_time_label,
+    format_departure_window_label,
     route_option_display_label,
     tracker_best_fetch_target,
     travel_day_delta_label,
@@ -71,7 +72,7 @@ def _tracker_target_row_view(trip_instance, tracker, target, *, is_best_target: 
                 "meta_label": (
                     format_departure_time_label(target.latest_departure_label)
                     if target.latest_departure_label
-                    else f"{tracker.start_time}–{tracker.end_time} departure"
+                    else format_departure_window_label(tracker.start_time, tracker.end_time)
                 ),
                 "day_delta_label": travel_day_delta_label(
                     trip_instance.anchor_date,
@@ -100,7 +101,7 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
                     tracker.destination_codes,
                     tracker.airline_codes,
                 ),
-                "meta_label": f"{tracker.start_time}–{tracker.end_time} departure",
+                "meta_label": format_departure_window_label(tracker.start_time, tracker.end_time),
                 "day_delta_label": travel_day_delta_label(
                     trip_instance.anchor_date,
                     tracker.travel_date,
