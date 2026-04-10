@@ -60,6 +60,7 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_fetch_target_refresh_requests_to_v21(connection)
     if current_version < 22:
         _migrate_tracker_fetch_targets_to_v22(connection)
+    _migrate_tracker_fetch_targets_to_v22(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")

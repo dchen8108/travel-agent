@@ -116,6 +116,61 @@ def test_initialize_schema_skips_legacy_migrations_for_current_schema(tmp_path: 
     assert forbidden == []
 
 
+def test_initialize_schema_repairs_tracker_fetch_targets_shape_even_when_version_is_current(tmp_path: Path) -> None:
+    db_path = tmp_path / "travel_agent.sqlite3"
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        connection.execute(
+            """
+            CREATE TABLE tracker_fetch_targets (
+                fetch_target_id TEXT PRIMARY KEY,
+                tracker_id TEXT NOT NULL,
+                trip_instance_id TEXT NOT NULL,
+                tracker_definition_signature TEXT NOT NULL DEFAULT '',
+                origin_airport TEXT NOT NULL,
+                destination_airport TEXT NOT NULL,
+                schedule_offset_seconds INTEGER NOT NULL,
+                google_flights_url TEXT NOT NULL,
+                last_fetch_started_at TEXT NULL,
+                last_fetch_finished_at TEXT NULL,
+                last_fetch_status TEXT NOT NULL,
+                last_fetch_error TEXT NOT NULL DEFAULT '',
+                consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                next_fetch_not_before TEXT NULL,
+                latest_price INTEGER NULL,
+                latest_airline TEXT NOT NULL DEFAULT '',
+                latest_departure_label TEXT NOT NULL DEFAULT '',
+                latest_arrival_label TEXT NOT NULL DEFAULT '',
+                latest_summary TEXT NOT NULL DEFAULT '',
+                latest_fetched_at TEXT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                fetch_claim_owner TEXT NOT NULL DEFAULT '',
+                fetch_claim_expires_at TEXT NULL,
+                refresh_requested_at TEXT NULL
+            )
+            """
+        )
+        connection.commit()
+
+        initialize_schema(connection)
+
+        columns = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(tracker_fetch_targets)").fetchall()
+        }
+        user_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    finally:
+        connection.close()
+
+    assert "schedule_offset_seconds" not in columns
+    assert "next_fetch_not_before" not in columns
+    assert "refresh_requested_at" in columns
+    assert user_version == SCHEMA_VERSION
+
+
 def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
