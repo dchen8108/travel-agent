@@ -76,23 +76,6 @@
           <span>Record locator</span>
           <input type="text" name="record_locator" value="{{ booking_form_state.record_locator }}">
         </label>
-        {% if editing_booking %}
-        <div class="field booking-status-field">
-          <span>Status</span>
-          <div class="trip-type-segmented">
-            <label class="trip-type-pill">
-              <input type="radio" name="status" value="active" {{ 'checked' if booking_form_state.status == 'active' else '' }}>
-              <span>Active</span>
-            </label>
-            <label class="trip-type-pill">
-              <input type="radio" name="status" value="cancelled" {{ 'checked' if booking_form_state.status == 'cancelled' else '' }}>
-              <span>Cancelled</span>
-            </label>
-          </div>
-        </div>
-        {% else %}
-        <input type="hidden" name="status" value="active">
-        {% endif %}
         <label class="full-width">
           <span>Notes</span>
           <textarea name="notes" rows="3">{{ booking_form_state.notes }}</textarea>

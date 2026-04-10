@@ -7,14 +7,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.catalog import catalogs_json
 from app.money import parse_money
-from app.models.base import BookingStatus, DataScope
+from app.models.base import DataScope
 from app.services.bookings import (
     BookingCandidate,
-    cancel_booking,
     delete_booking_record,
     record_booking,
     resolve_unmatched_booking_to_trip_instance,
-    restore_booking,
     unlink_booking,
     update_booking,
 )
@@ -33,7 +31,6 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
         return {
             "booking_id": "",
             "trip_instance_id": trip_instance_id,
-            "status": BookingStatus.ACTIVE,
             "airline": "",
             "origin_airport": "",
             "destination_airport": "",
@@ -47,7 +44,6 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
     return {
         "booking_id": booking.booking_id,
         "trip_instance_id": trip_instance_id or booking.trip_instance_id,
-        "status": booking.status,
         "airline": booking.airline,
         "origin_airport": booking.origin_airport,
         "destination_airport": booking.destination_airport,
@@ -188,7 +184,6 @@ async def save_booking(
     booking_state = {
         "booking_id": str(form.get("booking_id", "")).strip(),
         "trip_instance_id": str(form.get("trip_instance_id", "")).strip(),
-        "status": str(form.get("status", BookingStatus.ACTIVE)).strip() or BookingStatus.ACTIVE,
         "airline": str(form.get("airline", "")).strip(),
         "origin_airport": str(form.get("origin_airport", "")).strip(),
         "destination_airport": str(form.get("destination_airport", "")).strip(),
@@ -200,8 +195,6 @@ async def save_booking(
         "notes": str(form.get("notes", "")).strip(),
     }
     try:
-        if booking_state["status"] not in {BookingStatus.ACTIVE, BookingStatus.CANCELLED}:
-            raise ValueError("Choose a valid booking status.")
         if not booking_state["airline"]:
             raise ValueError("Choose an airline.")
         if not booking_state["origin_airport"]:
@@ -241,7 +234,6 @@ async def save_booking(
                 booking_id=booking_state["booking_id"],
                 trip_instance_id=booking_state["trip_instance_id"],
                 candidate=candidate,
-                status=booking_state["status"],
             )
             unmatched = None
         else:
@@ -352,58 +344,6 @@ def unlink_booking_action(
         fallback_url="/#needs-linking",
         message="Booking needs linking",
     )
-
-
-@router.post("/bookings/{booking_id}/cancel")
-def cancel_booking_action(
-    booking_id: str,
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
-    try:
-        cancel_booking(repository, booking_id=booking_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        return redirect_back(
-            request,
-            fallback_url="/",
-            message=str(exc),
-            message_kind="error",
-        )
-    sync_and_persist(repository)
-    return redirect_back(
-        request,
-        fallback_url="/",
-        message="Booking cancelled",
-    )
-
-
-@router.post("/bookings/{booking_id}/restore")
-def restore_booking_action(
-    booking_id: str,
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> RedirectResponse:
-    try:
-        restore_booking(repository, booking_id=booking_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        return redirect_back(
-            request,
-            fallback_url="/",
-            message=str(exc),
-            message_kind="error",
-        )
-    sync_and_persist(repository)
-    return redirect_back(
-        request,
-        fallback_url="/",
-        message="Booking restored",
-    )
-
-
 @router.post("/bookings/{booking_id}/delete")
 def delete_booking_action(
     booking_id: str,
