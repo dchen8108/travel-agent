@@ -215,10 +215,10 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 
 `config/app_state.json` now acts as the policy surface for both:
 
-- runtime fetcher behavior (`fetch_interval_seconds`, backoff, lease, freshness window, per-run target cap)
+- runtime fetcher behavior (stale-first selection, backoff, lease, freshness window, per-run target cap)
 - launchd installer defaults (`launchd_fetch_interval_seconds`, `launchd_fetch_max_targets`)
 
-That means the launch cadence and the runtime worker cadence are related but distinct; changing one without the other may change when runs start without changing what each run is allowed to do.
+That means the launch cadence and the runtime worker budget are related but distinct; changing one without the other may change when runs start without changing how many searches each run is allowed to refresh.
 
 ## Storage
 

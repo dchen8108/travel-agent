@@ -4,7 +4,6 @@
   "dashboard_needs_booking_window_weeks": 6,
   "dashboard_overbooked_window_days": 7,
   "tracker_freshness_window_hours": 72,
-  "fetch_interval_seconds": 14400,
   "fetch_stagger_seconds": 10,
   "fetch_max_targets_per_run": 3,
   "fetch_claim_lease_minutes": 15,

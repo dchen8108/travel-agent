@@ -69,7 +69,6 @@ def test_repository_load_app_state_reads_checked_in_shape_from_config_json(tmp_p
         {
           "dashboard_needs_booking_window_weeks": 5,
           "dashboard_overbooked_window_days": 9,
-          "fetch_interval_seconds": 900,
           "launchd_fetch_interval_seconds": 120,
           "launchd_fetch_max_targets": 4
         }
@@ -81,7 +80,6 @@ def test_repository_load_app_state_reads_checked_in_shape_from_config_json(tmp_p
 
     assert app_state.dashboard_needs_booking_window_weeks == 5
     assert app_state.dashboard_overbooked_window_days == 9
-    assert app_state.fetch_interval_seconds == 900
     assert app_state.launchd_fetch_interval_seconds == 120
     assert app_state.launchd_fetch_max_targets == 4
 

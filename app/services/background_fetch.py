@@ -108,7 +108,6 @@ def queue_rolling_refresh(
         if instance.deleted or tracker.travel_date < now.date():
             continue
         target.refresh_requested_at = now
-        target.next_fetch_not_before = None
         target.updated_at = now
         queued_count += 1
     return queued_count
@@ -296,7 +295,6 @@ def run_fetch_batch(
                 target.last_fetch_error = ""
                 target.consecutive_failures = 0
                 target.refresh_requested_at = None
-                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = fetched_at
                 attempts.append(
@@ -331,7 +329,6 @@ def run_fetch_batch(
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
                 target.refresh_requested_at = None
-                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = no_results_at
                 attempts.append(
@@ -365,7 +362,6 @@ def run_fetch_batch(
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures = 0
                 target.refresh_requested_at = None
-                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = no_window_match_at
                 attempts.append(
@@ -393,7 +389,6 @@ def run_fetch_batch(
                 target.last_fetch_error = str(exc)
                 target.consecutive_failures += 1
                 target.refresh_requested_at = None
-                target.next_fetch_not_before = None
                 _release_fetch_claim(target)
                 target.updated_at = failed_at
                 attempts.append(

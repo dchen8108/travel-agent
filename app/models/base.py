@@ -103,7 +103,6 @@ class AppState(CsvModel):
     dashboard_needs_booking_window_weeks: int = Field(default=6, ge=1)
     dashboard_overbooked_window_days: int = Field(default=7, ge=1)
     tracker_freshness_window_hours: int = Field(default=72, ge=1)
-    fetch_interval_seconds: int = Field(default=4 * 60 * 60, ge=60)
     fetch_stagger_seconds: int = Field(default=10, ge=0)
     fetch_max_targets_per_run: int = Field(default=3, ge=0)
     fetch_claim_lease_minutes: int = Field(default=15, ge=1)

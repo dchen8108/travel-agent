@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -185,7 +185,6 @@ DDL_STATEMENTS: tuple[str, ...] = (
         tracker_definition_signature TEXT NOT NULL DEFAULT '',
         origin_airport TEXT NOT NULL,
         destination_airport TEXT NOT NULL,
-        schedule_offset_seconds INTEGER NOT NULL,
         google_flights_url TEXT NOT NULL,
         last_fetch_started_at TEXT NULL,
         last_fetch_finished_at TEXT NULL,
@@ -193,7 +192,6 @@ DDL_STATEMENTS: tuple[str, ...] = (
         last_fetch_error TEXT NOT NULL DEFAULT '',
         consecutive_failures INTEGER NOT NULL DEFAULT 0,
         refresh_requested_at TEXT NULL,
-        next_fetch_not_before TEXT NULL,
         fetch_claim_owner TEXT NOT NULL DEFAULT '',
         fetch_claim_expires_at TEXT NULL,
         latest_price INTEGER NULL,
@@ -253,8 +251,9 @@ DDL_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_trip_instance_group_memberships_rule_instance ON trip_instance_group_memberships(source_rule_trip_id, trip_instance_id)",
     "CREATE INDEX IF NOT EXISTS idx_trip_instances_anchor_date ON trip_instances(anchor_date)",
     "CREATE INDEX IF NOT EXISTS idx_trackers_trip_instance_rank ON trackers(trip_instance_id, rank)",
-    "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_due ON tracker_fetch_targets(next_fetch_not_before, last_fetch_status)",
-    "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_claim_due ON tracker_fetch_targets(fetch_claim_expires_at, next_fetch_not_before)",
+    "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_claim ON tracker_fetch_targets(fetch_claim_expires_at)",
+    "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_requested ON tracker_fetch_targets(refresh_requested_at)",
+    "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_staleness ON tracker_fetch_targets(last_fetch_finished_at, last_fetch_status)",
     "CREATE INDEX IF NOT EXISTS idx_tracker_fetch_targets_tracker_pair ON tracker_fetch_targets(tracker_id, origin_airport, destination_airport)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_trip_status ON bookings(trip_instance_id, booking_status, booked_at)",
     "CREATE INDEX IF NOT EXISTS idx_bookings_match_status ON bookings(match_status, departure_date)",

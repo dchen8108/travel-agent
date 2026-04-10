@@ -16,7 +16,6 @@ class TrackerFetchTarget(CsvModel):
     tracker_definition_signature: str = ""
     origin_airport: str
     destination_airport: str
-    schedule_offset_seconds: int = 0
     google_flights_url: str
     last_fetch_started_at: datetime | None = None
     last_fetch_finished_at: datetime | None = None
@@ -24,7 +23,6 @@ class TrackerFetchTarget(CsvModel):
     last_fetch_error: str = ""
     consecutive_failures: int = 0
     refresh_requested_at: datetime | None = None
-    next_fetch_not_before: datetime | None = None
     fetch_claim_owner: str = ""
     fetch_claim_expires_at: datetime | None = None
     latest_price: int | None = None
@@ -60,13 +58,6 @@ class TrackerFetchTarget(CsvModel):
     def validate_failures(cls, value: int) -> int:
         if value < 0:
             raise ValueError("Failure count cannot be negative.")
-        return value
-
-    @field_validator("schedule_offset_seconds")
-    @classmethod
-    def validate_schedule_offset(cls, value: int) -> int:
-        if value < 0:
-            raise ValueError("Schedule offset cannot be negative.")
         return value
 
     @field_validator("latest_price")

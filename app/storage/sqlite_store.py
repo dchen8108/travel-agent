@@ -58,6 +58,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_trackers_remove_manual_import_signals_to_v20(connection)
     if current_version < 21:
         _migrate_fetch_target_refresh_requests_to_v21(connection)
+    if current_version < 22:
+        _migrate_tracker_fetch_targets_to_v22(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -857,6 +859,129 @@ def _migrate_fetch_target_refresh_requests_to_v21(connection: sqlite3.Connection
         connection.execute(
             "ALTER TABLE tracker_fetch_targets ADD COLUMN refresh_requested_at TEXT NULL"
         )
+
+
+def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "tracker_fetch_targets"):
+        return
+    columns = set(_table_columns(connection, "tracker_fetch_targets"))
+    required_columns = {
+        "fetch_target_id",
+        "tracker_id",
+        "trip_instance_id",
+        "data_scope",
+        "tracker_definition_signature",
+        "origin_airport",
+        "destination_airport",
+        "google_flights_url",
+        "last_fetch_started_at",
+        "last_fetch_finished_at",
+        "last_fetch_status",
+        "last_fetch_error",
+        "consecutive_failures",
+        "refresh_requested_at",
+        "fetch_claim_owner",
+        "fetch_claim_expires_at",
+        "latest_price",
+        "latest_airline",
+        "latest_departure_label",
+        "latest_arrival_label",
+        "latest_summary",
+        "latest_fetched_at",
+        "created_at",
+        "updated_at",
+    }
+    if columns == required_columns:
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE tracker_fetch_targets_v22 (
+            fetch_target_id TEXT PRIMARY KEY,
+            tracker_id TEXT NOT NULL,
+            trip_instance_id TEXT NOT NULL,
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            tracker_definition_signature TEXT NOT NULL DEFAULT '',
+            origin_airport TEXT NOT NULL,
+            destination_airport TEXT NOT NULL,
+            google_flights_url TEXT NOT NULL,
+            last_fetch_started_at TEXT NULL,
+            last_fetch_finished_at TEXT NULL,
+            last_fetch_status TEXT NOT NULL,
+            last_fetch_error TEXT NOT NULL DEFAULT '',
+            consecutive_failures INTEGER NOT NULL DEFAULT 0,
+            refresh_requested_at TEXT NULL,
+            fetch_claim_owner TEXT NOT NULL DEFAULT '',
+            fetch_claim_expires_at TEXT NULL,
+            latest_price INTEGER NULL,
+            latest_airline TEXT NOT NULL DEFAULT '',
+            latest_departure_label TEXT NOT NULL DEFAULT '',
+            latest_arrival_label TEXT NOT NULL DEFAULT '',
+            latest_summary TEXT NOT NULL DEFAULT '',
+            latest_fetched_at TEXT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO tracker_fetch_targets_v22 (
+            fetch_target_id,
+            tracker_id,
+            trip_instance_id,
+            data_scope,
+            tracker_definition_signature,
+            origin_airport,
+            destination_airport,
+            google_flights_url,
+            last_fetch_started_at,
+            last_fetch_finished_at,
+            last_fetch_status,
+            last_fetch_error,
+            consecutive_failures,
+            refresh_requested_at,
+            fetch_claim_owner,
+            fetch_claim_expires_at,
+            latest_price,
+            latest_airline,
+            latest_departure_label,
+            latest_arrival_label,
+            latest_summary,
+            latest_fetched_at,
+            created_at,
+            updated_at
+        )
+        SELECT
+            fetch_target_id,
+            tracker_id,
+            trip_instance_id,
+            COALESCE(data_scope, 'live'),
+            COALESCE(tracker_definition_signature, ''),
+            origin_airport,
+            destination_airport,
+            google_flights_url,
+            last_fetch_started_at,
+            last_fetch_finished_at,
+            last_fetch_status,
+            COALESCE(last_fetch_error, ''),
+            COALESCE(consecutive_failures, 0),
+            refresh_requested_at,
+            COALESCE(fetch_claim_owner, ''),
+            fetch_claim_expires_at,
+            latest_price,
+            COALESCE(latest_airline, ''),
+            COALESCE(latest_departure_label, ''),
+            COALESCE(latest_arrival_label, ''),
+            COALESCE(latest_summary, ''),
+            latest_fetched_at,
+            created_at,
+            updated_at
+        FROM tracker_fetch_targets
+        """
+    )
+    connection.execute("DROP TABLE tracker_fetch_targets")
+    connection.execute("ALTER TABLE tracker_fetch_targets_v22 RENAME TO tracker_fetch_targets")
 
 
 def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:

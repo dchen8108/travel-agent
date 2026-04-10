@@ -71,7 +71,6 @@ def reconcile_fetch_targets(
                     existing.last_fetch_started_at = None
                     existing.last_fetch_finished_at = None
                     existing.refresh_requested_at = now
-                    existing.next_fetch_not_before = None
                 desired.append(existing)
                 continue
             desired.append(

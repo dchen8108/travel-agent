@@ -354,8 +354,6 @@ def test_select_due_fetch_targets_returns_empty_when_max_targets_is_zero(reposit
 
     snapshot = sync_and_persist(repository)
     now = utcnow()
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now - timedelta(seconds=1)
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
@@ -391,8 +389,6 @@ def test_select_due_fetch_targets_skips_past_trip_targets(repository: Repository
 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     now = utcnow()
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now - timedelta(seconds=1)
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
@@ -450,7 +446,6 @@ def test_select_due_fetch_targets_skips_trackers_with_active_claims(repository: 
     instance_by_id = {item.trip_instance_id: item for item in snapshot.trip_instances}
     first_tracker_id = snapshot.trackers[0].tracker_id
     for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now - timedelta(seconds=1)
         if target.tracker_id == first_tracker_id:
             target.fetch_claim_owner = "fetchrun_other"
             target.fetch_claim_expires_at = now + timedelta(minutes=5)
@@ -510,8 +505,6 @@ def test_claim_due_fetch_targets_prevents_overlap_between_workers(repository: Re
 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     now = utcnow()
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = now - timedelta(seconds=1)
     repository.replace_tracker_fetch_targets(snapshot.tracker_fetch_targets)
 
     first_claim = claim_due_fetch_targets(
@@ -654,8 +647,6 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
 
     snapshot = sync_and_persist(repository)
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     seen_prices = iter([141, 188])
 
@@ -735,7 +726,6 @@ def test_run_fetch_batch_releases_claim_after_success(repository: Repository, mo
     )
     target.fetch_claim_owner = "fetchrun_claimed"
     target.fetch_claim_expires_at = utcnow() + timedelta(minutes=10)
-    target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     def fake_fetch(url: str, *, client=None, timeout=20.0):
         return parse_google_flights_offers(
@@ -789,8 +779,6 @@ def test_run_fetch_batch_with_zero_max_targets_is_a_no_op(repository: Repository
     )
 
     snapshot = sync_and_persist(repository)
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     def should_not_fetch(url: str, *, client=None, timeout=20.0):
         raise AssertionError("Fetcher should not run when max_targets=0")
@@ -833,8 +821,6 @@ def test_run_fetch_batch_applies_startup_jitter_when_requested(repository: Repos
     )
 
     snapshot = sync_and_persist(repository)
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     sleep_calls: list[float] = []
 
@@ -906,7 +892,6 @@ def test_run_fetch_batch_marks_no_results_without_counting_a_failure(repository:
     target.latest_airline = "Alaska"
     target.latest_summary = "Old price"
     target.latest_fetched_at = utcnow() - timedelta(hours=1)
-    target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     def fake_fetch(url: str, *, client=None, timeout=20.0):
         raise GoogleFlightsNoResultsError("No flight prices found in the Google Flights response.")
@@ -960,8 +945,6 @@ def test_run_fetch_batch_filters_winner_by_exact_departure_window_but_still_reco
 
     snapshot = sync_and_persist(repository)
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id in {instance.trip_instance_id for instance in snapshot.trip_instances if instance.trip_id == trip.trip_id})
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     def fake_fetch(url: str, *, client=None, timeout=20.0):
         return parse_google_flights_offers(
@@ -1043,8 +1026,6 @@ def test_run_fetch_batch_marks_no_results_when_broad_query_returns_only_out_of_w
     )
 
     snapshot = sync_and_persist(repository)
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     def fake_fetch(url: str, *, client=None, timeout=20.0):
         return parse_google_flights_offers(
@@ -1461,8 +1442,6 @@ def test_run_fetch_batch_reraises_unexpected_exceptions(repository: Repository, 
         ],
     )
     snapshot = sync_and_persist(repository)
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     monkeypatch.setattr(
         "app.services.background_fetch.fetch_google_flights_offers",
@@ -1505,8 +1484,6 @@ def test_successful_fetch_builds_price_records_for_all_offers(repository: Reposi
     )
 
     snapshot = sync_and_persist(repository)
-    for target in snapshot.tracker_fetch_targets:
-        target.next_fetch_not_before = utcnow() - timedelta(seconds=1)
 
     def fake_fetch(url: str, *, client=None, timeout=20.0):
         return parse_google_flights_offers(

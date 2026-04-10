@@ -132,7 +132,6 @@ Key columns:
 - `tracker_definition_signature`
 - `origin_airport`
 - `destination_airport`
-- `schedule_offset_seconds`
 - `google_flights_url`
 - `last_fetch_started_at`
 - `last_fetch_finished_at`
