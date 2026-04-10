@@ -138,14 +138,21 @@ def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     return f"{label} · {instance.anchor_date.strftime('%a, %b %d')}"
 
 
-def booking_row_summary(booking_like: object) -> dict[str, object]:
+def booking_row_summary(booking_like: object, *, anchor_date: date | None = None) -> dict[str, object]:
     return {
         "title": getattr(booking_like, "record_locator", "") or "Imported booking",
         "booked_offer": {
             "label": "Booked at",
             "detail": booking_route_label(booking_like),
             "meta_label": format_departure_time_label(getattr(booking_like, "departure_time", "")),
-            "day_delta_label": "",
+            "day_delta_label": (
+                travel_day_delta_label(
+                    anchor_date,
+                    getattr(booking_like, "departure_date", None),
+                )
+                if anchor_date is not None
+                else ""
+            ),
             "price_label": format_money(getattr(booking_like, "booked_price", 0)),
             "href": "",
             "tone": "neutral",

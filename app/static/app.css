@@ -1716,6 +1716,16 @@ textarea {
   line-height: 1.45;
 }
 
+.rule-summary-card .dashboard-item-title {
+  font-size: 1rem;
+  line-height: 1.16;
+}
+
+.rule-summary-card .muted {
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+
 .callout-card {
   margin-bottom: 22px;
   padding: 20px 22px;
@@ -2376,6 +2386,10 @@ button.collection-trip-pill[hidden] {
   padding: 14px 16px;
   border-top: 1px solid rgba(216, 221, 216, 0.72);
   background: transparent;
+}
+
+.timeline-row--no-date {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .timeline-list > .timeline-row:first-child {

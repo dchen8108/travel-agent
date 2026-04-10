@@ -8,19 +8,16 @@
     </p>
     <p class="page-context">Scheduled trip</p>
     <h2>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }}</h2>
-    {% if trip_groups %}
-    <p class="muted detail-related-links">
-      {% if trip_groups %}
-      In
-      {% for linked_group in trip_groups %}
-      <a href="/groups/{{ linked_group.trip_group_id }}">{{ linked_group.label }}</a>{% if not loop.last %}, {% endif %}
-      {% endfor %}
-      {% endif %}
-    </p>
-    {% endif %}
   </div>
-  {% if recurring_rule or can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip or parent_trip.trip_kind != 'weekly' %}
+  {% if trip_groups or recurring_rule or can_detach_trip_instance or can_delete_generated_trip_instance or can_delete_parent_trip or parent_trip.trip_kind != 'weekly' %}
   <div class="hero-actions">
+    {% if trip_groups|length == 1 %}
+    <a class="button ghost" href="/groups/{{ trip_groups[0].trip_group_id }}">View collection</a>
+    {% elif trip_groups|length > 1 %}
+      {% for linked_group in trip_groups %}
+      <a class="button ghost" href="/groups/{{ linked_group.trip_group_id }}">View {{ linked_group.label }}</a>
+      {% endfor %}
+    {% endif %}
     {% if recurring_rule and trip_instance.inheritance_mode == 'attached' and parent_trip.trip_kind == 'weekly' %}
     <a class="button secondary" href="/trips/{{ recurring_rule.trip_id }}/edit">Edit recurring trip</a>
     {% else %}
@@ -78,11 +75,12 @@
     {% set linked_booking = booking_card.booking %}
     {% set route_tracking = booking_card.route_tracking %}
       {% set scheduled_instance = linked_booking %}
-      {% set row = booking_row_summary(linked_booking) %}
+      {% set row = booking_row_summary(linked_booking, anchor_date=trip_instance.anchor_date) %}
       {% set row_date = linked_booking.departure_date %}
       {% set row_href = "" %}
       {% set row_id_prefix = "detail-booking" %}
       {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
+      {% set show_row_date = False %}
       {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status in ['active', 'cancelled'] else "" %}
       {% include "partials/scheduled_trip_row.html" %}
       {% if route_tracking.warning %}
@@ -117,6 +115,7 @@
       {% set row_id_prefix = "tracker-search" %}
       {% set row_dom_id = "tracker-search-" ~ tracker_row.row_id %}
       {% set row_class_names = "timeline-row--tracker timeline-row-subtle" %}
+      {% set show_row_date = False %}
       {% include "partials/scheduled_trip_row.html" %}
     {% endfor %}
   </div>

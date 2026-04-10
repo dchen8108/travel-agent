@@ -4,11 +4,14 @@
 {% set row_date = row_date if row_date is defined else scheduled_instance.anchor_date %}
 {% set row_href = row_href if row_href is defined else '/trip-instances/' ~ scheduled_instance.trip_instance_id %}
 {% set row_dom_id = row_dom_id if row_dom_id is defined else row_id_prefix ~ '-' ~ scheduled_instance.trip_instance_id %}
-<article class="timeline-row{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
+{% set show_row_date = show_row_date if show_row_date is defined else True %}
+<article class="timeline-row{{ ' timeline-row--no-date' if not show_row_date else '' }}{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
+  {% if show_row_date %}
   <div class="timeline-date">
     <span class="timeline-day">{{ row_date.strftime('%a') }}</span>
     <strong>{{ row_date.strftime('%b %d') }}</strong>
   </div>
+  {% endif %}
   <div class="timeline-main">
     <div class="timeline-summary-row">
       {% if row.title %}
