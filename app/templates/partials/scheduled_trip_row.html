@@ -91,11 +91,16 @@
         </div>
       </div>
       {% endif %}
-      {% if row_actions_partial is defined and row_actions_partial %}
+  {% if row_actions_partial is defined and row_actions_partial %}
       <div class="timeline-offer-item timeline-offer-item--actions">
         {% include row_actions_partial %}
       </div>
       {% endif %}
     </div>
+    {% if row_footer_partial is defined and row_footer_partial %}
+    <div class="timeline-row-footer">
+      {% include row_footer_partial %}
+    </div>
+    {% endif %}
   </div>
 </article>

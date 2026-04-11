@@ -2280,7 +2280,8 @@ button.collection-trip-pill[hidden] {
   background: rgba(255, 254, 250, 0.92);
 }
 
-.detail-booking-list .timeline-row {
+.detail-booking-list .timeline-row,
+.detail-tracker-list .timeline-row {
   padding-left: 16px;
   padding-right: 16px;
 }
@@ -2291,26 +2292,6 @@ button.collection-trip-pill[hidden] {
 
 .detail-booking-list > .timeline-row:first-child {
   border-top: 0;
-}
-
-.detail-booking-warning-row {
-  padding: 14px 16px 16px;
-  border-top: 1px solid rgba(216, 221, 216, 0.72);
-  background: linear-gradient(180deg, rgba(251, 230, 226, 0.98), rgba(255, 248, 246, 0.96));
-}
-
-.detail-booking-warning-row strong {
-  display: block;
-  color: var(--danger);
-  font-size: 0.86rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.detail-booking-warning-row p {
-  margin-top: 6px;
-  color: var(--ink);
 }
 
 .dashboard-item-title,
@@ -2496,10 +2477,10 @@ button.collection-trip-pill[hidden] {
 }
 
 .timeline-offer-item--actions {
-  flex: 0 0 430px;
-  max-width: 430px;
+  flex: 0 0 320px;
+  max-width: 320px;
   min-width: 0;
-  padding-left: 12px;
+  padding-left: 8px;
   justify-items: end;
 }
 
@@ -2557,7 +2538,7 @@ button.collection-trip-pill[hidden] {
   align-items: center;
   align-content: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   min-height: 64px;
   width: 100%;
 }
@@ -2570,7 +2551,7 @@ button.collection-trip-pill[hidden] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 92px;
+  width: 88px;
 }
 
 .timeline-offer-copy {
@@ -2671,6 +2652,102 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-status--link:hover {
   transform: translateY(-1px);
   opacity: 0.82;
+}
+
+.timeline-row-footer {
+  margin-top: 10px;
+}
+
+.timeline-note {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.timeline-note strong {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timeline-note p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.timeline-note--warning {
+  border: 1px solid rgba(226, 182, 171, 0.55);
+  background: linear-gradient(180deg, rgba(251, 235, 229, 0.88), rgba(255, 249, 247, 0.96));
+}
+
+.timeline-note--warning strong {
+  color: var(--danger);
+}
+
+.timeline-row--booking-detail {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.timeline-row--booking-detail .timeline-summary-row {
+  gap: 26px;
+}
+
+.timeline-row--booking-detail .timeline-offer-item--booked {
+  padding-right: 14px;
+}
+
+.timeline-row--booking-detail .timeline-row-actions {
+  min-height: 56px;
+}
+
+.timeline-row--tracker-detail {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.timeline-row--tracker-detail .timeline-summary-row {
+  display: grid;
+  gap: 0;
+}
+
+.timeline-row--tracker-detail .timeline-offer-item--current-only {
+  width: 100%;
+  padding-left: 0;
+  justify-self: stretch;
+  max-width: none;
+}
+
+.timeline-row--tracker-detail .timeline-offer-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  min-height: 56px;
+}
+
+.timeline-row--tracker-detail .timeline-offer-copy {
+  flex: 1 1 auto;
+  gap: 6px;
+  min-width: 0;
+}
+
+.timeline-row--tracker-detail .timeline-offer-price-stack {
+  flex: 0 0 auto;
+  margin-left: auto;
+  justify-self: end;
+}
+
+.timeline-row--tracker-detail .timeline-offer-detail {
+  font-size: 1rem;
+}
+
+.timeline-row--tracker-detail .timeline-offer-time {
+  font-size: 0.84rem;
 }
 
 .timeline-fact {

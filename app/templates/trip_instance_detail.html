@@ -79,16 +79,11 @@
       {% set row_date = linked_booking.departure_date %}
       {% set row_href = "" %}
       {% set row_id_prefix = "detail-booking" %}
-      {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
+      {% set row_class_names = "timeline-row--booking timeline-row--embedded timeline-row--booking-detail" %}
       {% set show_row_date = False %}
       {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status in ['active', 'cancelled'] else "" %}
+      {% set row_footer_partial = "partials/booking_warning_footer.html" if route_tracking.warning else "" %}
       {% include "partials/scheduled_trip_row.html" %}
-      {% if route_tracking.warning %}
-      <section class="detail-booking-warning-row">
-        <strong>{{ route_tracking.summary_label }}</strong>
-        <p>{{ route_tracking.warning }}</p>
-      </section>
-      {% endif %}
     {% endfor %}
   </div>
   {% endif %}
@@ -114,7 +109,7 @@
       {% set row_href = "" %}
       {% set row_id_prefix = "tracker-search" %}
       {% set row_dom_id = "tracker-search-" ~ tracker_row.row_id %}
-      {% set row_class_names = "timeline-row--tracker timeline-row-subtle" %}
+      {% set row_class_names = "timeline-row--tracker timeline-row--tracker-detail timeline-row-subtle" %}
       {% set show_row_date = False %}
       {% include "partials/scheduled_trip_row.html" %}
     {% endfor %}
