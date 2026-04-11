@@ -1,0 +1,39 @@
+<div class="dashboard-trip-actions">
+  <a class="button ghost compact" href="{{ dashboard_action_view.edit_href }}">Edit</a>
+  {% if dashboard_action_view.show_booking_modal %}
+  <button
+    type="button"
+    class="button ghost compact"
+    data-panel-modal-url="{{ dashboard_action_view.booking_modal_url }}"
+    data-panel-history-url="{{ dashboard_action_view.booking_modal_history_url }}"
+  >
+    {{ dashboard_action_view.booking_label }}
+  </button>
+  {% else %}
+  <a class="button ghost compact" href="{{ dashboard_action_view.booking_href }}">{{ dashboard_action_view.booking_label }}</a>
+  {% endif %}
+  {% if dashboard_action_view.show_trackers %}
+  <button
+    type="button"
+    class="button ghost compact"
+    data-panel-modal-url="{{ dashboard_action_view.tracker_modal_url }}"
+    data-panel-history-url="{{ dashboard_action_view.tracker_modal_history_url }}"
+  >
+    Trackers
+  </button>
+  {% endif %}
+  {% if dashboard_action_view.delete_href %}
+  <form
+    method="post"
+    action="{{ dashboard_action_view.delete_href }}"
+    {% if dashboard_action_view.delete_confirmation %}
+    data-confirm-title="{{ dashboard_action_view.delete_confirmation.title }}"
+    data-confirm-description="{{ dashboard_action_view.delete_confirmation.description }}"
+    data-confirm-action="{{ dashboard_action_view.delete_confirmation.action }}"
+    data-confirm-cancel="{{ dashboard_action_view.delete_confirmation.cancel }}"
+    {% endif %}
+  >
+    <button class="button ghost compact danger-outline" type="submit">Delete</button>
+  </form>
+  {% endif %}
+</div>

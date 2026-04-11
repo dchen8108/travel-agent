@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.models.tracker import Tracker
+from app.services.dashboard_navigation import trip_panel_url
 from app.services.itinerary_display import (
     booking_route_label,
     format_departure_time_label,
@@ -11,6 +12,7 @@ from app.services.itinerary_display import (
     travel_day_delta_label,
 )
 from app.services.scheduled_trip_state import (
+    active_booking_count_for_instance,
     booking_for_instance,
     best_tracker,
     comparison_tracker,
@@ -159,4 +161,80 @@ def booking_row_summary(booking_like: object, *, anchor_date: date | None = None
             "price_is_status": False,
         },
         "current_offer": None,
+    }
+
+
+def trip_row_actions_view(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
+    instance = trip_instance_by_id(snapshot, trip_instance_id)
+    trip = trip_for_instance(snapshot, trip_instance_id)
+    recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
+    active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
+    has_trackers = bool(trackers_for_instance(snapshot, trip_instance_id))
+
+    if instance is None or trip is None:
+        return {
+            "edit_href": "",
+            "booking_href": "",
+            "booking_modal_url": "",
+            "booking_modal_history_url": "",
+            "booking_label": "",
+            "tracker_modal_url": "",
+            "tracker_modal_history_url": "",
+            "show_trackers": False,
+            "delete_href": "",
+            "delete_confirmation": None,
+        }
+
+    is_attached_recurring_instance = (
+        trip.trip_kind == "weekly"
+        and instance.inheritance_mode == "attached"
+        and recurring_rule is not None
+    )
+    if is_attached_recurring_instance:
+        edit_href = f"/trips/{recurring_rule.trip_id}/edit?trip_instance_id={instance.trip_instance_id}"
+        delete_href = f"/trip-instances/{instance.trip_instance_id}/delete-generated"
+        delete_confirmation = {
+            "title": "Delete this generated trip?",
+            "description": "This date will be removed from the recurring trip and will stop background fare checks unless you recreate it later.",
+            "action": "Delete trip",
+            "cancel": "Keep trip",
+        }
+    else:
+        edit_href = f"/trips/{trip.trip_id}/edit"
+        delete_href = f"/trips/{trip.trip_id}/delete" if trip.trip_kind == "one_time" and trip.active else ""
+        delete_confirmation = (
+            {
+                "title": "Delete this one-time trip?",
+                "description": "It will disappear from the active trip workflow and stop background fare checks for this date.",
+                "action": "Delete trip",
+                "cancel": "Keep trip",
+            }
+            if delete_href
+            else None
+        )
+
+    booking_modal_url = f"/trip-instances/{instance.trip_instance_id}/bookings-panel"
+    tracker_modal_url = f"/trip-instances/{instance.trip_instance_id}/trackers-panel"
+    return {
+        "edit_href": edit_href,
+        "booking_href": f"/bookings/new?trip_instance_id={instance.trip_instance_id}",
+        "booking_modal_url": booking_modal_url,
+        "booking_modal_history_url": trip_panel_url(
+            snapshot,
+            trip.trip_id,
+            trip_instance_id=instance.trip_instance_id,
+            panel="bookings",
+        ),
+        "booking_label": "Bookings" if active_booking_count > 0 else "Add booking",
+        "show_booking_modal": active_booking_count > 0,
+        "tracker_modal_url": tracker_modal_url,
+        "tracker_modal_history_url": trip_panel_url(
+            snapshot,
+            trip.trip_id,
+            trip_instance_id=instance.trip_instance_id,
+            panel="trackers",
+        ),
+        "show_trackers": has_trackers,
+        "delete_href": delete_href,
+        "delete_confirmation": delete_confirmation,
     }

@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from app.services.collection_display import group_summary_view
-from app.services.dashboard_queries import recurring_rules_for_group, scheduled_instances
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.groups import delete_trip_group, save_trip_group
-from app.services.snapshot_queries import horizon_instances_for_rule, trip_group_by_id
+from app.services.snapshot_queries import trip_group_by_id
 from app.storage.repository import Repository
 from app.web import back_url, base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
@@ -74,35 +70,13 @@ def new_group(
 @router.get("/groups/{trip_group_id}", response_class=HTMLResponse)
 def group_detail(
     trip_group_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
-
-    today = date.today()
-    recurring_rules = recurring_rules_for_group(snapshot, trip_group_id)
-    grouped_instances = scheduled_instances(snapshot, trip_group_ids={trip_group_id}, today=today)
-    group_view = group_summary_view(snapshot, group, today=today)
-
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="group_detail.html",
-        context=base_context(
-            request,
-            page="trips",
-            snapshot=snapshot,
-            back_href=back_url(request, fallback_url="/#dashboard-groups"),
-            group=group,
-            group_view=group_view,
-            recurring_rules=recurring_rules,
-            grouped_instances=grouped_instances,
-            today=today,
-            horizon_instances_for_rule=horizon_instances_for_rule,
-        ),
-    )
+    return RedirectResponse(url=f"/#group-{group.trip_group_id}", status_code=303)
 
 
 @router.get("/groups/{trip_group_id}/edit", response_class=HTMLResponse)
@@ -120,7 +94,7 @@ def edit_group(
         snapshot=snapshot,
         group=group,
         group_form_state=_group_form_state(group),
-        cancel_url=back_url(request, fallback_url=f"/groups/{group.trip_group_id}"),
+        cancel_url=back_url(request, fallback_url=f"/#group-{group.trip_group_id}"),
     )
 
 
@@ -153,11 +127,11 @@ async def save_group_action(
                 "label": label,
                 "description": description,
             },
-            cancel_url=cancel_url or (f"/groups/{group_id}" if group_id else "/#dashboard-groups"),
+            cancel_url=cancel_url or (f"/#group-{group_id}" if group_id else "/#dashboard-groups"),
             error_message=str(exc),
             status_code=400,
         )
-    return redirect_with_message(f"/groups/{group.trip_group_id}", "Trip group saved")
+    return redirect_with_message(f"/#group-{group.trip_group_id}", "Trip group saved")
 
 
 @router.post("/groups/{trip_group_id}/delete")
@@ -173,7 +147,7 @@ def delete_group_action(
     except ValueError as exc:
         return redirect_back(
             request,
-            fallback_url=f"/groups/{trip_group_id}",
+            fallback_url=f"/#group-{trip_group_id}",
             message=str(exc),
             message_kind="error",
         )

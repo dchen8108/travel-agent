@@ -117,7 +117,7 @@ def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
         "savings": savings,
         "phase_label": phase_label,
         "phase_tone": phase_tone,
-        "href": f"/trip-instances/{instance.trip_instance_id}",
+        "href": trip_focus_url(snapshot, trip.trip_id, trip_instance_id=instance.trip_instance_id),
     }
 
 

@@ -5,6 +5,7 @@ from datetime import date
 from app.routes import groups as groups_route
 from app.routes import trackers as trackers_route
 from app.routes import trips as trips_route
+from app.services.dashboard_navigation import trip_focus_url
 from app.services.groups import save_trip_group
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -104,14 +105,15 @@ def test_trip_detail_prefers_persisted_snapshot_when_instance_exists(
         calls["persisted"] += 1
         return real(repo)
 
-    def boom(*_args, **_kwargs):
-        raise AssertionError("trip_detail should not fall back to live snapshot when a persisted instance exists")
-
     monkeypatch.setattr(trips_route, "load_persisted_snapshot", wrapped)
-    monkeypatch.setattr(trips_route, "load_live_snapshot", boom)
 
     response = client.get(f"/trips/{trip.trip_id}", follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == f"/trip-instances/{instance.trip_instance_id}"
+    snapshot = real(repository)
+    assert response.headers["location"] == trip_focus_url(
+        snapshot,
+        trip.trip_id,
+        trip_instance_id=instance.trip_instance_id,
+    )
     assert calls["persisted"] == 1

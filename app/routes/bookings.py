@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from app.catalog import catalogs_json
 from app.money import parse_money
 from app.models.base import DataScope
+from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
 from app.services.bookings import (
     BookingCandidate,
     delete_booking_record,
@@ -56,11 +57,25 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
     }
 
 
-def _booking_form_cancel_url(*, selected_trip_instance=None, editing_booking=None) -> str:
+def _booking_form_cancel_url(snapshot, *, selected_trip_instance=None, editing_booking=None) -> str:
     if selected_trip_instance is not None:
-        return f"/trip-instances/{selected_trip_instance.trip_instance_id}"
+        parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id)
+        if parent_trip is not None:
+            return trip_panel_url(
+                snapshot,
+                parent_trip.trip_id,
+                trip_instance_id=selected_trip_instance.trip_instance_id,
+                panel="bookings",
+            )
     if editing_booking is not None and editing_booking.trip_instance_id:
-        return f"/trip-instances/{editing_booking.trip_instance_id}"
+        parent_trip = trip_for_instance(snapshot, editing_booking.trip_instance_id)
+        if parent_trip is not None:
+            return trip_panel_url(
+                snapshot,
+                parent_trip.trip_id,
+                trip_instance_id=editing_booking.trip_instance_id,
+                panel="bookings",
+            )
     return "/"
 
 
@@ -106,7 +121,18 @@ def _booking_redirect_response(snapshot, booking, *, message: str) -> RedirectRe
         message = f"{message}. {route_tracking['warning']}"
     if trip_instance is None:
         return redirect_with_message("/#needs-linking", message)
-    return redirect_with_message(f"/trip-instances/{trip_instance.trip_instance_id}", message)
+    parent_trip = trip_for_instance(snapshot, trip_instance.trip_instance_id)
+    if parent_trip is None:
+        return redirect_with_message("/#all-travel", message)
+    return redirect_with_message(
+        trip_panel_url(
+            snapshot,
+            parent_trip.trip_id,
+            trip_instance_id=trip_instance.trip_instance_id,
+            panel="bookings",
+        ),
+        message,
+    )
 
 
 @router.get("/bookings", response_class=HTMLResponse)
@@ -141,7 +167,7 @@ def new_booking(
         snapshot=snapshot,
         selected_trip_instance=selected_trip_instance,
         selected_parent_trip=selected_parent_trip,
-        cancel_url=_booking_form_cancel_url(selected_trip_instance=selected_trip_instance),
+        cancel_url=_booking_form_cancel_url(snapshot, selected_trip_instance=selected_trip_instance),
         booking_form_state=_booking_form_state(
             None,
             trip_instance_id=selected_trip_instance.trip_instance_id if selected_trip_instance else "",
@@ -170,7 +196,7 @@ def edit_booking(
         selected_trip_instance=selected_trip_instance,
         selected_parent_trip=selected_parent_trip,
         editing_booking=booking,
-        cancel_url=_booking_form_cancel_url(selected_trip_instance=selected_trip_instance, editing_booking=booking),
+        cancel_url=_booking_form_cancel_url(snapshot, selected_trip_instance=selected_trip_instance, editing_booking=booking),
         booking_form_state=_booking_form_state(booking),
     )
 
@@ -268,6 +294,7 @@ async def save_booking(
             selected_parent_trip=selected_parent_trip,
             editing_booking=editing_booking,
             cancel_url=_booking_form_cancel_url(
+                snapshot,
                 selected_trip_instance=selected_trip_instance,
                 editing_booking=editing_booking,
             ),

@@ -46,6 +46,13 @@
   <section class="warning-card top-gap-small recurring-edit-warning">
     <strong>Editing this recurring trip will affect {{ recurring_edit_warning.linked_trip_count }} {{ recurring_edit_warning.linked_trip_label }}.</strong>
     <p>If you only want to edit one specific trip instance, detach that trip first and then edit it separately.</p>
+    {% if detachable_trip_instance_id %}
+    <div class="warning-card-actions">
+      <form method="post" action="/trip-instances/{{ detachable_trip_instance_id }}/detach">
+        <button class="button ghost" type="submit">Detach this trip instead</button>
+      </form>
+    </div>
+    {% endif %}
   </section>
   {% endif %}
   <form method="post" action="/trips" id="trip-form" novalidate>
@@ -55,6 +62,7 @@
     <input type="hidden" name="source_unmatched_booking_id" value="{{ source_unmatched_booking.unmatched_booking_id if source_unmatched_booking else '' }}">
     <input type="hidden" name="data_scope" value="{{ trip_form_state.data_scope }}">
     <input type="hidden" name="cancel_url" value="{{ cancel_url }}">
+    <input type="hidden" name="detachable_trip_instance_id" value="{{ detachable_trip_instance_id }}">
 
     <div class="form-grid">
       <label>

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.models.base import AppState
 from app.models.base import FetchTargetStatus, utcnow
+from app.services.dashboard_navigation import trip_focus_url
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.groups import save_trip_group
 from app.services.trip_instances import detach_generated_trip_instance
@@ -17,6 +18,18 @@ from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
 from app.settings import Settings
 from app.storage.repository import Repository
+
+
+def _trip_by_label(repository: Repository, label: str):
+    return next(item for item in repository.load_trips() if item.label == label)
+
+
+def _trip_instance_id_for_trip(repository: Repository, trip_id: str) -> str:
+    return next(item.trip_instance_id for item in repository.load_trip_instances() if item.trip_id == trip_id)
+
+
+def _trip_instance_id_for_label(repository: Repository, label: str) -> str:
+    return _trip_instance_id_for_trip(repository, _trip_by_label(repository, label).trip_id)
 
 
 def test_core_pages_render(tmp_path: Path) -> None:
@@ -152,7 +165,10 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
         follow_redirects=False,
     )
     assert save.status_code == 303
-    assert save.headers["location"].startswith("/trip-instances/")
+    trip = _trip_by_label(repository, "Conference Arrival")
+    trip_instance_id = _trip_instance_id_for_trip(repository, trip.trip_id)
+    assert "panel=bookings" in save.headers["location"]
+    assert f"trip_instance_id={trip_instance_id}" in save.headers["location"]
 
     stored_booking = next(item for item in repository.load_bookings() if item.record_locator == "ZZZ999")
     assert stored_booking.route_option_id != ""
@@ -252,7 +268,7 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
 
     repository = Repository(settings)
     booking = repository.load_bookings()[0]
-    trip_page = client.get(f"/trip-instances/{booking.trip_instance_id}")
+    trip_page = client.get(f"/trip-instances/{booking.trip_instance_id}/bookings-panel")
     assert "ABC123" in trip_page.text
 
 
@@ -463,13 +479,14 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert create.status_code == 303
-    assert create.headers["location"].startswith("/groups/")
+    group_id = Repository(settings).load_trip_groups()[0].trip_group_id
+    assert create.headers["location"] == f"/?message=Trip+group+saved#group-{group_id}"
 
-    detail = client.get(create.headers["location"])
+    detail = client.get("/")
     assert detail.status_code == 200
     assert "Work Trips" in detail.text
-    assert "Recurring Trips" in detail.text
-    assert "All Trips" in detail.text
+    assert "Edit collection" in detail.text
+    assert "Create trip" in detail.text
 
 
 def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
@@ -907,7 +924,7 @@ def test_past_active_bookings_are_not_exposed_as_a_top_level_dashboard_surface(t
 
     repository = Repository(settings)
     booking = repository.load_bookings()[0]
-    detail = client.get(f"/trip-instances/{booking.trip_instance_id}")
+    detail = client.get(f"/trip-instances/{booking.trip_instance_id}/bookings-panel")
     assert detail.status_code == 200
     assert "PAST01" in detail.text
 
@@ -933,8 +950,7 @@ def test_one_time_trip_delete_removes_trip_from_user_visible_ui(tmp_path: Path) 
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_detail_url = create.headers["location"].split("?", 1)[0]
-    trip_id = trip_detail_url.rsplit("/", 1)[1]
+    trip_id = _trip_by_label(Repository(settings), "Archive UI Trip").trip_id
 
     archive = client.post(f"/trips/{trip_id}/delete", follow_redirects=False)
     assert archive.status_code == 303
@@ -1096,7 +1112,7 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
     assert first.status_code == 303
     assert second.status_code == 303
 
-    trip_id = first.headers["location"].split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(Repository(settings), "Original Trip").trip_id
     response = client.post(
         "/trips",
         data={
@@ -1251,13 +1267,15 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert booking_response.status_code == 303
-    assert booking_response.headers["location"].startswith("/trip-instances/")
+    trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
+    assert "panel=bookings" in booking_response.headers["location"]
+    assert f"trip_instance_id={trip_instance_id}" in booking_response.headers["location"]
 
-    detail = client.get(booking_response.headers["location"])
+    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
     assert detail.status_code == 200
-    assert "Scheduled trip" in detail.text
-    assert "Edit trip" in detail.text
-    assert "View plan" not in detail.text
+    assert "Bookings" in detail.text
+    assert "BOOK01" in detail.text
+    assert "Add booking" in detail.text
 
 
 def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
@@ -1327,14 +1345,15 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert edited.status_code == 303
-    assert edited.headers["location"].startswith("/trip-instances/")
+    assert "panel=bookings" in edited.headers["location"]
+    assert f"trip_instance_id={trip_instance_id}" in edited.headers["location"]
 
     updated_booking = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
     assert updated_booking.trip_instance_id == trip_instance_id
     assert updated_booking.route_option_id == ""
     assert updated_booking.booked_price == Decimal("141.25")
 
-    detail = client.get(edited.headers["location"])
+    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
     assert detail.status_code == 200
     assert "No tracked route match" in detail.text
     assert "does not match any tracked route on this date yet" in detail.text
@@ -1383,7 +1402,7 @@ def test_trip_detail_booking_actions_do_not_expose_cancel_or_restore(tmp_path: P
     )
     booking = next(item for item in repository.load_bookings() if item.record_locator == "CANCEL1")
 
-    snapshot_page = client.get(f"/trip-instances/{trip_instance_id}")
+    snapshot_page = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
     assert snapshot_page.status_code == 200
     assert "CANCEL1" in snapshot_page.text
     assert ">Cancel<" not in snapshot_page.text
@@ -1439,7 +1458,7 @@ def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -
     assert delete.headers["location"] == "/?message=Booking+deleted#needs-linking"
     assert repository.load_bookings() == []
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
     assert detail.status_code == 200
     assert "No bookings yet." in detail.text
     assert "Booked at" not in detail.text
@@ -1467,7 +1486,7 @@ def test_editing_trip_surfaces_warning_when_linked_bookings_stop_matching_routes
         },
         follow_redirects=False,
     )
-    trip_id = create.headers["location"].split("/trips/")[1].split("?", 1)[0]
+    trip_id = _trip_by_label(repository, "Warning Trip").trip_id
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     client.post(
         "/bookings",
@@ -1622,12 +1641,12 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
         )
         assert booking_response.status_code == 303
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
     assert detail.status_code == 200
     assert "Bookings" in detail.text
     assert "MULTI1" in detail.text
     assert "MULTI2" in detail.text
-    assert detail.text.count("Booked at") == 3
+    assert detail.text.count("Booked at") == 2
     assert "Route tracking" not in detail.text
     assert "Booked on" not in detail.text
     assert "Source" not in detail.text
@@ -1655,16 +1674,14 @@ def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None
         follow_redirects=False,
     )
     assert response.status_code == 303
-    trip_instance_url = response.headers["location"]
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
 
-    tracker = repository.load_trackers()[0]
-    tracker.latest_observed_price = 185
-    tracker.latest_match_summary = "Alaska"
-    tracker.latest_winning_origin_airport = "BUR"
-    tracker.latest_winning_destination_airport = "SFO"
-    repository.upsert_trackers([tracker])
+    target = repository.load_tracker_fetch_targets()[0]
+    target.latest_price = 185
+    target.latest_departure_label = "6:00 AM"
+    repository.upsert_tracker_fetch_targets([target])
 
-    detail = client.get(trip_instance_url)
+    detail = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
     assert detail.status_code == 200
     assert "$185" in detail.text
     assert "Trackers" in detail.text
@@ -1691,8 +1708,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
         follow_redirects=False,
     )
     assert response.status_code == 303
-    trip_location = response.headers["location"]
-    trip_id = trip_location.split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(Repository(settings), "Test Weekly Trip").trip_id
 
     pause = client.post(f"/trips/{trip_id}/pause", follow_redirects=False)
     assert pause.status_code == 303
@@ -1746,7 +1762,7 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
         follow_redirects=False,
     )
     assert response.status_code == 303
-    trip_id = response.headers["location"].split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(Repository(settings), "Activation Queue Trip").trip_id
 
     repository = Repository(settings)
     fetch_targets = repository.load_tracker_fetch_targets()
@@ -1844,8 +1860,8 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
         follow_redirects=False,
     )
     assert delete_response.status_code == 303
-    assert delete_response.headers["location"].startswith("/groups/")
-    assert delete_response.headers["location"].endswith("?message=Trip+deleted")
+    group_id = Repository(settings).load_trip_groups()[0].trip_group_id
+    assert delete_response.headers["location"] == f"/?message=Trip+deleted#group-{group_id}"
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
@@ -1880,8 +1896,7 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_location = create.headers["location"]
-    trip_id = trip_location.split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(repository, "Weekly Commute").trip_id
     trip = next(item for item in repository.load_trips() if item.trip_id == trip_id)
     assert any(
         target.rule_trip_id == trip.trip_id and target.trip_group_id == group.trip_group_id
@@ -1899,14 +1914,15 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
         follow_redirects=False,
     )
     assert delete_response.status_code == 303
-    assert delete_response.headers["location"] == f"/groups/{group.trip_group_id}?message=Trip+deleted"
+    assert delete_response.headers["location"] == f"/?message=Trip+deleted#group-{group.trip_group_id}"
 
-    group_page = client.get(f"/groups/{group.trip_group_id}")
+    group_page = client.get("/")
     assert group_page.status_code == 200
     assert "Weekly Commute" in group_page.text
-    assert 'id="group-summary-' in group_page.text
-    assert group_page.text.count("Create trip") == 1
-    assert group_page.text.count('class="timeline-row"') == 15
+    assert f'id="group-{group.trip_group_id}"' in group_page.text
+    assert "Create trip" in group_page.text
+    filtered_page = client.get(f"/?partial=scheduled-results&trip_group_id={group.trip_group_id}")
+    assert f'id="scheduled-{trip_instance_id}"' not in filtered_page.text
 
 
 def test_weekly_trip_detail_redirects_to_edit_page(tmp_path: Path) -> None:
@@ -1930,7 +1946,7 @@ def test_weekly_trip_detail_redirects_to_edit_page(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(Repository(settings), "Redirect Weekly Trip").trip_id
 
     response = client.get(f"/trips/{trip_id}", follow_redirects=False)
     assert response.status_code == 303
@@ -1958,11 +1974,18 @@ def test_one_time_trip_detail_redirects_to_scheduled_trip_page(tmp_path: Path) -
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+    repository = Repository(settings)
+    trip = _trip_by_label(repository, "Redirect One-Time Trip")
+    trip_instance_id = _trip_instance_id_for_trip(repository, trip.trip_id)
 
-    response = client.get(f"/trips/{trip_id}", follow_redirects=False)
+    response = client.get(f"/trips/{trip.trip_id}", follow_redirects=False)
     assert response.status_code == 303
-    assert response.headers["location"].startswith("/trip-instances/")
+    snapshot = sync_and_persist(repository)
+    assert response.headers["location"] == trip_focus_url(
+        snapshot,
+        trip.trip_id,
+        trip_instance_id=trip_instance_id,
+    )
 
 
 def test_weekly_trip_edit_page_warns_about_linked_trips_and_locks_trip_type(tmp_path: Path) -> None:
@@ -1990,7 +2013,7 @@ def test_weekly_trip_edit_page_warns_about_linked_trips_and_locks_trip_type(tmp_
     )
 
     assert create.status_code == 303
-    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(repository, "Protected Weekly Trip").trip_id
 
     edit_page = client.get(f"/trips/{trip_id}/edit")
     assert edit_page.status_code == 200
@@ -2027,12 +2050,12 @@ def test_trip_instance_detail_links_attached_generated_trip_to_recurring_edit(tm
     assert create.status_code == 303
 
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
-    detail = client.get(f"/trip-instances/{trip_instance_id}")
-    assert detail.status_code == 200
-    assert "Managed by" not in detail.text
-    assert "Detached from" not in detail.text
-    assert "View collection" in detail.text
-    assert "Edit recurring trip" in detail.text
+    trip_id = repository.load_trips()[0].trip_id
+    dashboard = client.get(f"/?trip_group_id={group.trip_group_id}")
+    assert dashboard.status_code == 200
+    assert "Managed by" not in dashboard.text
+    assert "Detached from" not in dashboard.text
+    assert f'href="/trips/{trip_id}/edit?trip_instance_id={trip_instance_id}"' in dashboard.text
 
 
 def test_group_detail_surfaces_rule_edit_button_without_rule_detail_link(tmp_path: Path) -> None:
@@ -2059,9 +2082,9 @@ def test_group_detail_surfaces_rule_edit_button_without_rule_detail_link(tmp_pat
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(repository, "Rule On Group").trip_id
 
-    detail = client.get(f"/groups/{group.trip_group_id}")
+    detail = client.get("/")
     assert detail.status_code == 200
     assert f'href="/trips/{trip_id}/edit"' in detail.text
     assert f'href="/trips/{trip_id}">' not in detail.text
@@ -2081,7 +2104,7 @@ def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> N
         data={
             "label": "Modal Delete Trip",
             "trip_kind": "one_time",
-            "anchor_date": "2026-04-06",
+            "anchor_date": (date.today() + timedelta(days=3)).isoformat(),
             "anchor_weekday": "",
             "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
         },
@@ -2089,7 +2112,7 @@ def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> N
     )
     assert create.status_code == 303
 
-    detail = client.get(create.headers["location"])
+    detail = client.get("/")
     assert detail.status_code == 200
     assert 'data-confirm-title="Delete this one-time trip?"' in detail.text
     assert 'data-confirm-action="Delete trip"' in detail.text
@@ -2111,7 +2134,7 @@ def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None
         data={
             "label": "Delete Booked Trip",
             "trip_kind": "one_time",
-            "anchor_date": "2026-04-06",
+            "anchor_date": (date.today() + timedelta(days=3)).isoformat(),
             "anchor_weekday": "",
             "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
         },
@@ -2127,7 +2150,7 @@ def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None
             "airline": "Alaska",
             "origin_airport": "BUR",
             "destination_airport": "SFO",
-            "departure_date": "2026-04-06",
+            "departure_date": (date.today() + timedelta(days=3)).isoformat(),
             "departure_time": "07:10",
             "arrival_time": "08:35",
             "booked_price": "119",
@@ -2137,14 +2160,14 @@ def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None
         follow_redirects=False,
     )
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    detail = client.get("/")
     assert detail.status_code == 200
     assert 'data-confirm-title="Delete this one-time trip?"' in detail.text
 
     parent_trip_id = repository.load_trip_instances()[0].trip_id
     delete = client.post(
         f"/trips/{parent_trip_id}/delete",
-        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        headers={"referer": "http://testserver/"},
         follow_redirects=False,
     )
     assert delete.status_code == 303
@@ -2198,15 +2221,14 @@ def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: P
         follow_redirects=False,
     )
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    detail = client.get("/")
     assert detail.status_code == 200
-    assert "Detach trip" in detail.text
     assert detail.text.count('data-confirm-action="Delete trip"') >= 1
     assert "<h3>Controls</h3>" not in detail.text
 
     delete = client.post(
         f"/trip-instances/{trip_instance_id}/delete-generated",
-        headers={"referer": f"http://testserver/trip-instances/{trip_instance_id}"},
+        headers={"referer": "http://testserver/"},
         follow_redirects=False,
     )
     assert delete.status_code == 303
@@ -2325,7 +2347,7 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
     assert weekly_two.status_code == 303
     assert standalone.status_code == 303
 
-    weekly_one_id = weekly_one.headers["location"].split("/trips/")[1].split("?")[0]
+    weekly_one_id = _trip_by_label(repository, "Weekly Commute A").trip_id
     weekly_one_trip = next(item for item in repository.load_trips() if item.trip_id == weekly_one_id)
     assert any(
         target.rule_trip_id == weekly_one_trip.trip_id and target.trip_group_id == work_group.trip_group_id
@@ -2413,7 +2435,7 @@ def test_editing_grouped_rule_cannot_remove_all_target_groups(tmp_path: Path) ->
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trip_id = create.headers["location"].split("/trips/")[1].split("?")[0]
+    trip_id = _trip_by_label(repository, "Weekly Commute A").trip_id
 
     edit = client.post(
         "/trips",
@@ -2438,7 +2460,7 @@ def test_editing_grouped_rule_cannot_remove_all_target_groups(tmp_path: Path) ->
         if item.rule_trip_id == trip_id
     ] == [(trip_id, work_group.trip_group_id)]
 
-    group_page = client.get(f"/groups/{work_group.trip_group_id}")
+    group_page = client.get("/")
     assert group_page.status_code == 200
     assert "Weekly Commute A" in group_page.text
 
@@ -2534,11 +2556,12 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     )
     assert create.status_code == 303
 
-    trips_page = client.get("/trips?q=Tracker+metadata")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
+    trip_instance_id = _trip_instance_id_for_label(Repository(settings), "Tracker metadata")
+    trackers_redirect = client.get(f"/trip-instances/{trip_instance_id}/trackers", follow_redirects=False)
+    assert trackers_redirect.status_code == 303
+    assert "panel=trackers" in trackers_redirect.headers["location"]
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
 
-    assert "Scheduled trip" in trackers_page.text
     assert "Trackers" in trackers_page.text
     assert "Checking" in trackers_page.text
     assert "BUR → SFO" in trackers_page.text
@@ -2576,9 +2599,8 @@ def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -
     target.last_fetch_finished_at = utcnow() - timedelta(minutes=5)
     repository.upsert_tracker_fetch_targets([target])
 
-    trips_page = client.get("/trips?q=Past+due+refresh")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
+    trip_instance_id = _trip_instance_id_for_label(repository, "Past due refresh")
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
 
     assert "Checking" in trackers_page.text
     assert "Search details" not in trackers_page.text
@@ -2606,8 +2628,7 @@ def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     )
     assert create.status_code == 303
 
-    trips_page = client.get("/trips?q=Refresh+queue+test")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
+    trip_instance_id = _trip_instance_id_for_label(Repository(settings), "Refresh queue test")
     queue = client.post(f"/trip-instances/{trip_instance_id}/trackers/queue-refresh", follow_redirects=False)
     assert queue.status_code == 303
     assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
@@ -2642,9 +2663,8 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     fetch_targets[0].latest_price = None
     repository.replace_tracker_fetch_targets(fetch_targets)
 
-    trips_page = client.get("/trips?q=No+results+tracker")
-    trip_instance_id = trips_page.text.split('href="/trip-instances/', 1)[1].split('"', 1)[0]
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers")
+    trip_instance_id = _trip_instance_id_for_label(repository, "No results tracker")
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
 
     assert "N/A" in trackers_page.text
     assert "6:00 AM \u2013 10:00 AM departure" in trackers_page.text
@@ -2705,7 +2725,8 @@ def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> 
         follow_redirects=False,
     )
     assert resolve_response.status_code == 303
-    assert resolve_response.headers["location"].startswith("/trip-instances/")
+    assert "panel=bookings" in resolve_response.headers["location"]
+    assert f"trip_instance_id={trip_instance_id}" in resolve_response.headers["location"]
 
 
 def test_unmatched_booking_dropdown_separates_past_trips(tmp_path: Path) -> None:
@@ -2838,7 +2859,7 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
     sync_and_persist(repository, today=date(2026, 4, 1))
 
     client = TestClient(create_app(settings))
-    detail = client.get(f"/trip-instances/{trip_instance_id}")
+    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
 
     assert detail.status_code == 200
     assert "No tracked route match" in detail.text

@@ -1,0 +1,28 @@
+<section class="detail-modal-panel">
+  <div class="detail-modal-header">
+    <div>
+      <p class="page-context">Trackers</p>
+      <h3>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }} · {{ trip_instance.anchor_date.strftime('%b %d') }}</h3>
+      <p class="muted">Current fare checks for this scheduled trip.</p>
+    </div>
+  </div>
+  {% if tracker_rows %}
+  <div class="timeline-list detail-modal-list detail-tracker-list">
+    {% for tracker_row in tracker_rows %}
+      {% set scheduled_instance = trip_instance %}
+      {% set row = tracker_row.row %}
+      {% set row_date = tracker_row.travel_date %}
+      {% set row_href = "" %}
+      {% set row_id_prefix = "modal-tracker" %}
+      {% set row_dom_id = "modal-tracker-" ~ tracker_row.row_id %}
+      {% set row_class_names = "timeline-row--tracker timeline-row--tracker-detail timeline-row-subtle" %}
+      {% set show_row_date = False %}
+      {% include "partials/scheduled_trip_row.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <article class="compact-empty-state">
+    <strong>No trackers yet.</strong>
+  </article>
+  {% endif %}
+</section>

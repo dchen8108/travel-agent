@@ -45,6 +45,13 @@
             </div>
           </div>
         </div>
+        <div class="panel-modal-root" data-panel-modal-root hidden>
+          <div class="panel-modal-backdrop" data-panel-modal-close></div>
+          <div class="panel-modal-card" role="dialog" aria-modal="true">
+            <button type="button" class="panel-modal-close" data-panel-modal-close aria-label="Close">×</button>
+            <div class="panel-modal-content" data-panel-modal-content></div>
+          </div>
+        </div>
         {% block content %}{% endblock %}
         </div>
       </main>

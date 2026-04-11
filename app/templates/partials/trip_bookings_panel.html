@@ -1,0 +1,32 @@
+<section class="detail-modal-panel">
+  <div class="detail-modal-header">
+    <div>
+      <p class="page-context">Bookings</p>
+      <h3>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }} · {{ trip_instance.anchor_date.strftime('%b %d') }}</h3>
+      <p class="muted">Manage the bookings linked to this scheduled trip.</p>
+    </div>
+    <a class="button primary compact" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
+  </div>
+  {% if booking_views %}
+  <div class="timeline-list detail-modal-list detail-booking-list">
+    {% for booking_card in booking_views %}
+      {% set linked_booking = booking_card.booking %}
+      {% set route_tracking = booking_card.route_tracking %}
+      {% set scheduled_instance = linked_booking %}
+      {% set row = booking_row_summary(linked_booking, anchor_date=trip_instance.anchor_date) %}
+      {% set row_date = linked_booking.departure_date %}
+      {% set row_href = "" %}
+      {% set row_id_prefix = "modal-booking" %}
+      {% set row_class_names = "timeline-row--booking timeline-row--embedded timeline-row--booking-detail" %}
+      {% set show_row_date = False %}
+      {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status == 'active' else "" %}
+      {% set row_footer_partial = "partials/booking_warning_footer.html" if route_tracking.warning else "" %}
+      {% include "partials/scheduled_trip_row.html" %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <article class="compact-empty-state">
+    <strong>No bookings yet.</strong>
+  </article>
+  {% endif %}
+</section>

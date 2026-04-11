@@ -11,6 +11,7 @@ from app.money import format_money
 from app.route_options import day_offset_label, route_option_summary
 from app.services.scheduled_trip_display import (
     booking_row_summary,
+    trip_row_actions_view,
     trip_row_summary,
     trip_ui_label,
     trip_ui_picker_label,
@@ -121,6 +122,7 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "day_offset_label": day_offset_label,
         "route_option_summary": route_option_summary,
         "trip_row_summary": trip_row_summary,
+        "trip_row_actions_view": trip_row_actions_view,
         "booking_row_summary": booking_row_summary,
         "trip_ui_label": trip_ui_label,
         "trip_ui_picker_label": trip_ui_picker_label,

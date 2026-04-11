@@ -12,6 +12,9 @@
     {% for instance in scheduled_items %}
     {% set scheduled_instance = instance %}
     {% set row = trip_row_summary(snapshot, instance.trip_instance_id) %}
+    {% set row_href = "" %}
+    {% set dashboard_action_view = trip_row_actions_view(snapshot, instance.trip_instance_id) %}
+    {% set row_footer_partial = "partials/dashboard_trip_row_footer.html" %}
     {% include "partials/scheduled_trip_row.html" %}
     {% else %}
     <article class="compact-empty-state">

@@ -17,12 +17,13 @@ from app.services.bookings import (
     unlink_bookings_for_trip_instance,
 )
 from app.services.data_scope import include_test_data_for_processing
+from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
 from app.services.dashboard_booking_views import (
     booking_reference_label,
     default_trip_label_for_booking,
 )
 from app.services.dashboard_queries import trip_groups
-from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
+from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
 )
@@ -174,7 +175,7 @@ def _trip_edit_cancel_url(request: Request, snapshot, trip) -> str:
     if trip.trip_kind == "weekly":
         recurring_groups = groups_for_rule(snapshot, trip)
         if len(recurring_groups) == 1:
-            fallback_url = f"/groups/{recurring_groups[0].trip_group_id}"
+            fallback_url = f"/#group-{recurring_groups[0].trip_group_id}"
         else:
             fallback_url = "/#all-travel"
         return back_url(request, fallback_url=fallback_url)
@@ -183,7 +184,11 @@ def _trip_edit_cancel_url(request: Request, snapshot, trip) -> str:
         for instance in instances_for_trip(snapshot, trip.trip_id)
         if not instance.deleted
     ]
-    fallback_url = f"/trip-instances/{one_time_instances[0].trip_instance_id}" if one_time_instances else "/#all-travel"
+    fallback_url = (
+        trip_focus_url(snapshot, trip.trip_id, trip_instance_id=one_time_instances[0].trip_instance_id)
+        if one_time_instances
+        else "/#all-travel"
+    )
     return back_url(request, fallback_url=fallback_url)
 
 
@@ -198,6 +203,7 @@ def _render_trip_form(
     source_unmatched_booking=None,
     cancel_url: str,
     recurring_edit_warning: dict[str, object] | None = None,
+    detachable_trip_instance_id: str = "",
     error_message: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse:
@@ -216,6 +222,7 @@ def _render_trip_form(
             source_unmatched_booking=source_unmatched_booking,
             cancel_url=cancel_url,
             recurring_edit_warning=recurring_edit_warning,
+            detachable_trip_instance_id=detachable_trip_instance_id,
             source_booking_reference_label=(
                 booking_reference_label(source_unmatched_booking)
                 if source_unmatched_booking is not None
@@ -323,7 +330,7 @@ def new_trip(
         cancel_url=back_url(
             request,
             fallback_url=(
-                f"/groups/{trip_group_id}"
+                f"/#group-{trip_group_id}"
                 if trip_group_id
                 else "/#needs-linking" if source_unmatched_booking is not None else "/"
             ),
@@ -345,17 +352,11 @@ def trip_detail(
         raise HTTPException(status_code=404, detail="Trip not found")
     if trip.trip_kind == "one_time":
         one_time_instances = instances_for_trip(snapshot, trip.trip_id)
-        if not one_time_instances:
-            snapshot = load_live_snapshot(repository)
-            trip = trip_by_id(snapshot, trip_id)
-            if trip is None:
-                raise HTTPException(status_code=404, detail="Trip not found")
-            one_time_instances = instances_for_trip(snapshot, trip.trip_id)
-        if one_time_instances:
-            return RedirectResponse(
-                url=f"/trip-instances/{one_time_instances[0].trip_instance_id}",
-                status_code=303,
-            )
+        trip_instance_id = one_time_instances[0].trip_instance_id if one_time_instances else None
+        return RedirectResponse(
+            url=trip_focus_url(snapshot, trip.trip_id, trip_instance_id=trip_instance_id),
+            status_code=303,
+        )
     return RedirectResponse(url=f"/trips/{trip.trip_id}/edit", status_code=303)
 
 
@@ -364,6 +365,7 @@ def edit_trip(
     trip_id: str,
     request: Request,
     repository: Repository = Depends(get_repository),
+    trip_instance_id: str | None = None,
 ) -> HTMLResponse:
     snapshot = load_persisted_snapshot(repository)
     trip = next((item for item in snapshot.trips if item.trip_id == trip_id), None)
@@ -373,12 +375,25 @@ def edit_trip(
         raise HTTPException(status_code=404, detail="Trip not found")
     route_options = route_options_for_trip(snapshot, trip.trip_id)
     recurring_edit_warning = None
+    detachable_trip_instance_id = ""
     if trip.trip_kind == "weekly":
         linked_trip_count = _recurring_linked_trip_count(snapshot, trip)
         recurring_edit_warning = {
             "linked_trip_count": linked_trip_count,
             "linked_trip_label": "linked trip" if linked_trip_count == 1 else "linked trips",
         }
+        if trip_instance_id:
+            matching_instance = next(
+                (
+                    instance
+                    for instance in instances_for_rule(snapshot, trip.trip_id)
+                    if instance.trip_instance_id == trip_instance_id
+                    and not instance.deleted
+                    and instance.inheritance_mode == "attached"
+                ),
+                None,
+            )
+            detachable_trip_instance_id = matching_instance.trip_instance_id if matching_instance else ""
     return _render_trip_form(
         request,
         snapshot=snapshot,
@@ -392,6 +407,7 @@ def edit_trip(
         route_option_state=_route_option_state(route_options),
         cancel_url=_trip_edit_cancel_url(request, snapshot, trip),
         recurring_edit_warning=recurring_edit_warning,
+        detachable_trip_instance_id=detachable_trip_instance_id,
     )
 
 
@@ -409,6 +425,7 @@ async def save_trip_action(
     trip_group_ids_json = str(form.get("trip_group_ids_json", "[]") or "[]")
     preference_mode = str(form.get("preference_mode", "equal")).strip() or "equal"
     source_unmatched_booking_id = str(form.get("source_unmatched_booking_id", "")).strip()
+    detachable_trip_instance_id = str(form.get("detachable_trip_instance_id", "")).strip()
     cancel_url = str(form.get("cancel_url", "")).strip()
     anchor_date_value = str(form.get("anchor_date", "")).strip()
     anchor_weekday = str(form.get("anchor_weekday", "")).strip()
@@ -518,8 +535,30 @@ async def save_trip_action(
             message = f"{message} Booking still needs linking."
             return redirect_with_message("/#needs-linking", message)
         if linked_booking is not None:
-            return redirect_with_message(f"/trip-instances/{linked_booking.trip_instance_id}", message)
-        return redirect_with_message(f"/trips/{trip.trip_id}", message)
+            return redirect_with_message(
+                trip_panel_url(
+                    snapshot,
+                    trip.trip_id,
+                    trip_instance_id=linked_booking.trip_instance_id,
+                    panel="bookings",
+                ),
+                message,
+            )
+        if trip.trip_kind == "one_time":
+            active_instances = [
+                instance
+                for instance in instances_for_trip(snapshot, trip.trip_id)
+                if not instance.deleted
+            ]
+            if active_instances:
+                return redirect_with_message(
+                    trip_focus_url(snapshot, trip.trip_id, trip_instance_id=active_instances[0].trip_instance_id),
+                    message,
+                )
+        recurring_groups = groups_for_trip(snapshot, trip)
+        if len(recurring_groups) == 1:
+            return redirect_with_message(f"/#group-{recurring_groups[0].trip_group_id}", message)
+        return redirect_with_message("/#all-travel", message)
     except ValueError as exc:
         snapshot = load_persisted_snapshot(repository)
         source_unmatched_booking = next(
@@ -556,6 +595,7 @@ async def save_trip_action(
             route_option_state=_route_option_state_from_payloads(raw_route_option_state),
             source_unmatched_booking=source_unmatched_booking,
             recurring_edit_warning=recurring_edit_warning,
+            detachable_trip_instance_id=detachable_trip_instance_id,
             cancel_url=cancel_url or (
                 _trip_edit_cancel_url(request, snapshot, existing_trip) if existing_trip else (
                     "/#needs-linking" if source_unmatched_booking is not None else "/"
@@ -644,7 +684,7 @@ def detach_trip_instance_action(
     except ValueError as exc:
         return redirect_back(
             request,
-            fallback_url=f"/trip-instances/{trip_instance_id}",
+            fallback_url="/#all-travel",
             message=str(exc),
             message_kind="error",
         )
@@ -656,7 +696,7 @@ def detach_trip_instance_action(
         include_test_data=include_test_data_for_processing(snapshot.app_state),
     )
     return redirect_with_message(
-        f"/trip-instances/{trip_instance.trip_instance_id}",
+        f"/trips/{trip_instance.trip_id}/edit",
         queued_refresh_message("Trip detached", queued_count),
     )
 
@@ -676,7 +716,7 @@ def delete_generated_trip_instance_action(
         recurring_rule = trip_by_id(snapshot, existing_instance.recurring_rule_trip_id)
         recurring_rule_groups = groups_for_rule(snapshot, recurring_rule) if recurring_rule else []
         if len(recurring_rule_groups) == 1:
-            redirect_url = f"/groups/{recurring_rule_groups[0].trip_group_id}"
+            redirect_url = f"/#group-{recurring_rule_groups[0].trip_group_id}"
     unlinked_bookings = unlink_bookings_for_trip_instance(repository, trip_instance_id=trip_instance_id)
     try:
         delete_generated_trip_instance(repository, trip_instance_id)
@@ -685,7 +725,7 @@ def delete_generated_trip_instance_action(
     except ValueError as exc:
         return redirect_back(
             request,
-            fallback_url=f"/trip-instances/{trip_instance_id}",
+            fallback_url="/#all-travel",
             message=str(exc),
             message_kind="error",
         )

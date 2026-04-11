@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.services.snapshot_queries import groups_for_trip, is_past_instance
 from app.services.snapshots import AppSnapshot
@@ -39,5 +39,25 @@ def trip_focus_url(
     return url
 
 
-def tracker_detail_url(trip_instance_id: str) -> str:
-    return f"/trip-instances/{trip_instance_id}"
+def trip_panel_url(
+    snapshot: AppSnapshot,
+    trip_id: str,
+    *,
+    trip_instance_id: str,
+    panel: str,
+) -> str:
+    base_url = trip_focus_url(snapshot, trip_id, trip_instance_id=trip_instance_id)
+    parsed = urlsplit(base_url)
+    params = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key not in {"panel", "trip_instance_id"}
+    ]
+    params.extend(
+        [
+            ("panel", panel),
+            ("trip_instance_id", trip_instance_id),
+        ]
+    )
+    anchor = parsed.fragment or f"scheduled-{trip_instance_id}"
+    return urlunsplit(("", "", parsed.path or "/", urlencode(params, doseq=True), anchor))

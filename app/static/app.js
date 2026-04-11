@@ -281,10 +281,103 @@
     });
   }
 
+  function initPanelModal() {
+    const modalRoot = document.querySelector("[data-panel-modal-root]");
+    if (!modalRoot) {
+      return;
+    }
+
+    const contentNode = modalRoot.querySelector("[data-panel-modal-content]");
+    let previousFocus = null;
+    let restoreUrl = "";
+
+    function dashboardUrlWithoutPanelParams() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("panel");
+      url.searchParams.delete("trip_instance_id");
+      return `${url.pathname}${url.search ? url.search : ""}${url.hash}`;
+    }
+
+    function closeModal() {
+      modalRoot.hidden = true;
+      document.body.classList.remove("has-modal-open");
+      if (contentNode instanceof HTMLElement) {
+        contentNode.innerHTML = "";
+      }
+      if (restoreUrl) {
+        window.history.replaceState({}, "", restoreUrl);
+      }
+      if (previousFocus instanceof HTMLElement) {
+        previousFocus.focus();
+      }
+      previousFocus = null;
+      restoreUrl = "";
+    }
+
+    async function openModal(fetchUrl, historyUrl, { preserveHistory = false } = {}) {
+      if (!(contentNode instanceof HTMLElement) || !fetchUrl) {
+        return;
+      }
+
+      previousFocus = document.activeElement;
+      restoreUrl = dashboardUrlWithoutPanelParams();
+      modalRoot.hidden = false;
+      document.body.classList.add("has-modal-open");
+      contentNode.innerHTML = '<div class="panel-modal-loading">Loading…</div>';
+      if (!preserveHistory && historyUrl) {
+        window.history.replaceState({}, "", historyUrl);
+      }
+
+      try {
+        const response = await window.fetch(fetchUrl, {
+          headers: {
+            "X-Requested-With": "fetch",
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load panel ${fetchUrl}`);
+        }
+        contentNode.innerHTML = await response.text();
+      } catch (error) {
+        console.error(error);
+        contentNode.innerHTML = '<div class="compact-empty-state"><strong>Could not load this view.</strong><p>Try again in a moment.</p></div>';
+      }
+    }
+
+    document.addEventListener("click", (event) => {
+      const trigger = event.target instanceof Element ? event.target.closest("[data-panel-modal-url]") : null;
+      if (!(trigger instanceof HTMLElement)) {
+        return;
+      }
+      event.preventDefault();
+      const fetchUrl = trigger.dataset.panelModalUrl || "";
+      const historyUrl = trigger.dataset.panelHistoryUrl || "";
+      void openModal(fetchUrl, historyUrl);
+    });
+
+    modalRoot.querySelectorAll("[data-panel-modal-close]").forEach((node) => {
+      node.addEventListener("click", closeModal);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !modalRoot.hidden) {
+        closeModal();
+      }
+    });
+
+    const url = new URL(window.location.href);
+    const panel = url.searchParams.get("panel");
+    const tripInstanceId = url.searchParams.get("trip_instance_id");
+    if (panel && tripInstanceId && (panel === "bookings" || panel === "trackers")) {
+      void openModal(`/trip-instances/${tripInstanceId}/${panel}-panel`, "", { preserveHistory: true });
+    }
+  }
+
   travelAgentApp.readJsonScript = readJsonScript;
   window.travelAgentApp = travelAgentApp;
 
   initToast();
   initConfirmModal();
+  initPanelModal();
   initCollectionOverflowToggles();
 })();
