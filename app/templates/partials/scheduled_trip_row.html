@@ -1,3 +1,4 @@
+{% from "partials/icon_macros.html" import icon %}
 {% set scheduled_instance = scheduled_instance if scheduled_instance is defined else instance %}
 {% set row_id_prefix = row_id_prefix if row_id_prefix is defined else 'scheduled' %}
 {% set row_class_names = row_class_names if row_class_names is defined else '' %}
@@ -5,6 +6,7 @@
 {% set row_href = row_href if row_href is defined else '/trip-instances/' ~ scheduled_instance.trip_instance_id %}
 {% set row_dom_id = row_dom_id if row_dom_id is defined else row_id_prefix ~ '-' ~ scheduled_instance.trip_instance_id %}
 {% set show_row_date = show_row_date if show_row_date is defined else True %}
+{% set inline_action_view = dashboard_action_view if dashboard_action_view is defined else none %}
 <article class="timeline-row{{ ' timeline-row--no-date' if not show_row_date else '' }}{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
   {% if show_row_date %}
   <div class="timeline-date">
@@ -20,6 +22,34 @@
         <a class="travel-title" href="{{ row_href }}">{{ row.title }}</a>
         {% else %}
         <span class="travel-title">{{ row.title }}</span>
+        {% endif %}
+        {% if inline_action_view %}
+        <div class="timeline-title-actions" aria-label="Trip actions">
+          <a class="timeline-icon-control" href="{{ inline_action_view.edit_href }}" title="Edit trip" aria-label="Edit trip">
+            {{ icon("edit") }}
+          </a>
+          {% if not inline_action_view.show_booking_modal %}
+          <a class="timeline-icon-control" href="{{ inline_action_view.booking_href }}" title="Add booking" aria-label="Add booking">
+            {{ icon("add") }}
+          </a>
+          {% endif %}
+          {% if inline_action_view.delete_href %}
+          <form
+            method="post"
+            action="{{ inline_action_view.delete_href }}"
+            {% if inline_action_view.delete_confirmation %}
+            data-confirm-title="{{ inline_action_view.delete_confirmation.title }}"
+            data-confirm-description="{{ inline_action_view.delete_confirmation.description }}"
+            data-confirm-action="{{ inline_action_view.delete_confirmation.action }}"
+            data-confirm-cancel="{{ inline_action_view.delete_confirmation.cancel }}"
+            {% endif %}
+          >
+            <button class="timeline-icon-control timeline-icon-control--danger" type="submit" title="Delete trip" aria-label="Delete trip">
+              {{ icon("delete") }}
+            </button>
+          </form>
+          {% endif %}
+        </div>
         {% endif %}
       </div>
       {% endif %}
@@ -42,7 +72,21 @@
             {% endif %}
           </div>
           <div class="timeline-offer-price-stack">
-            <span class="timeline-offer-label timeline-offer-label--price">{{ row.booked_offer.label }}</span>
+            <div class="timeline-offer-label-row">
+              <span class="timeline-offer-label timeline-offer-label--price">{{ row.booked_offer.label }}</span>
+              {% if inline_action_view and inline_action_view.show_booking_modal %}
+              <button
+                type="button"
+                class="timeline-icon-control timeline-icon-control--inline"
+                data-panel-modal-url="{{ inline_action_view.booking_modal_url }}"
+                data-panel-history-url="{{ inline_action_view.booking_modal_history_url }}"
+                title="View bookings"
+                aria-label="View bookings"
+              >
+                {{ icon("view") }}
+              </button>
+              {% endif %}
+            </div>
             <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
               {{ row.booked_offer.price_label }}
             </span>
@@ -69,7 +113,21 @@
             {% endif %}
           </div>
           <div class="timeline-offer-price-stack">
-            <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
+            <div class="timeline-offer-label-row">
+              <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
+              {% if inline_action_view and inline_action_view.show_trackers %}
+              <button
+                type="button"
+                class="timeline-icon-control timeline-icon-control--inline"
+                data-panel-modal-url="{{ inline_action_view.tracker_modal_url }}"
+                data-panel-history-url="{{ inline_action_view.tracker_modal_history_url }}"
+                title="View trackers"
+                aria-label="View trackers"
+              >
+                {{ icon("view") }}
+              </button>
+              {% endif %}
+            </div>
             {% if row.current_offer.price_is_status and row.current_offer.href %}
             <a class="timeline-offer-status timeline-offer-status--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
               {{ row.current_offer.price_label }}

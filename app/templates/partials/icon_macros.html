@@ -1,0 +1,26 @@
+{% macro icon(name) -%}
+  {%- if name == "edit" -%}
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M4 20h4.2l10-10a2.3 2.3 0 0 0 0-3.2l-1-1a2.3 2.3 0 0 0-3.2 0L4 15.8V20z"></path>
+    <path d="M12.5 7.5l4 4"></path>
+  </svg>
+  {%- elif name == "delete" -%}
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M5 7h14"></path>
+    <path d="M9 7V5.8A1.8 1.8 0 0 1 10.8 4h2.4A1.8 1.8 0 0 1 15 5.8V7"></path>
+    <path d="M8 7l.8 11.2A1.8 1.8 0 0 0 10.6 20h2.8a1.8 1.8 0 0 0 1.8-1.8L16 7"></path>
+    <path d="M10 11v5"></path>
+    <path d="M14 11v5"></path>
+  </svg>
+  {%- elif name == "view" -%}
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"></path>
+    <circle cx="12" cy="12" r="2.8"></circle>
+  </svg>
+  {%- elif name == "add" -%}
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M12 5v14"></path>
+    <path d="M5 12h14"></path>
+  </svg>
+  {%- endif -%}
+{%- endmacro %}
