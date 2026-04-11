@@ -1,11 +1,18 @@
+{% from "partials/icon_macros.html" import icon %}
 <div class="timeline-row-actions">
-  <a class="button ghost booking-row-button" href="/bookings/{{ linked_booking.booking_id }}/edit">Edit</a>
+  <a class="timeline-icon-control" href="/bookings/{{ linked_booking.booking_id }}/edit" title="Edit booking" aria-label="Edit booking">
+    {{ icon("edit") }}
+  </a>
   {% if linked_booking.status == 'active' %}
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
-    <button class="button ghost booking-row-button" type="submit">Detach</button>
+    <button class="timeline-icon-control" type="submit" title="Detach booking" aria-label="Detach booking">
+      {{ icon("detach") }}
+    </button>
   </form>
   {% endif %}
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/delete">
-    <button class="button danger-outline booking-row-button" type="submit">Delete</button>
+    <button class="timeline-icon-control timeline-icon-control--danger" type="submit" title="Delete booking" aria-label="Delete booking">
+      {{ icon("delete") }}
+    </button>
   </form>
 </div>

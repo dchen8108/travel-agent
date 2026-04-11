@@ -1,3 +1,4 @@
+{% from "partials/icon_macros.html" import icon %}
 {% set collection_card = collection_card if collection_card is defined else item %}
 {% set collection_link_href = collection_link_href if collection_link_href is defined else '' %}
 {% set collection_create_href = collection_create_href if collection_create_href is defined else '/trips/new?trip_group_id=' ~ collection_card.group.trip_group_id %}
@@ -15,7 +16,9 @@
       </strong>
     </div>
     <div class="collection-card-actions">
-      <a class="button ghost compact" href="{{ collection_edit_href }}">Edit collection</a>
+      <a class="timeline-icon-control" href="{{ collection_edit_href }}" title="Edit collection" aria-label="Edit collection">
+        {{ icon("edit") }}
+      </a>
       <a class="button primary compact" href="{{ collection_create_href }}">Create trip</a>
     </div>
   </div>
@@ -31,7 +34,9 @@
           <p class="collection-rule-meta">Repeats on {{ recurring.anchor_weekday }}</p>
         </div>
         <div class="collection-rule-actions">
-          <a class="button ghost compact" href="{{ recurring.edit_href }}">Edit</a>
+          <a class="timeline-icon-control" href="{{ recurring.edit_href }}" title="Edit recurring trip" aria-label="Edit recurring trip">
+            {{ icon("edit") }}
+          </a>
           <form method="post" action="{{ recurring.toggle_action }}">
             <button class="toggle-switch {{ 'is-on' if recurring.active else '' }}" type="submit" aria-label="{{ recurring.toggle_label }} {{ recurring.label }}">
               <span class="toggle-switch-label">{{ recurring.toggle_label }}</span>
