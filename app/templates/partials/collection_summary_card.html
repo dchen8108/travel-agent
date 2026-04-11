@@ -25,7 +25,6 @@
 
   {% if collection_card.recurring_rule_views %}
   <div class="collection-rule-stack">
-    <p class="collection-subtitle">Recurring trips</p>
     <div class="collection-rule-list">
       {% for recurring in collection_card.recurring_rule_views %}
       <article class="collection-rule-row" id="rule-{{ recurring.trip_id }}">

@@ -2162,27 +2162,20 @@ textarea {
   flex-shrink: 0;
 }
 
-.collection-subtitle {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .collection-rule-stack {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .collection-rule-list {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
 }
 
 .collection-rule-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
