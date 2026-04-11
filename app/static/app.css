@@ -2644,14 +2644,6 @@ button.collection-trip-pill[hidden] {
   text-align: right;
 }
 
-.timeline-offer-label-row {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  min-width: max-content;
-}
-
 .timeline-offer-copy p.timeline-offer-detail {
   margin: 0;
   max-width: none;
@@ -2669,6 +2661,11 @@ button.collection-trip-pill[hidden] {
   min-height: 64px;
   width: 100%;
   max-width: 100%;
+}
+
+.timeline-offer-main--with-action {
+  grid-template-columns: minmax(0, 290px) auto auto;
+  column-gap: 12px;
 }
 
 .timeline-row-actions {
@@ -2843,6 +2840,11 @@ button.collection-trip-pill[hidden] {
   border-color: rgba(163, 75, 63, 0.3);
   color: var(--danger);
   background: rgba(252, 244, 241, 0.98);
+}
+
+.timeline-offer-action {
+  align-self: center;
+  justify-self: end;
 }
 
 .timeline-row-footer {

@@ -55,7 +55,7 @@
       {% endif %}
       {% if row.booked_offer %}
       <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">
-        <div class="timeline-offer-main">
+        <div class="timeline-offer-main{% if inline_action_view and inline_action_view.show_booking_modal %} timeline-offer-main--with-action{% endif %}">
           <div class="timeline-offer-copy">
             {% if row.booked_offer.detail %}
             <p class="timeline-offer-detail">{{ row.booked_offer.detail }}</p>
@@ -72,31 +72,29 @@
             {% endif %}
           </div>
           <div class="timeline-offer-price-stack">
-            <div class="timeline-offer-label-row">
-              <span class="timeline-offer-label timeline-offer-label--price">{{ row.booked_offer.label }}</span>
-              {% if inline_action_view and inline_action_view.show_booking_modal %}
-              <button
-                type="button"
-                class="timeline-icon-control timeline-icon-control--inline"
-                data-panel-modal-url="{{ inline_action_view.booking_modal_url }}"
-                data-panel-history-url="{{ inline_action_view.booking_modal_history_url }}"
-                title="View bookings"
-                aria-label="View bookings"
-              >
-                {{ icon("view") }}
-              </button>
-              {% endif %}
-            </div>
+            <span class="timeline-offer-label timeline-offer-label--price">{{ row.booked_offer.label }}</span>
             <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
               {{ row.booked_offer.price_label }}
             </span>
           </div>
+          {% if inline_action_view and inline_action_view.show_booking_modal %}
+          <button
+            type="button"
+            class="timeline-icon-control timeline-icon-control--inline timeline-offer-action"
+            data-panel-modal-url="{{ inline_action_view.booking_modal_url }}"
+            data-panel-history-url="{{ inline_action_view.booking_modal_history_url }}"
+            title="View bookings"
+            aria-label="View bookings"
+          >
+            {{ icon("view") }}
+          </button>
+          {% endif %}
         </div>
       </div>
       {% endif %}
       {% if row.current_offer %}
       <div class="timeline-offer-item timeline-offer-item--current timeline-offer-item--{{ row.current_offer.tone }}{% if not row.booked_offer %} timeline-offer-item--current-only{% endif %}">
-        <div class="timeline-offer-main">
+        <div class="timeline-offer-main{% if inline_action_view and inline_action_view.show_trackers %} timeline-offer-main--with-action{% endif %}">
           <div class="timeline-offer-copy">
             {% if row.current_offer.detail %}
             <p class="timeline-offer-detail">{{ row.current_offer.detail }}</p>
@@ -113,21 +111,7 @@
             {% endif %}
           </div>
           <div class="timeline-offer-price-stack">
-            <div class="timeline-offer-label-row">
-              <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
-              {% if inline_action_view and inline_action_view.show_trackers %}
-              <button
-                type="button"
-                class="timeline-icon-control timeline-icon-control--inline"
-                data-panel-modal-url="{{ inline_action_view.tracker_modal_url }}"
-                data-panel-history-url="{{ inline_action_view.tracker_modal_history_url }}"
-                title="View trackers"
-                aria-label="View trackers"
-              >
-                {{ icon("view") }}
-              </button>
-              {% endif %}
-            </div>
+            <span class="timeline-offer-label timeline-offer-label--price">{{ row.current_offer.label }}</span>
             {% if row.current_offer.price_is_status and row.current_offer.href %}
             <a class="timeline-offer-status timeline-offer-status--link" href="{{ row.current_offer.href }}" target="_blank" rel="noreferrer">
               {{ row.current_offer.price_label }}
@@ -146,6 +130,18 @@
             </span>
             {% endif %}
           </div>
+          {% if inline_action_view and inline_action_view.show_trackers %}
+          <button
+            type="button"
+            class="timeline-icon-control timeline-icon-control--inline timeline-offer-action"
+            data-panel-modal-url="{{ inline_action_view.tracker_modal_url }}"
+            data-panel-history-url="{{ inline_action_view.tracker_modal_history_url }}"
+            title="View trackers"
+            aria-label="View trackers"
+          >
+            {{ icon("view") }}
+          </button>
+          {% endif %}
         </div>
       </div>
       {% endif %}
