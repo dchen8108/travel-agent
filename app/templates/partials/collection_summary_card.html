@@ -14,11 +14,11 @@
         <span class="dashboard-item-title">{{ collection_card.group.label }}</span>
         {% endif %}
       </strong>
-    </div>
-    <div class="collection-card-actions">
       <a class="timeline-icon-control" href="{{ collection_edit_href }}" title="Edit collection" aria-label="Edit collection">
         {{ icon("edit") }}
       </a>
+    </div>
+    <div class="collection-card-actions">
       <a class="button primary compact" href="{{ collection_create_href }}">Create trip</a>
     </div>
   </div>
@@ -29,13 +29,15 @@
       {% for recurring in collection_card.recurring_rule_views %}
       <article class="collection-rule-row" id="rule-{{ recurring.trip_id }}">
         <div class="collection-rule-copy">
-          <strong class="collection-rule-title">{{ recurring.label }}</strong>
+          <div class="collection-rule-titleline">
+            <strong class="collection-rule-title">{{ recurring.label }}</strong>
+            <a class="timeline-icon-control" href="{{ recurring.edit_href }}" title="Edit recurring trip" aria-label="Edit recurring trip">
+              {{ icon("edit") }}
+            </a>
+          </div>
           <p class="collection-rule-meta">Repeats on {{ recurring.anchor_weekday }}</p>
         </div>
         <div class="collection-rule-actions">
-          <a class="timeline-icon-control" href="{{ recurring.edit_href }}" title="Edit recurring trip" aria-label="Edit recurring trip">
-            {{ icon("edit") }}
-          </a>
           <form method="post" action="{{ recurring.toggle_action }}">
             <button class="toggle-switch {{ 'is-on' if recurring.active else '' }}" type="submit" aria-label="{{ recurring.toggle_label }} {{ recurring.label }}">
               <span class="toggle-switch-label">{{ recurring.toggle_label }}</span>

@@ -2149,12 +2149,12 @@ textarea {
 .collection-card-titleline {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .collection-card-titleline strong {
-  font-size: 1.14rem;
+  font-size: 1.28rem;
   line-height: 1.15;
 }
 
@@ -2189,6 +2189,14 @@ textarea {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+.collection-rule-titleline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .collection-rule-title {
@@ -2560,8 +2568,8 @@ button.collection-trip-pill[hidden] {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
   flex-wrap: nowrap;
+  flex: 0 0 auto;
 }
 
 .timeline-title-actions form {
