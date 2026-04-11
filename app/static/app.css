@@ -2727,6 +2727,10 @@ button.collection-trip-pill[hidden] {
   column-gap: 12px;
 }
 
+.timeline-offer-main--empty {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .timeline-row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2754,6 +2758,15 @@ button.collection-trip-pill[hidden] {
   gap: 4px;
   min-width: 0;
   align-content: center;
+}
+
+.timeline-offer-empty-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .timeline-offer-meta {
@@ -2961,6 +2974,14 @@ button.collection-trip-pill[hidden] {
   display: grid;
   gap: 10px;
   padding-right: 40px;
+}
+
+.detail-modal-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .detail-modal-trip-strip {
@@ -3260,6 +3281,7 @@ code {
 
   .collection-card-actions,
   .collection-rule-actions,
+  .detail-modal-header-top,
   .detail-modal-header,
   .dashboard-trip-actions {
     width: 100%;

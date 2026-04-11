@@ -1276,7 +1276,7 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     assert detail.status_code == 200
     assert "Bookings" in detail.text
     assert "BOOK01" in detail.text
-    assert "Add booking" in detail.text
+    assert "Create booking" in detail.text
 
 
 def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:

@@ -10,11 +10,6 @@
     <a class="timeline-icon-control" href="{{ inline_action_view.edit_href }}" title="Edit trip" aria-label="Edit trip">
       {{ icon("edit") }}
     </a>
-    {% if force_show_add_booking is defined and force_show_add_booking or not inline_action_view.show_booking_modal %}
-    <a class="timeline-icon-control" href="{{ inline_action_view.booking_href }}" title="Add booking" aria-label="Add booking">
-      {{ icon("add") }}
-    </a>
-    {% endif %}
     {% if inline_action_view.delete_href %}
     <form
       method="post"

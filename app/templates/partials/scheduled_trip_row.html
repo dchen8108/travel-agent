@@ -7,6 +7,7 @@
 {% set row_dom_id = row_dom_id if row_dom_id is defined else row_id_prefix ~ '-' ~ scheduled_instance.trip_instance_id %}
 {% set show_row_date = show_row_date if show_row_date is defined else True %}
 {% set inline_action_view = dashboard_action_view if dashboard_action_view is defined else none %}
+{% set show_booking_placeholder = inline_action_view and not row.booked_offer and inline_action_view.booking_href %}
 <article class="timeline-row{{ ' timeline-row--no-date' if not show_row_date else '' }}{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
   {% if show_row_date %}
   <div class="timeline-date">
@@ -38,9 +39,26 @@
           {% endif %}
         </div>
       </div>
+      {% elif show_booking_placeholder %}
+      <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--empty">
+        <div class="timeline-offer-main timeline-offer-main--empty timeline-offer-main--with-action">
+          <div class="timeline-offer-copy">
+            <p class="timeline-offer-empty-copy">No bookings linked</p>
+          </div>
+          <div class="timeline-offer-price-stack"></div>
+          <a
+            class="timeline-icon-control timeline-icon-control--inline timeline-offer-action"
+            href="{{ inline_action_view.booking_href }}"
+            title="Add booking"
+            aria-label="Add booking"
+          >
+            {{ icon("add") }}
+          </a>
+        </div>
+      </div>
       {% endif %}
       {% if row.current_offer %}
-      <div class="timeline-offer-item timeline-offer-item--current timeline-offer-item--{{ row.current_offer.tone }}{% if not row.booked_offer %} timeline-offer-item--current-only{% endif %}">
+      <div class="timeline-offer-item timeline-offer-item--current timeline-offer-item--{{ row.current_offer.tone }}{% if not row.booked_offer and not show_booking_placeholder %} timeline-offer-item--current-only{% endif %}">
         <div class="timeline-offer-main{% if inline_action_view and inline_action_view.show_trackers %} timeline-offer-main--with-action{% endif %}">
           <div class="timeline-offer-copy">
             {% if row.current_offer.detail %}
