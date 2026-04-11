@@ -1,0 +1,22 @@
+{% set offer = offer if offer is defined else row.booked_offer %}
+<div class="timeline-offer-copy">
+  {% if offer.detail %}
+  <p class="timeline-offer-detail">{{ offer.detail }}</p>
+  {% endif %}
+  {% if offer.meta_label or offer.day_delta_label %}
+  <div class="timeline-offer-meta">
+    {% if offer.meta_label %}
+    <span class="timeline-offer-time">{{ offer.meta_label }}</span>
+    {% endif %}
+    {% if offer.day_delta_label %}
+    <span class="timeline-offer-shift">{{ offer.day_delta_label }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<div class="timeline-offer-price-stack">
+  <span class="timeline-offer-label timeline-offer-label--price">{{ offer.label }}</span>
+  <span class="timeline-offer-price timeline-offer-price--{{ offer.tone }}">
+    {{ offer.price_label }}
+  </span>
+</div>

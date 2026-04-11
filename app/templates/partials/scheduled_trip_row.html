@@ -56,27 +56,8 @@
       {% if row.booked_offer %}
       <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">
         <div class="timeline-offer-main{% if inline_action_view and inline_action_view.show_booking_modal %} timeline-offer-main--with-action{% endif %}">
-          <div class="timeline-offer-copy">
-            {% if row.booked_offer.detail %}
-            <p class="timeline-offer-detail">{{ row.booked_offer.detail }}</p>
-            {% endif %}
-            {% if row.booked_offer.meta_label or row.booked_offer.day_delta_label %}
-            <div class="timeline-offer-meta">
-              {% if row.booked_offer.meta_label %}
-              <span class="timeline-offer-time">{{ row.booked_offer.meta_label }}</span>
-              {% endif %}
-              {% if row.booked_offer.day_delta_label %}
-              <span class="timeline-offer-shift">{{ row.booked_offer.day_delta_label }}</span>
-              {% endif %}
-            </div>
-            {% endif %}
-          </div>
-          <div class="timeline-offer-price-stack">
-            <span class="timeline-offer-label timeline-offer-label--price">{{ row.booked_offer.label }}</span>
-            <span class="timeline-offer-price timeline-offer-price--{{ row.booked_offer.tone }}">
-              {{ row.booked_offer.price_label }}
-            </span>
-          </div>
+          {% set offer = row.booked_offer %}
+          {% include "partials/booking_offer_body.html" %}
           {% if inline_action_view and inline_action_view.show_booking_modal %}
           <button
             type="button"

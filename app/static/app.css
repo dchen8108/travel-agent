@@ -2413,18 +2413,62 @@ button.collection-trip-pill[hidden] {
   background: rgba(255, 254, 250, 0.92);
 }
 
-.detail-booking-list .timeline-row,
 .detail-tracker-list .timeline-row {
   padding-left: 16px;
   padding-right: 16px;
 }
 
-.detail-booking-list .timeline-row--embedded {
+.booking-modal-row {
+  display: grid;
+  gap: 10px;
+  padding: 16px 20px;
   border-top: 1px solid rgba(216, 221, 216, 0.72);
+  background: transparent;
 }
 
-.detail-booking-list > .timeline-row:first-child {
+.detail-booking-list > .booking-modal-row:first-child {
   border-top: 0;
+}
+
+.booking-modal-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.booking-modal-offer {
+  min-width: 0;
+}
+
+.booking-modal-offer .timeline-offer-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  min-height: auto;
+}
+
+.booking-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.booking-modal-actions .timeline-row-actions {
+  min-height: auto;
+  width: auto;
+  gap: 8px;
+}
+
+.booking-modal-actions .timeline-icon-control {
+  width: 30px;
+  height: 30px;
+}
+
+.booking-modal-actions .timeline-icon-control svg {
+  width: 14px;
+  height: 14px;
 }
 
 .dashboard-item-title,
@@ -3309,6 +3353,20 @@ code {
   .collection-rule-titleline,
   .timeline-title-group {
     flex-wrap: wrap;
+  }
+
+  .booking-modal-row-main {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .booking-modal-offer .timeline-offer-main {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .booking-modal-actions {
+    justify-content: flex-start;
   }
 
   .timeline-side {
