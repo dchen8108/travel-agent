@@ -141,12 +141,17 @@ def trip_ui_picker_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
 
 
 def booking_row_summary(booking_like: object, *, anchor_date: date | None = None) -> dict[str, object]:
+    departure_time = format_departure_time_label(getattr(booking_like, "departure_time", ""))
+    record_locator = getattr(booking_like, "record_locator", "") or ""
+    booking_meta = departure_time
+    if record_locator:
+        booking_meta = f"{departure_time} · {record_locator}" if departure_time else record_locator
     return {
-        "title": getattr(booking_like, "record_locator", "") or "Imported booking",
+        "title": "",
         "booked_offer": {
             "label": "Booked at",
             "detail": booking_route_label(booking_like),
-            "meta_label": format_departure_time_label(getattr(booking_like, "departure_time", "")),
+            "meta_label": booking_meta,
             "day_delta_label": (
                 travel_day_delta_label(
                     anchor_date,

@@ -17,7 +17,7 @@
       {% set row_date = linked_booking.departure_date %}
       {% set row_href = "" %}
       {% set row_id_prefix = "modal-booking" %}
-      {% set row_class_names = "timeline-row--booking timeline-row--embedded timeline-row--booking-detail" %}
+      {% set row_class_names = "timeline-row--booking timeline-row--embedded" %}
       {% set show_row_date = False %}
       {% set row_actions_partial = "partials/booking_row_actions.html" if linked_booking.status == 'active' else "" %}
       {% set row_footer_partial = "partials/booking_warning_footer.html" if route_tracking.warning else "" %}

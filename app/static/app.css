@@ -2886,68 +2886,6 @@ button.collection-trip-pill[hidden] {
   color: var(--danger);
 }
 
-.timeline-row--booking-detail {
-  padding-top: 16px;
-  padding-bottom: 16px;
-}
-
-.timeline-row--booking-detail .timeline-summary-row {
-  gap: 26px;
-}
-
-.timeline-row--booking-detail .timeline-offer-item--booked {
-  padding-right: 14px;
-}
-
-.timeline-row--booking-detail .timeline-row-actions {
-  min-height: 56px;
-}
-
-.timeline-row--tracker-detail {
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-
-.timeline-row--tracker-detail .timeline-summary-row {
-  display: grid;
-  gap: 0;
-}
-
-.timeline-row--tracker-detail .timeline-offer-item--current-only {
-  width: 100%;
-  padding-left: 0;
-  justify-self: stretch;
-  max-width: none;
-}
-
-.timeline-row--tracker-detail .timeline-offer-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  min-height: 56px;
-}
-
-.timeline-row--tracker-detail .timeline-offer-copy {
-  flex: 1 1 auto;
-  gap: 6px;
-  min-width: 0;
-}
-
-.timeline-row--tracker-detail .timeline-offer-price-stack {
-  flex: 0 0 auto;
-  margin-left: auto;
-  justify-self: end;
-}
-
-.timeline-row--tracker-detail .timeline-offer-detail {
-  font-size: 1rem;
-}
-
-.timeline-row--tracker-detail .timeline-offer-time {
-  font-size: 0.84rem;
-}
-
 .detail-modal-panel {
   display: grid;
   gap: 16px;
