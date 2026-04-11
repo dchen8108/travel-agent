@@ -107,7 +107,8 @@
             </div>
             {% set scheduled_instance = card.instance %}
             {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
-            {% set row_href = card.href %}
+            {% set row_href = "" %}
+            {% set dashboard_action_view = trip_row_actions_view(snapshot, card.instance.trip_instance_id) %}
             {% set row_id_prefix = "action-overbooked" %}
             <div class="timeline-list action-item-embedded-list">
               {% include "partials/scheduled_trip_row.html" %}
@@ -133,7 +134,8 @@
             </div>
             {% set scheduled_instance = card.instance %}
             {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
-            {% set row_href = card.href %}
+            {% set row_href = "" %}
+            {% set dashboard_action_view = trip_row_actions_view(snapshot, card.instance.trip_instance_id) %}
             {% set row_id_prefix = "action-rebook" %}
             <div class="timeline-list action-item-embedded-list">
               {% include "partials/scheduled_trip_row.html" %}
@@ -157,7 +159,8 @@
             </div>
             {% set scheduled_instance = card.instance %}
             {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
-            {% set row_href = card.href %}
+            {% set row_href = "" %}
+            {% set dashboard_action_view = trip_row_actions_view(snapshot, card.instance.trip_instance_id) %}
             {% set row_id_prefix = "action-book" %}
             <div class="timeline-list action-item-embedded-list">
               {% include "partials/scheduled_trip_row.html" %}
