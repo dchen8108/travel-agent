@@ -35,7 +35,10 @@ These are still useful, but they are more focused background than canonical impl
 - the normal UI requires recurring rules to belong to at least one group
 - scheduled trips can belong to zero or more groups and at most one rule
 - attached recurring instances inherit rule group targets; detached instances freeze them
-- one-time trips use their scheduled-trip page as the canonical operational surface
+- the dashboard at `/` is the canonical operational surface
+- collection inspection happens inline on dashboard collection cards
+- trip inspection happens inline on dashboard rows plus bookings/trackers modal panels
+- `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
 - route options are ranked tracker definitions under a trip
 - bookings are trip-scoped and can optionally link to a uniquely matched route option
 - unlinked bookings are handled inline on the dashboard, not through a separate primary `Resolve` or `Bookings` workspace

@@ -60,6 +60,10 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_fetch_target_refresh_requests_to_v21(connection)
     if current_version < 22:
         _migrate_tracker_fetch_targets_to_v22(connection)
+    # Keep this shape repair outside the version gate. We have already seen live
+    # databases report the current schema version while still carrying the legacy
+    # tracker_fetch_targets column set after an interrupted migration. The v22
+    # rebuild is idempotent when the table shape is already correct.
     _migrate_tracker_fetch_targets_to_v22(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)

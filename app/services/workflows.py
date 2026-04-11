@@ -75,6 +75,7 @@ def _diff_models(
 
 
 def build_reconciled_snapshot(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+    """Recompute runtime-derived state from authored trips, routes, bookings, and fetch data."""
     repository.ensure_data_dir()
     today = today or date.today()
 
@@ -156,6 +157,7 @@ def build_reconciled_snapshot(repository: Repository, *, today: date | None = No
 
 
 def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -> AppSnapshot:
+    """Diff a reconciled snapshot against persisted runtime tables and write only changed rows."""
     with repository.transaction():
         current_trip_instances = repository.load_trip_instances()
         current_memberships = repository.load_trip_instance_group_memberships()
@@ -218,5 +220,6 @@ def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -
 
 
 def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+    """Reconcile the full runtime snapshot and persist any resulting runtime-table changes."""
     snapshot = build_reconciled_snapshot(repository, today=today)
     return persist_reconciled_snapshot(repository, snapshot)

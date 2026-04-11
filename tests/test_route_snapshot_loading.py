@@ -5,6 +5,7 @@ from datetime import date
 from app.routes import groups as groups_route
 from app.routes import trackers as trackers_route
 from app.routes import trips as trips_route
+from app.services.bookings import BookingCandidate, record_booking
 from app.services.dashboard_navigation import trip_focus_url
 from app.services.groups import save_trip_group
 from app.services.trips import save_trip
@@ -48,10 +49,37 @@ def test_trackers_detail_uses_persisted_snapshot(client, repository: Repository,
 
     monkeypatch.setattr(trackers_route, "load_persisted_snapshot", wrapped)
 
-    response = client.get(f"/trip-instances/{instance.trip_instance_id}")
+    response = client.get(f"/trip-instances/{instance.trip_instance_id}", follow_redirects=False)
 
-    assert response.status_code == 200
+    assert response.status_code == 303
+    assert "panel=trackers" in response.headers["location"]
     assert calls["persisted"] == 1
+
+
+def test_trackers_detail_redirects_to_bookings_panel_when_bookings_exist(
+    client,
+    repository: Repository,
+) -> None:
+    _trip, instance = _seed_one_time_trip(repository)
+    record_booking(
+        repository,
+        BookingCandidate(
+            airline="American",
+            origin_airport="LAX",
+            destination_airport="JFK",
+            departure_date=instance.anchor_date,
+            departure_time="09:00",
+            arrival_time="17:00",
+            booked_price=50000,
+            record_locator="ABC123",
+        ),
+        trip_instance_id=instance.trip_instance_id,
+    )
+
+    response = client.get(f"/trip-instances/{instance.trip_instance_id}", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert "panel=bookings" in response.headers["location"]
 
 
 def test_group_detail_uses_persisted_snapshot(client, repository: Repository, monkeypatch) -> None:
@@ -86,9 +114,10 @@ def test_group_detail_uses_persisted_snapshot(client, repository: Repository, mo
 
     monkeypatch.setattr(groups_route, "load_persisted_snapshot", wrapped)
 
-    response = client.get(f"/groups/{group.trip_group_id}")
+    response = client.get(f"/groups/{group.trip_group_id}", follow_redirects=False)
 
-    assert response.status_code == 200
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/#group-{group.trip_group_id}"
     assert calls["persisted"] == 1
 
 

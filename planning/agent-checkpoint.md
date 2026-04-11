@@ -1,6 +1,6 @@
 # Agent Checkpoint
 
-Last refreshed: `2026-04-05`
+Last refreshed: `2026-04-10`
 
 ## Purpose
 
@@ -21,26 +21,25 @@ Core product shape:
 - `Booking` may be linked to a scheduled trip and can optionally link to a uniquely matched route option
 - unresolved bookings are still `Booking` rows, not a separate object type
 
-There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with trip/group/rule detail pages and focused create/edit flows branching from it.
+There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with compatibility redirects and focused create/edit flows branching from it.
 
 ## Current UX Model
 
 Primary screens:
 
 - dashboard at `/`
-- scheduled-trip detail pages at `/trip-instances/{trip_instance_id}`
-- group detail pages at `/groups/{trip_group_id}`
-- trip/rule detail pages at `/trips/{trip_id}`
+- dashboard modal panels for trip bookings and trackers
 - focused create/edit flows such as `/trips/new` and trip-scoped `/bookings/new?trip_instance_id=...`
+- compatibility redirects under `/groups/{trip_group_id}`, `/trip-instances/{trip_instance_id}`, and `/trips/{trip_id}`
 - the persistent Milemark mark/wordmark is the global route back to `/`; page-level `Back` links are only local navigation helpers
 
 Important hierarchy:
 
-- one-time trips use their scheduled-trip page as the canonical operational page
-- recurring rules still keep a parent rule page
-- groups are organizational only
-- scheduled trips are the operational surface where you inspect prices, refresh, book, detach, unlink, or delete
-- linked and cancelled bookings are managed from the scheduled-trip page
+- the dashboard is the canonical operational page
+- groups are organizational only and are inspected inline on collection cards
+- scheduled trips are inspected inline in the dashboard ledger, with bookings and trackers opening in modal panels
+- recurring rules do not keep a standalone detail page; `/trips/{trip_id}` redirects to edit for weekly rules
+- `/groups/{id}` and `/trip-instances/{id}` are compatibility redirects, not primary destinations
 - unlinked bookings are resolved inline on the dashboard
 
 ## Runtime Architecture
@@ -135,8 +134,9 @@ Known-good on this machine after the latest cleanup pass:
   - `/`
   - `/trips/new`
   - `/bookings/new?trip_instance_id={id}`
-  - `/groups/{id}`
-  - `/trip-instances/{id}`
+  - `/?panel=bookings&trip_instance_id={id}`
+  - `/?panel=trackers&trip_instance_id={id}`
+  - `/groups/{id}/edit`
 
 ## Storage Hygiene Notes
 

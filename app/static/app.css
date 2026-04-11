@@ -558,46 +558,6 @@ small,
   color: var(--ink);
 }
 
-.detail-breadcrumb {
-  margin: 0 0 8px;
-}
-
-.detail-page-stack {
-  display: grid;
-  gap: 18px;
-}
-
-.detail-page-stack > .section {
-  margin: 0;
-}
-
-.detail-top-panel {
-  gap: 18px;
-  padding: 18px;
-  border-color: rgba(164, 194, 184, 0.58);
-  box-shadow: 0 14px 34px rgba(18, 32, 44, 0.05);
-}
-
-.detail-section-panel {
-  gap: 14px;
-  padding: 18px;
-}
-
-.detail-embedded-list {
-  border-radius: 18px;
-  background: rgba(255, 254, 250, 0.9);
-}
-
-.detail-top-panel > .timeline-list {
-  grid-column: 1 / -1;
-}
-
-.inline-badge-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .filter-card {
   display: grid;
   gap: 14px;
@@ -2125,10 +2085,6 @@ textarea {
     linear-gradient(180deg, rgba(255, 255, 253, 0.98), rgba(250, 245, 238, 0.96));
   box-shadow: 0 12px 26px rgba(18, 32, 44, 0.035);
   align-self: start;
-}
-
-.detail-top-panel > .collection-card {
-  grid-column: 1 / -1;
 }
 
 .collection-card-head {

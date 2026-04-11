@@ -9,6 +9,7 @@ from app.storage.repository import Repository
 
 
 def load_persisted_snapshot(repository: Repository) -> AppSnapshot:
+    """Load the last persisted runtime snapshot without mutating state."""
     repository.ensure_data_dir()
     app_state = repository.load_app_state()
     snapshot = AppSnapshot(
@@ -30,6 +31,7 @@ def load_persisted_snapshot(repository: Repository) -> AppSnapshot:
 
 
 def load_live_snapshot(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+    """Run the heavyweight reconcile-and-persist workflow, then return the filtered snapshot."""
     repository.ensure_data_dir()
     snapshot = sync_and_persist(repository, today=today)
     return filter_snapshot(snapshot, include_test_data=include_test_data_for_ui(snapshot.app_state))

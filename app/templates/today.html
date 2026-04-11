@@ -98,22 +98,12 @@
       <section class="attention-group">
         <div class="action-item-list">
           {% for card in overbooked_views %}
-          <article class="action-item-shell action-item-shell--warning">
-            <div class="action-item-header">
-              <div class="action-item-header-copy">
-                <strong>Multiple bookings</strong>
-              </div>
-              <span class="signal-badge">{{ card.active_booking_count }} active</span>
-            </div>
-            {% set scheduled_instance = card.instance %}
-            {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
-            {% set row_href = "" %}
-            {% set dashboard_action_view = trip_row_actions_view(snapshot, card.instance.trip_instance_id) %}
-            {% set row_id_prefix = "action-overbooked" %}
-            <div class="timeline-list action-item-embedded-list">
-              {% include "partials/scheduled_trip_row.html" %}
-            </div>
-          </article>
+          {% set action_card = card %}
+          {% set action_card_title = "Multiple bookings" %}
+          {% set action_card_badge = card.active_booking_count ~ " active" %}
+          {% set action_card_shell_class = "action-item-shell--warning" %}
+          {% set action_row_id_prefix = "action-overbooked" %}
+          {% include "partials/action_trip_card.html" %}
           {% endfor %}
         </div>
       </section>
@@ -123,24 +113,12 @@
       <section class="attention-group">
         <div class="action-item-list">
           {% for card in rebook_views %}
-          <article class="action-item-shell action-item-shell--accent">
-            <div class="action-item-header">
-              <div class="action-item-header-copy">
-                <strong>Price drop</strong>
-              </div>
-              {% if card.savings %}
-              <span class="signal-badge">{{ money(card.savings) }} lower</span>
-              {% endif %}
-            </div>
-            {% set scheduled_instance = card.instance %}
-            {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
-            {% set row_href = "" %}
-            {% set dashboard_action_view = trip_row_actions_view(snapshot, card.instance.trip_instance_id) %}
-            {% set row_id_prefix = "action-rebook" %}
-            <div class="timeline-list action-item-embedded-list">
-              {% include "partials/scheduled_trip_row.html" %}
-            </div>
-          </article>
+          {% set action_card = card %}
+          {% set action_card_title = "Price drop" %}
+          {% set action_card_badge = money(card.savings) ~ " lower" if card.savings else "" %}
+          {% set action_card_shell_class = "action-item-shell--accent" %}
+          {% set action_row_id_prefix = "action-rebook" %}
+          {% include "partials/action_trip_card.html" %}
           {% endfor %}
         </div>
       </section>
@@ -150,22 +128,12 @@
       <section class="attention-group">
         <div class="action-item-list">
           {% for card in book_now_views %}
-          <article class="action-item-shell">
-            <div class="action-item-header">
-              <div class="action-item-header-copy">
-                <strong>Needs booking</strong>
-              </div>
-              <span class="signal-badge">{{ card.instance.anchor_date.strftime('%b %d') }}</span>
-            </div>
-            {% set scheduled_instance = card.instance %}
-            {% set row = trip_row_summary(snapshot, card.instance.trip_instance_id) %}
-            {% set row_href = "" %}
-            {% set dashboard_action_view = trip_row_actions_view(snapshot, card.instance.trip_instance_id) %}
-            {% set row_id_prefix = "action-book" %}
-            <div class="timeline-list action-item-embedded-list">
-              {% include "partials/scheduled_trip_row.html" %}
-            </div>
-          </article>
+          {% set action_card = card %}
+          {% set action_card_title = "Needs booking" %}
+          {% set action_card_badge = card.instance.anchor_date.strftime('%b %d') %}
+          {% set action_card_shell_class = "" %}
+          {% set action_row_id_prefix = "action-book" %}
+          {% include "partials/action_trip_card.html" %}
           {% endfor %}
         </div>
       </section>

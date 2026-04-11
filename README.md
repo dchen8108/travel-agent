@@ -37,7 +37,11 @@ Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) 
 Compatibility note:
 
 - `/trips`, `/bookings`, and `/trackers` are redirect-only compatibility endpoints now
-- the real product surfaces are the dashboard at `/`, the detail pages under `/trip-instances/{id}`, `/groups/{id}`, `/trips/{id}`, and the focused create/edit flows
+- the dashboard at `/` is the primary operational surface
+- collection inspection happens inline on dashboard collection cards
+- trip inspection happens inline on dashboard trip rows and the bookings/trackers modal panels
+- `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
+- focused create/edit flows such as `/trips/new`, `/trips/{id}/edit`, `/groups/{id}/edit`, and `/bookings/{id}/edit` remain first-class
 
 ## Core Objects
 
@@ -69,12 +73,12 @@ Then open `http://127.0.0.1:8000`.
 4. Add ranked `Route Options`.
 5. For each route option, choose whether Google Flights should include or exclude Basic economy fares.
 6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
-7. Use the dashboard to review collections, upcoming travel, and any bookings that still need linking.
-8. Open a recurring rule for template-level details, route options, and generated dates.
-9. Open any scheduled trip to review trackers, prices, Google Flights links, group memberships, and booking state.
+7. Use the dashboard to review collections, recurring trips, upcoming travel, and any bookings that still need linking.
+8. Use collection cards to inspect recurring trips and jump straight into rule edits.
+9. Use trip rows and their bookings/trackers modals to inspect bookings, live fares, and Google Flights links.
 10. Let the background fetcher populate current prices automatically. New or edited trips are queued to refresh first.
 11. Record bookings manually or let Gmail automation create them automatically.
-12. Use the scheduled-trip page as the canonical place to manage linked and cancelled bookings.
+12. Use edit forms for template-level changes, and detach an attached recurring instance before editing it as a one-off trip.
 
 ## Gmail Booking Automation
 
