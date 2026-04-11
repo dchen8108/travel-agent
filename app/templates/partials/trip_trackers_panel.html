@@ -1,10 +1,11 @@
 <section class="detail-modal-panel">
   <div class="detail-modal-header">
-    <div>
-      <p class="page-context">Trackers</p>
-      <h3>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }} · {{ trip_instance.anchor_date.strftime('%b %d') }}</h3>
-      <p class="muted">Current fare checks for this scheduled trip.</p>
-    </div>
+    <p class="page-context">Trackers</p>
+    {% set row = trip_row_summary(snapshot, trip_instance.trip_instance_id) %}
+    {% set identity_date = trip_instance.anchor_date %}
+    {% set row_href = "" %}
+    {% set inline_action_view = trip_row_actions_view(snapshot, trip_instance.trip_instance_id) %}
+    {% include "partials/trip_identity_strip.html" %}
   </div>
   {% if tracker_rows %}
   <div class="timeline-list detail-modal-list detail-tracker-list">

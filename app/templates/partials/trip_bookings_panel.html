@@ -1,11 +1,12 @@
 <section class="detail-modal-panel">
   <div class="detail-modal-header">
-    <div>
-      <p class="page-context">Bookings</p>
-      <h3>{{ trip_ui_label(snapshot, trip_instance.trip_instance_id) }} · {{ trip_instance.anchor_date.strftime('%b %d') }}</h3>
-      <p class="muted">Manage the bookings linked to this scheduled trip.</p>
-    </div>
-    <a class="button primary compact" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Add booking</a>
+    <p class="page-context">Bookings</p>
+    {% set row = trip_row_summary(snapshot, trip_instance.trip_instance_id) %}
+    {% set identity_date = trip_instance.anchor_date %}
+    {% set row_href = "" %}
+    {% set inline_action_view = trip_row_actions_view(snapshot, trip_instance.trip_instance_id) %}
+    {% set force_show_add_booking = True %}
+    {% include "partials/trip_identity_strip.html" %}
   </div>
   {% if booking_views %}
   <div class="timeline-list detail-modal-list detail-booking-list">

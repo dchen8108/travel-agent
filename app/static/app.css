@@ -2958,21 +2958,17 @@ button.collection-trip-pill[hidden] {
 }
 
 .detail-modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
+  display: grid;
+  gap: 10px;
   padding-right: 40px;
+}
+
+.detail-modal-trip-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   flex-wrap: wrap;
-}
-
-.detail-modal-header h3 {
-  margin: 4px 0 4px;
-  font-size: 1.8rem;
-}
-
-.detail-modal-header .muted {
-  margin: 0;
+  min-width: 0;
 }
 
 .detail-modal-list {
