@@ -2413,9 +2413,9 @@ button.collection-trip-pill[hidden] {
   background: rgba(255, 254, 250, 0.92);
 }
 
-.detail-tracker-list .timeline-row {
-  padding-left: 16px;
-  padding-right: 16px;
+.detail-tracker-list {
+  border-radius: 18px;
+  background: rgba(255, 254, 250, 0.92);
 }
 
 .booking-modal-row {
@@ -2427,6 +2427,16 @@ button.collection-trip-pill[hidden] {
 }
 
 .detail-booking-list > .booking-modal-row:first-child {
+  border-top: 0;
+}
+
+.tracker-modal-row {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(216, 221, 216, 0.72);
+  background: transparent;
+}
+
+.detail-tracker-list > .tracker-modal-row:first-child {
   border-top: 0;
 }
 
@@ -2442,7 +2452,17 @@ button.collection-trip-pill[hidden] {
   min-width: 0;
 }
 
+.tracker-modal-offer {
+  min-width: 0;
+}
+
 .booking-modal-offer .timeline-offer-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  min-height: auto;
+}
+
+.tracker-modal-offer .timeline-offer-main {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 20px;
   min-height: auto;
@@ -2659,11 +2679,6 @@ button.collection-trip-pill[hidden] {
 .timeline-offer-item--current-only {
   flex: 1 1 auto;
   max-width: none;
-}
-
-.timeline-row--tracker .timeline-offer-item--current {
-  border-left: 0;
-  padding-left: 0;
 }
 
 .timeline-offer-item--actions {
