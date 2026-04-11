@@ -17,6 +17,7 @@ from app.services.itinerary_display import (
     tracker_best_fetch_target,
     travel_day_delta_label,
 )
+from app.services.scheduled_trip_display import live_fare_offer_summary
 from app.services.scheduled_trip_state import (
     booking_route_tracking_state,
     bookings_for_instance,
@@ -46,17 +47,14 @@ class TrackerSearchRowView:
 
 def _tracker_target_row_view(trip_instance, tracker, target, *, is_best_target: bool) -> TrackerSearchRowView:
     if target.latest_price is not None:
-        signal_label = "Live fare"
         signal_tone = "accent" if is_best_target else "neutral"
         signal_is_status = False
         headline = format_money(target.latest_price)
     elif target.last_fetch_status in {"no_results", "no_window_match"}:
-        signal_label = "Live fare"
         signal_tone = "neutral"
         signal_is_status = True
         headline = "N/A"
     else:
-        signal_label = "Live fare"
         signal_tone = "neutral"
         signal_is_status = True
         headline = "Checking"
@@ -66,23 +64,20 @@ def _tracker_target_row_view(trip_instance, tracker, target, *, is_best_target: 
         row={
             "title": "",
             "booked_offer": None,
-            "current_offer": {
-                "label": signal_label,
-                "detail": fetch_target_route_label(target, fallback_tracker=tracker),
-                "meta_label": (
+            "current_offer": live_fare_offer_summary(
+                anchor_date=trip_instance.anchor_date,
+                travel_date=tracker.travel_date,
+                detail=fetch_target_route_label(target, fallback_tracker=tracker),
+                meta_label=(
                     format_departure_time_label(target.latest_departure_label)
                     if target.latest_departure_label
                     else format_departure_window_label(tracker.start_time, tracker.end_time)
                 ),
-                "day_delta_label": travel_day_delta_label(
-                    trip_instance.anchor_date,
-                    tracker.travel_date,
-                ),
-                "price_label": headline,
-                "href": target.google_flights_url if target.google_flights_url else "",
-                "tone": signal_tone,
-                "price_is_status": signal_is_status,
-            },
+                price_label=headline,
+                href=target.google_flights_url if target.google_flights_url else "",
+                tone=signal_tone,
+                price_is_status=signal_is_status,
+            ),
         },
     )
 
@@ -94,23 +89,20 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
         row={
             "title": "",
             "booked_offer": None,
-            "current_offer": {
-                "label": "Live fare",
-                "detail": route_option_display_label(
+            "current_offer": live_fare_offer_summary(
+                anchor_date=trip_instance.anchor_date,
+                travel_date=tracker.travel_date,
+                detail=route_option_display_label(
                     tracker.origin_codes,
                     tracker.destination_codes,
                     tracker.airline_codes,
                 ),
-                "meta_label": format_departure_window_label(tracker.start_time, tracker.end_time),
-                "day_delta_label": travel_day_delta_label(
-                    trip_instance.anchor_date,
-                    tracker.travel_date,
-                ),
-                "price_label": "Checking",
-                "href": "",
-                "tone": "neutral",
-                "price_is_status": True,
-            },
+                meta_label=format_departure_window_label(tracker.start_time, tracker.end_time),
+                price_label="Checking",
+                href="",
+                tone="neutral",
+                price_is_status=True,
+            ),
         },
     )
 

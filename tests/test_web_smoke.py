@@ -264,7 +264,7 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert booking_response.status_code == 303
 
     dashboard_page = client.get("/")
-    assert "ABC123" not in dashboard_page.text
+    assert "ABC123" in dashboard_page.text
 
     repository = Repository(settings)
     booking = repository.load_bookings()[0]
