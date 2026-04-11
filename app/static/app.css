@@ -2147,15 +2147,18 @@ textarea {
 }
 
 .collection-card-titleline {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 14px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .collection-card-titleline strong {
+  display: block;
   font-size: 1.28rem;
   line-height: 1.15;
+  min-width: 0;
 }
 
 .collection-card-head .button {
@@ -2192,15 +2195,19 @@ textarea {
 }
 
 .collection-rule-titleline {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .collection-rule-title {
   display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -2419,6 +2426,7 @@ button.collection-trip-pill[hidden] {
   font-family: var(--font-sans);
   font-weight: 800;
   letter-spacing: -0.02em;
+  min-width: 0;
 }
 
 .dashboard-item-title,
@@ -2555,19 +2563,19 @@ button.collection-trip-pill[hidden] {
 }
 
 .timeline-title-group {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   min-width: 0;
 }
 .timeline-title-group {
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 14px;
+  flex-wrap: nowrap;
 }
 
 .timeline-title-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: nowrap;
   flex: 0 0 auto;
 }
@@ -3289,6 +3297,12 @@ code {
 
   .timeline-title-actions {
     margin-left: 0;
+  }
+
+  .collection-card-titleline,
+  .collection-rule-titleline,
+  .timeline-title-group {
+    flex-wrap: wrap;
   }
 
   .timeline-side {
