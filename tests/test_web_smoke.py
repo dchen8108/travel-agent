@@ -2217,6 +2217,65 @@ def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: P
     assert "DELGEN1" in dashboard.text
 
 
+def test_booking_edit_page_does_not_show_delete_controls(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Edit Booking Surface",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 13),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(
+        item.trip_instance_id for item in repository.load_trip_instances() if item.trip_id == trip.trip_id
+    )
+    create_booking = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "Southwest",
+            "origin_airport": "LAX",
+            "destination_airport": "SFO",
+            "departure_date": "2026-04-13",
+            "departure_time": "06:00",
+            "arrival_time": "07:30",
+            "booked_price": "78.40",
+            "record_locator": "NODELETE",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+    assert create_booking.status_code == 303
+    booking_id = repository.load_bookings()[0].booking_id
+
+    response = client.get(f"/bookings/{booking_id}/edit")
+
+    assert response.status_code == 200
+    assert "<h3>Controls</h3>" not in response.text
+    assert 'data-confirm-action="Delete booking"' not in response.text
+    assert ">Delete booking<" not in response.text
+
+
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

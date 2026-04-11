@@ -90,28 +90,6 @@
   </form>
 </section>
 
-{% if editing_booking %}
-<section class="section section-tight">
-  <div class="section-header compact">
-    <div>
-      <h3>Controls</h3>
-    </div>
-  </div>
-  <div class="actions">
-    <form
-      method="post"
-      action="/bookings/{{ editing_booking.booking_id }}/delete"
-      data-confirm-title="Delete this booking?"
-      data-confirm-description="This removes the booking record from Milemark. Any linked trip will fall back to Planned if no other active booking remains."
-      data-confirm-action="Delete booking"
-      data-confirm-cancel="Keep booking"
-    >
-      <button type="submit" class="button ghost danger-outline">Delete booking</button>
-    </form>
-  </div>
-</section>
-{% endif %}
-
 <script id="booking-form-data" type="application/json">
   {
     "catalogs": {{ catalogs_json|safe }}
