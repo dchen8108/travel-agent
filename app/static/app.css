@@ -2146,6 +2146,12 @@ textarea {
   flex-wrap: wrap;
 }
 
+.collection-card-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
 .collection-card-titleline {
   display: inline-flex;
   align-items: center;

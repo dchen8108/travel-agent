@@ -485,6 +485,7 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     detail = client.get("/")
     assert detail.status_code == 200
     assert "Work Trips" in detail.text
+    assert "Repeated travel tied to commuting and office visits." in detail.text
     assert "Edit collection" in detail.text
     assert "Create trip" in detail.text
 
