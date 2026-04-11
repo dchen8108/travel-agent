@@ -19,9 +19,9 @@
       {% endfor %}
     {% endif %}
     {% if recurring_rule and trip_instance.inheritance_mode == 'attached' and parent_trip.trip_kind == 'weekly' %}
-    <a class="button secondary" href="/trips/{{ recurring_rule.trip_id }}/edit">Edit recurring trip</a>
+    <a class="button ghost" href="/trips/{{ recurring_rule.trip_id }}/edit">Edit recurring trip</a>
     {% else %}
-    <a class="button secondary" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
+    <a class="button ghost" href="/trips/{{ parent_trip.trip_id }}/edit">Edit trip</a>
     {% endif %}
     {% if can_detach_trip_instance %}
     <form method="post" action="/trip-instances/{{ trip_instance.trip_instance_id }}/detach">

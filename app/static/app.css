@@ -764,13 +764,6 @@ button.compact {
   font-size: 0.92rem;
 }
 
-.button.secondary,
-button.secondary {
-  background: rgba(235, 228, 214, 0.94);
-  color: var(--ink);
-  border-color: rgba(200, 209, 204, 0.8);
-}
-
 .button.ghost,
 button.ghost {
   background: rgba(255, 254, 251, 0.68);
