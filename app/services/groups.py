@@ -39,14 +39,12 @@ def build_trip_group(
     *,
     trip_group_id: str | None,
     label: str,
-    description: str = "",
     data_scope: str = DataScope.LIVE,
 ) -> TripGroup:
     now = utcnow()
     return TripGroup(
         trip_group_id=trip_group_id or new_id("grp"),
         label=label,
-        description=description,
         data_scope=DataScope(data_scope),
         created_at=now,
         updated_at=now,
@@ -58,7 +56,6 @@ def save_trip_group(
     *,
     trip_group_id: str | None,
     label: str,
-    description: str = "",
     data_scope: str = DataScope.LIVE,
 ) -> TripGroup:
     trip_groups = repository.load_trip_groups()
@@ -69,7 +66,6 @@ def save_trip_group(
     trip_group = build_trip_group(
         trip_group_id=trip_group_id,
         label=label,
-        description=description,
         data_scope=data_scope,
     )
     if existing:
@@ -83,7 +79,6 @@ def find_or_create_trip_group(
     repository: Repository,
     *,
     label: str,
-    description: str = "",
     data_scope: str = DataScope.LIVE,
 ) -> TripGroup:
     trip_groups = repository.load_trip_groups()
@@ -94,7 +89,6 @@ def find_or_create_trip_group(
         repository,
         trip_group_id=None,
         label=label,
-        description=description,
         data_scope=data_scope,
     )
 

@@ -105,7 +105,7 @@
           ? "Recurring rules need at least one collection."
           : "Leave blank to create a matching collection.";
       } else if (!tripGroups.length) {
-        tripGroupHelp.innerHTML = 'No collections yet. <a href="/groups/new">Create one</a>.';
+        tripGroupHelp.innerHTML = 'No collections yet. <a href="/?create_group=1#dashboard-groups">Create one</a>.';
       } else {
         tripGroupHelp.textContent = "";
       }

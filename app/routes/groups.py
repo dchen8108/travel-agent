@@ -1,70 +1,65 @@
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from app.services.dashboard_page import build_dashboard_page_context
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.groups import delete_trip_group, save_trip_group
 from app.services.snapshot_queries import trip_group_by_id
 from app.storage.repository import Repository
-from app.web import back_url, base_context, get_repository, get_templates, redirect_back, redirect_with_message
+from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["groups"])
 
 
-def _group_form_state(group=None):
-    if group is None:
-        return {
-            "trip_group_id": "",
-            "label": "",
-            "description": "",
-        }
+def _dashboard_group_editor_state(
+    *,
+    mode: str,
+    trip_group_id: str,
+    label: str,
+    cancel_url: str,
+    error_message: str = "",
+) -> dict[str, object]:
     return {
-        "trip_group_id": group.trip_group_id,
-        "label": group.label,
-        "description": group.description,
+        "mode": mode,
+        "trip_group_id": trip_group_id,
+        "label": label,
+        "cancel_url": cancel_url,
+        "error_message": error_message,
     }
 
 
-def _render_group_form(
+def _render_dashboard_group_editor(
     request: Request,
     *,
     snapshot,
-    group,
-    group_form_state,
-    cancel_url: str,
-    error_message: str | None = None,
+    collection_editor_state: dict[str, object],
     status_code: int = 200,
 ) -> HTMLResponse:
+    dashboard_context = build_dashboard_page_context(
+        snapshot,
+        today=date.today(),
+        collection_editor_state=collection_editor_state,
+    )
     return get_templates(request).TemplateResponse(
         request=request,
-        name="group_form.html",
+        name="today.html",
         context=base_context(
             request,
-            page="trips",
+            page="dashboard",
             snapshot=snapshot,
-            group=group,
-            group_form_state=group_form_state,
-            cancel_url=cancel_url,
-            error_message=error_message or "",
+            **dashboard_context,
         ),
         status_code=status_code,
     )
 
 
-@router.get("/groups/new", response_class=HTMLResponse)
-def new_group(
-    request: Request,
-    repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
-    snapshot = load_persisted_snapshot(repository)
-    return _render_group_form(
-        request,
-        snapshot=snapshot,
-        group=None,
-        group_form_state=_group_form_state(None),
-        cancel_url=back_url(request, fallback_url="/#dashboard-groups"),
-    )
+@router.get("/groups/new")
+def new_group() -> RedirectResponse:
+    return RedirectResponse(url="/?create_group=1#dashboard-groups", status_code=303)
 
 
 @router.get("/groups/{trip_group_id}", response_class=HTMLResponse)
@@ -79,22 +74,18 @@ def group_detail(
     return RedirectResponse(url=f"/#group-{group.trip_group_id}", status_code=303)
 
 
-@router.get("/groups/{trip_group_id}/edit", response_class=HTMLResponse)
+@router.get("/groups/{trip_group_id}/edit")
 def edit_group(
     trip_group_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> RedirectResponse:
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
-    return _render_group_form(
-        request,
-        snapshot=snapshot,
-        group=group,
-        group_form_state=_group_form_state(group),
-        cancel_url=back_url(request, fallback_url=f"/#group-{group.trip_group_id}"),
+    return RedirectResponse(
+        url=f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}",
+        status_code=303,
     )
 
 
@@ -105,30 +96,28 @@ async def save_group_action(
 ):
     form = await request.form()
     group_id = str(form.get("trip_group_id", "")).strip() or None
-    cancel_url = str(form.get("cancel_url", "")).strip()
     label = str(form.get("label", "")).strip()
-    description = str(form.get("description", "")).strip()
     try:
         group = save_trip_group(
             repository,
             trip_group_id=group_id,
             label=label,
-            description=description,
         )
     except ValueError as exc:
         snapshot = load_persisted_snapshot(repository)
-        existing_group = trip_group_by_id(snapshot, group_id) if group_id else None
-        return _render_group_form(
+        cancel_url = str(form.get("cancel_url", "")).strip() or (
+            f"/#group-{group_id}" if group_id else "/#dashboard-groups"
+        )
+        return _render_dashboard_group_editor(
             request,
             snapshot=snapshot,
-            group=existing_group,
-            group_form_state={
-                "trip_group_id": group_id or "",
-                "label": label,
-                "description": description,
-            },
-            cancel_url=cancel_url or (f"/#group-{group_id}" if group_id else "/#dashboard-groups"),
-            error_message=str(exc),
+            collection_editor_state=_dashboard_group_editor_state(
+                mode="edit" if group_id else "create",
+                trip_group_id=group_id or "",
+                label=label,
+                cancel_url=cancel_url,
+                error_message=str(exc),
+            ),
             status_code=400,
         )
     return redirect_with_message(f"/#group-{group.trip_group_id}", "Trip group saved")

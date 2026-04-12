@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -8,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from app.catalog import catalogs_json
 from app.money import parse_money
 from app.models.base import DataScope
+from app.services.dashboard_trip_panels import trip_instance_dashboard_context
 from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
 from app.services.bookings import (
     BookingCandidate,
@@ -57,57 +59,99 @@ def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str
     }
 
 
-def _booking_form_cancel_url(snapshot, *, selected_trip_instance=None, editing_booking=None) -> str:
-    if selected_trip_instance is not None:
-        parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id)
-        if parent_trip is not None:
-            return trip_panel_url(
-                snapshot,
-                parent_trip.trip_id,
-                trip_instance_id=selected_trip_instance.trip_instance_id,
-                panel="bookings",
-            )
-    if editing_booking is not None and editing_booking.trip_instance_id:
-        parent_trip = trip_for_instance(snapshot, editing_booking.trip_instance_id)
-        if parent_trip is not None:
-            return trip_panel_url(
-                snapshot,
-                parent_trip.trip_id,
-                trip_instance_id=editing_booking.trip_instance_id,
-                panel="bookings",
-            )
-    return "/"
+def _booking_panel_fetch_url(
+    trip_instance_id: str,
+    *,
+    booking_mode: str = "list",
+    booking_id: str = "",
+) -> str:
+    params: list[tuple[str, str]] = []
+    if booking_mode != "list":
+        params.append(("booking_mode", booking_mode))
+    if booking_id:
+        params.append(("booking_id", booking_id))
+    query = urlencode(params, doseq=True)
+    return f"/trip-instances/{trip_instance_id}/bookings-panel{f'?{query}' if query else ''}"
 
 
-def _render_booking_form(
+def _booking_panel_history_url(
+    snapshot,
+    *,
+    trip_instance_id: str,
+    booking_mode: str = "list",
+    booking_id: str = "",
+) -> str:
+    parent_trip = trip_for_instance(snapshot, trip_instance_id)
+    if parent_trip is None:
+        return "/"
+    base_url = trip_panel_url(
+        snapshot,
+        parent_trip.trip_id,
+        trip_instance_id=trip_instance_id,
+        panel="bookings",
+    )
+    if booking_mode == "list" and not booking_id:
+        return base_url
+    parsed = urlsplit(base_url)
+    params = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key not in {"booking_mode", "booking_id"}
+    ]
+    params.append(("booking_mode", booking_mode))
+    if booking_id:
+        params.append(("booking_id", booking_id))
+    return urlunsplit(("", "", parsed.path or "/", urlencode(params, doseq=True), parsed.fragment))
+
+
+def _is_fetch_request(request: Request) -> bool:
+    return request.headers.get("X-Requested-With", "").lower() == "fetch"
+
+
+def _render_booking_panel(
     request: Request,
     *,
     snapshot,
-    booking_form_state,
-    selected_trip_instance=None,
-    selected_parent_trip=None,
+    trip_instance_id: str,
+    booking_mode: str = "list",
+    booking_id: str = "",
+    booking_form_state: dict[str, str] | None = None,
     editing_booking=None,
-    cancel_url: str = "/",
-    error_message: str | None = None,
+    error_message: str = "",
     status_code: int = 200,
 ) -> HTMLResponse:
-    return get_templates(request).TemplateResponse(
+    detail = trip_instance_dashboard_context(snapshot, trip_instance_id)
+    response = get_templates(request).TemplateResponse(
         request=request,
-        name="booking_form.html",
+        name="partials/trip_bookings_panel.html",
         context=base_context(
             request,
-            page="bookings",
+            page="dashboard",
             snapshot=snapshot,
-            selected_trip_instance=selected_trip_instance,
-            selected_parent_trip=selected_parent_trip,
+            **detail,
+            booking_panel_mode=booking_mode,
+            booking_panel_list_fetch_url=_booking_panel_fetch_url(trip_instance_id),
+            booking_panel_list_history_url=_booking_panel_history_url(snapshot, trip_instance_id=trip_instance_id),
+            booking_panel_create_fetch_url=_booking_panel_fetch_url(trip_instance_id, booking_mode="create"),
+            booking_panel_create_history_url=_booking_panel_history_url(
+                snapshot,
+                trip_instance_id=trip_instance_id,
+                booking_mode="create",
+            ),
             editing_booking=editing_booking,
-            cancel_url=cancel_url,
             catalogs_json=catalogs_json(),
-            error_message=error_message or "",
-            booking_form_state=booking_form_state,
+            error_message=error_message,
+            booking_form_state=booking_form_state or _booking_form_state(None, trip_instance_id=trip_instance_id),
         ),
         status_code=status_code,
     )
+    response.headers["X-Panel-History-Url"] = _booking_panel_history_url(
+        snapshot,
+        trip_instance_id=trip_instance_id,
+        booking_mode=booking_mode,
+        booking_id=booking_id,
+    )
+    return response
 
 
 def _booking_redirect_response(snapshot, booking, *, message: str) -> RedirectResponse:
@@ -146,7 +190,6 @@ def bookings_index(
 
 @router.get("/bookings/new", response_class=HTMLResponse)
 def new_booking(
-    request: Request,
     repository: Repository = Depends(get_repository),
     trip_instance_id: str | None = None,
 ) -> Response:
@@ -161,43 +204,39 @@ def new_booking(
             "Start from a trip to add a booking.",
             message_kind="error",
         )
-    selected_parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id) if selected_trip_instance else None
-    return _render_booking_form(
-        request,
-        snapshot=snapshot,
-        selected_trip_instance=selected_trip_instance,
-        selected_parent_trip=selected_parent_trip,
-        cancel_url=_booking_form_cancel_url(snapshot, selected_trip_instance=selected_trip_instance),
-        booking_form_state=_booking_form_state(
-            None,
-            trip_instance_id=selected_trip_instance.trip_instance_id if selected_trip_instance else "",
+    return RedirectResponse(
+        url=_booking_panel_history_url(
+            snapshot,
+            trip_instance_id=selected_trip_instance.trip_instance_id,
+            booking_mode="create",
         ),
+        status_code=303,
     )
 
 
 @router.get("/bookings/{booking_id}/edit", response_class=HTMLResponse)
 def edit_booking(
     booking_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
     booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
     if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
-    selected_trip_instance = next(
-        (item for item in snapshot.trip_instances if item.trip_instance_id == booking.trip_instance_id),
-        None,
-    )
-    selected_parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id) if selected_trip_instance else None
-    return _render_booking_form(
-        request,
-        snapshot=snapshot,
-        selected_trip_instance=selected_trip_instance,
-        selected_parent_trip=selected_parent_trip,
-        editing_booking=booking,
-        cancel_url=_booking_form_cancel_url(snapshot, selected_trip_instance=selected_trip_instance, editing_booking=booking),
-        booking_form_state=_booking_form_state(booking),
+    if not booking.trip_instance_id:
+        return redirect_with_message(
+            "/#needs-linking",
+            "Link this booking to a trip before editing it.",
+            message_kind="error",
+        )
+    return RedirectResponse(
+        url=_booking_panel_history_url(
+            snapshot,
+            trip_instance_id=booking.trip_instance_id,
+            booking_mode="edit",
+            booking_id=booking.booking_id,
+        ),
+        status_code=303,
     )
 
 
@@ -275,35 +314,80 @@ async def save_booking(
         if booking is None:
             raise HTTPException(status_code=500, detail="Booking was not saved.")
         snapshot = load_persisted_snapshot(repository)
+        if _is_fetch_request(request):
+            return _render_booking_panel(
+                request,
+                snapshot=snapshot,
+                trip_instance_id=booking.trip_instance_id,
+            )
         return _booking_redirect_response(snapshot, booking, message="Booking saved")
     except ValueError as exc:
         snapshot = load_persisted_snapshot(repository)
-        selected_trip_instance = next(
-            (item for item in snapshot.trip_instances if item.trip_instance_id == booking_state["trip_instance_id"]),
-            None,
-        ) if booking_state["trip_instance_id"] else None
-        selected_parent_trip = trip_for_instance(snapshot, selected_trip_instance.trip_instance_id) if selected_trip_instance else None
         editing_booking = next(
             (item for item in snapshot.bookings if item.booking_id == booking_state["booking_id"]),
             None,
         ) if booking_state["booking_id"] else None
-        return _render_booking_form(
-            request,
-            snapshot=snapshot,
-            selected_trip_instance=selected_trip_instance,
-            selected_parent_trip=selected_parent_trip,
-            editing_booking=editing_booking,
-            cancel_url=_booking_form_cancel_url(
-                snapshot,
-                selected_trip_instance=selected_trip_instance,
+        if _is_fetch_request(request) and booking_state["trip_instance_id"]:
+            return _render_booking_panel(
+                request,
+                snapshot=snapshot,
+                trip_instance_id=booking_state["trip_instance_id"],
+                booking_mode="edit" if booking_state["booking_id"] else "create",
+                booking_id=booking_state["booking_id"],
+                booking_form_state=booking_state,
                 editing_booking=editing_booking,
-            ),
-            error_message=str(exc),
-            booking_form_state=booking_state,
-            status_code=400,
+                error_message=str(exc),
+                status_code=400,
+            )
+        return redirect_with_message(
+            _booking_panel_history_url(
+                snapshot,
+                trip_instance_id=booking_state["trip_instance_id"],
+                booking_mode="edit" if booking_state["booking_id"] else "create",
+                booking_id=booking_state["booking_id"],
+            ) if booking_state["trip_instance_id"] else "/",
+            str(exc),
+            message_kind="error",
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/trip-instances/{trip_instance_id}/bookings-panel", response_class=HTMLResponse)
+def trip_bookings_panel(
+    trip_instance_id: str,
+    request: Request,
+    repository: Repository = Depends(get_repository),
+    booking_mode: str = "list",
+    booking_id: str = "",
+) -> HTMLResponse:
+    snapshot = load_persisted_snapshot(repository)
+    if booking_mode == "list":
+        return _render_booking_panel(
+            request,
+            snapshot=snapshot,
+            trip_instance_id=trip_instance_id,
+        )
+
+    editing_booking = None
+    booking_form_state = _booking_form_state(None, trip_instance_id=trip_instance_id)
+    if booking_mode == "edit":
+        editing_booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
+        if editing_booking is None or editing_booking.trip_instance_id != trip_instance_id:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        booking_form_state = _booking_form_state(editing_booking, trip_instance_id=trip_instance_id)
+    elif booking_mode != "create":
+        raise HTTPException(status_code=404, detail="Booking panel not found")
+
+    return _render_booking_panel(
+        request,
+        snapshot=snapshot,
+        trip_instance_id=trip_instance_id,
+        booking_mode=booking_mode,
+        booking_id=booking_id,
+        booking_form_state=booking_form_state,
+        editing_booking=editing_booking,
+    )
 
 
 @router.post("/bookings/unmatched/{unmatched_booking_id}/link")
@@ -371,6 +455,8 @@ def unlink_booking_action(
         fallback_url="/#needs-linking",
         message="Booking needs linking",
     )
+
+
 @router.post("/bookings/{booking_id}/delete")
 def delete_booking_action(
     booking_id: str,

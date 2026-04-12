@@ -145,9 +145,12 @@
   <section class="dashboard-panel dashboard-full-panel dashboard-collections-panel" id="dashboard-groups">
     <div class="panel-header">
       <h3>Collections</h3>
-      <a class="button primary compact" href="/groups/new">Create collection</a>
+      <a class="button primary compact" href="/?create_group=1#dashboard-groups">Create collection</a>
     </div>
     <div class="collection-board">
+      {% if collection_editor_state and collection_editor_state.mode == "create" %}
+      {% include "partials/collection_inline_editor.html" %}
+      {% endif %}
       {% for item in group_views %}
       {% set collection_card = item %}
       {% include "partials/collection_summary_card.html" %}

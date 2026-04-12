@@ -60,11 +60,17 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_fetch_target_refresh_requests_to_v21(connection)
     if current_version < 22:
         _migrate_tracker_fetch_targets_to_v22(connection)
+    if current_version < 23:
+        _migrate_trip_groups_to_v23(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
     # rebuild is idempotent when the table shape is already correct.
     _migrate_tracker_fetch_targets_to_v22(connection)
+    # Keep this shape repair outside the version gate for the same reason: a
+    # partially migrated database can report the latest schema version while
+    # still carrying the legacy trip_groups.description column.
+    _migrate_trip_groups_to_v23(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -989,6 +995,53 @@ def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> Non
     connection.execute("ALTER TABLE tracker_fetch_targets_v22 RENAME TO tracker_fetch_targets")
 
 
+def _migrate_trip_groups_to_v23(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trip_groups"):
+        return
+    columns = set(_table_columns(connection, "trip_groups"))
+    required_columns = {
+        "trip_group_id",
+        "label",
+        "data_scope",
+        "created_at",
+        "updated_at",
+    }
+    if columns == required_columns:
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE trip_groups_v23 (
+            trip_group_id TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            data_scope TEXT NOT NULL DEFAULT 'live',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO trip_groups_v23 (
+            trip_group_id,
+            label,
+            data_scope,
+            created_at,
+            updated_at
+        )
+        SELECT
+            trip_group_id,
+            label,
+            COALESCE(data_scope, 'live'),
+            created_at,
+            updated_at
+        FROM trip_groups
+        """
+    )
+    connection.execute("DROP TABLE trip_groups")
+    connection.execute("ALTER TABLE trip_groups_v23 RENAME TO trip_groups")
+
+
 def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:
     if not _table_exists(connection, "trip_groups"):
         connection.execute(
@@ -996,7 +1049,6 @@ def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:
             CREATE TABLE trip_groups (
                 trip_group_id TEXT PRIMARY KEY,
                 label TEXT NOT NULL,
-                description TEXT NOT NULL DEFAULT '',
                 data_scope TEXT NOT NULL DEFAULT 'live',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -1025,11 +1077,10 @@ def _migrate_trip_groups_to_v11(connection: sqlite3.Connection) -> None:
                 INSERT OR IGNORE INTO trip_groups (
                     trip_group_id,
                     label,
-                    description,
                     data_scope,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, '', ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     trip_group_id,

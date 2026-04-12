@@ -16,6 +16,7 @@ from app.services.scheduled_trip_display import (
     trip_ui_label,
     trip_ui_picker_label,
 )
+from app.services.dashboard_navigation import trip_panel_url
 from app.services.snapshot_queries import (
     group_for_trip,
     groups_for_trip,
@@ -126,6 +127,7 @@ def base_context(request: Request, **extra: object) -> dict[str, object]:
         "booking_row_summary": booking_row_summary,
         "trip_ui_label": trip_ui_label,
         "trip_ui_picker_label": trip_ui_picker_label,
+        "trip_panel_url": trip_panel_url,
         "group_for_trip": group_for_trip,
         "groups_for_trip": groups_for_trip,
     }

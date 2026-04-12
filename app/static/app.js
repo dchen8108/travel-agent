@@ -14,6 +14,56 @@
     }
   }
 
+  function parseJsonText(text, fallbackValue = null) {
+    if (!text) {
+      return fallbackValue;
+    }
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      console.error("Could not parse JSON payload.", error);
+      return fallbackValue;
+    }
+  }
+
+  function initBookingForms(root = document, attempt = 0) {
+    const pickers = window.travelAgentPickers;
+    const forms = [];
+    if (root instanceof HTMLElement && root.matches("[data-booking-form]")) {
+      forms.push(root);
+    }
+    if (root instanceof Document || root instanceof HTMLElement) {
+      forms.push(...root.querySelectorAll("[data-booking-form]"));
+    }
+    if (!forms.length) {
+      return;
+    }
+    if (!pickers) {
+      if (attempt < 20) {
+        window.setTimeout(() => initBookingForms(root, attempt + 1), 50);
+      }
+      return;
+    }
+
+    forms.forEach((form) => {
+      if (!(form instanceof HTMLElement) || form.dataset.bookingFormInitialized === "true") {
+        return;
+      }
+      const dataNode = form.querySelector("[data-booking-form-data]");
+      const bookingState = parseJsonText(dataNode?.textContent || "", null);
+      const catalogs = bookingState?.catalogs || {};
+      form.querySelectorAll("[data-single-picker-field]").forEach((field) => {
+        if (!(field instanceof HTMLElement)) {
+          return;
+        }
+        const type = field.dataset.pickerType;
+        const options = type === "airline" ? (catalogs.airlines || []) : (catalogs.airports || []);
+        pickers.createSinglePicker({ field, options });
+      });
+      form.dataset.bookingFormInitialized = "true";
+    });
+  }
+
   function initToast() {
     const toast = document.querySelector("[data-toast]");
     if (!toast) {
@@ -295,7 +345,13 @@
       const url = new URL(window.location.href);
       url.searchParams.delete("panel");
       url.searchParams.delete("trip_instance_id");
+      url.searchParams.delete("booking_mode");
+      url.searchParams.delete("booking_id");
       return `${url.pathname}${url.search ? url.search : ""}${url.hash}`;
+    }
+
+    function hydratePanelContent(root) {
+      initBookingForms(root);
     }
 
     function closeModal() {
@@ -338,10 +394,30 @@
           throw new Error(`Failed to load panel ${fetchUrl}`);
         }
         contentNode.innerHTML = await response.text();
+        hydratePanelContent(contentNode);
       } catch (error) {
         console.error(error);
         contentNode.innerHTML = '<div class="compact-empty-state"><strong>Could not load this view.</strong><p>Try again in a moment.</p></div>';
       }
+    }
+
+    async function submitPanelForm(form) {
+      if (!(contentNode instanceof HTMLElement)) {
+        return;
+      }
+      const response = await window.fetch(form.action, {
+        method: (form.method || "post").toUpperCase(),
+        headers: {
+          "X-Requested-With": "fetch",
+        },
+        body: new window.FormData(form),
+      });
+      const nextHistoryUrl = response.headers.get("X-Panel-History-Url");
+      contentNode.innerHTML = await response.text();
+      if (nextHistoryUrl) {
+        window.history.replaceState({}, "", nextHistoryUrl);
+      }
+      hydratePanelContent(contentNode);
     }
 
     document.addEventListener("click", (event) => {
@@ -354,6 +430,22 @@
       const historyUrl = trigger.dataset.panelHistoryUrl || "";
       void openModal(fetchUrl, historyUrl);
     });
+
+    document.addEventListener(
+      "submit",
+      (event) => {
+        const form = event.target instanceof HTMLFormElement ? event.target : null;
+        if (!form || !form.matches("[data-panel-form]")) {
+          return;
+        }
+        if (!form.closest("[data-panel-modal-content]")) {
+          return;
+        }
+        event.preventDefault();
+        void submitPanelForm(form);
+      },
+      true,
+    );
 
     modalRoot.querySelectorAll("[data-panel-modal-close]").forEach((node) => {
       node.addEventListener("click", closeModal);
@@ -369,15 +461,29 @@
     const panel = url.searchParams.get("panel");
     const tripInstanceId = url.searchParams.get("trip_instance_id");
     if (panel && tripInstanceId && (panel === "bookings" || panel === "trackers")) {
-      void openModal(`/trip-instances/${tripInstanceId}/${panel}-panel`, "", { preserveHistory: true });
+      const panelParams = new URLSearchParams();
+      if (panel === "bookings") {
+        const bookingMode = url.searchParams.get("booking_mode");
+        const bookingId = url.searchParams.get("booking_id");
+        if (bookingMode) {
+          panelParams.set("booking_mode", bookingMode);
+        }
+        if (bookingId) {
+          panelParams.set("booking_id", bookingId);
+        }
+      }
+      const fetchUrl = `/trip-instances/${tripInstanceId}/${panel}-panel${panelParams.toString() ? `?${panelParams.toString()}` : ""}`;
+      void openModal(fetchUrl, "", { preserveHistory: true });
     }
   }
 
   travelAgentApp.readJsonScript = readJsonScript;
+  travelAgentApp.initBookingForms = initBookingForms;
   window.travelAgentApp = travelAgentApp;
 
   initToast();
   initConfirmModal();
   initPanelModal();
   initCollectionOverflowToggles();
+  initBookingForms();
 })();

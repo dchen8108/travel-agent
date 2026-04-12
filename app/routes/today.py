@@ -1,124 +1,41 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from app.money import format_money
-from app.services.collection_display import group_summary_view
-from app.services.dashboard_booking_views import unmatched_booking_resolution_views
 from app.services.dashboard_navigation import trip_focus_url
-from app.services.dashboard_queries import (
-    scheduled_instances,
-    scheduled_ledger_view,
-    trip_groups,
-)
+from app.services.dashboard_page import build_dashboard_page_context
 from app.services.dashboard_snapshot import load_persisted_snapshot
-from app.services.scheduled_trip_display import (
-    trip_ui_context_label,
-    trip_ui_label,
-)
-from app.services.scheduled_trip_state import (
-    active_booking_count_for_instance,
-    best_tracker,
-    booking_for_instance,
-    rebook_savings,
-    trip_lifecycle_status_label,
-    trip_lifecycle_status_tone,
-    trip_monitoring_status_label,
-    trip_recommended_action,
-)
-from app.services.snapshot_queries import trip_for_instance
+from app.services.snapshot_queries import trip_group_by_id
 from app.storage.repository import Repository
 from app.web import base_context, get_repository, get_templates
 
 router = APIRouter(tags=["today"])
 
-
-def _best_route_signal(tracker) -> str:
-    if tracker is None:
-        return ""
-    if tracker.latest_winning_origin_airport and tracker.latest_winning_destination_airport:
-        return f"{tracker.latest_winning_origin_airport} → {tracker.latest_winning_destination_airport}"
-    if tracker.latest_match_summary:
-        return tracker.latest_match_summary
-    return ""
-
-
-def _instance_dashboard_view(snapshot, instance) -> dict[str, object]:
-    trip = trip_for_instance(snapshot, instance.trip_instance_id)
-    tracker = best_tracker(snapshot, instance.trip_instance_id)
-    booking = booking_for_instance(snapshot, instance.trip_instance_id)
-    active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
-    savings = rebook_savings(snapshot, instance.trip_instance_id)
-    lifecycle_label = trip_lifecycle_status_label(snapshot, instance.trip_instance_id)
-    monitoring_label = trip_monitoring_status_label(snapshot, instance.trip_instance_id)
-    recommended_action = trip_recommended_action(snapshot, instance.trip_instance_id)
-    title = trip_ui_label(snapshot, instance.trip_instance_id)
-    context_label = trip_ui_context_label(snapshot, instance.trip_instance_id)
-
-    best_signal = _best_route_signal(tracker)
-    if booking is not None:
-        if active_booking_count > 1:
-            if tracker is not None and tracker.latest_observed_price is not None:
-                detail = (
-                    f"{active_booking_count} active bookings · "
-                    f"best alternative {format_money(tracker.latest_observed_price)}"
-                )
-            else:
-                detail = f"{active_booking_count} active bookings"
-        elif savings is not None and tracker is not None and tracker.latest_observed_price is not None:
-            detail = (
-                f"Booked {format_money(booking.booked_price)} · "
-                f"best alternative {format_money(tracker.latest_observed_price)} · "
-                f"save {format_money(savings)}"
-            )
-        elif tracker is not None and tracker.latest_observed_price is not None:
-            detail = (
-                f"Booked {format_money(booking.booked_price)} · "
-                f"tracking {format_money(tracker.latest_observed_price)}"
-            )
-        else:
-            detail = f"Booked {format_money(booking.booked_price)}"
-    else:
-        if tracker is not None and tracker.latest_observed_price is not None and best_signal:
-            detail = f"Best alternative {best_signal} · {format_money(tracker.latest_observed_price)}"
-        elif tracker is not None and tracker.latest_observed_price is not None:
-            detail = f"Best alternative {format_money(tracker.latest_observed_price)}"
-        elif monitoring_label == "No matches":
-            detail = "No matching flights right now"
-        else:
-            detail = "Still gathering current prices"
-
-    if booking is not None and savings is not None:
-        phase_label = "Rebook"
-        phase_tone = "accent"
-    elif booking is not None:
-        phase_label = "Booked"
-        phase_tone = "success"
-    else:
-        phase_label = "To book"
-        phase_tone = "warning"
-
-    return {
-        "instance": instance,
-        "trip": trip,
-        "title": title,
-        "context_label": context_label,
-        "tracker": tracker,
-        "booking": booking,
-        "active_booking_count": active_booking_count,
-        "lifecycle_label": lifecycle_label,
-        "lifecycle_tone": trip_lifecycle_status_tone(snapshot, instance.trip_instance_id),
-        "monitoring_label": monitoring_label,
-        "recommended_action": recommended_action,
-        "detail": detail,
-        "savings": savings,
-        "phase_label": phase_label,
-        "phase_tone": phase_tone,
-        "href": trip_focus_url(snapshot, trip.trip_id, trip_instance_id=instance.trip_instance_id),
-    }
+def _collection_editor_state(snapshot, request: Request) -> dict[str, object] | None:
+    edit_group_id = str(request.query_params.get("edit_group_id", "")).strip()
+    if edit_group_id:
+        group = trip_group_by_id(snapshot, edit_group_id)
+        if group is None:
+            return None
+        return {
+            "mode": "edit",
+            "trip_group_id": group.trip_group_id,
+            "label": group.label,
+            "cancel_url": f"/#group-{group.trip_group_id}",
+            "error_message": "",
+        }
+    if request.query_params.get("create_group"):
+        return {
+            "mode": "create",
+            "trip_group_id": "",
+            "label": "",
+            "cancel_url": "/#dashboard-groups",
+            "error_message": "",
+        }
+    return None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -128,12 +45,16 @@ def today(
 ) -> HTMLResponse:
     snapshot = load_persisted_snapshot(repository)
     today = date.today()
-    scheduled_view = scheduled_ledger_view(
+    selected_trip_group_ids = request.query_params.getlist("trip_group_id")
+    search_query = str(request.query_params.get("q", ""))
+    include_booked = request.query_params.get("include_booked", "true").lower() != "false"
+    dashboard_context = build_dashboard_page_context(
         snapshot,
         today=today,
-        selected_trip_group_ids=request.query_params.getlist("trip_group_id"),
-        search_query=str(request.query_params.get("q", "")),
-        include_booked=request.query_params.get("include_booked", "true").lower() != "false",
+        selected_trip_group_ids=selected_trip_group_ids,
+        search_query=search_query,
+        include_booked=include_booked,
+        collection_editor_state=_collection_editor_state(snapshot, request),
     )
     partial = request.query_params.get("partial")
     if partial in {"scheduled", "scheduled-results"}:
@@ -150,60 +71,9 @@ def today(
                 page="dashboard",
                 snapshot=snapshot,
                 trip_focus_url=trip_focus_url,
-                scheduled_filter_action_path="/",
-                scheduled_filter_clear_path="/#all-travel",
-                **scheduled_view,
+                **dashboard_context,
             ),
         )
-    unmatched_views = unmatched_booking_resolution_views(snapshot)
-    upcoming_instances = scheduled_instances(snapshot, today=today)
-    planned_instances = [
-        instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
-    ]
-    booked_instances = [
-        instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
-    ]
-    overbooked_window_cutoff = today + timedelta(days=snapshot.app_state.dashboard_overbooked_window_days)
-    overbooked_instances = [
-        instance
-        for instance in booked_instances
-        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 1
-        and instance.anchor_date <= overbooked_window_cutoff
-    ]
-    overbooked_instance_ids = {
-        instance.trip_instance_id for instance in overbooked_instances
-    }
-    rebook_instances = [
-        instance
-        for instance in booked_instances
-        if instance.trip_instance_id not in overbooked_instance_ids
-        and rebook_savings(snapshot, instance.trip_instance_id) is not None
-    ]
-    overbooked_views = [_instance_dashboard_view(snapshot, instance) for instance in overbooked_instances]
-    rebook_views = [_instance_dashboard_view(snapshot, instance) for instance in rebook_instances]
-    action_window_cutoff = today + timedelta(weeks=snapshot.app_state.dashboard_needs_booking_window_weeks)
-    book_now_views = [
-        _instance_dashboard_view(snapshot, instance)
-        for instance in planned_instances
-        if instance.anchor_date <= action_window_cutoff
-    ]
-
-    group_views = [
-        group_summary_view(snapshot, group, today=today)
-        for group in sorted(
-            trip_groups(snapshot),
-            key=lambda item: (
-                next(
-                    (
-                        instance.anchor_date
-                        for instance in scheduled_instances(snapshot, trip_group_ids={item.trip_group_id}, today=today)
-                    ),
-                    date.max,
-                ),
-                item.label.lower(),
-            ),
-        )
-    ]
     return get_templates(request).TemplateResponse(
         request=request,
         name="today.html",
@@ -211,19 +81,7 @@ def today(
             request,
             page="dashboard",
             snapshot=snapshot,
-            unmatched_views=unmatched_views,
-            planned_instances=planned_instances,
-            overbooked_views=overbooked_views,
-            rebook_views=rebook_views,
-            book_now_views=book_now_views,
-            group_views=group_views,
-            scheduled_filter_action_path="/",
-            scheduled_filter_clear_path="/#all-travel",
-            total_upcoming=len(upcoming_instances),
-            booking_for_instance=booking_for_instance,
-            best_tracker=best_tracker,
-            trip_for_instance=trip_for_instance,
             trip_focus_url=trip_focus_url,
-            **scheduled_view,
+            **dashboard_context,
         ),
     )

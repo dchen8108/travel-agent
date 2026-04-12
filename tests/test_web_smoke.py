@@ -41,7 +41,7 @@ def test_core_pages_render(tmp_path: Path) -> None:
     )
     client = TestClient(create_app(settings))
 
-    for path in ["/", "/trips", "/trips/new", "/groups/new", "/bookings", "/trackers"]:
+    for path in ["/", "/trips", "/trips/new", "/bookings", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
     trips_redirect = client.get("/trips", follow_redirects=False)
@@ -53,6 +53,9 @@ def test_core_pages_render(tmp_path: Path) -> None:
     new_booking_redirect = client.get("/bookings/new", follow_redirects=False)
     assert new_booking_redirect.status_code == 303
     assert "Start+from+a+trip+to+add+a+booking." in new_booking_redirect.headers["location"]
+    new_group_redirect = client.get("/groups/new", follow_redirects=False)
+    assert new_group_redirect.status_code == 303
+    assert new_group_redirect.headers["location"] == "/?create_group=1#dashboard-groups"
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/#all-travel"
@@ -239,11 +242,12 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     assert "LA to SF Outbound" in trips_page.text
 
     trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
-    booking_page = client.get(f"/bookings/new?trip_instance_id={trip_instance_id}")
+    booking_page = client.get(
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=create"
+    )
     assert booking_page.status_code == 200
-    assert "Add booking" in booking_page.text
-    assert "Scheduled trip" not in booking_page.text
-    assert ">Trip<" in booking_page.text
+    assert "Create booking" in booking_page.text
+    assert 'data-booking-form' in booking_page.text
 
     booking_response = client.post(
         "/bookings",
@@ -295,7 +299,7 @@ def test_booking_form_picker_fields_use_field_wrappers_not_labels(tmp_path: Path
     assert response.status_code == 303
 
     trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
-    booking_page = client.get(f"/bookings/new?trip_instance_id={trip_instance_id}")
+    booking_page = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=create")
 
     assert booking_page.status_code == 200
     assert booking_page.text.count('class="field" data-single-picker-field') == 3
@@ -396,8 +400,8 @@ def test_booking_create_rejects_missing_picker_backed_fields(tmp_path: Path) -> 
         follow_redirects=False,
     )
 
-    assert response.status_code == 400
-    assert "Choose an airline." in response.text
+    assert response.status_code == 303
+    assert "Choose+an+airline." in response.headers["location"]
 
 
 def test_booking_create_rejects_invalid_explicit_trip_instance(tmp_path: Path) -> None:
@@ -426,8 +430,65 @@ def test_booking_create_rejects_invalid_explicit_trip_instance(tmp_path: Path) -
         follow_redirects=False,
     )
 
+    assert response.status_code == 303
+    assert "Choose+a+valid+scheduled+trip." in response.headers["location"]
+
+
+def test_booking_modal_create_keeps_validation_errors_inside_panel(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+
+    save_trip(
+        repository,
+        trip_id=None,
+        label="LA to SF Outbound",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 6, 6),
+        anchor_weekday="",
+        trip_group_ids=[],
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    sync_and_persist(repository)
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    response = client.post(
+        "/bookings",
+        data={
+            "trip_instance_id": trip_instance_id,
+            "airline": "",
+            "origin_airport": "",
+            "destination_airport": "",
+            "departure_date": "2026-06-06",
+            "departure_time": "07:10",
+            "arrival_time": "08:35",
+            "booked_price": "119",
+            "record_locator": "ABC123",
+            "notes": "",
+        },
+        headers={"X-Requested-With": "fetch"},
+        follow_redirects=False,
+    )
+
     assert response.status_code == 400
-    assert "Choose a valid scheduled trip." in response.text
+    assert "Booking not saved." in response.text
+    assert "Choose an airline." in response.text
+    assert 'data-panel-form' in response.text
 
 
 def test_booking_edit_rejects_unknown_explicit_booking_id(tmp_path: Path) -> None:
@@ -474,7 +535,6 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
         "/groups",
         data={
             "label": "Work Trips",
-            "description": "Repeated travel tied to commuting and office visits.",
         },
         follow_redirects=False,
     )
@@ -485,7 +545,6 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     detail = client.get("/")
     assert detail.status_code == 200
     assert "Work Trips" in detail.text
-    assert "Repeated travel tied to commuting and office visits." in detail.text
     assert "Edit collection" in detail.text
     assert "Create trip" in detail.text
 
@@ -1322,10 +1381,16 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
     assert save.status_code == 303
     booking = next(item for item in repository.load_bookings() if item.record_locator == "EDIT01")
 
-    edit_page = client.get(f"/bookings/{booking.booking_id}/edit")
+    edit_redirect = client.get(f"/bookings/{booking.booking_id}/edit", follow_redirects=False)
+    assert edit_redirect.status_code == 303
+    assert f"trip_instance_id={trip_instance_id}" in edit_redirect.headers["location"]
+    assert f"booking_id={booking.booking_id}" in edit_redirect.headers["location"]
+
+    edit_page = client.get(
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=edit&booking_id={booking.booking_id}"
+    )
     assert edit_page.status_code == 200
     assert "Edit booking" in edit_page.text
-    assert "Scheduled trip" not in edit_page.text
     assert "Status" not in edit_page.text
 
     edited = client.post(
@@ -2291,7 +2356,9 @@ def test_booking_edit_page_does_not_show_delete_controls(tmp_path: Path) -> None
     assert create_booking.status_code == 303
     booking_id = repository.load_bookings()[0].booking_id
 
-    response = client.get(f"/bookings/{booking_id}/edit")
+    response = client.get(
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=edit&booking_id={booking_id}"
+    )
 
     assert response.status_code == 200
     assert "<h3>Controls</h3>" not in response.text

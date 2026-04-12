@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -69,7 +69,6 @@ DDL_STATEMENTS: tuple[str, ...] = (
     CREATE TABLE IF NOT EXISTS trip_groups (
         trip_group_id TEXT PRIMARY KEY,
         label TEXT NOT NULL,
-        description TEXT NOT NULL DEFAULT '',
         data_scope TEXT NOT NULL DEFAULT 'live',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL

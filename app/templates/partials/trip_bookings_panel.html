@@ -1,8 +1,17 @@
 <section class="detail-modal-panel">
   <div class="detail-modal-header">
     <div class="detail-modal-header-top">
-      <p class="page-context">Bookings</p>
-      <a class="button primary compact" href="/bookings/new?trip_instance_id={{ trip_instance.trip_instance_id }}">Create booking</a>
+      <p class="page-context">{{ 'Edit booking' if booking_panel_mode == 'edit' else 'Create booking' if booking_panel_mode == 'create' else 'Bookings' }}</p>
+      {% if booking_panel_mode == "list" %}
+      <button
+        type="button"
+        class="button primary compact"
+        data-panel-modal-url="{{ booking_panel_create_fetch_url }}"
+        data-panel-history-url="{{ booking_panel_create_history_url }}"
+      >
+        Create booking
+      </button>
+      {% endif %}
     </div>
     {% set row = trip_row_summary(snapshot, trip_instance.trip_instance_id) %}
     {% set identity_date = trip_instance.anchor_date %}
@@ -10,6 +19,7 @@
     {% set inline_action_view = trip_row_actions_view(snapshot, trip_instance.trip_instance_id) %}
     {% include "partials/trip_identity_row.html" %}
   </div>
+  {% if booking_panel_mode == "list" %}
   {% if booking_views %}
   <div class="timeline-list detail-modal-list detail-booking-list">
     {% for booking_card in booking_views %}
@@ -22,5 +32,34 @@
   <article class="compact-empty-state">
     <strong>No bookings yet.</strong>
   </article>
+  {% endif %}
+  {% else %}
+  <section class="form-card booking-panel-form">
+    {% if error_message %}
+    <section class="warning-card top-gap-small">
+      <strong>Booking not saved.</strong>
+      <p>{{ error_message }}</p>
+    </section>
+    {% endif %}
+    <form method="post" action="/bookings" data-panel-form data-booking-form>
+      <input type="hidden" name="booking_id" value="{{ booking_form_state.booking_id }}">
+      <input type="hidden" name="trip_instance_id" value="{{ booking_form_state.trip_instance_id }}">
+      {% include "partials/booking_form_fields.html" %}
+      <div class="actions top-gap">
+        <a
+          class="button ghost"
+          href="{{ booking_panel_list_history_url }}"
+          data-panel-modal-url="{{ booking_panel_list_fetch_url }}"
+          data-panel-history-url="{{ booking_panel_list_history_url }}"
+        >
+          Cancel
+        </a>
+        <button type="submit" class="button primary">{{ 'Save changes' if editing_booking else 'Save booking' }}</button>
+      </div>
+      <script type="application/json" data-booking-form-data>
+        {{ '{"catalogs": ' ~ catalogs_json ~ '}' | safe }}
+      </script>
+    </form>
+  </section>
   {% endif %}
 </section>

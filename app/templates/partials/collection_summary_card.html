@@ -2,9 +2,13 @@
 {% set collection_card = collection_card if collection_card is defined else item %}
 {% set collection_link_href = collection_link_href if collection_link_href is defined else '' %}
 {% set collection_create_href = collection_create_href if collection_create_href is defined else '/trips/new?trip_group_id=' ~ collection_card.group.trip_group_id %}
-{% set collection_edit_href = collection_edit_href if collection_edit_href is defined else '/groups/' ~ collection_card.group.trip_group_id ~ '/edit' %}
+{% set collection_edit_href = collection_edit_href if collection_edit_href is defined else '/?edit_group_id=' ~ collection_card.group.trip_group_id ~ '#group-' ~ collection_card.group.trip_group_id %}
 {% set collection_card_id = collection_card_id if collection_card_id is defined else 'group-' ~ collection_card.group.trip_group_id %}
+{% set is_editing_collection = collection_editor_state and collection_editor_state.mode == 'edit' and collection_editor_state.trip_group_id == collection_card.group.trip_group_id %}
 <article class="collection-card" id="{{ collection_card_id }}">
+  {% if is_editing_collection %}
+  {% include "partials/collection_inline_editor.html" %}
+  {% else %}
   <div class="collection-card-head">
     <div class="collection-card-copy">
       <div class="collection-card-titleline">
@@ -19,14 +23,12 @@
           {{ icon("edit") }}
         </a>
       </div>
-      {% if collection_card.group.description %}
-      <p class="collection-rule-meta">{{ collection_card.group.description }}</p>
-      {% endif %}
     </div>
     <div class="collection-card-actions">
       <a class="button primary compact" href="{{ collection_create_href }}">Create trip</a>
     </div>
   </div>
+  {% endif %}
 
   {% if collection_card.recurring_rule_views %}
   <div class="collection-rule-stack">

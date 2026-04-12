@@ -1,8 +1,15 @@
 {% from "partials/icon_macros.html" import icon %}
 <div class="timeline-row-actions">
-  <a class="timeline-icon-control" href="/bookings/{{ linked_booking.booking_id }}/edit" title="Edit booking" aria-label="Edit booking">
+  <button
+    type="button"
+    class="timeline-icon-control"
+    data-panel-modal-url="/trip-instances/{{ trip_instance.trip_instance_id }}/bookings-panel?booking_mode=edit&booking_id={{ linked_booking.booking_id }}"
+    data-panel-history-url="{{ trip_panel_url(snapshot, parent_trip.trip_id, trip_instance_id=trip_instance.trip_instance_id, panel='bookings') }}&booking_mode=edit&booking_id={{ linked_booking.booking_id }}"
+    title="Edit booking"
+    aria-label="Edit booking"
+  >
     {{ icon("edit") }}
-  </a>
+  </button>
   {% if linked_booking.status == 'active' %}
   <form method="post" action="/bookings/{{ linked_booking.booking_id }}/unlink">
     <button class="timeline-icon-control" type="submit" title="Detach booking" aria-label="Detach booking">

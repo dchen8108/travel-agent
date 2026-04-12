@@ -1,8 +1,11 @@
 <article class="tracker-modal-row" id="modal-tracker-{{ tracker_row.row_id }}">
-  <div class="tracker-modal-offer">
-    <div class="timeline-offer-main">
-      {% set offer = tracker_row.row.current_offer %}
-      {% include "partials/live_fare_offer_body.html" %}
+  <div class="tracker-modal-row-main">
+    <div class="tracker-modal-offer">
+      <div class="timeline-offer-main">
+        {% set offer = tracker_row.row.current_offer %}
+        {% include "partials/live_fare_offer_body.html" %}
+      </div>
     </div>
+    <div class="tracker-modal-actions-spacer" aria-hidden="true"></div>
   </div>
 </article>

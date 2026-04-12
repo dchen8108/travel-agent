@@ -7,7 +7,7 @@
 {% set row_dom_id = row_dom_id if row_dom_id is defined else row_id_prefix ~ '-' ~ scheduled_instance.trip_instance_id %}
 {% set show_row_date = show_row_date if show_row_date is defined else True %}
 {% set inline_action_view = dashboard_action_view if dashboard_action_view is defined else none %}
-{% set show_booking_placeholder = inline_action_view and not row.booked_offer and inline_action_view.booking_href %}
+{% set show_booking_placeholder = inline_action_view and not row.booked_offer and inline_action_view.booking_create_modal_url %}
 <article class="timeline-row{{ ' timeline-row--no-date' if not show_row_date else '' }}{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
   <div class="timeline-main">
     <div class="timeline-summary-row">
@@ -42,14 +42,16 @@
             <p class="timeline-offer-empty-copy">No bookings attached</p>
           </div>
           <div class="timeline-offer-price-stack"></div>
-          <a
+          <button
+            type="button"
             class="timeline-icon-control timeline-icon-control--inline timeline-offer-action"
-            href="{{ inline_action_view.booking_href }}"
+            data-panel-modal-url="{{ inline_action_view.booking_create_modal_url }}"
+            data-panel-history-url="{{ inline_action_view.booking_create_modal_history_url }}"
             title="Add booking"
             aria-label="Add booking"
           >
             {{ icon("add") }}
-          </a>
+          </button>
         </div>
       </div>
       {% endif %}
