@@ -1,0 +1,5 @@
+{% set date_value = date_value if date_value is defined else identity_date %}
+<div class="timeline-date">
+  <span class="timeline-day">{{ date_value.strftime('%a') }}</span>
+  <strong>{{ date_value.strftime('%b %d') }}</strong>
+</div>

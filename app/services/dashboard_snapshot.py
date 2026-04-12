@@ -31,7 +31,11 @@ def load_persisted_snapshot(repository: Repository) -> AppSnapshot:
 
 
 def load_live_snapshot(repository: Repository, *, today: date | None = None) -> AppSnapshot:
-    """Run the heavyweight reconcile-and-persist workflow, then return the filtered snapshot."""
+    """Run the heavyweight reconcile-and-persist workflow, then return the filtered snapshot.
+
+    This exists for mutation flows and jobs that need to repair derived runtime state.
+    Normal page reads should prefer load_persisted_snapshot().
+    """
     repository.ensure_data_dir()
     snapshot = sync_and_persist(repository, today=today)
     return filter_snapshot(snapshot, include_test_data=include_test_data_for_ui(snapshot.app_state))

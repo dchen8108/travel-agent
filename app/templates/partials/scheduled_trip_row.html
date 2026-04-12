@@ -9,16 +9,12 @@
 {% set inline_action_view = dashboard_action_view if dashboard_action_view is defined else none %}
 {% set show_booking_placeholder = inline_action_view and not row.booked_offer and inline_action_view.booking_href %}
 <article class="timeline-row{{ ' timeline-row--no-date' if not show_row_date else '' }}{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
-  {% if show_row_date %}
-  <div class="timeline-date">
-    <span class="timeline-day">{{ row_date.strftime('%a') }}</span>
-    <strong>{{ row_date.strftime('%b %d') }}</strong>
-  </div>
-  {% endif %}
   <div class="timeline-main">
     <div class="timeline-summary-row">
       {% if row.title %}
-      {% include "partials/trip_title_actions.html" %}
+      {% set identity_date = row_date %}
+      {% set identity_show_date = show_row_date %}
+      {% include "partials/trip_identity_row.html" %}
       {% endif %}
       {% if row.booked_offer %}
       <div class="timeline-offer-item timeline-offer-item--booked timeline-offer-item--{{ row.booked_offer.tone }}">

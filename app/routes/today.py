@@ -14,7 +14,7 @@ from app.services.dashboard_queries import (
     scheduled_ledger_view,
     trip_groups,
 )
-from app.services.dashboard_snapshot import load_live_snapshot
+from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.scheduled_trip_display import (
     trip_ui_context_label,
     trip_ui_label,
@@ -126,7 +126,7 @@ def today(
     request: Request,
     repository: Repository = Depends(get_repository),
 ) -> HTMLResponse:
-    snapshot = load_live_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     today = date.today()
     scheduled_view = scheduled_ledger_view(
         snapshot,

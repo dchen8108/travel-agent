@@ -5,6 +5,7 @@ from datetime import date
 from app.routes import groups as groups_route
 from app.routes import trackers as trackers_route
 from app.routes import trips as trips_route
+from app.routes import today as today_route
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.dashboard_navigation import trip_focus_url
 from app.services.groups import save_trip_group
@@ -53,6 +54,23 @@ def test_trackers_detail_uses_persisted_snapshot(client, repository: Repository,
 
     assert response.status_code == 303
     assert "panel=trackers" in response.headers["location"]
+    assert calls["persisted"] == 1
+
+
+def test_dashboard_uses_persisted_snapshot(client, repository: Repository, monkeypatch) -> None:
+    _seed_one_time_trip(repository)
+    real = today_route.load_persisted_snapshot
+    calls = {"persisted": 0}
+
+    def wrapped(repo):
+        calls["persisted"] += 1
+        return real(repo)
+
+    monkeypatch.setattr(today_route, "load_persisted_snapshot", wrapped)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
     assert calls["persisted"] == 1
 
 

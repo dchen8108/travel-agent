@@ -216,13 +216,14 @@ def test_parse_google_flights_offers_distinguishes_no_results_from_parse_failure
 
 
 def test_select_due_fetch_targets_uses_oldest_targets_globally(repository: Repository) -> None:
+    anchor_date = date.today() + timedelta(days=10)
     save_trip(
         repository,
         trip_id=None,
         label="Due target selection",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 10),
+        anchor_date=anchor_date,
         anchor_weekday="",
         route_option_payloads=[
             {
@@ -244,7 +245,7 @@ def test_select_due_fetch_targets_uses_oldest_targets_globally(repository: Repos
         ],
     )
 
-    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    snapshot = sync_and_persist(repository)
     now = utcnow()
     for index, target in enumerate(sorted(snapshot.tracker_fetch_targets, key=lambda item: item.fetch_target_id)):
         target.last_fetch_finished_at = now - timedelta(hours=index + 1)
@@ -464,13 +465,15 @@ def test_select_due_fetch_targets_skips_trackers_with_active_claims(repository: 
 
 
 def test_claim_due_fetch_targets_prevents_overlap_between_workers(repository: Repository) -> None:
+    first_anchor_date = date.today() + timedelta(days=10)
+    second_anchor_date = first_anchor_date + timedelta(days=1)
     save_trip(
         repository,
         trip_id=None,
         label="Overlap claim A",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 10),
+        anchor_date=first_anchor_date,
         anchor_weekday="",
         route_option_payloads=[
             {
@@ -489,7 +492,7 @@ def test_claim_due_fetch_targets_prevents_overlap_between_workers(repository: Re
         label="Overlap claim B",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 11),
+        anchor_date=second_anchor_date,
         anchor_weekday="",
         route_option_payloads=[
             {
@@ -503,7 +506,7 @@ def test_claim_due_fetch_targets_prevents_overlap_between_workers(repository: Re
         ],
     )
 
-    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    snapshot = sync_and_persist(repository)
     now = utcnow()
     repository.replace_tracker_fetch_targets(snapshot.tracker_fetch_targets)
 
@@ -1360,13 +1363,14 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
 
 
 def test_queue_rolling_refresh_marks_all_matching_targets_requested_now(repository: Repository) -> None:
+    anchor_date = date.today() + timedelta(days=10)
     trip = save_trip(
         repository,
         trip_id=None,
         label="Manual refresh wave",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 10),
+        anchor_date=anchor_date,
         anchor_weekday="",
         route_option_payloads=[
             {
@@ -1379,7 +1383,7 @@ def test_queue_rolling_refresh_marks_all_matching_targets_requested_now(reposito
             }
         ],
     )
-    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    snapshot = sync_and_persist(repository)
     tracker = next(
         item
         for item in snapshot.trackers

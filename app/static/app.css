@@ -2579,8 +2579,9 @@ button.collection-trip-pill[hidden] {
   min-width: 0;
 }
 
-.timeline-summary-row .timeline-title-group {
+.timeline-summary-row > .trip-identity-row {
   flex: 0 1 260px;
+  min-width: 0;
 }
 
 .timeline-summary-row .timeline-offer-item {
@@ -2588,10 +2589,19 @@ button.collection-trip-pill[hidden] {
   max-width: 430px;
 }
 
+.trip-identity-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
 .timeline-title-group {
   display: inline-flex;
   align-items: center;
   min-width: 0;
+  flex: 1 1 auto;
 }
 .timeline-title-group {
   gap: 14px;
@@ -2953,14 +2963,6 @@ button.collection-trip-pill[hidden] {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.detail-modal-trip-strip {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  min-width: 0;
 }
 
 .detail-modal-list {
@@ -3340,7 +3342,8 @@ code {
 
   .collection-card-titleline,
   .collection-rule-titleline,
-  .timeline-title-group {
+  .timeline-title-group,
+  .trip-identity-row {
     flex-wrap: wrap;
   }
 

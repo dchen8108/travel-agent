@@ -5,7 +5,7 @@
     {% set identity_date = trip_instance.anchor_date %}
     {% set row_href = "" %}
     {% set inline_action_view = trip_row_actions_view(snapshot, trip_instance.trip_instance_id) %}
-    {% include "partials/trip_identity_strip.html" %}
+    {% include "partials/trip_identity_row.html" %}
   </div>
   {% if tracker_rows %}
   <div class="timeline-list detail-modal-list detail-tracker-list">
