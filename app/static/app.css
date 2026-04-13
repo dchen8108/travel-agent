@@ -2445,7 +2445,7 @@ button.collection-trip-pill[hidden] {
 
 .tracker-modal-row-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   min-width: 0;
@@ -2469,11 +2469,6 @@ button.collection-trip-pill[hidden] {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 20px;
   min-height: auto;
-}
-
-.tracker-modal-actions-spacer {
-  width: 106px;
-  flex: 0 0 auto;
 }
 
 .booking-modal-actions {
