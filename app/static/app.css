@@ -2761,7 +2761,8 @@ button.collection-trip-pill[hidden] {
 }
 
 .timeline-offer-main--empty {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 14px;
 }
 
 .timeline-row-actions {
@@ -2800,6 +2801,7 @@ button.collection-trip-pill[hidden] {
   font-style: italic;
   font-weight: 500;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .timeline-offer-meta {
