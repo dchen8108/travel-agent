@@ -10,7 +10,7 @@
 {% set show_booking_placeholder = inline_action_view and not row.booked_offer and inline_action_view.booking_create_modal_url %}
 <article class="timeline-row{{ ' timeline-row--no-date' if not show_row_date else '' }}{{ (' ' ~ row_class_names) if row_class_names else '' }}" id="{{ row_dom_id }}">
   <div class="timeline-main">
-    <div class="timeline-summary-row">
+    <div class="timeline-summary-row{{ ' timeline-summary-row--with-actions' if row_actions_partial is defined and row_actions_partial else '' }}">
       {% if row.title %}
       {% set identity_date = row_date %}
       {% set identity_show_date = show_row_date %}

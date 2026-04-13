@@ -2620,10 +2620,10 @@ button.collection-trip-pill[hidden] {
 }
 
 .timeline-summary-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(240px, 260px) minmax(0, 430px) minmax(0, 430px);
   align-items: center;
   gap: 34px;
-  justify-content: space-between;
   min-width: 0;
 }
 
@@ -2632,13 +2632,16 @@ button.collection-trip-pill[hidden] {
 }
 
 .timeline-summary-row > .trip-identity-row {
-  flex: 0 1 260px;
   min-width: 0;
 }
 
 .timeline-summary-row .timeline-offer-item {
-  flex: 0 0 430px;
-  max-width: 430px;
+  width: 100%;
+  max-width: none;
+}
+
+.timeline-summary-row--with-actions {
+  grid-template-columns: minmax(240px, 260px) minmax(0, 430px) minmax(0, 430px) minmax(0, 320px);
 }
 
 .trip-identity-row {
@@ -2695,8 +2698,7 @@ button.collection-trip-pill[hidden] {
 }
 
 .timeline-offer-item--current-only {
-  flex: 1 1 auto;
-  max-width: none;
+  grid-column: 2 / -1;
 }
 
 .timeline-offer-item--actions {
@@ -3343,7 +3345,7 @@ code {
   }
 
   .timeline-summary-row {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 14px;
     align-items: stretch;
   }
@@ -3373,6 +3375,7 @@ code {
 
   .timeline-offer-item--current-only {
     margin-left: 0;
+    grid-column: auto;
   }
 
   .timeline-offer-main {
