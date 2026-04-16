@@ -43,7 +43,7 @@ Compatibility note:
 - `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
 - trips keep dedicated create/edit pages
 - bookings create/edit live inside the bookings modal; `/bookings/new` and `/bookings/{id}/edit` are compatibility redirects into that modal
-- `/groups/new` and `/groups/{id}/edit` render the dashboard with the inline collection editor as compatibility entry points
+- `/groups/new` and `/groups/{id}/edit` are compatibility redirects into the dashboard inline collection editor state
 
 ## Core Objects
 
@@ -72,6 +72,7 @@ Frontend stack:
 - the React/Vite dashboard is now the primary app at `/`
 - `/app` remains as a compatibility entry to the same SPA
 - trip create/edit now also render through the SPA shell at `/trips/new` and `/trips/{id}/edit`
+- there is no mounted server-rendered Jinja UI surface anymore; FastAPI serves the SPA shell, JSON APIs, and compatibility redirects
 
 To work on the frontend locally:
 
@@ -178,15 +179,14 @@ Quick smoke against a temporary local server:
 uv run python scripts/playwright_smoke.py --serve --path /
 ```
 
-Example filter/screenshot check:
+Example deep-link screenshot check:
 
 ```bash
 uv run python scripts/playwright_smoke.py \
   --serve \
-  --path / \
-  --fill '[data-filter-search]=New York' \
-  --wait-ms 500 \
-  --screenshot /tmp/dashboard-filtered.png
+  --path '/?panel=bookings&trip_instance_id=inst_23a712a468b6' \
+  --wait-for '#root' \
+  --screenshot /tmp/dashboard-bookings.png
 ```
 
 Use `--base-url http://127.0.0.1:8000` instead of `--serve` if the app is already running.

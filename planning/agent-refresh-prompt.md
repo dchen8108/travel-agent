@@ -21,7 +21,7 @@ Minimum reading list:
 - app/routes/*.py
 - app/services/*.py
 - app/storage/*.py
-- app/templates/*.html
+- frontend/src/**/*.tsx
 - tests/test_trip_workflows.py
 - tests/test_background_fetch.py
 - tests/test_route_preferences.py

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse, Response
 
 from app.services.dashboard_trip_panels import trip_instance_dashboard_context
 from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
@@ -11,17 +11,17 @@ from app.services.refresh_queue import queued_refresh_message, queue_refresh_for
 from app.services.data_scope import include_test_data_for_processing
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import back_url, base_context, get_repository, get_templates, redirect_with_message
+from app.web import get_repository, redirect_with_message
 
 router = APIRouter(tags=["trackers"])
 
 
-@router.get("/trackers", response_class=HTMLResponse)
+@router.get("/trackers")
 def trackers_index() -> RedirectResponse:
     return RedirectResponse(url="/#all-travel", status_code=303)
 
 
-@router.get("/trip-instances/{trip_instance_id}", response_class=HTMLResponse)
+@router.get("/trip-instances/{trip_instance_id}")
 def trackers_detail(
     trip_instance_id: str,
     repository: Repository = Depends(get_repository),
@@ -41,7 +41,7 @@ def trackers_detail(
     return RedirectResponse(url=url, status_code=303)
 
 
-@router.get("/trip-instances/{trip_instance_id}/trackers", response_class=HTMLResponse)
+@router.get("/trip-instances/{trip_instance_id}/trackers")
 def trackers_panel_redirect(
     trip_instance_id: str,
     repository: Repository = Depends(get_repository),
@@ -67,23 +67,26 @@ def trackers_panel_redirect(
     return RedirectResponse(url=url, status_code=303)
 
 
-@router.get("/trip-instances/{trip_instance_id}/trackers-panel", response_class=HTMLResponse)
+@router.get("/trip-instances/{trip_instance_id}/trackers-panel")
 def trip_trackers_panel(
     trip_instance_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
     detail = trip_instance_dashboard_context(snapshot, trip_instance_id)
-    return get_templates(request).TemplateResponse(
-        request=request,
-        name="partials/trip_trackers_panel.html",
-        context=base_context(
-            request,
-            page="dashboard",
-            snapshot=snapshot,
-            **detail,
-        ),
+    panel = "trackers" if detail["tracker_rows"] else "bookings" if detail["booking_views"] else ""
+    if panel:
+        url = trip_panel_url(
+            snapshot,
+            detail["parent_trip"].trip_id,
+            trip_instance_id=trip_instance_id,
+            panel=panel,
+        )
+    else:
+        url = trip_focus_url(snapshot, detail["parent_trip"].trip_id, trip_instance_id=trip_instance_id)
+    return RedirectResponse(
+        url=url,
+        status_code=303,
     )
 
 

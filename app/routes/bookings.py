@@ -4,13 +4,11 @@ from datetime import date
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 
-from app.catalog import catalogs_json
 from app.money import parse_money
 from app.models.base import DataScope
-from app.services.dashboard_trip_panels import trip_instance_dashboard_context
-from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
+from app.services.dashboard_navigation import trip_panel_url
 from app.services.bookings import (
     BookingCandidate,
     delete_booking_record,
@@ -24,54 +22,9 @@ from app.services.scheduled_trip_state import booking_route_tracking_state
 from app.services.snapshot_queries import trip_for_instance
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
-from app.web import base_context, get_repository, get_templates, redirect_back, redirect_with_message
+from app.web import get_repository, redirect_back, redirect_with_message
 
 router = APIRouter(tags=["bookings"])
-
-
-def _booking_form_state(booking=None, *, trip_instance_id: str = "") -> dict[str, str]:
-    if booking is None:
-        return {
-            "booking_id": "",
-            "trip_instance_id": trip_instance_id,
-            "airline": "",
-            "origin_airport": "",
-            "destination_airport": "",
-            "departure_date": "",
-            "departure_time": "",
-            "arrival_time": "",
-            "booked_price": "",
-            "record_locator": "",
-            "notes": "",
-        }
-    return {
-        "booking_id": booking.booking_id,
-        "trip_instance_id": trip_instance_id or booking.trip_instance_id,
-        "airline": booking.airline,
-        "origin_airport": booking.origin_airport,
-        "destination_airport": booking.destination_airport,
-        "departure_date": booking.departure_date.isoformat(),
-        "departure_time": booking.departure_time,
-        "arrival_time": booking.arrival_time,
-        "booked_price": str(booking.booked_price),
-        "record_locator": booking.record_locator,
-        "notes": booking.notes,
-    }
-
-
-def _booking_panel_fetch_url(
-    trip_instance_id: str,
-    *,
-    booking_mode: str = "list",
-    booking_id: str = "",
-) -> str:
-    params: list[tuple[str, str]] = []
-    if booking_mode != "list":
-        params.append(("booking_mode", booking_mode))
-    if booking_id:
-        params.append(("booking_id", booking_id))
-    query = urlencode(params, doseq=True)
-    return f"/trip-instances/{trip_instance_id}/bookings-panel{f'?{query}' if query else ''}"
 
 
 def _booking_panel_history_url(
@@ -104,56 +57,6 @@ def _booking_panel_history_url(
     return urlunsplit(("", "", parsed.path or "/", urlencode(params, doseq=True), parsed.fragment))
 
 
-def _is_fetch_request(request: Request) -> bool:
-    return request.headers.get("X-Requested-With", "").lower() == "fetch"
-
-
-def _render_booking_panel(
-    request: Request,
-    *,
-    snapshot,
-    trip_instance_id: str,
-    booking_mode: str = "list",
-    booking_id: str = "",
-    booking_form_state: dict[str, str] | None = None,
-    editing_booking=None,
-    error_message: str = "",
-    status_code: int = 200,
-) -> HTMLResponse:
-    detail = trip_instance_dashboard_context(snapshot, trip_instance_id)
-    response = get_templates(request).TemplateResponse(
-        request=request,
-        name="partials/trip_bookings_panel.html",
-        context=base_context(
-            request,
-            page="dashboard",
-            snapshot=snapshot,
-            **detail,
-            booking_panel_mode=booking_mode,
-            booking_panel_list_fetch_url=_booking_panel_fetch_url(trip_instance_id),
-            booking_panel_list_history_url=_booking_panel_history_url(snapshot, trip_instance_id=trip_instance_id),
-            booking_panel_create_fetch_url=_booking_panel_fetch_url(trip_instance_id, booking_mode="create"),
-            booking_panel_create_history_url=_booking_panel_history_url(
-                snapshot,
-                trip_instance_id=trip_instance_id,
-                booking_mode="create",
-            ),
-            editing_booking=editing_booking,
-            catalogs_json=catalogs_json(),
-            error_message=error_message,
-            booking_form_state=booking_form_state or _booking_form_state(None, trip_instance_id=trip_instance_id),
-        ),
-        status_code=status_code,
-    )
-    response.headers["X-Panel-History-Url"] = _booking_panel_history_url(
-        snapshot,
-        trip_instance_id=trip_instance_id,
-        booking_mode=booking_mode,
-        booking_id=booking_id,
-    )
-    return response
-
-
 def _booking_redirect_response(snapshot, booking, *, message: str) -> RedirectResponse:
     stored_booking = next((item for item in snapshot.bookings if item.booking_id == booking.booking_id), booking)
     trip_instance = next(
@@ -179,7 +82,7 @@ def _booking_redirect_response(snapshot, booking, *, message: str) -> RedirectRe
     )
 
 
-@router.get("/bookings", response_class=HTMLResponse)
+@router.get("/bookings")
 def bookings_index(
     request: Request,
 ) -> RedirectResponse:
@@ -188,7 +91,7 @@ def bookings_index(
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
-@router.get("/bookings/new", response_class=HTMLResponse)
+@router.get("/bookings/new")
 def new_booking(
     repository: Repository = Depends(get_repository),
     trip_instance_id: str | None = None,
@@ -214,7 +117,7 @@ def new_booking(
     )
 
 
-@router.get("/bookings/{booking_id}/edit", response_class=HTMLResponse)
+@router.get("/bookings/{booking_id}/edit")
 def edit_booking(
     booking_id: str,
     repository: Repository = Depends(get_repository),
@@ -314,79 +217,38 @@ async def save_booking(
         if booking is None:
             raise HTTPException(status_code=500, detail="Booking was not saved.")
         snapshot = load_persisted_snapshot(repository)
-        if _is_fetch_request(request):
-            return _render_booking_panel(
-                request,
-                snapshot=snapshot,
-                trip_instance_id=booking.trip_instance_id,
-            )
         return _booking_redirect_response(snapshot, booking, message="Booking saved")
     except ValueError as exc:
-        snapshot = load_persisted_snapshot(repository)
-        editing_booking = next(
-            (item for item in snapshot.bookings if item.booking_id == booking_state["booking_id"]),
-            None,
-        ) if booking_state["booking_id"] else None
-        if _is_fetch_request(request) and booking_state["trip_instance_id"]:
-            return _render_booking_panel(
-                request,
-                snapshot=snapshot,
-                trip_instance_id=booking_state["trip_instance_id"],
-                booking_mode="edit" if booking_state["booking_id"] else "create",
-                booking_id=booking_state["booking_id"],
-                booking_form_state=booking_state,
-                editing_booking=editing_booking,
-                error_message=str(exc),
-                status_code=400,
-            )
-        return redirect_with_message(
-            _booking_panel_history_url(
-                snapshot,
-                trip_instance_id=booking_state["trip_instance_id"],
-                booking_mode="edit" if booking_state["booking_id"] else "create",
-                booking_id=booking_state["booking_id"],
-            ) if booking_state["trip_instance_id"] else "/",
-            str(exc),
-            message_kind="error",
-        )
+        return PlainTextResponse(str(exc), status_code=400)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/trip-instances/{trip_instance_id}/bookings-panel", response_class=HTMLResponse)
+@router.get("/trip-instances/{trip_instance_id}/bookings-panel")
 def trip_bookings_panel(
     trip_instance_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
     booking_mode: str = "list",
     booking_id: str = "",
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
-    if booking_mode == "list":
-        return _render_booking_panel(
-            request,
-            snapshot=snapshot,
-            trip_instance_id=trip_instance_id,
-        )
-
-    editing_booking = None
-    booking_form_state = _booking_form_state(None, trip_instance_id=trip_instance_id)
+    trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if trip_instance is None:
+        raise HTTPException(status_code=404, detail="Scheduled trip not found")
     if booking_mode == "edit":
         editing_booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
         if editing_booking is None or editing_booking.trip_instance_id != trip_instance_id:
             raise HTTPException(status_code=404, detail="Booking not found")
-        booking_form_state = _booking_form_state(editing_booking, trip_instance_id=trip_instance_id)
-    elif booking_mode != "create":
+    elif booking_mode != "create" and booking_mode != "list":
         raise HTTPException(status_code=404, detail="Booking panel not found")
-
-    return _render_booking_panel(
-        request,
-        snapshot=snapshot,
-        trip_instance_id=trip_instance_id,
-        booking_mode=booking_mode,
-        booking_id=booking_id,
-        booking_form_state=booking_form_state,
-        editing_booking=editing_booking,
+    return RedirectResponse(
+        url=_booking_panel_history_url(
+            snapshot,
+            trip_instance_id=trip_instance_id,
+            booking_mode=booking_mode,
+            booking_id=booking_id,
+        ),
+        status_code=303,
     )
 
 

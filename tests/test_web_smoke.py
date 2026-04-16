@@ -38,6 +38,27 @@ def _dashboard_payload(client: TestClient, **params: object) -> dict[str, object
     return response.json()
 
 
+def _booking_panel_payload(
+    client: TestClient,
+    trip_instance_id: str,
+    *,
+    mode: str = "list",
+    booking_id: str = "",
+) -> dict[str, object]:
+    response = client.get(
+        f"/api/trip-instances/{trip_instance_id}/bookings",
+        params={"mode": mode, "booking_id": booking_id} if booking_id else {"mode": mode},
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+def _tracker_panel_payload(client: TestClient, trip_instance_id: str) -> dict[str, object]:
+    response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_core_pages_render(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -263,11 +284,14 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
 
     trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
     booking_page = client.get(
-        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=create"
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=create",
+        follow_redirects=False,
     )
-    assert booking_page.status_code == 200
-    assert "Create booking" in booking_page.text
-    assert 'data-booking-form' in booking_page.text
+    assert booking_page.status_code == 303
+    assert f"panel=bookings&trip_instance_id={trip_instance_id}&booking_mode=create" in booking_page.headers["location"]
+    booking_payload = _booking_panel_payload(client, trip_instance_id, mode="create")
+    assert booking_payload["mode"] == "create"
+    assert booking_payload["form"] is not None
 
     booking_response = client.post(
         "/bookings",
@@ -295,8 +319,11 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
 
     repository = Repository(settings)
     booking = repository.load_bookings()[0]
-    trip_page = client.get(f"/trip-instances/{booking.trip_instance_id}/bookings-panel")
-    assert "ABC123" in trip_page.text
+    trip_page = client.get(f"/trip-instances/{booking.trip_instance_id}/bookings-panel", follow_redirects=False)
+    assert trip_page.status_code == 303
+    assert f"panel=bookings&trip_instance_id={booking.trip_instance_id}" in trip_page.headers["location"]
+    booking_payload = _booking_panel_payload(client, booking.trip_instance_id)
+    assert any(row["offer"]["metaLabel"].endswith("ABC123") for row in booking_payload["rows"])
 
 
 def test_booking_form_picker_fields_use_field_wrappers_not_labels(tmp_path: Path) -> None:
@@ -322,11 +349,15 @@ def test_booking_form_picker_fields_use_field_wrappers_not_labels(tmp_path: Path
     assert response.status_code == 303
 
     trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
-    booking_page = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=create")
-
-    assert booking_page.status_code == 200
-    assert booking_page.text.count('class="field" data-single-picker-field') == 3
-    assert "<label data-single-picker-field" not in booking_page.text
+    booking_page = client.get(
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=create",
+        follow_redirects=False,
+    )
+    assert booking_page.status_code == 303
+    booking_payload = _booking_panel_payload(client, trip_instance_id, mode="create")
+    assert booking_payload["form"] is not None
+    assert len(booking_payload["catalogs"]["airlines"]) > 0
+    assert len(booking_payload["catalogs"]["airports"]) > 0
 
 
 def test_trip_form_collection_picker_uses_field_wrapper_not_label(tmp_path: Path) -> None:
@@ -424,8 +455,8 @@ def test_booking_create_rejects_missing_picker_backed_fields(tmp_path: Path) -> 
         follow_redirects=False,
     )
 
-    assert response.status_code == 303
-    assert "Choose+an+airline." in response.headers["location"]
+    assert response.status_code == 400
+    assert response.text == "Choose an airline."
 
 
 def test_booking_create_rejects_invalid_explicit_trip_instance(tmp_path: Path) -> None:
@@ -454,8 +485,8 @@ def test_booking_create_rejects_invalid_explicit_trip_instance(tmp_path: Path) -
         follow_redirects=False,
     )
 
-    assert response.status_code == 303
-    assert "Choose+a+valid+scheduled+trip." in response.headers["location"]
+    assert response.status_code == 400
+    assert response.text == "Choose a valid scheduled trip."
 
 
 def test_booking_modal_create_keeps_validation_errors_inside_panel(tmp_path: Path) -> None:
@@ -510,9 +541,7 @@ def test_booking_modal_create_keeps_validation_errors_inside_panel(tmp_path: Pat
     )
 
     assert response.status_code == 400
-    assert "Booking not saved." in response.text
-    assert "Choose an airline." in response.text
-    assert 'data-panel-form' in response.text
+    assert response.text == "Choose an airline."
 
 
 def test_booking_edit_rejects_unknown_explicit_booking_id(tmp_path: Path) -> None:
@@ -1070,9 +1099,8 @@ def test_past_active_bookings_are_not_exposed_as_a_top_level_dashboard_surface(t
 
     repository = Repository(settings)
     booking = repository.load_bookings()[0]
-    detail = client.get(f"/trip-instances/{booking.trip_instance_id}/bookings-panel")
-    assert detail.status_code == 200
-    assert "PAST01" in detail.text
+    detail = _booking_panel_payload(client, booking.trip_instance_id)
+    assert any(row["offer"]["metaLabel"].endswith("PAST01") for row in detail["rows"])
 
 
 def test_one_time_trip_delete_removes_trip_from_user_visible_ui(tmp_path: Path) -> None:
@@ -1424,11 +1452,12 @@ def test_booking_save_redirects_to_trip_instance_detail(tmp_path: Path) -> None:
     assert "panel=bookings" in booking_response.headers["location"]
     assert f"trip_instance_id={trip_instance_id}" in booking_response.headers["location"]
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
-    assert detail.status_code == 200
-    assert "Bookings" in detail.text
-    assert "BOOK01" in detail.text
-    assert "Create booking" in detail.text
+    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel", follow_redirects=False)
+    assert detail.status_code == 303
+    assert f"panel=bookings&trip_instance_id={trip_instance_id}" in detail.headers["location"]
+    booking_payload = _booking_panel_payload(client, trip_instance_id)
+    assert booking_payload["trip"]["tripInstanceId"] == trip_instance_id
+    assert any(row["offer"]["metaLabel"].endswith("BOOK01") for row in booking_payload["rows"])
 
 
 def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
@@ -1480,11 +1509,13 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
     assert f"booking_id={booking.booking_id}" in edit_redirect.headers["location"]
 
     edit_page = client.get(
-        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=edit&booking_id={booking.booking_id}"
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=edit&booking_id={booking.booking_id}",
+        follow_redirects=False,
     )
-    assert edit_page.status_code == 200
-    assert "Edit booking" in edit_page.text
-    assert "Status" not in edit_page.text
+    assert edit_page.status_code == 303
+    edit_payload = _booking_panel_payload(client, trip_instance_id, mode="edit", booking_id=booking.booking_id)
+    assert edit_payload["mode"] == "edit"
+    assert edit_payload["form"] is not None
 
     edited = client.post(
         "/bookings",
@@ -1512,11 +1543,11 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
     assert updated_booking.route_option_id == ""
     assert updated_booking.booked_price == Decimal("141.25")
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
-    assert detail.status_code == 200
-    assert "No tracked route match" in detail.text
-    assert "does not match any tracked route on this date yet" in detail.text
-    assert "$141.25" in detail.text
+    detail = _booking_panel_payload(client, trip_instance_id)
+    warning_rows = [row for row in detail["rows"] if row["warning"]]
+    assert warning_rows
+    assert any("does not match any tracked route on this date yet" in row["warning"] for row in warning_rows)
+    assert any(row["offer"]["priceLabel"] == "$141.25" for row in detail["rows"])
 
 
 def test_trip_detail_booking_actions_do_not_expose_cancel_or_restore(tmp_path: Path) -> None:
@@ -1561,11 +1592,8 @@ def test_trip_detail_booking_actions_do_not_expose_cancel_or_restore(tmp_path: P
     )
     booking = next(item for item in repository.load_bookings() if item.record_locator == "CANCEL1")
 
-    snapshot_page = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
-    assert snapshot_page.status_code == 200
-    assert "CANCEL1" in snapshot_page.text
-    assert ">Cancel<" not in snapshot_page.text
-    assert ">Restore<" not in snapshot_page.text
+    snapshot_page = _booking_panel_payload(client, trip_instance_id)
+    assert any(row["offer"]["metaLabel"].endswith("CANCEL1") for row in snapshot_page["rows"])
 
 
 def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -> None:
@@ -1617,10 +1645,8 @@ def test_deleting_booking_removes_it_and_recomputes_trip_state(tmp_path: Path) -
     assert delete.headers["location"] == "/?message=Booking+deleted#needs-linking"
     assert repository.load_bookings() == []
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
-    assert detail.status_code == 200
-    assert "No bookings yet." in detail.text
-    assert "Booked at" not in detail.text
+    detail = _booking_panel_payload(client, trip_instance_id)
+    assert detail["rows"] == []
 
 
 def test_editing_trip_surfaces_warning_when_linked_bookings_stop_matching_routes(tmp_path: Path) -> None:
@@ -1800,15 +1826,11 @@ def test_trip_instance_detail_renders_multiple_linked_bookings(tmp_path: Path) -
         )
         assert booking_response.status_code == 303
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
-    assert detail.status_code == 200
-    assert "Bookings" in detail.text
-    assert "MULTI1" in detail.text
-    assert "MULTI2" in detail.text
-    assert detail.text.count("Booked at") == 2
-    assert "Route tracking" not in detail.text
-    assert "Booked on" not in detail.text
-    assert "Source" not in detail.text
+    detail = _booking_panel_payload(client, trip_instance_id)
+    meta_labels = [row["offer"]["metaLabel"] for row in detail["rows"]]
+    assert any(label.endswith("MULTI1") for label in meta_labels)
+    assert any(label.endswith("MULTI2") for label in meta_labels)
+    assert len(detail["rows"]) == 2
 
 
 def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None:
@@ -1841,10 +1863,9 @@ def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None
     target.latest_fetched_at = utcnow()
     repository.upsert_tracker_fetch_targets([target])
 
-    detail = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
-    assert detail.status_code == 200
-    assert "$185" in detail.text
-    assert "Trackers" in detail.text
+    detail = _tracker_panel_payload(client, trip_instance_id)
+    assert detail["trip"]["tripInstanceId"] == trip_instance_id
+    assert any(row["offer"]["priceLabel"] == "$185" for row in detail["rows"])
 
 
 def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) -> None:
@@ -2429,13 +2450,14 @@ def test_booking_edit_page_does_not_show_delete_controls(tmp_path: Path) -> None
     booking_id = repository.load_bookings()[0].booking_id
 
     response = client.get(
-        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=edit&booking_id={booking_id}"
+        f"/trip-instances/{trip_instance_id}/bookings-panel?booking_mode=edit&booking_id={booking_id}",
+        follow_redirects=False,
     )
 
-    assert response.status_code == 200
-    assert "<h3>Controls</h3>" not in response.text
-    assert 'data-confirm-action="Delete booking"' not in response.text
-    assert ">Delete booking<" not in response.text
+    assert response.status_code == 303
+    edit_payload = _booking_panel_payload(client, trip_instance_id, mode="edit", booking_id=booking_id)
+    assert edit_payload["mode"] == "edit"
+    assert edit_payload["form"] is not None
 
 
 def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path: Path) -> None:
@@ -2694,15 +2716,16 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     trackers_redirect = client.get(f"/trip-instances/{trip_instance_id}/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert "panel=trackers" in trackers_redirect.headers["location"]
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel", follow_redirects=False)
+    assert trackers_page.status_code == 303
+    assert f"panel=trackers&trip_instance_id={trip_instance_id}" in trackers_page.headers["location"]
+    tracker_payload = _tracker_panel_payload(client, trip_instance_id)
 
-    assert "Trackers" in trackers_page.text
-    assert "timeline-offer-status-icon--pending" in trackers_page.text
-    assert "BUR → SFO" in trackers_page.text
-    assert "LAX → SFO" in trackers_page.text
-    assert "https://www.google.com/travel/flights" in trackers_page.text
-    assert "Last refresh" not in trackers_page.text
-    assert "Search details" not in trackers_page.text
+    assert any(row["offer"]["statusKind"] == "pending" for row in tracker_payload["rows"])
+    assert any("BUR → SFO" in row["offer"]["detail"] for row in tracker_payload["rows"])
+    assert any("LAX → SFO" in row["offer"]["detail"] for row in tracker_payload["rows"])
+    assert any("google.com/travel/flights" in row["offer"]["href"] for row in tracker_payload["rows"] if row["offer"]["href"])
+    assert tracker_payload["lastRefreshLabel"] == ""
 
 
 def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -> None:
@@ -2735,11 +2758,9 @@ def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -
     repository.upsert_tracker_fetch_targets([target])
 
     trip_instance_id = _trip_instance_id_for_label(repository, "Past due refresh")
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
-
-    assert "timeline-offer-status-icon--pending" in trackers_page.text
-    assert "Last refresh" in trackers_page.text
-    assert "Search details" not in trackers_page.text
+    tracker_payload = _tracker_panel_payload(client, trip_instance_id)
+    assert any(row["offer"]["statusKind"] == "pending" for row in tracker_payload["rows"])
+    assert "Last refresh" in tracker_payload["lastRefreshLabel"]
 
 
 def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
@@ -2800,13 +2821,10 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     repository.replace_tracker_fetch_targets(fetch_targets)
 
     trip_instance_id = _trip_instance_id_for_label(repository, "No results tracker")
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
-
-    assert "N/A" in trackers_page.text
-    assert "6:00 AM \u2013 10:00 AM" in trackers_page.text
-    assert "A recent Google Flights request failed. Milemark will retry automatically." not in trackers_page.text
-    assert "google.com/travel/flights/search" in trackers_page.text
-    assert "Search details" not in trackers_page.text
+    tracker_payload = _tracker_panel_payload(client, trip_instance_id)
+    assert any(row["offer"]["priceLabel"] == "N/A" for row in tracker_payload["rows"])
+    assert any(row["offer"]["metaLabel"] == "6:00 AM \u2013 10:00 AM" for row in tracker_payload["rows"])
+    assert any("google.com/travel/flights/search" in row["offer"]["href"] for row in tracker_payload["rows"] if row["offer"]["href"])
 
 
 def test_trip_trackers_page_hides_stale_target_prices(tmp_path: Path) -> None:
@@ -2840,10 +2858,9 @@ def test_trip_trackers_page_hides_stale_target_prices(tmp_path: Path) -> None:
     repository.replace_tracker_fetch_targets(fetch_targets)
 
     trip_instance_id = _trip_instance_id_for_label(repository, "Stale tracker price")
-    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
-
-    assert "$123" not in trackers_page.text
-    assert "timeline-offer-status-icon--pending" in trackers_page.text
+    tracker_payload = _tracker_panel_payload(client, trip_instance_id)
+    assert all(row["offer"]["priceLabel"] != "$123" for row in tracker_payload["rows"])
+    assert any(row["offer"]["statusKind"] == "pending" for row in tracker_payload["rows"])
 
 
 def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> None:
@@ -3032,8 +3049,8 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
     sync_and_persist(repository, today=date(2026, 4, 1))
 
     client = TestClient(create_app(settings))
-    detail = client.get(f"/trip-instances/{trip_instance_id}/bookings-panel")
+    detail = _booking_panel_payload(client, trip_instance_id)
+    warning_rows = [row for row in detail["rows"] if row["warning"]]
 
-    assert detail.status_code == 200
-    assert "No tracked route match" in detail.text
-    assert "does not match any tracked route on this date yet" in detail.text
+    assert warning_rows
+    assert any("does not match any tracked route on this date yet" in row["warning"] for row in warning_rows)

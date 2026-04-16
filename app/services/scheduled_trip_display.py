@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import date
 
 from app.models.tracker import Tracker
-from app.services.dashboard_navigation import trip_panel_url
 from app.services.itinerary_display import (
     booking_route_label,
     format_departure_time_label,
@@ -205,13 +204,8 @@ def trip_row_actions_view(snapshot: AppSnapshot, trip_instance_id: str) -> dict[
     if instance is None or trip is None:
         return {
             "edit_href": "",
-            "booking_modal_url": "",
-            "booking_create_modal_url": "",
-            "booking_create_modal_history_url": "",
-            "booking_modal_history_url": "",
-            "booking_label": "",
-            "tracker_modal_url": "",
-            "tracker_modal_history_url": "",
+            "can_create_booking": False,
+            "show_booking_modal": False,
             "show_trackers": False,
             "delete_href": "",
             "delete_confirmation": None,
@@ -245,30 +239,10 @@ def trip_row_actions_view(snapshot: AppSnapshot, trip_instance_id: str) -> dict[
             else None
         )
 
-    booking_modal_url = f"/trip-instances/{instance.trip_instance_id}/bookings-panel"
-    tracker_modal_url = f"/trip-instances/{instance.trip_instance_id}/trackers-panel"
-    booking_create_modal_url = f"{booking_modal_url}?booking_mode=create"
-    booking_modal_history_url = trip_panel_url(
-        snapshot,
-        trip.trip_id,
-        trip_instance_id=instance.trip_instance_id,
-        panel="bookings",
-    )
     return {
         "edit_href": edit_href,
-        "booking_create_modal_url": booking_create_modal_url,
-        "booking_create_modal_history_url": f"{booking_modal_history_url}&booking_mode=create",
-        "booking_modal_url": booking_modal_url,
-        "booking_modal_history_url": booking_modal_history_url,
-        "booking_label": "Bookings" if active_booking_count > 0 else "Add booking",
+        "can_create_booking": True,
         "show_booking_modal": active_booking_count > 0,
-        "tracker_modal_url": tracker_modal_url,
-        "tracker_modal_history_url": trip_panel_url(
-            snapshot,
-            trip.trip_id,
-            trip_instance_id=instance.trip_instance_id,
-            panel="trackers",
-        ),
         "show_trackers": has_trackers,
         "delete_href": delete_href,
         "delete_confirmation": delete_confirmation,

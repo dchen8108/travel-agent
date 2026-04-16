@@ -4,27 +4,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
-
-from app.catalog import airline_display, airline_label, airport_display, airport_label
-from app.money import format_money
-from app.route_options import day_offset_label, route_option_summary
-from app.services.scheduled_trip_display import (
-    booking_row_summary,
-    trip_row_actions_view,
-    trip_row_summary,
-    trip_ui_label,
-    trip_ui_picker_label,
-)
-from app.services.dashboard_navigation import trip_panel_url
-from app.services.snapshot_queries import (
-    group_for_trip,
-    groups_for_trip,
-)
 from app.settings import Settings, get_settings
 from app.storage.repository import Repository
-
-templates = Jinja2Templates(directory=str(get_settings().templates_dir))
 
 
 def _canonical_dashboard_target(path: str, query: str = "") -> str:
@@ -53,10 +34,6 @@ def get_repository(request: Request) -> Repository:
     repository = Repository(settings)
     repository.ensure_data_dir()
     return repository
-
-
-def get_templates(request: Request) -> Jinja2Templates:
-    return getattr(request.app.state, "templates", templates)
 
 
 def with_message(url: str, message: str, *, message_kind: str = "success") -> str:
@@ -110,30 +87,3 @@ def back_url(request: Request, *, fallback_url: str) -> str:
         if same_origin and parsed.path.startswith("/"):
             return _canonical_dashboard_target(parsed.path, parsed.query)
     return fallback_url
-
-
-def base_context(request: Request, **extra: object) -> dict[str, object]:
-    context: dict[str, object] = {
-        "request": request,
-        "message": request.query_params.get("message", ""),
-        "message_kind": request.query_params.get("message_kind", "success"),
-        "asset_version": getattr(request.app.state, "asset_version", "1"),
-        "page": extra.pop("page", ""),
-        "airport_label": airport_label,
-        "airport_display": airport_display,
-        "airline_label": airline_label,
-        "airline_display": airline_display,
-        "money": format_money,
-        "day_offset_label": day_offset_label,
-        "route_option_summary": route_option_summary,
-        "trip_row_summary": trip_row_summary,
-        "trip_row_actions_view": trip_row_actions_view,
-        "booking_row_summary": booking_row_summary,
-        "trip_ui_label": trip_ui_label,
-        "trip_ui_picker_label": trip_ui_picker_label,
-        "trip_panel_url": trip_panel_url,
-        "group_for_trip": group_for_trip,
-        "groups_for_trip": groups_for_trip,
-    }
-    context.update(extra)
-    return context

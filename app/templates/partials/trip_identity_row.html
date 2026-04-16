@@ -1,9 +1,0 @@
-{% set identity_show_date = identity_show_date if identity_show_date is defined else True %}
-{% set trip_identity_class_names = trip_identity_class_names if trip_identity_class_names is defined else '' %}
-<div class="trip-identity-row{{ (' ' ~ trip_identity_class_names) if trip_identity_class_names else '' }}">
-  {% if identity_show_date %}
-    {% set date_value = identity_date %}
-    {% include "partials/timeline_date_tile.html" %}
-  {% endif %}
-  {% include "partials/trip_title_actions.html" %}
-</div>

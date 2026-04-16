@@ -1,6 +1,6 @@
 # Agent Checkpoint
 
-Last refreshed: `2026-04-10`
+Last refreshed: `2026-04-16`
 
 ## Purpose
 
@@ -49,7 +49,6 @@ Stack:
 - Python `3.12`
 - FastAPI
 - React + Vite + TypeScript SPA at `/`
-- legacy Jinja templates only for a shrinking compatibility surface
 - local SQLite storage
 
 Runtime storage/config:
@@ -63,7 +62,7 @@ Runtime storage/config:
 Frontend code is split across:
 
 - `frontend/src/` for the primary SPA
-- a small remaining Jinja compatibility surface under `app/routes/bookings.py` and `app/routes/trackers.py`
+- FastAPI SPA/bootstrap and JSON routes under `app/routes/spa.py` and `app/routes/api.py`
 
 ## Background Jobs
 
@@ -127,14 +126,13 @@ Known-good on this machine after the latest cleanup pass:
 
 - `uv run pytest -q`
 - `uv run python -m compileall app tests`
+- `npm --prefix frontend run build`
 - Playwright/browser smoke on:
   - `/`
   - `/trips/new`
-  - `/bookings/new?trip_instance_id={id}`
+  - `/trips/{id}/edit?trip_instance_id={id}`
   - `/?panel=bookings&trip_instance_id={id}`
   - `/?panel=trackers&trip_instance_id={id}`
-  - `/groups/{id}/edit`
-  - `/groups/new`
 
 ## Storage Hygiene Notes
 
@@ -159,7 +157,6 @@ Entrypoints:
 - [app/main.py](/Users/davidchen/code/travel-agent/app/main.py)
 - [app/routes/spa.py](/Users/davidchen/code/travel-agent/app/routes/spa.py)
 - [app/routes/api.py](/Users/davidchen/code/travel-agent/app/routes/api.py)
-- [app/routes/bookings.py](/Users/davidchen/code/travel-agent/app/routes/bookings.py)
 - [app/routes/groups.py](/Users/davidchen/code/travel-agent/app/routes/groups.py)
 - [app/routes/trackers.py](/Users/davidchen/code/travel-agent/app/routes/trackers.py)
 
