@@ -55,8 +55,8 @@ export const api = {
       body: JSON.stringify({ label }),
     });
   },
-  toggleRecurringTrip(tripId: string, active: boolean): Promise<unknown> {
-    return request(`/api/trips/${tripId}/status`, {
+  toggleRecurringTrip(tripId: string, active: boolean): Promise<{ tripId: string; active: boolean; collections: CollectionCard[] }> {
+    return request<{ tripId: string; active: boolean; collections: CollectionCard[] }>(`/api/trips/${tripId}/status`, {
       method: "PATCH",
       body: JSON.stringify({ active }),
     });

@@ -7,9 +7,11 @@ interface Props {
   onOpenBookings: (tripInstanceId: string, mode: "list" | "create", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDelete: (row: TripRowValue) => void;
+  onPrefetchBookings?: (tripInstanceId: string) => void;
+  onPrefetchTrackers?: (tripInstanceId: string) => void;
 }
 
-export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete }: Props) {
+export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete, onPrefetchBookings, onPrefetchTrackers }: Props) {
   const tripInstanceId = row.trip.tripInstanceId;
 
   return (
@@ -20,6 +22,7 @@ export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete }: Props
           kind="booked"
           offer={row.bookedOffer}
           onOpen={row.actions.showBookingModal ? () => onOpenBookings(tripInstanceId, "list") : undefined}
+          onPrefetchAction={row.actions.showBookingModal ? () => onPrefetchBookings?.(tripInstanceId) : undefined}
         />
       ) : (
         <OfferBlock
@@ -37,6 +40,7 @@ export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete }: Props
           }}
           emptyState
           onCreate={row.actions.canCreateBooking ? () => onOpenBookings(tripInstanceId, "create") : undefined}
+          onPrefetchAction={row.actions.canCreateBooking ? () => onPrefetchBookings?.(tripInstanceId) : undefined}
         />
       )}
       {row.currentOffer ? (
@@ -44,6 +48,7 @@ export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete }: Props
           kind="live"
           offer={row.currentOffer}
           onOpen={row.actions.showTrackers ? () => onOpenTrackers(tripInstanceId) : undefined}
+          onPrefetchAction={row.actions.showTrackers ? () => onPrefetchTrackers?.(tripInstanceId) : undefined}
         />
       ) : null}
     </article>

@@ -8,16 +8,23 @@ interface Props {
   onOpen?: () => void;
   emptyState?: boolean;
   onCreate?: () => void;
+  onPrefetchAction?: () => void;
 }
 
-export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate }: Props) {
+export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, onPrefetchAction }: Props) {
   if (emptyState) {
     return (
       <div className="offer-block offer-block--empty">
         <div className="offer-block__body">
           <span className="offer-block__placeholder">No bookings attached</span>
           {onCreate ? (
-            <IconButton label="Create booking" onClick={onCreate}>
+            <IconButton
+              label="Create booking"
+              onClick={onCreate}
+              onMouseEnter={onPrefetchAction}
+              onFocus={onPrefetchAction}
+              onPointerDown={onPrefetchAction}
+            >
               <AddIcon />
             </IconButton>
           ) : null}
@@ -45,7 +52,13 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate }
           )}
         </div>
         {onOpen ? (
-          <IconButton label={kind === "booked" ? "View bookings" : "View trackers"} onClick={onOpen}>
+          <IconButton
+            label={kind === "booked" ? "View bookings" : "View trackers"}
+            onClick={onOpen}
+            onMouseEnter={onPrefetchAction}
+            onFocus={onPrefetchAction}
+            onPointerDown={onPrefetchAction}
+          >
             <ViewIcon />
           </IconButton>
         ) : null}

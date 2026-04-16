@@ -21,14 +21,15 @@ function createQueryClient() {
   }
   if (bootstrap.bookingPanel) {
     queryClient.setQueryData(
-      [
-        "booking-panel",
-        bootstrap.bookingPanel.tripInstanceId,
-        bootstrap.bookingPanel.mode,
-        bootstrap.bookingPanel.bookingId,
-      ],
+      ["booking-panel", bootstrap.bookingPanel.tripInstanceId],
       bootstrap.bookingPanel.data,
     );
+    if (bootstrap.bookingPanel.mode === "edit" && bootstrap.bookingPanel.bookingId) {
+      queryClient.setQueryData(
+        ["booking-form", bootstrap.bookingPanel.tripInstanceId, bootstrap.bookingPanel.bookingId],
+        bootstrap.bookingPanel.data,
+      );
+    }
   }
   if (bootstrap.trackerPanel) {
     queryClient.setQueryData(

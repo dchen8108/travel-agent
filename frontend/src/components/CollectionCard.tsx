@@ -1,6 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
+
 import type { CollectionCard as CollectionCardValue } from "../types";
+import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import { EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
+import { PrefetchLink } from "./PrefetchLink";
 
 interface Props {
   collection: CollectionCardValue;
@@ -9,6 +13,8 @@ interface Props {
 }
 
 export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Props) {
+  const queryClient = useQueryClient();
+
   return (
     <article className="collection-card" id={`group-${collection.groupId}`}>
       <div className="collection-card__header">
@@ -18,7 +24,13 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Pr
             <EditIcon />
           </IconButton>
         </div>
-        <a className="primary-button" href={collection.createTripHref}>Create trip</a>
+        <PrefetchLink
+          className="primary-button"
+          to={collection.createTripHref}
+          onPrefetch={() => void prefetchTripEditorFromHref(queryClient, collection.createTripHref)}
+        >
+          Create trip
+        </PrefetchLink>
       </div>
       {collection.recurringTrips.length > 0 ? (
         <div className="recurring-grid">
@@ -27,9 +39,15 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Pr
               <div className="recurring-card__copy">
                 <div className="recurring-card__titleline">
                   <strong>{trip.label}</strong>
-                  <a className="icon-link" href={trip.editHref} aria-label="Edit recurring trip" title="Edit recurring trip">
+                  <PrefetchLink
+                    className="icon-link"
+                    to={trip.editHref}
+                    aria-label="Edit recurring trip"
+                    title="Edit recurring trip"
+                    onPrefetch={() => void prefetchTripEditorFromHref(queryClient, trip.editHref)}
+                  >
                     <EditIcon />
-                  </a>
+                  </PrefetchLink>
                 </div>
                 <p>Repeats on {trip.anchorWeekday}</p>
               </div>
@@ -47,9 +65,9 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Pr
       <div className="pill-row">
         {collection.upcomingTrips.length > 0 ? (
           collection.upcomingTrips.map((trip) => (
-            <a key={`${collection.groupId}-${trip.label}`} className={`trip-pill trip-pill--${trip.tone}`} href={trip.href} title={trip.title}>
+            <PrefetchLink key={`${collection.groupId}-${trip.label}`} className={`trip-pill trip-pill--${trip.tone}`} to={trip.href} title={trip.title}>
               {trip.label}
-            </a>
+            </PrefetchLink>
           ))
         ) : (
           <p className="empty-copy">No trips yet.</p>

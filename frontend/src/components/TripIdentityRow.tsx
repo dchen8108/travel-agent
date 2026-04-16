@@ -1,6 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
+
 import type { TripIdentity } from "../types";
+import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import { DeleteIcon, EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
+import { PrefetchLink } from "./PrefetchLink";
 
 interface Props {
   trip: TripIdentity;
@@ -8,6 +12,8 @@ interface Props {
 }
 
 export function TripIdentityRow({ trip, onDelete }: Props) {
+  const queryClient = useQueryClient();
+
   return (
     <div className="trip-identity-row">
       <div className="date-tile">
@@ -18,9 +24,15 @@ export function TripIdentityRow({ trip, onDelete }: Props) {
         <h3>{trip.title}</h3>
       </div>
       <div className="trip-identity-row__actions">
-        <a className="icon-link" href={trip.editHref} aria-label="Edit trip" title="Edit trip">
+        <PrefetchLink
+          className="icon-link"
+          to={trip.editHref}
+          aria-label="Edit trip"
+          title="Edit trip"
+          onPrefetch={() => void prefetchTripEditorFromHref(queryClient, trip.editHref)}
+        >
           <EditIcon />
-        </a>
+        </PrefetchLink>
         {trip.delete && onDelete ? (
           <IconButton label={trip.delete.confirmation.action} tone="danger" onClick={onDelete}>
             <DeleteIcon />

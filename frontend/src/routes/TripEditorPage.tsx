@@ -105,7 +105,7 @@ export function TripEditorPage() {
       );
     },
     onSuccess: (result) => {
-      window.location.assign(applyMessage(result.redirectTo, result.message));
+      navigate(applyMessage(result.redirectTo, result.message));
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Unable to save trip.");
@@ -115,7 +115,7 @@ export function TripEditorPage() {
   const detachMutation = useMutation({
     mutationFn: (tripInstanceId: string) => api.detachTripInstance(tripInstanceId),
     onSuccess: (result) => {
-      window.location.assign(applyMessage(result.redirectTo, result.message));
+      navigate(applyMessage(result.redirectTo, result.message));
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Unable to detach trip.");

@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import type { DashboardActionItem, DashboardUnmatchedBookingActionItem, TripRow as TripRowValue } from "../types";
+import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import { DeleteIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
+import { PrefetchLink } from "./PrefetchLink";
 import { TripRow } from "./TripRow";
 
 interface Props {
@@ -13,6 +16,8 @@ interface Props {
   onDeleteTrip: (row: TripRowValue) => void;
   onLinkUnmatchedBooking: (unmatchedBookingId: string, tripInstanceId: string) => Promise<void>;
   onDeleteUnmatchedBooking: (unmatchedBookingId: string) => Promise<void>;
+  onPrefetchBookings?: (tripInstanceId: string) => void;
+  onPrefetchTrackers?: (tripInstanceId: string) => void;
 }
 
 export function ActionItemsSection({
@@ -22,6 +27,8 @@ export function ActionItemsSection({
   onDeleteTrip,
   onLinkUnmatchedBooking,
   onDeleteUnmatchedBooking,
+  onPrefetchBookings,
+  onPrefetchTrackers,
 }: Props) {
   return (
     <section className="surface" id="needs-attention">
@@ -59,6 +66,8 @@ export function ActionItemsSection({
                   onOpenBookings={onOpenBookings}
                   onOpenTrackers={onOpenTrackers}
                   onDelete={onDeleteTrip}
+                  onPrefetchBookings={onPrefetchBookings}
+                  onPrefetchTrackers={onPrefetchTrackers}
                 />
               </article>
             )
@@ -78,6 +87,7 @@ function UnmatchedBookingCard({
   onLink: (unmatchedBookingId: string, tripInstanceId: string) => Promise<void>;
   onDelete: (unmatchedBookingId: string) => Promise<void>;
 }) {
+  const queryClient = useQueryClient();
   const firstOptionValue = useMemo(
     () => item.tripOptions.flatMap((group) => group.options)[0]?.value ?? "",
     [item.tripOptions],
@@ -125,7 +135,13 @@ function UnmatchedBookingCard({
           >
             Link booking
           </button>
-          <a className="secondary-button" href={item.createTripHref}>Create trip</a>
+          <PrefetchLink
+            className="secondary-button"
+            to={item.createTripHref}
+            onPrefetch={() => void prefetchTripEditorFromHref(queryClient, item.createTripHref)}
+          >
+            Create trip
+          </PrefetchLink>
         </div>
       </div>
     </article>

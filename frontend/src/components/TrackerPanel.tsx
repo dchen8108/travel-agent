@@ -14,6 +14,7 @@ export function TrackerPanel({ tripInstanceId, onClose }: Props) {
   const panelQuery = useQuery({
     queryKey: ["tracker-panel", tripInstanceId],
     queryFn: () => api.trackerPanel(tripInstanceId),
+    placeholderData: (previous) => previous,
   });
 
   return (

@@ -197,15 +197,20 @@ textarea {
 }
 
 .filter-bar {
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
 .filter-chip-row {
   display: flex;
+  flex: 1 1 28rem;
   flex-wrap: wrap;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .filter-chip,
@@ -223,6 +228,11 @@ textarea {
   padding: 0.65rem 0.95rem;
   color: var(--copy-muted);
   font-weight: 700;
+}
+
+.filter-toggle {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .filter-chip.is-active,
@@ -339,22 +349,22 @@ textarea {
   padding: 1.3rem;
 }
 
-.collection-card__header,
-.collection-card__titleline,
-.modal-panel-head,
-.trip-identity-row {
+.collection-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.collection-card__titleline {
   display: flex;
   align-items: center;
   gap: 0.9rem;
-}
-
-.collection-card__header {
-  justify-content: space-between;
+  min-width: 0;
 }
 
 .collection-card__titleline h3,
-.collection-card__titleline strong,
-.trip-identity-row h3 {
+.collection-card__titleline strong {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 900;
@@ -456,18 +466,32 @@ textarea {
   padding: 1rem;
 }
 
-.trip-identity-row {
-  align-items: center;
-}
-
 .trip-identity-row__copy {
   flex: 1;
+  min-width: 0;
 }
 
 .trip-identity-row__actions {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.trip-identity-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.trip-identity-row h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .date-tile {
@@ -645,7 +669,10 @@ textarea {
 }
 
 .modal-panel-head {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 1rem;
 }
 
 .modal-list {
@@ -686,6 +713,13 @@ textarea {
 .modal-row-warning {
   grid-column: 1 / -1;
   font-size: 0.92rem;
+}
+
+.attention-card .trip-row {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .booking-form-card {
@@ -1082,6 +1116,12 @@ textarea {
 
 @media (max-width: 1100px) {
   .trip-row {
+    grid-template-columns: minmax(14rem, 1.05fr) minmax(14rem, 1fr) minmax(14rem, 1fr);
+  }
+}
+
+@media (max-width: 980px) {
+  .trip-row {
     grid-template-columns: 1fr;
   }
 
@@ -1110,9 +1150,17 @@ textarea {
   .page-header,
   .surface__header,
   .modal-panel-head,
-  .trip-identity-row,
   .collection-card__header {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trip-identity-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .filter-bar {
     align-items: stretch;
   }
 
