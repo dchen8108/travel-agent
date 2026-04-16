@@ -14,6 +14,7 @@ from app.services.snapshots import AppSnapshot
 
 
 def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -> None:
+    fresh_at = utcnow() - timedelta(hours=1)
     snapshot = AppSnapshot(
         trip_groups=[],
         trips=[
@@ -50,6 +51,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
                 start_time="06:00",
                 end_time="10:00",
                 latest_observed_price=88,
+                latest_fetched_at=fresh_at,
                 latest_winning_origin_airport="BUR",
                 latest_winning_destination_airport="SFO",
             )
@@ -65,6 +67,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
                 latest_price=88,
                 latest_airline="Southwest",
                 latest_departure_label="6:35 AM on Mon, Apr 6",
+                latest_fetched_at=fresh_at,
             )
         ],
         bookings=[],
@@ -229,6 +232,7 @@ def test_unbooked_trip_row_hides_stale_tracker_price() -> None:
 
 
 def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
+    fresh_at = utcnow() - timedelta(hours=1)
     snapshot = AppSnapshot(
         trip_groups=[],
         trips=[
@@ -265,6 +269,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
                 start_time="06:00",
                 end_time="10:00",
                 latest_observed_price=88,
+                latest_fetched_at=fresh_at,
                 latest_winning_origin_airport="BUR",
                 latest_winning_destination_airport="SFO",
             )
@@ -279,6 +284,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
                 google_flights_url="https://example.com/gf",
                 latest_price=88,
                 latest_airline="Southwest",
+                latest_fetched_at=fresh_at,
             )
         ],
         bookings=[
@@ -326,6 +332,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
 
 
 def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_anchor_date() -> None:
+    fresh_at = utcnow() - timedelta(hours=1)
     snapshot = AppSnapshot(
         trip_groups=[],
         trips=[
@@ -362,6 +369,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
                 start_time="06:00",
                 end_time="10:00",
                 latest_observed_price=88,
+                latest_fetched_at=fresh_at,
                 latest_winning_origin_airport="BUR",
                 latest_winning_destination_airport="SFO",
             )
@@ -377,6 +385,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
                 latest_price=88,
                 latest_airline="Southwest",
                 latest_departure_label="6:10 AM",
+                latest_fetched_at=fresh_at,
             )
         ],
         bookings=[

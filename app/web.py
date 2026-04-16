@@ -36,6 +36,10 @@ def _canonical_dashboard_target(path: str, query: str = "") -> str:
     if path not in dashboard_targets:
         return f"{path}{f'?{query}' if query else ''}"
     canonical_path, fragment = dashboard_targets[path]
+    query = urlencode(
+        [(key, value) for key, value in parse_qsl(query, keep_blank_values=True) if key != "q"],
+        doseq=True,
+    )
     target = canonical_path or "/"
     if query:
         target = f"{target}?{query}"

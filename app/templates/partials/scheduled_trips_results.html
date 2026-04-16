@@ -1,7 +1,7 @@
 <div class="scheduled-results-frame" data-scheduled-results-shell>
   {% set show_results_copy = show_scheduled_results_copy if show_scheduled_results_copy is defined else True %}
   {% set empty_title = scheduled_empty_title if scheduled_empty_title is defined else 'No scheduled trips match these filters.' %}
-  {% set empty_detail = scheduled_empty_detail if scheduled_empty_detail is defined else 'Clear a search term or group filter to widen the list again.' %}
+  {% set empty_detail = scheduled_empty_detail if scheduled_empty_detail is defined else 'Adjust your collection or booked filters to widen the list again.' %}
   {% if show_results_copy %}
   <p class="muted filter-results-copy">
     Showing {{ scheduled_items|length }} scheduled trip{{ '' if scheduled_items|length == 1 else 's' }}.

@@ -111,7 +111,6 @@ def build_dashboard_page_context(
     *,
     today: date,
     selected_trip_group_ids: list[str] | None = None,
-    search_query: str = "",
     include_booked: bool = True,
     collection_editor_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
@@ -119,7 +118,6 @@ def build_dashboard_page_context(
         snapshot,
         today=today,
         selected_trip_group_ids=selected_trip_group_ids,
-        search_query=search_query,
         include_booked=include_booked,
     )
     unmatched_views = unmatched_booking_resolution_views(snapshot)

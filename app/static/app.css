@@ -570,7 +570,7 @@ small,
 .filter-toolbar {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(220px, 1.15fr) minmax(280px, 1.25fr) auto auto;
+  grid-template-columns: minmax(320px, 1.4fr) auto auto;
   align-items: end;
 }
 

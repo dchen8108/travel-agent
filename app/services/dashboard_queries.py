@@ -10,7 +10,6 @@ from app.services.snapshot_queries import (
     groups_for_instance,
     is_past_instance,
     recurring_rule_for_instance,
-    trip_for_instance,
 )
 from app.services.snapshots import AppSnapshot
 
@@ -182,7 +181,6 @@ def scheduled_ledger_view(
     *,
     today: date | None = None,
     selected_trip_group_ids: list[str] | None = None,
-    search_query: str = "",
     include_booked: bool = True,
 ) -> dict[str, object]:
     today = today or date.today()
@@ -208,22 +206,6 @@ def scheduled_ledger_view(
             for instance in scheduled_items
             if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
         ]
-    query = search_query.strip()
-    if query:
-        lowered = query.lower()
-        scheduled_items = [
-            instance
-            for instance in scheduled_items
-            if lowered in instance.display_label.lower()
-            or (
-                (parent_trip := trip_for_instance(snapshot, instance.trip_instance_id)) is not None
-                and lowered in parent_trip.label.lower()
-            )
-            or any(
-                lowered in trip_group.label.lower()
-                for trip_group in groups_for_instance(snapshot, instance.trip_instance_id)
-            )
-        ]
 
     total_active_scheduled = len(scheduled_instances(snapshot, today=today))
     total_booked_scheduled = len(
@@ -240,7 +222,6 @@ def scheduled_ledger_view(
         "group_items": group_items,
         "scheduled_items": scheduled_items,
         "selected_trip_group_ids": [*selected_ids, *([UNGROUPED_TRIPS_FILTER_VALUE] if include_ungrouped else [])],
-        "search_query": query,
         "include_booked": include_booked,
         "total_active_scheduled": total_active_scheduled,
         "total_booked_scheduled": total_booked_scheduled,

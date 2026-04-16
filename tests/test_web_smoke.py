@@ -889,7 +889,7 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert len(unmatched) == 1
     assert unmatched[0].record_locator == "UNLINK123"
 
-    trips_page = client.get("/trips?q=Unlink+Booking+Trip")
+    trips_page = client.get("/trips")
     assert "UNLINK123" in trips_page.text
     assert "Link booking" in trips_page.text
 
@@ -1745,6 +1745,7 @@ def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None
     target = repository.load_tracker_fetch_targets()[0]
     target.latest_price = 185
     target.latest_departure_label = "6:00 AM"
+    target.latest_fetched_at = utcnow()
     repository.upsert_tracker_fetch_targets([target])
 
     detail = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
@@ -1789,21 +1790,21 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
 
     pause_from_page = client.post(
         f"/trips/{trip_id}/pause",
-        headers={"referer": "http://testserver/trips?q=Test+Weekly+Trip"},
+        headers={"referer": "http://testserver/trips"},
         follow_redirects=False,
     )
     assert pause_from_page.status_code == 303
-    assert pause_from_page.headers["location"] == "/?q=Test+Weekly+Trip&message=Trip+paused#all-travel"
+    assert pause_from_page.headers["location"] == "/?message=Trip+paused#all-travel"
 
     activate_from_page = client.post(
         f"/trips/{trip_id}/activate",
-        headers={"referer": "http://testserver/trips?q=Test+Weekly+Trip"},
+        headers={"referer": "http://testserver/trips"},
         follow_redirects=False,
     )
     assert activate_from_page.status_code == 303
     assert (
         activate_from_page.headers["location"]
-        == "/?q=Test+Weekly+Trip&message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches.#all-travel"
+        == "/?message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches.#all-travel"
     )
 
 
@@ -1885,7 +1886,6 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     assert "Collections" in trips_page.text
-    assert "Search trips" in trips_page.text
     assert "Weekly LA to SF" in trips_page.text
     assert "Conference Arrival" in trips_page.text
     assert "Show in scheduled" not in trips_page.text
@@ -1914,7 +1914,7 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trips_page = client.get(f"/trips?q=Doctor+Visit+Rule")
+    trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     marker = 'id="scheduled-'
     assert marker in trips_page.text
@@ -1922,7 +1922,7 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
 
     delete_response = client.post(
         f"/trip-instances/{trip_instance_id}/delete-generated",
-        headers={"referer": "http://testserver/trips?q=Doctor+Visit+Rule"},
+        headers={"referer": "http://testserver/trips"},
         follow_redirects=False,
     )
     assert delete_response.status_code == 303
@@ -1933,7 +1933,7 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
     assert trips_page.status_code == 200
     assert "Doctor Visit Rule" in trips_page.text
     assert "No scheduled trips match these filters." not in trips_page.text
-    filtered_page = client.get("/trips?q=Doctor+Visit+Rule")
+    filtered_page = client.get("/trips")
     assert filtered_page.status_code == 200
     assert f'id="scheduled-{trip_instance_id}"' not in filtered_page.text
 
@@ -2909,7 +2909,7 @@ def test_past_trips_remain_hidden_from_filtered_scheduled_lists(tmp_path: Path) 
     )
     assert create.status_code == 303
 
-    trips_page = client.get("/trips?q=Hide+me+later")
+    trips_page = client.get("/trips")
     assert 'id="past-' not in trips_page.text
     assert "Showing 0 scheduled trips." in trips_page.text
     assert "No scheduled trips match these filters." in trips_page.text

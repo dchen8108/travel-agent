@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
-from app.models.base import utcnow
+from app.models.base import AppState, utcnow
 from app.models.booking import Booking
 from app.models.price_record import PriceRecord
 from app.models.tracker import Tracker
@@ -246,7 +246,7 @@ def test_select_due_fetch_targets_uses_oldest_targets_globally(repository: Repos
     )
 
     snapshot = sync_and_persist(repository)
-    now = utcnow()
+    now = utcnow().replace(year=2026, month=4, day=1)
     for index, target in enumerate(sorted(snapshot.tracker_fetch_targets, key=lambda item: item.fetch_target_id)):
         target.last_fetch_finished_at = now - timedelta(hours=index + 1)
 
@@ -307,7 +307,7 @@ def test_select_due_fetch_targets_prioritizes_never_fetched_targets(repository: 
     )
 
     snapshot = sync_and_persist(repository)
-    now = utcnow()
+    now = utcnow().replace(year=2026, month=4, day=1)
     for target in snapshot.tracker_fetch_targets:
         if target.origin_airport == "BUR":
             target.latest_price = 141
@@ -354,7 +354,7 @@ def test_select_due_fetch_targets_returns_empty_when_max_targets_is_zero(reposit
     )
 
     snapshot = sync_and_persist(repository)
-    now = utcnow()
+    now = utcnow().replace(year=2026, month=4, day=1)
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
@@ -389,7 +389,7 @@ def test_select_due_fetch_targets_skips_past_trip_targets(repository: Repository
     )
 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
-    now = utcnow()
+    now = utcnow().replace(year=2026, month=4, day=1)
 
     due_targets = select_due_fetch_targets(
         snapshot.trackers,
@@ -443,7 +443,7 @@ def test_select_due_fetch_targets_skips_trackers_with_active_claims(repository: 
     )
 
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
-    now = utcnow()
+    now = utcnow().replace(year=2026, month=4, day=1)
     instance_by_id = {item.trip_instance_id: item for item in snapshot.trip_instances}
     first_tracker_id = snapshot.trackers[0].tracker_id
     for target in snapshot.tracker_fetch_targets:
@@ -1316,6 +1316,7 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
         start_time="06:00",
         end_time="10:00",
         latest_observed_price=180,
+        latest_fetched_at=utcnow(),
         last_signal_at=utcnow(),
         latest_signal_source="background_fetch",
     )
@@ -1332,6 +1333,7 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
         start_time="06:00",
         end_time="10:00",
         latest_observed_price=120,
+        latest_fetched_at=utcnow(),
         last_signal_at=utcnow(),
         latest_signal_source="background_fetch",
     )
@@ -1356,6 +1358,7 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
             "trip_instances": [trip_instance],
             "trackers": [booked_tracker, cheaper_other_tracker],
             "bookings": [booking],
+            "app_state": AppState(),
         },
     )()
     assert trip_lifecycle_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"

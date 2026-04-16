@@ -5,7 +5,6 @@
     return;
   }
 
-  const scheduledSearchDebounceMs = 90;
   let scheduledFilterRequestToken = 0;
   let scheduledFilterAbortController = null;
 
@@ -17,7 +16,6 @@
     }
     form.dataset.bound = "true";
 
-    const searchInput = form.querySelector("[data-filter-search]");
     const groupRoot = form.querySelector("[data-group-filter-root]");
     const hiddenInputsRoot = form.querySelector("[data-group-hidden-inputs]");
     const includeBookedInput = form.querySelector("[data-filter-booked-input]");
@@ -26,9 +24,8 @@
     const clearLink = form.querySelector("[data-clear-filters]");
     const actionPath = new URL(form.getAttribute("action") || window.location.pathname, window.location.origin).pathname;
     const panelAnchor = panel.id ? `#${panel.id}` : "";
-    let debounceTimer = null;
 
-    if (!searchInput || !groupRoot || !hiddenInputsRoot || !includeBookedInput || !includeBookedToggle) {
+    if (!groupRoot || !hiddenInputsRoot || !includeBookedInput || !includeBookedToggle) {
       return;
     }
 
@@ -51,10 +48,6 @@
 
     function buildQuery() {
       const params = new URLSearchParams();
-      const query = (searchInput.value || "").trim();
-      if (query) {
-        params.set("q", query);
-      }
       selectedTripGroupIds().forEach((value) => {
         params.append("trip_group_id", value);
       });
@@ -109,15 +102,7 @@
       }
     }
 
-    function submitFilters({ debounce = false, preservePickerUi = false } = {}) {
-      if (debounce) {
-        window.clearTimeout(debounceTimer);
-        debounceTimer = window.setTimeout(() => {
-          refreshScheduledPanel(buildQuery(), { preservePickerUi });
-        }, scheduledSearchDebounceMs);
-        return;
-      }
-      window.clearTimeout(debounceTimer);
+    function submitFilters({ preservePickerUi = false } = {}) {
       refreshScheduledPanel(buildQuery(), { preservePickerUi });
     }
 
@@ -150,19 +135,8 @@
       },
     });
 
-    searchInput.addEventListener("input", () => submitFilters({ debounce: true }));
-    searchInput.addEventListener("search", () => submitFilters());
-    searchInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        submitFilters();
-      }
-    });
-
     clearLink?.addEventListener("click", (event) => {
       event.preventDefault();
-      window.clearTimeout(debounceTimer);
-      searchInput.value = "";
       setSelectedTripGroupIds([]);
       setIncludeBooked(true);
       submitFilters();

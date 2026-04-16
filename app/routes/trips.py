@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -265,7 +266,10 @@ def _linked_booking_route_warning_count(snapshot, trip) -> int:
 def trips_index(
     request: Request,
 ) -> Response:
-    query = request.url.query
+    query = urlencode(
+        [(key, value) for key, value in parse_qsl(request.url.query, keep_blank_values=True) if key != "q"],
+        doseq=True,
+    )
     redirect_url = f"/?{query}#all-travel" if query else "/#all-travel"
     return RedirectResponse(url=redirect_url, status_code=303)
 

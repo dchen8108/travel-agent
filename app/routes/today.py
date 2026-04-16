@@ -46,13 +46,11 @@ def today(
     snapshot = load_persisted_snapshot(repository)
     today = date.today()
     selected_trip_group_ids = request.query_params.getlist("trip_group_id")
-    search_query = str(request.query_params.get("q", ""))
     include_booked = request.query_params.get("include_booked", "true").lower() != "false"
     dashboard_context = build_dashboard_page_context(
         snapshot,
         today=today,
         selected_trip_group_ids=selected_trip_group_ids,
-        search_query=search_query,
         include_booked=include_booked,
         collection_editor_state=_collection_editor_state(snapshot, request),
     )

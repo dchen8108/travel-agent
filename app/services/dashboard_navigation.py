@@ -23,8 +23,6 @@ def trip_focus_url(
         trip_group = trip_groups[0]
         params.append(("trip_group_id", trip_group.trip_group_id))
         anchor = f"group-{trip_group.trip_group_id}"
-    else:
-        params.append(("q", trip.label))
     if trip_instance_id:
         trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
         if not (trip_instance and is_past_instance(trip_instance)):

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from app.models.booking import Booking
+from app.models.base import utcnow
 from app.services.scheduled_trip_state import (
     trackers_for_instance,
     trip_lifecycle_status_label,
@@ -255,8 +256,11 @@ def test_weighted_winner_drives_open_trip_status_reason(repository: Repository) 
         ],
     )
 
+    fresh_at = utcnow()
     trackers[0].latest_observed_price = 180
+    trackers[0].latest_fetched_at = fresh_at
     trackers[1].latest_observed_price = 130
+    trackers[1].latest_fetched_at = fresh_at
 
     recompute_trip_states(snapshot.trip_instances, trackers, [])
 
@@ -292,6 +296,7 @@ def test_open_trip_stays_fetching_until_all_route_options_settle(repository: Rep
     )
 
     trackers[0].latest_observed_price = 180
+    trackers[0].latest_fetched_at = utcnow()
     trackers[1].latest_observed_price = None
 
     recompute_trip_states(snapshot.trip_instances, trackers, [])
@@ -341,8 +346,11 @@ def test_rebook_uses_trip_level_best_option_when_booking_exists(repository: Repo
         record_locator="BIAS01",
     )
 
+    fresh_at = utcnow()
     trackers[0].latest_observed_price = 180
+    trackers[0].latest_fetched_at = fresh_at
     trackers[1].latest_observed_price = 130
+    trackers[1].latest_fetched_at = fresh_at
     recompute_trip_states(snapshot.trip_instances, trackers, [booking])
     snapshot.bookings = [booking]
     refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)

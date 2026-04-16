@@ -100,7 +100,7 @@ def live_fare_offer_summary(
     price_is_status: bool,
     status_kind: str = "",
 ) -> dict[str, object]:
-    return {
+    offer = {
         "label": "Live fare",
         "detail": detail,
         "meta_label": meta_label,
@@ -109,8 +109,10 @@ def live_fare_offer_summary(
         "href": href,
         "tone": tone,
         "price_is_status": price_is_status,
-        "status_kind": status_kind,
     }
+    if status_kind:
+        offer["status_kind"] = status_kind
+    return offer
 
 
 def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, object]:
