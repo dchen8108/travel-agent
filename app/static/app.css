@@ -2894,6 +2894,49 @@ button.collection-trip-pill[hidden] {
   opacity: 0.82;
 }
 
+.timeline-offer-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+}
+
+.timeline-offer-status-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.timeline-offer-status-icon--pending svg {
+  animation: timeline-status-spin 2.1s linear infinite;
+  transform-origin: center;
+}
+
+.timeline-offer-status-icon--link {
+  transition: transform 140ms ease, opacity 140ms ease, color 140ms ease;
+}
+
+.timeline-offer-status-icon--link:hover {
+  transform: translateY(-1px);
+  opacity: 0.82;
+  color: var(--accent-strong);
+}
+
+@keyframes timeline-status-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .timeline-icon-control {
   display: inline-flex;
   align-items: center;

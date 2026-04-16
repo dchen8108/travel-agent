@@ -1,3 +1,4 @@
+{% from "partials/icon_macros.html" import icon %}
 {% set offer = offer if offer is defined else row.current_offer %}
 <div class="timeline-offer-copy">
   {% if offer.detail %}
@@ -16,7 +17,17 @@
 </div>
 <div class="timeline-offer-price-stack">
   <span class="timeline-offer-label timeline-offer-label--price">{{ offer.label }}</span>
-  {% if offer.price_is_status and offer.href %}
+  {% if offer.price_is_status and offer.status_kind == "pending" and offer.href %}
+  <a class="timeline-offer-status-icon timeline-offer-status-icon--link timeline-offer-status-icon--pending" href="{{ offer.href }}" target="_blank" rel="noreferrer" aria-label="Checking">
+    {{ icon("refresh") }}
+    <span class="sr-only">Checking</span>
+  </a>
+  {% elif offer.price_is_status and offer.status_kind == "pending" %}
+  <span class="timeline-offer-status-icon timeline-offer-status-icon--pending" aria-label="Checking">
+    {{ icon("refresh") }}
+    <span class="sr-only">Checking</span>
+  </span>
+  {% elif offer.price_is_status and offer.href %}
   <a class="timeline-offer-status timeline-offer-status--link" href="{{ offer.href }}" target="_blank" rel="noreferrer">
     {{ offer.price_label }}
   </a>

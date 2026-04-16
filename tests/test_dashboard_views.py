@@ -145,6 +145,7 @@ def test_unbooked_trip_row_fallback_route_spaces_multi_airport_options() -> None
         "href": "",
         "tone": "neutral",
         "price_is_status": True,
+        "status_kind": "pending",
     }
 
 

@@ -39,14 +39,17 @@ def _tracker_target_row_view(trip_instance, tracker, target, *, is_best_target: 
     if target.latest_price is not None:
         signal_tone = "accent" if is_best_target else "neutral"
         signal_is_status = False
+        signal_status_kind = ""
         headline = format_money(target.latest_price)
     elif target.last_fetch_status in {"no_results", "no_window_match"}:
         signal_tone = "neutral"
         signal_is_status = True
+        signal_status_kind = "unavailable"
         headline = "N/A"
     else:
         signal_tone = "neutral"
         signal_is_status = True
+        signal_status_kind = "pending"
         headline = "Checking"
     return TrackerSearchRowView(
         row_id=target.fetch_target_id,
@@ -67,6 +70,7 @@ def _tracker_target_row_view(trip_instance, tracker, target, *, is_best_target: 
                 href=target.google_flights_url if target.google_flights_url else "",
                 tone=signal_tone,
                 price_is_status=signal_is_status,
+                status_kind=signal_status_kind,
             ),
         },
     )
@@ -92,6 +96,7 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
                 href="",
                 tone="neutral",
                 price_is_status=True,
+                status_kind="pending",
             ),
         },
     )

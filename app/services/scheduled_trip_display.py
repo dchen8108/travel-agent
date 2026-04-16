@@ -97,6 +97,7 @@ def live_fare_offer_summary(
     href: str,
     tone: str,
     price_is_status: bool,
+    status_kind: str = "",
 ) -> dict[str, object]:
     return {
         "label": "Live fare",
@@ -107,6 +108,7 @@ def live_fare_offer_summary(
         "href": href,
         "tone": tone,
         "price_is_status": price_is_status,
+        "status_kind": status_kind,
     }
 
 
@@ -127,6 +129,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     current_offer_href = ""
     current_offer_tone = "success" if booking is None else "accent"
     current_offer_price_is_status = False
+    current_offer_status_kind = ""
     if current_price is not None:
         current_offer_price = format_money(current_price)
         current_offer_href = current_target.google_flights_url if current_target and current_target.google_flights_url else ""
@@ -134,6 +137,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         current_offer_price = "N/A" if monitoring_label == "No matches" else "Checking"
         current_offer_tone = "neutral"
         current_offer_price_is_status = True
+        current_offer_status_kind = "unavailable" if current_offer_price == "N/A" else "pending"
 
     current_offer_detail = tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
     if current_offer_detail or current_offer_price:
@@ -151,6 +155,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             href=current_offer_href,
             tone=current_offer_tone,
             price_is_status=current_offer_price_is_status,
+            status_kind=current_offer_status_kind,
         )
 
     booked_offer: dict[str, object] | None = None
