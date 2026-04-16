@@ -110,38 +110,18 @@ def _render_collection_create_editor(
 
 @router.get("/groups/new")
 def new_group(
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
-    return _render_dashboard_group_editor(
-        request,
-        snapshot=snapshot,
-        collection_editor_state=_dashboard_group_editor_state(
-            mode="create",
-            trip_group_id="",
-            label="",
-            cancel_url="/#dashboard-groups",
-        ),
-    )
+    return RedirectResponse(url="/?create_group=1#dashboard-groups", status_code=303)
 
 
 @router.get("/groups/new/inline-editor", response_class=HTMLResponse)
 def new_group_inline_editor(
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
-    snapshot = load_persisted_snapshot(repository)
-    return _render_collection_create_editor(
-        request,
-        snapshot=snapshot,
-        collection_editor_state=_dashboard_group_editor_state(
-            mode="create",
-            trip_group_id="",
-            label="",
-            cancel_url="/#dashboard-groups",
-        ),
-    )
+) -> Response:
+    load_persisted_snapshot(repository)
+    return RedirectResponse(url="/?create_group=1#dashboard-groups", status_code=303)
 
 
 @router.get("/groups/{trip_group_id}", response_class=HTMLResponse)
@@ -159,59 +139,42 @@ def group_detail(
 @router.get("/groups/{trip_group_id}/card", response_class=HTMLResponse)
 def group_card(
     trip_group_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
-    return _render_collection_card(
-        request,
-        snapshot=snapshot,
-        trip_group_id=trip_group_id,
-    )
+    group = trip_group_by_id(snapshot, trip_group_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Trip group not found")
+    return RedirectResponse(url=f"/#group-{trip_group_id}", status_code=303)
 
 
 @router.get("/groups/{trip_group_id}/edit")
 def edit_group(
     trip_group_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
-    return _render_dashboard_group_editor(
-        request,
-        snapshot=snapshot,
-        collection_editor_state=_dashboard_group_editor_state(
-            mode="edit",
-            trip_group_id=group.trip_group_id,
-            label=group.label,
-            cancel_url=f"/#group-{group.trip_group_id}",
-        ),
+    return RedirectResponse(
+        url=f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}",
+        status_code=303,
     )
 
 
 @router.get("/groups/{trip_group_id}/inline-editor", response_class=HTMLResponse)
 def edit_group_inline_editor(
     trip_group_id: str,
-    request: Request,
     repository: Repository = Depends(get_repository),
-) -> HTMLResponse:
+) -> Response:
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Trip group not found")
-    return _render_collection_card(
-        request,
-        snapshot=snapshot,
-        trip_group_id=trip_group_id,
-        collection_editor_state=_dashboard_group_editor_state(
-            mode="edit",
-            trip_group_id=group.trip_group_id,
-            label=group.label,
-            cancel_url=f"/#group-{group.trip_group_id}",
-        ),
+    return RedirectResponse(
+        url=f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}",
+        status_code=303,
     )
 
 

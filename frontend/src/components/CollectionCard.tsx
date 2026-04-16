@@ -10,7 +10,7 @@ interface Props {
 
 export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Props) {
   return (
-    <article className="collection-card">
+    <article className="collection-card" id={`group-${collection.groupId}`}>
       <div className="collection-card__header">
         <div className="collection-card__titleline">
           <h3>{collection.label}</h3>

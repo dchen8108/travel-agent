@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from app.money import parse_money
@@ -11,6 +11,7 @@ from app.services.bookings import (
     BookingCandidate,
     delete_booking_record,
     record_booking,
+    resolve_unmatched_booking_to_trip_instance,
     unlink_booking,
     update_booking,
 )
@@ -52,6 +53,10 @@ class BookingBody(BaseModel):
     notes: str = ""
 
 
+class UnmatchedBookingLinkBody(BaseModel):
+    tripInstanceId: str
+
+
 def _booking_candidate(body: BookingBody) -> BookingCandidate:
     if not body.airline.strip():
         raise HTTPException(status_code=400, detail="Choose an airline.")
@@ -83,7 +88,7 @@ def _booking_candidate(body: BookingBody) -> BookingCandidate:
 
 @router.get("/dashboard")
 def dashboard_api(
-    trip_group_id: list[str] | None = None,
+    trip_group_id: list[str] | None = Query(default=None),
     include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
@@ -272,6 +277,24 @@ def unlink_booking_api(
         unlink_booking(repository, booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    sync_and_persist(repository)
+    return Response(status_code=204)
+
+
+@router.post("/unmatched-bookings/{unmatched_booking_id}/link", status_code=204)
+def link_unmatched_booking_api(
+    unmatched_booking_id: str,
+    body: UnmatchedBookingLinkBody,
+    repository: Repository = Depends(get_repository),
+) -> Response:
+    try:
+        resolve_unmatched_booking_to_trip_instance(
+            repository,
+            unmatched_booking_id=unmatched_booking_id,
+            trip_instance_id=body.tripInstanceId,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     sync_and_persist(repository)
     return Response(status_code=204)
 

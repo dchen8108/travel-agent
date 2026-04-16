@@ -86,6 +86,12 @@ export const api = {
   unlinkBooking(bookingId: string): Promise<void> {
     return request(`/api/bookings/${bookingId}/unlink`, { method: "POST" });
   },
+  linkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string): Promise<void> {
+    return request(`/api/unmatched-bookings/${unmatchedBookingId}/link`, {
+      method: "POST",
+      body: JSON.stringify({ tripInstanceId }),
+    });
+  },
   deleteBooking(bookingId: string): Promise<void> {
     return request(`/api/bookings/${bookingId}`, { method: "DELETE" });
   },

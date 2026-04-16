@@ -1,24 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { api } from "../lib/api";
 import type { CollectionCard as CollectionCardValue, TripRow as TripRowValue } from "../types";
+import { ActionItemsSection } from "../components/ActionItemsSection";
 import { CollectionCard } from "../components/CollectionCard";
 import { CollectionEditorCard } from "../components/CollectionEditorCard";
 import { BookingPanel } from "../components/BookingPanel";
 import { FilterBar } from "../components/FilterBar";
 import { TrackerPanel } from "../components/TrackerPanel";
 import { TripRow } from "../components/TripRow";
+import { IconButton } from "../components/IconButton";
+import { CloseIcon } from "../components/Icons";
 
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [creatingCollection, setCreatingCollection] = useState(false);
-  const [editingCollectionId, setEditingCollectionId] = useState("");
   const queryClient = useQueryClient();
 
   const selectedTripGroupIds = searchParams.getAll("trip_group_id");
   const includeBooked = searchParams.get("include_booked") !== "false";
+  const creatingCollection = searchParams.get("create_group") === "1";
+  const editingCollectionId = searchParams.get("edit_group_id") ?? "";
+  const flashMessage = searchParams.get("message") ?? "";
+  const flashMessageKind = searchParams.get("message_kind") ?? "success";
 
   const dashboardFilters = useMemo(() => {
     const params = new URLSearchParams();
@@ -41,8 +46,10 @@ export function DashboardPage() {
       groupId ? api.updateCollection(groupId, label) : api.createCollection(label)
     ),
     onSuccess: async () => {
-      setCreatingCollection(false);
-      setEditingCollectionId("");
+      const next = new URLSearchParams(searchParams);
+      next.delete("create_group");
+      next.delete("edit_group_id");
+      setSearchParams(next, { replace: true });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
@@ -61,6 +68,30 @@ export function DashboardPage() {
     },
   });
 
+  const unmatchedMutation = useMutation({
+    mutationFn: async ({
+      unmatchedBookingId,
+      tripInstanceId,
+      kind,
+    }: {
+      unmatchedBookingId: string;
+      tripInstanceId?: string;
+      kind: "link" | "delete";
+    }) => {
+      if (kind === "delete") {
+        await api.deleteBooking(unmatchedBookingId);
+        return;
+      }
+      if (!tripInstanceId) {
+        throw new Error("Choose a scheduled trip.");
+      }
+      await api.linkUnmatchedBooking(unmatchedBookingId, tripInstanceId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
   function toggleGroupFilter(groupId: string) {
     const next = new URLSearchParams(searchParams);
     const current = new Set(next.getAll("trip_group_id"));
@@ -71,6 +102,34 @@ export function DashboardPage() {
     }
     next.delete("trip_group_id");
     [...current].forEach((value) => next.append("trip_group_id", value));
+    setSearchParams(next, { replace: true });
+  }
+
+  function startCreateCollection() {
+    const next = new URLSearchParams(searchParams);
+    next.set("create_group", "1");
+    next.delete("edit_group_id");
+    setSearchParams(next, { replace: false });
+  }
+
+  function stopCollectionEditing() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("create_group");
+    next.delete("edit_group_id");
+    setSearchParams(next, { replace: false });
+  }
+
+  function startEditCollection(groupId: string) {
+    const next = new URLSearchParams(searchParams);
+    next.set("edit_group_id", groupId);
+    next.delete("create_group");
+    setSearchParams(next, { replace: false });
+  }
+
+  function dismissMessage() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("message");
+    next.delete("message_kind");
     setSearchParams(next, { replace: true });
   }
 
@@ -126,6 +185,17 @@ export function DashboardPage() {
     await deleteTripMutation.mutateAsync(row.trip.tripInstanceId);
   }
 
+  async function handleLinkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string) {
+    await unmatchedMutation.mutateAsync({ unmatchedBookingId, tripInstanceId, kind: "link" });
+  }
+
+  async function handleDeleteUnmatchedBooking(unmatchedBookingId: string) {
+    if (!window.confirm("Delete this booking?")) {
+      return;
+    }
+    await unmatchedMutation.mutateAsync({ unmatchedBookingId, kind: "delete" });
+  }
+
   const panel = searchParams.get("panel");
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
   const bookingMode = (searchParams.get("booking_mode") as "list" | "create" | "edit" | null) ?? "list";
@@ -150,12 +220,32 @@ export function DashboardPage() {
         </div>
       </header>
 
+      {flashMessage ? (
+        <div className={`flash-banner flash-banner--${flashMessageKind}`}>
+          <span>{flashMessage}</span>
+          <IconButton label="Dismiss message" onClick={dismissMessage}>
+            <CloseIcon />
+          </IconButton>
+        </div>
+      ) : null}
+
       <main className="dashboard-layout">
-        <section className="surface">
+        {dashboardQuery.data ? (
+          <ActionItemsSection
+            items={dashboardQuery.data.actionItems}
+            onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
+            onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
+            onDeleteTrip={handleDeleteTrip}
+            onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
+            onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
+          />
+        ) : null}
+
+        <section className="surface" id="dashboard-groups">
           <div className="surface__header">
             <h2>Collections</h2>
             {!creatingCollection ? (
-              <button type="button" className="primary-button" onClick={() => setCreatingCollection(true)}>
+              <button type="button" className="primary-button" onClick={startCreateCollection}>
                 Create collection
               </button>
             ) : null}
@@ -164,7 +254,7 @@ export function DashboardPage() {
             {creatingCollection ? (
               <CollectionEditorCard
                 mode="create"
-                onCancel={() => setCreatingCollection(false)}
+                onCancel={stopCollectionEditing}
                 onSave={(label) => collectionMutation.mutateAsync({ label })}
               />
             ) : null}
@@ -172,16 +262,17 @@ export function DashboardPage() {
               editingCollectionId === collection.groupId ? (
                 <CollectionEditorCard
                   key={collection.groupId}
+                  collectionId={collection.groupId}
                   mode="edit"
                   initialLabel={collection.label}
-                  onCancel={() => setEditingCollectionId("")}
+                  onCancel={stopCollectionEditing}
                   onSave={(label) => collectionMutation.mutateAsync({ label, groupId: collection.groupId })}
                 />
               ) : (
                 <CollectionCard
                   key={collection.groupId}
                   collection={collection}
-                  onEdit={() => setEditingCollectionId(collection.groupId)}
+                  onEdit={() => startEditCollection(collection.groupId)}
                   onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}
                 />
               )
@@ -189,7 +280,7 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="surface">
+        <section className="surface" id="all-travel">
           <div className="surface__header">
             <h2>Trips</h2>
             <a className="primary-button" href="/trips/new">Create trip</a>

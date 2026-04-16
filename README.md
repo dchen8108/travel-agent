@@ -67,13 +67,13 @@ uv run uvicorn app.main:app --reload
 
 Then open `http://127.0.0.1:8000`.
 
-Frontend rewrite preview:
+Frontend stack:
 
-- the legacy dashboard remains available at `/`
-- the new React/Vite dashboard lives at `/app`
-- the backend still serves both paths from the same FastAPI app
+- the React/Vite dashboard is now the primary app at `/`
+- `/app` remains as a compatibility entry to the same SPA
+- trip create/edit pages still stay on the FastAPI-rendered path
 
-To work on the new frontend locally:
+To work on the frontend locally:
 
 ```bash
 cd frontend
@@ -88,7 +88,7 @@ npm --prefix frontend run build
 uv run uvicorn app.main:app --reload
 ```
 
-Then open `http://127.0.0.1:8000/app`.
+Then open `http://127.0.0.1:8000`.
 
 ## MVP Flow
 

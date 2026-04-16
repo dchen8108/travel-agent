@@ -32,6 +32,12 @@ def _trip_instance_id_for_label(repository: Repository, label: str) -> str:
     return _trip_instance_id_for_trip(repository, _trip_by_label(repository, label).trip_id)
 
 
+def _dashboard_payload(client: TestClient, **params: object) -> dict[str, object]:
+    response = client.get("/api/dashboard", params=params)
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_core_pages_render(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -44,6 +50,8 @@ def test_core_pages_render(tmp_path: Path) -> None:
     for path in ["/", "/trips", "/trips/new", "/bookings", "/trackers"]:
         response = client.get(path)
         assert response.status_code == 200
+    root_page = client.get("/")
+    assert '<div id="root"></div>' in root_page.text
     trips_redirect = client.get("/trips", follow_redirects=False)
     assert trips_redirect.status_code == 303
     assert trips_redirect.headers["location"] == "/#all-travel"
@@ -53,9 +61,9 @@ def test_core_pages_render(tmp_path: Path) -> None:
     new_booking_redirect = client.get("/bookings/new", follow_redirects=False)
     assert new_booking_redirect.status_code == 303
     assert "Start+from+a+trip+to+add+a+booking." in new_booking_redirect.headers["location"]
-    new_group_page = client.get("/groups/new")
-    assert new_group_page.status_code == 200
-    assert 'id="collection-new-editor"' in new_group_page.text
+    new_group_page = client.get("/groups/new", follow_redirects=False)
+    assert new_group_page.status_code == 303
+    assert new_group_page.headers["location"] == "/?create_group=1#dashboard-groups"
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/#all-travel"
@@ -204,10 +212,10 @@ def test_unmatched_booking_ui_does_not_fall_back_to_internal_ids(tmp_path: Path)
     assert booking is None
     assert unmatched is not None
 
-    dashboard = client.get("/")
-    assert dashboard.status_code == 200
-    assert 'name="trip_label" value="SFO to BUR"' in dashboard.text
-    assert f'Booking {unmatched.unmatched_booking_id}' not in dashboard.text
+    payload = _dashboard_payload(client)
+    unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["suggestedTripLabel"] == "SFO to BUR"
+    assert f'Booking {unmatched.unmatched_booking_id}' not in json.dumps(payload)
 
     form_page = client.get(f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}")
     assert form_page.status_code == 200
@@ -238,8 +246,8 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     )
     assert response.status_code == 303
 
-    trips_page = client.get("/")
-    assert "LA to SF Outbound" in trips_page.text
+    payload = _dashboard_payload(client)
+    assert any(item["trip"]["title"] == "LA to SF Outbound" for item in payload["trips"])
 
     trip_instance_id = Repository(settings).load_trip_instances()[0].trip_instance_id
     booking_page = client.get(
@@ -267,8 +275,11 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
     )
     assert booking_response.status_code == 303
 
-    dashboard_page = client.get("/")
-    assert "ABC123" in dashboard_page.text
+    payload = _dashboard_payload(client)
+    assert any(
+        item["bookedOffer"] and item["bookedOffer"]["metaLabel"].endswith("ABC123")
+        for item in payload["trips"]
+    )
 
     repository = Repository(settings)
     booking = repository.load_bookings()[0]
@@ -542,11 +553,8 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     group_id = Repository(settings).load_trip_groups()[0].trip_group_id
     assert create.headers["location"] == f"/?message=Trip+group+saved#group-{group_id}"
 
-    detail = client.get("/")
-    assert detail.status_code == 200
-    assert "Work Trips" in detail.text
-    assert "Edit collection" in detail.text
-    assert "Create trip" in detail.text
+    payload = _dashboard_payload(client)
+    assert any(item["label"] == "Work Trips" for item in payload["collections"])
 
 
 def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
@@ -561,15 +569,13 @@ def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
     group = save_trip_group(repository, trip_group_id=None, label="Commute")
     other_group = save_trip_group(repository, trip_group_id=None, label="Family")
 
-    create_editor = client.get("/groups/new/inline-editor")
-    assert create_editor.status_code == 200
-    assert 'id="collection-new-editor"' in create_editor.text
-    assert 'name="label"' in create_editor.text
+    create_editor = client.get("/groups/new/inline-editor", follow_redirects=False)
+    assert create_editor.status_code == 303
+    assert create_editor.headers["location"] == "/?create_group=1#dashboard-groups"
 
-    edit_editor = client.get(f"/groups/{group.trip_group_id}/inline-editor")
-    assert edit_editor.status_code == 200
-    assert 'value="Commute"' in edit_editor.text
-    assert f"/groups/{group.trip_group_id}/card" in edit_editor.text
+    edit_editor = client.get(f"/groups/{group.trip_group_id}/inline-editor", follow_redirects=False)
+    assert edit_editor.status_code == 303
+    assert edit_editor.headers["location"] == f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}"
 
     duplicate = client.post(
         "/groups",
@@ -681,20 +687,16 @@ def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) 
     )
     assert unmatched_response.status_code == 303
 
-    page = client.get("/")
-    assert page.status_code == 200
-    assert "Milemark" in page.text
-    assert "Action Items" in page.text
-    assert "Trips" in page.text
-    assert "Planned Commute" in page.text
-    assert "Booked Commute" in page.text
-    assert "Link booking" in page.text
-    assert "/bookings/unmatched/" in page.text
+    payload = _dashboard_payload(client)
+    trip_titles = [item["trip"]["title"] for item in payload["trips"]]
+    assert "Planned Commute" in trip_titles
+    assert "Booked Commute" in trip_titles
+    assert any(item["kind"] == "unmatchedBooking" for item in payload["actionItems"])
 
-    planned_only_page = client.get("/?include_booked=false&partial=scheduled-results")
-    assert planned_only_page.status_code == 200
-    assert "Planned Commute" in planned_only_page.text
-    assert "Booked Commute" not in planned_only_page.text
+    planned_only_payload = _dashboard_payload(client, include_booked="false")
+    planned_only_titles = [item["trip"]["title"] for item in planned_only_payload["trips"]]
+    assert "Planned Commute" in planned_only_titles
+    assert "Booked Commute" not in planned_only_titles
 
 
 def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None:
@@ -738,11 +740,11 @@ def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None
         )
         assert booking_response.status_code == 303
 
-    page = client.get("/")
-    assert page.status_code == 200
-    assert "Multiple bookings" in page.text
-    assert "Crowded Commute" in page.text
-    assert "2 active" in page.text
+    payload = _dashboard_payload(client)
+    overbooked = [item for item in payload["actionItems"] if item.get("attentionKind") == "overbooked"]
+    assert overbooked
+    assert overbooked[0]["row"]["trip"]["title"] == "Crowded Commute"
+    assert overbooked[0]["badge"] == "2 active"
 
 
 def test_today_page_respects_configured_attention_windows(tmp_path: Path) -> None:
@@ -950,9 +952,9 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
     assert len(unmatched) == 1
     assert unmatched[0].record_locator == "UNLINK123"
 
-    trips_page = client.get("/trips")
-    assert "UNLINK123" in trips_page.text
-    assert "Link booking" in trips_page.text
+    payload = _dashboard_payload(client)
+    unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["sourceLabel"].startswith("Booking UNLINK123")
 
 
 def test_unlinked_booking_can_be_deleted_from_dashboard(tmp_path: Path) -> None:
@@ -1946,12 +1948,10 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
 
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
-    assert "Collections" in trips_page.text
-    assert "Weekly LA to SF" in trips_page.text
-    assert "Conference Arrival" in trips_page.text
-    assert "Show in scheduled" not in trips_page.text
-    assert "Log past trip" not in trips_page.text
-    assert "Past trips" not in trips_page.text
+    payload = _dashboard_payload(client)
+    assert any(item["label"] == "No collection" for item in payload["filters"]["groupOptions"])
+    assert any(item["label"] == "Weekly LA to SF" for collection in payload["collections"] for item in collection["recurringTrips"])
+    assert any(item["trip"]["title"] == "Conference Arrival" for item in payload["trips"])
 
 
 def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: Path) -> None:
@@ -1975,11 +1975,8 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
         follow_redirects=False,
     )
     assert create.status_code == 303
-    trips_page = client.get("/trips")
-    assert trips_page.status_code == 200
-    marker = 'id="scheduled-'
-    assert marker in trips_page.text
-    trip_instance_id = trips_page.text.split(marker, 1)[1].split('"', 1)[0]
+    payload = _dashboard_payload(client)
+    trip_instance_id = payload["trips"][0]["trip"]["tripInstanceId"]
 
     delete_response = client.post(
         f"/trip-instances/{trip_instance_id}/delete-generated",
@@ -1990,13 +1987,8 @@ def test_deleted_generated_occurrence_disappears_from_scheduled_lists(tmp_path: 
     group_id = Repository(settings).load_trip_groups()[0].trip_group_id
     assert delete_response.headers["location"] == f"/?message=Trip+deleted#group-{group_id}"
 
-    trips_page = client.get("/trips")
-    assert trips_page.status_code == 200
-    assert "Doctor Visit Rule" in trips_page.text
-    assert "No scheduled trips match these filters." not in trips_page.text
-    filtered_page = client.get("/trips")
-    assert filtered_page.status_code == 200
-    assert f'id="scheduled-{trip_instance_id}"' not in filtered_page.text
+    payload = _dashboard_payload(client)
+    assert not any(item["trip"]["tripInstanceId"] == trip_instance_id for item in payload["trips"])
 
 
 def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_path: Path) -> None:
@@ -2029,11 +2021,8 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
         target.rule_trip_id == trip.trip_id and target.trip_group_id == group.trip_group_id
         for target in repository.load_rule_group_targets()
     )
-    trips_page = client.get(f"/trips?trip_group_id={group.trip_group_id}")
-    assert trips_page.status_code == 200
-    marker = 'id="scheduled-'
-    assert marker in trips_page.text
-    trip_instance_id = trips_page.text.split(marker, 1)[1].split('"', 1)[0]
+    payload = _dashboard_payload(client, trip_group_id=group.trip_group_id)
+    trip_instance_id = payload["trips"][0]["trip"]["tripInstanceId"]
 
     delete_response = client.post(
         f"/trip-instances/{trip_instance_id}/delete-generated",
@@ -2043,13 +2032,9 @@ def test_recurring_trip_group_detail_shows_deleted_occurrence_as_removed(tmp_pat
     assert delete_response.status_code == 303
     assert delete_response.headers["location"] == f"/?message=Trip+deleted#group-{group.trip_group_id}"
 
-    group_page = client.get("/")
-    assert group_page.status_code == 200
-    assert "Weekly Commute" in group_page.text
-    assert f'id="group-{group.trip_group_id}"' in group_page.text
-    assert "Create trip" in group_page.text
-    filtered_page = client.get(f"/?partial=scheduled-results&trip_group_id={group.trip_group_id}")
-    assert f'id="scheduled-{trip_instance_id}"' not in filtered_page.text
+    payload = _dashboard_payload(client, trip_group_id=group.trip_group_id)
+    assert any(collection["groupId"] == group.trip_group_id for collection in payload["collections"])
+    assert not any(item["trip"]["tripInstanceId"] == trip_instance_id for item in payload["trips"])
 
 
 def test_weekly_trip_detail_redirects_to_edit_page(tmp_path: Path) -> None:
@@ -2178,11 +2163,9 @@ def test_trip_instance_detail_links_attached_generated_trip_to_recurring_edit(tm
 
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     trip_id = repository.load_trips()[0].trip_id
-    dashboard = client.get(f"/?trip_group_id={group.trip_group_id}")
-    assert dashboard.status_code == 200
-    assert "Managed by" not in dashboard.text
-    assert "Detached from" not in dashboard.text
-    assert f'href="/trips/{trip_id}/edit?trip_instance_id={trip_instance_id}"' in dashboard.text
+    payload = _dashboard_payload(client, trip_group_id=group.trip_group_id)
+    row = next(item for item in payload["trips"] if item["trip"]["tripInstanceId"] == trip_instance_id)
+    assert row["trip"]["editHref"] == f"/trips/{trip_id}/edit?trip_instance_id={trip_instance_id}"
 
 
 def test_group_detail_surfaces_rule_edit_button_without_rule_detail_link(tmp_path: Path) -> None:
@@ -2211,10 +2194,9 @@ def test_group_detail_surfaces_rule_edit_button_without_rule_detail_link(tmp_pat
     assert create.status_code == 303
     trip_id = _trip_by_label(repository, "Rule On Group").trip_id
 
-    detail = client.get("/")
-    assert detail.status_code == 200
-    assert f'href="/trips/{trip_id}/edit"' in detail.text
-    assert f'href="/trips/{trip_id}">' not in detail.text
+    payload = _dashboard_payload(client)
+    collection = next(item for item in payload["collections"] if item["groupId"] == group.trip_group_id)
+    assert any(item["editHref"] == f"/trips/{trip_id}/edit" for item in collection["recurringTrips"])
 
 
 def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> None:
@@ -2239,11 +2221,10 @@ def test_one_time_trip_delete_uses_app_confirm_modal_markup(tmp_path: Path) -> N
     )
     assert create.status_code == 303
 
-    detail = client.get("/")
-    assert detail.status_code == 200
-    assert 'data-confirm-title="Delete this one-time trip?"' in detail.text
-    assert 'data-confirm-action="Delete trip"' in detail.text
-    assert "return confirm(" not in detail.text
+    payload = _dashboard_payload(client)
+    row = next(item for item in payload["trips"] if item["trip"]["title"] == "Modal Delete Trip")
+    assert row["trip"]["delete"]["confirmation"]["title"] == "Delete this one-time trip?"
+    assert row["trip"]["delete"]["confirmation"]["action"] == "Delete trip"
 
 
 def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None:
@@ -2287,9 +2268,9 @@ def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None
         follow_redirects=False,
     )
 
-    detail = client.get("/")
-    assert detail.status_code == 200
-    assert 'data-confirm-title="Delete this one-time trip?"' in detail.text
+    payload = _dashboard_payload(client)
+    row = next(item for item in payload["trips"] if item["trip"]["title"] == "Delete Booked Trip")
+    assert row["trip"]["delete"]["confirmation"]["title"] == "Delete this one-time trip?"
 
     parent_trip_id = repository.load_trip_instances()[0].trip_id
     delete = client.post(
@@ -2300,9 +2281,9 @@ def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None
     assert delete.status_code == 303
     assert "Trip+deleted.+1+booking+needs+linking." in delete.headers["location"]
 
-    dashboard = client.get("/")
-    assert "Link booking" in dashboard.text
-    assert "DELBOOK1" in dashboard.text
+    payload = _dashboard_payload(client)
+    unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["sourceLabel"].startswith("Booking DELBOOK1")
 
 
 def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: Path) -> None:
@@ -2348,10 +2329,8 @@ def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: P
         follow_redirects=False,
     )
 
-    detail = client.get("/")
-    assert detail.status_code == 200
-    assert detail.text.count('data-confirm-action="Delete trip"') >= 1
-    assert "<h3>Controls</h3>" not in detail.text
+    payload = _dashboard_payload(client)
+    assert any(item["trip"]["delete"]["confirmation"]["action"] == "Delete trip" for item in payload["trips"])
 
     delete = client.post(
         f"/trip-instances/{trip_instance_id}/delete-generated",
@@ -2361,9 +2340,9 @@ def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: P
     assert delete.status_code == 303
     assert "Trip+deleted.+1+booking+needs+linking." in delete.headers["location"]
 
-    dashboard = client.get("/")
-    assert "Link booking" in dashboard.text
-    assert "DELGEN1" in dashboard.text
+    payload = _dashboard_payload(client)
+    unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["sourceLabel"].startswith("Booking DELGEN1")
 
 
 def test_booking_edit_page_does_not_show_delete_controls(tmp_path: Path) -> None:
@@ -2483,12 +2462,12 @@ def test_scheduled_trips_can_be_filtered_to_specific_recurring_parents(tmp_path:
         for target in repository.load_rule_group_targets()
     )
 
-    filtered_page = client.get(f"/?partial=scheduled-results&trip_group_id={work_group.trip_group_id}")
-    assert filtered_page.status_code == 200
-    assert "Work Travel" in filtered_page.text
-    assert "BUR → SFO" in filtered_page.text
-    assert "One-off Flight" not in filtered_page.text
-    assert "LAX → SEA" not in filtered_page.text
+    payload = _dashboard_payload(client, trip_group_id=work_group.trip_group_id)
+    titles = [item["trip"]["title"] for item in payload["trips"]]
+    assert payload["filters"]["selectedTripGroupIds"] == [work_group.trip_group_id]
+    assert "One-off Flight" not in titles
+    assert "Work Travel" in titles
+    assert "Weekly Commute B" not in titles
 
 
 def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> None:
@@ -2528,15 +2507,14 @@ def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> Non
     assert grouped.status_code == 303
     assert ungrouped.status_code == 303
 
-    dashboard_page = client.get("/")
-    assert dashboard_page.status_code == 200
-    assert '"label": "No collection"' in dashboard_page.text
-    assert 'value="__ungrouped__"' in dashboard_page.text
+    payload = _dashboard_payload(client)
+    option_values = {item["value"] for item in payload["filters"]["groupOptions"]}
+    assert "__ungrouped__" in option_values
 
-    filtered_page = client.get("/?partial=scheduled-results&trip_group_id=__ungrouped__")
-    assert filtered_page.status_code == 200
-    assert "Ungrouped One-off" in filtered_page.text
-    assert "Grouped Commute" not in filtered_page.text
+    filtered_payload = _dashboard_payload(client, trip_group_id="__ungrouped__")
+    filtered_titles = [item["trip"]["title"] for item in filtered_payload["trips"]]
+    assert "Ungrouped One-off" in filtered_titles
+    assert "Grouped Commute" not in filtered_titles
 
 
 def test_editing_grouped_rule_cannot_remove_all_target_groups(tmp_path: Path) -> None:
@@ -2589,9 +2567,8 @@ def test_editing_grouped_rule_cannot_remove_all_target_groups(tmp_path: Path) ->
         if item.rule_trip_id == trip_id
     ] == [(trip_id, work_group.trip_group_id)]
 
-    group_page = client.get("/")
-    assert group_page.status_code == 200
-    assert "Weekly Commute A" in group_page.text
+    payload = _dashboard_payload(client)
+    assert any(item["label"] == "Weekly Commute A" for collection in payload["collections"] for item in collection["recurringTrips"])
 
 
 def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
@@ -2615,11 +2592,9 @@ def test_scheduled_partial_renders_live_filter_surface(tmp_path: Path) -> None:
         follow_redirects=False,
     )
 
-    partial = client.get("/?partial=scheduled")
-    assert partial.status_code == 200
-    assert 'data-scheduled-filter-form' in partial.text
-    assert "Show skipped" not in partial.text
-    assert "Apply filters" in partial.text
+    root_page = client.get("/")
+    assert root_page.status_code == 200
+    assert '<div id="root"></div>' in root_page.text
 
 
 def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
@@ -2655,12 +2630,10 @@ def test_past_trips_are_hidden_from_the_trips_ui(tmp_path: Path) -> None:
         follow_redirects=False,
     )
 
-    trips_page = client.get("/trips")
-    assert trips_page.status_code == 200
-    assert "Past trips" not in trips_page.text
-    assert "Log past trip" not in trips_page.text
-    assert "Showing 1 scheduled trip." in trips_page.text
-    assert 'id="scheduled-' in trips_page.text
+    payload = _dashboard_payload(client)
+    titles = [item["trip"]["title"] for item in payload["trips"]]
+    assert "Past Commute" not in titles
+    assert titles == ["Future Commute"]
 
 
 def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
@@ -2882,8 +2855,8 @@ def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> 
     assert booking_response.status_code == 303
     assert booking_response.headers["location"] == "/?message=Booking+needs+linking#needs-linking"
 
-    dashboard_page = client.get("/")
-    unmatched_id = dashboard_page.text.split('/bookings/unmatched/', 1)[1].split('/link', 1)[0]
+    payload = _dashboard_payload(client)
+    unmatched_id = next(item["unmatchedBookingId"] for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
 
     repository = Repository(settings)
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
@@ -2942,9 +2915,11 @@ def test_unmatched_booking_dropdown_separates_past_trips(tmp_path: Path) -> None
     )
     assert booking_response.status_code == 303
 
-    page = client.get("/")
-    assert "Past trips" in page.text
-    assert "Trips" in page.text
+    payload = _dashboard_payload(client)
+    unmatched = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    group_labels = [group["label"] for group in unmatched["tripOptions"]]
+    assert "Past trips" in group_labels
+    assert "Upcoming trips" in group_labels
 
 
 def test_past_trips_remain_hidden_from_filtered_scheduled_lists(tmp_path: Path) -> None:
@@ -2970,10 +2945,8 @@ def test_past_trips_remain_hidden_from_filtered_scheduled_lists(tmp_path: Path) 
     )
     assert create.status_code == 303
 
-    trips_page = client.get("/trips")
-    assert 'id="past-' not in trips_page.text
-    assert "Showing 0 scheduled trips." in trips_page.text
-    assert "No scheduled trips match these filters." in trips_page.text
+    payload = _dashboard_payload(client)
+    assert payload["trips"] == []
 
 
 def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) -> None:

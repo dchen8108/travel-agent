@@ -82,9 +82,41 @@ export interface DashboardPayload {
     totalUpcoming: number;
     totalBooked: number;
   };
+  actionItems: DashboardActionItem[];
   collections: CollectionCard[];
   trips: TripRow[];
 }
+
+export interface TripOptionGroup {
+  label: string;
+  options: Array<{
+    value: string;
+    label: string;
+  }>;
+}
+
+export interface DashboardUnmatchedBookingActionItem {
+  kind: "unmatchedBooking";
+  title: string;
+  sourceLabel: string;
+  suggestedTripLabel: string;
+  unmatchedBookingId: string;
+  offer: Offer;
+  tripOptions: TripOptionGroup[];
+  createTripHref: string;
+}
+
+export interface DashboardTripAttentionActionItem {
+  kind: "tripAttention";
+  attentionKind: "overbooked" | "rebook" | "needsBooking";
+  title: string;
+  badge: string;
+  row: TripRow;
+}
+
+export type DashboardActionItem =
+  | DashboardUnmatchedBookingActionItem
+  | DashboardTripAttentionActionItem;
 
 export interface BookingPanelPayload {
   trip: TripIdentity;
@@ -125,4 +157,21 @@ export interface TrackerPanelPayload {
   }>;
   lastRefreshLabel: string;
   tripAnchorDate: string;
+}
+
+export interface FrontendBootstrap {
+  dashboard?: {
+    query: string;
+    data: DashboardPayload;
+  };
+  bookingPanel?: {
+    tripInstanceId: string;
+    mode: "list" | "create" | "edit";
+    bookingId: string;
+    data: BookingPanelPayload;
+  };
+  trackerPanel?: {
+    tripInstanceId: string;
+    data: TrackerPanelPayload;
+  };
 }

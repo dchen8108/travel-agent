@@ -6,9 +6,12 @@ from datetime import date
 from fastapi import HTTPException
 
 from app.catalog import catalogs_json
+from app.money import format_money
 from app.models.base import TripInstanceInheritanceMode, TripKind
 from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
+from app.services.dashboard_booking_views import booking_reference_label, default_trip_label_for_booking
+from app.services.dashboard_page import dashboard_attention_views
 from app.services.dashboard_queries import scheduled_ledger_view, trip_groups
 from app.services.dashboard_trip_panels import tracker_search_rows, trip_instance_dashboard_context
 from app.services.scheduled_trip_display import (
@@ -16,6 +19,7 @@ from app.services.scheduled_trip_display import (
     trip_row_actions_view,
     trip_row_summary,
     trip_ui_label,
+    trip_ui_picker_label,
 )
 from app.services.scheduled_trip_state import booking_route_tracking_state, bookings_for_instance
 from app.services.snapshot_queries import (
@@ -147,6 +151,101 @@ def collection_card_value(snapshot, trip_group_id: str, *, today: date) -> dict[
     }
 
 
+def _trip_picker_option_group_value(snapshot, trip_instances: list[object], *, label: str) -> dict[str, object]:
+    return {
+        "label": label,
+        "options": [
+            {
+                "value": instance.trip_instance_id,
+                "label": trip_ui_picker_label(snapshot, instance.trip_instance_id),
+            }
+            for instance in trip_instances
+        ],
+    }
+
+
+def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
+    attention = dashboard_attention_views(snapshot, today=today)
+    items: list[dict[str, object]] = []
+
+    for card in attention["unmatched_views"]:
+        unmatched = card["unmatched"]
+        option_groups = []
+        if card["suggested_trip_instances"]:
+            option_groups.append(
+                _trip_picker_option_group_value(
+                    snapshot,
+                    card["suggested_trip_instances"],
+                    label="Suggested matches",
+                )
+            )
+        if card["upcoming_trip_instances"]:
+            option_groups.append(
+                _trip_picker_option_group_value(
+                    snapshot,
+                    card["upcoming_trip_instances"],
+                    label="Upcoming trips",
+                )
+            )
+        if card["past_trip_instances"]:
+            option_groups.append(
+                _trip_picker_option_group_value(
+                    snapshot,
+                    card["past_trip_instances"],
+                    label="Past trips",
+                )
+            )
+        items.append(
+            {
+                "kind": "unmatchedBooking",
+                "title": "Link booking",
+                "sourceLabel": f"{booking_reference_label(unmatched)} · {unmatched.source.replace('_', ' ')}",
+                "suggestedTripLabel": default_trip_label_for_booking(unmatched),
+                "unmatchedBookingId": unmatched.unmatched_booking_id,
+                "offer": _offer_value(
+                    booking_offer_summary(
+                        unmatched,
+                        anchor_date=unmatched.departure_date,
+                    )
+                ),
+                "tripOptions": option_groups,
+                "createTripHref": f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}",
+            }
+        )
+
+    for card in attention["overbooked_views"]:
+        items.append(
+            {
+                "kind": "tripAttention",
+                "attentionKind": "overbooked",
+                "title": "Multiple bookings",
+                "badge": f"{card['active_booking_count']} active",
+                "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
+            }
+        )
+    for card in attention["rebook_views"]:
+        items.append(
+            {
+                "kind": "tripAttention",
+                "attentionKind": "rebook",
+                "title": "Price drop",
+                "badge": f"{format_money(card['savings'])} lower" if card.get("savings") else "",
+                "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
+            }
+        )
+    for card in attention["book_now_views"]:
+        items.append(
+            {
+                "kind": "tripAttention",
+                "attentionKind": "needsBooking",
+                "title": "Needs booking",
+                "badge": card["instance"].anchor_date.strftime("%b %d"),
+                "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
+            }
+        )
+    return items
+
+
 def dashboard_payload(
     snapshot,
     *,
@@ -181,6 +280,7 @@ def dashboard_payload(
             collection_card_value(snapshot, group.trip_group_id, today=today)
             for group in trip_groups(snapshot)
         ],
+        "actionItems": _action_items_value(snapshot, today=today),
         "trips": [
             trip_row_value(snapshot, instance.trip_instance_id)
             for instance in scheduled_view["scheduled_items"]

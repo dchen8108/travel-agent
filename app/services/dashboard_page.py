@@ -106,20 +106,11 @@ def instance_dashboard_view(snapshot, instance) -> dict[str, object]:
     }
 
 
-def build_dashboard_page_context(
+def dashboard_attention_views(
     snapshot,
     *,
     today: date,
-    selected_trip_group_ids: list[str] | None = None,
-    include_booked: bool = True,
-    collection_editor_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    scheduled_view = scheduled_ledger_view(
-        snapshot,
-        today=today,
-        selected_trip_group_ids=selected_trip_group_ids,
-        include_booked=include_booked,
-    )
     unmatched_views = unmatched_booking_resolution_views(snapshot)
     upcoming_instances = scheduled_instances(snapshot, today=today)
     planned_instances = [
@@ -152,6 +143,31 @@ def build_dashboard_page_context(
         for instance in planned_instances
         if instance.anchor_date <= action_window_cutoff
     ]
+    return {
+        "unmatched_views": unmatched_views,
+        "planned_instances": planned_instances,
+        "overbooked_views": overbooked_views,
+        "rebook_views": rebook_views,
+        "book_now_views": book_now_views,
+        "total_upcoming": len(upcoming_instances),
+    }
+
+
+def build_dashboard_page_context(
+    snapshot,
+    *,
+    today: date,
+    selected_trip_group_ids: list[str] | None = None,
+    include_booked: bool = True,
+    collection_editor_state: dict[str, object] | None = None,
+) -> dict[str, object]:
+    scheduled_view = scheduled_ledger_view(
+        snapshot,
+        today=today,
+        selected_trip_group_ids=selected_trip_group_ids,
+        include_booked=include_booked,
+    )
+    attention = dashboard_attention_views(snapshot, today=today)
     group_views = [
         group_summary_view(snapshot, group, today=today)
         for group in sorted(
@@ -169,13 +185,8 @@ def build_dashboard_page_context(
         )
     ]
     return {
-        "unmatched_views": unmatched_views,
-        "planned_instances": planned_instances,
-        "overbooked_views": overbooked_views,
-        "rebook_views": rebook_views,
-        "book_now_views": book_now_views,
+        **attention,
         "group_views": group_views,
-        "total_upcoming": len(upcoming_instances),
         "collection_editor_state": collection_editor_state,
         "scheduled_filter_action_path": "/",
         "scheduled_filter_clear_path": "/#all-travel",

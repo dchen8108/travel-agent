@@ -3,13 +3,14 @@ import { CheckIcon, CloseIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 
 interface Props {
+  collectionId?: string;
   initialLabel?: string;
   mode: "create" | "edit";
   onCancel: () => void;
   onSave: (label: string) => Promise<unknown>;
 }
 
-export function CollectionEditorCard({ initialLabel = "", mode, onCancel, onSave }: Props) {
+export function CollectionEditorCard({ collectionId = "", initialLabel = "", mode, onCancel, onSave }: Props) {
   const [label, setLabel] = useState(initialLabel);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -31,7 +32,7 @@ export function CollectionEditorCard({ initialLabel = "", mode, onCancel, onSave
   }
 
   return (
-    <article className="collection-card collection-card--editing">
+    <article className="collection-card collection-card--editing" id={collectionId ? `group-${collectionId}` : undefined}>
       <div className="collection-card__header">
         <input
           className="collection-card__input"

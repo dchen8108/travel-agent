@@ -13,7 +13,7 @@ export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete }: Props
   const tripInstanceId = row.trip.tripInstanceId;
 
   return (
-    <article className="trip-row">
+    <article className="trip-row" id={`scheduled-${tripInstanceId}`}>
       <TripIdentityRow trip={row.trip} onDelete={() => onDelete(row)} />
       {row.bookedOffer ? (
         <OfferBlock

@@ -10,7 +10,6 @@ from app.routes.api import router as api_router
 from app.routes.bookings import router as bookings_router
 from app.routes.groups import router as groups_router
 from app.routes.spa import router as spa_router
-from app.routes.today import router as today_router
 from app.routes.trackers import router as trackers_router
 from app.routes.trips import router as trips_router
 from app.settings import Settings, get_settings
@@ -32,13 +31,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.asset_version = _compute_asset_version(settings.static_dir)
     app.mount("/static", StaticFiles(directory=str(settings.static_dir)), name="static")
     app.mount(
+        "/assets",
+        StaticFiles(directory=str(settings.frontend_dist_dir / "assets"), check_dir=False),
+        name="frontend-assets",
+    )
+    app.mount(
         "/app/assets",
         StaticFiles(directory=str(settings.frontend_dist_dir / "assets"), check_dir=False),
         name="app-assets",
     )
     app.include_router(api_router)
     app.include_router(spa_router)
-    app.include_router(today_router)
     app.include_router(trips_router)
     app.include_router(groups_router)
     app.include_router(bookings_router)

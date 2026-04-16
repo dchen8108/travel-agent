@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import date
 
 from app.routes import groups as groups_route
+from app.routes import api as api_route
 from app.routes import trackers as trackers_route
 from app.routes import trips as trips_route
-from app.routes import today as today_route
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.dashboard_navigation import trip_focus_url
 from app.services.groups import save_trip_group
@@ -59,16 +59,16 @@ def test_trackers_detail_uses_persisted_snapshot(client, repository: Repository,
 
 def test_dashboard_uses_persisted_snapshot(client, repository: Repository, monkeypatch) -> None:
     _seed_one_time_trip(repository)
-    real = today_route.load_persisted_snapshot
+    real = api_route.load_persisted_snapshot
     calls = {"persisted": 0}
 
     def wrapped(repo):
         calls["persisted"] += 1
         return real(repo)
 
-    monkeypatch.setattr(today_route, "load_persisted_snapshot", wrapped)
+    monkeypatch.setattr(api_route, "load_persisted_snapshot", wrapped)
 
-    response = client.get("/")
+    response = client.get("/api/dashboard")
 
     assert response.status_code == 200
     assert calls["persisted"] == 1
@@ -150,10 +150,10 @@ def test_group_edit_uses_persisted_snapshot(client, repository: Repository, monk
 
     monkeypatch.setattr(groups_route, "load_persisted_snapshot", wrapped)
 
-    response = client.get(f"/groups/{group.trip_group_id}/edit")
+    response = client.get(f"/groups/{group.trip_group_id}/edit", follow_redirects=False)
 
-    assert response.status_code == 200
-    assert f'value="{group.label}"' in response.text
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}"
     assert calls["persisted"] == 1
 
 
