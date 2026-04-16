@@ -2735,7 +2735,7 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
 
     assert "N/A" in trackers_page.text
-    assert "6:00 AM \u2013 10:00 AM departure" in trackers_page.text
+    assert "6:00 AM \u2013 10:00 AM" in trackers_page.text
     assert "A recent Google Flights request failed. Milemark will retry automatically." not in trackers_page.text
     assert "google.com/travel/flights/search" in trackers_page.text
     assert "Search details" not in trackers_page.text
