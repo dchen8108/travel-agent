@@ -161,7 +161,7 @@ def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str
         "tracker_rows": tracker_rows,
         "total_fetch_targets": total_fetch_targets,
         "tracker_refresh_footer_label": (
-            f"Oldest refresh · {format_refresh_timestamp_label(oldest_tracker_refresh_at)}"
+            f"Last refresh · {format_refresh_timestamp_label(oldest_tracker_refresh_at)}"
             if oldest_tracker_refresh_at is not None
             else ""
         ),
