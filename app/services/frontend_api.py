@@ -34,7 +34,7 @@ from app.services.trip_editor import edit_trip_form_payload, new_trip_form_paylo
 def _date_tile_value(value: date) -> dict[str, str]:
     return {
         "weekday": value.strftime("%a").upper(),
-        "month_day": value.strftime("%b %d"),
+        "monthDay": value.strftime("%b %d"),
     }
 
 
