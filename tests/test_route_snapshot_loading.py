@@ -139,6 +139,24 @@ def test_group_detail_uses_persisted_snapshot(client, repository: Repository, mo
     assert calls["persisted"] == 1
 
 
+def test_group_edit_uses_persisted_snapshot(client, repository: Repository, monkeypatch) -> None:
+    group = save_trip_group(repository, trip_group_id=None, label="Editable Group")
+    real = groups_route.load_persisted_snapshot
+    calls = {"persisted": 0}
+
+    def wrapped(repo):
+        calls["persisted"] += 1
+        return real(repo)
+
+    monkeypatch.setattr(groups_route, "load_persisted_snapshot", wrapped)
+
+    response = client.get(f"/groups/{group.trip_group_id}/edit")
+
+    assert response.status_code == 200
+    assert f'value="{group.label}"' in response.text
+    assert calls["persisted"] == 1
+
+
 def test_trip_detail_prefers_persisted_snapshot_when_instance_exists(
     client,
     repository: Repository,

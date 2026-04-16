@@ -38,10 +38,12 @@ Compatibility note:
 
 - `/trips`, `/bookings`, and `/trackers` are redirect-only compatibility endpoints now
 - the dashboard at `/` is the primary operational surface
-- collection inspection happens inline on dashboard collection cards
+- collection inspection and collection create/edit happen inline on dashboard collection cards
 - trip inspection happens inline on dashboard trip rows and the bookings/trackers modal panels
 - `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
-- focused create/edit flows such as `/trips/new`, `/trips/{id}/edit`, `/groups/{id}/edit`, and `/bookings/{id}/edit` remain first-class
+- trips keep dedicated create/edit pages
+- bookings create/edit live inside the bookings modal; `/bookings/new` and `/bookings/{id}/edit` are compatibility redirects into that modal
+- `/groups/new` and `/groups/{id}/edit` render the dashboard with the inline collection editor as compatibility entry points
 
 ## Core Objects
 

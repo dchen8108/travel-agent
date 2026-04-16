@@ -177,8 +177,182 @@
     });
   }
 
-  function initCollectionOverflowToggles() {
-    const clusters = Array.from(document.querySelectorAll("[data-collection-cluster]"));
+  function focusAutofocus(root) {
+    if (!(root instanceof Document || root instanceof HTMLElement)) {
+      return;
+    }
+    const target = root.querySelector("[autofocus]");
+    if (target instanceof HTMLElement) {
+      window.setTimeout(() => target.focus(), 0);
+    }
+  }
+
+  function rehydrateContent(root = document) {
+    initBookingForms(root);
+    initCollectionOverflowToggles(root);
+    focusAutofocus(root);
+  }
+
+  function resolveFragmentTarget(source, targetSpec) {
+    if (!(source instanceof Element)) {
+      return null;
+    }
+    if (!targetSpec || targetSpec === "self") {
+      return source;
+    }
+    if (targetSpec.startsWith("closest:")) {
+      return source.closest(targetSpec.slice("closest:".length));
+    }
+    try {
+      return document.querySelector(targetSpec);
+    } catch (error) {
+      console.error(`Invalid fragment target selector: ${targetSpec}`, error);
+      return null;
+    }
+  }
+
+  function swapFragment(target, html, swap = "outerHTML") {
+    if (!(target instanceof HTMLElement)) {
+      return null;
+    }
+
+    if (swap === "innerHTML") {
+      target.innerHTML = html;
+      return target;
+    }
+
+    if (swap === "outerHTML") {
+      const parent = target.parentElement;
+      if (!parent) {
+        target.outerHTML = html;
+        return null;
+      }
+      const marker = document.createElement("span");
+      marker.hidden = true;
+      marker.dataset.fragmentMarker = "true";
+      parent.insertBefore(marker, target);
+      target.remove();
+      marker.insertAdjacentHTML("beforebegin", html);
+      const insertedRoot = marker.previousElementSibling;
+      marker.remove();
+      return insertedRoot;
+    }
+
+    target.insertAdjacentHTML(swap, html);
+    if (swap === "afterbegin") {
+      return target.firstElementChild;
+    }
+    if (swap === "beforeend") {
+      return target.lastElementChild;
+    }
+    if (swap === "beforebegin") {
+      return target.previousElementSibling;
+    }
+    if (swap === "afterend") {
+      return target.nextElementSibling;
+    }
+    return target;
+  }
+
+  async function fetchFragmentHtml(url, options = {}) {
+    const response = await window.fetch(url, {
+      ...options,
+      headers: {
+        "X-Requested-With": "fetch",
+        ...(options.headers || {}),
+      },
+    });
+    const html = await response.text();
+    return { response, html };
+  }
+
+  function initFragmentSwaps() {
+    document.addEventListener("click", (event) => {
+      const removeTrigger = event.target instanceof Element
+        ? event.target.closest("[data-fragment-remove-closest]")
+        : null;
+      if (removeTrigger instanceof HTMLElement) {
+        event.preventDefault();
+        const target = removeTrigger.closest(removeTrigger.dataset.fragmentRemoveClosest || "");
+        if (target instanceof HTMLElement) {
+          target.remove();
+        }
+        return;
+      }
+
+      const trigger = event.target instanceof Element ? event.target.closest("[data-fragment-url]") : null;
+      if (!(trigger instanceof HTMLElement)) {
+        return;
+      }
+      event.preventDefault();
+
+      const uniqueSelector = trigger.dataset.fragmentUnique || "";
+      if (uniqueSelector) {
+        const existing = document.querySelector(uniqueSelector);
+        if (existing instanceof HTMLElement) {
+          focusAutofocus(existing);
+          return;
+        }
+      }
+
+      const target = resolveFragmentTarget(trigger, trigger.dataset.fragmentTarget || "");
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const fetchUrl = trigger.dataset.fragmentUrl || trigger.getAttribute("href") || "";
+      if (!fetchUrl) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          const { html } = await fetchFragmentHtml(fetchUrl);
+          const swappedRoot = swapFragment(target, html, trigger.dataset.fragmentSwap || "outerHTML");
+          rehydrateContent(swappedRoot || document);
+        } catch (error) {
+          console.error(error);
+        }
+      })();
+    });
+
+    document.addEventListener(
+      "submit",
+      (event) => {
+        const form = event.target instanceof HTMLFormElement ? event.target : null;
+        if (!form || !form.matches("[data-fragment-form]")) {
+          return;
+        }
+        event.preventDefault();
+        const target = resolveFragmentTarget(form, form.dataset.fragmentTarget || "self");
+        if (!(target instanceof HTMLElement)) {
+          return;
+        }
+        void (async () => {
+          try {
+            const { html } = await fetchFragmentHtml(form.action, {
+              method: (form.method || "post").toUpperCase(),
+              body: new window.FormData(form),
+            });
+            const swappedRoot = swapFragment(target, html, form.dataset.fragmentSwap || "outerHTML");
+            rehydrateContent(swappedRoot || document);
+          } catch (error) {
+            console.error(error);
+          }
+        })();
+      },
+      true,
+    );
+  }
+
+  function initCollectionOverflowToggles(root = document) {
+    const clusters = [];
+    if (root instanceof HTMLElement && root.matches("[data-collection-cluster]")) {
+      clusters.push(root);
+    }
+    if (root instanceof Document || root instanceof HTMLElement) {
+      clusters.push(...root.querySelectorAll("[data-collection-cluster]"));
+    }
     if (!clusters.length) {
       return;
     }
@@ -190,6 +364,10 @@
       if (!(cluster instanceof HTMLElement)) {
         return;
       }
+      if (cluster.dataset.collectionOverflowReady === "true") {
+        return;
+      }
+      cluster.dataset.collectionOverflowReady = "true";
       const preview = cluster.querySelector("[data-collection-preview]");
       const expandButton = cluster.querySelector("[data-collection-expand]");
       const collapseButton = cluster.querySelector("[data-collection-collapse]");
@@ -338,8 +516,16 @@
     }
 
     const contentNode = modalRoot.querySelector("[data-panel-modal-content]");
+    const panelCache = new Map();
+    const panelInflight = new Map();
     let previousFocus = null;
     let restoreUrl = "";
+    let openRequestToken = 0;
+
+    function clearPanelCache() {
+      panelCache.clear();
+      panelInflight.clear();
+    }
 
     function dashboardUrlWithoutPanelParams() {
       const url = new URL(window.location.href);
@@ -351,7 +537,43 @@
     }
 
     function hydratePanelContent(root) {
-      initBookingForms(root);
+      rehydrateContent(root);
+    }
+
+    async function fetchPanelPayload(fetchUrl, { allowCache = true } = {}) {
+      if (!fetchUrl) {
+        throw new Error("Panel URL is required.");
+      }
+      if (allowCache && panelCache.has(fetchUrl)) {
+        return panelCache.get(fetchUrl);
+      }
+      if (allowCache && panelInflight.has(fetchUrl)) {
+        return panelInflight.get(fetchUrl);
+      }
+      const request = fetchFragmentHtml(fetchUrl).then(({ response, html }) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load panel ${fetchUrl}`);
+        }
+        const payload = {
+          html,
+          historyUrl: response.headers.get("X-Panel-History-Url") || "",
+        };
+        panelCache.set(fetchUrl, payload);
+        panelInflight.delete(fetchUrl);
+        return payload;
+      }).catch((error) => {
+        panelInflight.delete(fetchUrl);
+        throw error;
+      });
+      panelInflight.set(fetchUrl, request);
+      return request;
+    }
+
+    function prefetchPanel(fetchUrl) {
+      if (!fetchUrl || panelCache.has(fetchUrl) || panelInflight.has(fetchUrl)) {
+        return;
+      }
+      void fetchPanelPayload(fetchUrl).catch(() => {});
     }
 
     function closeModal() {
@@ -375,25 +597,35 @@
         return;
       }
 
+      const requestToken = ++openRequestToken;
       previousFocus = document.activeElement;
       restoreUrl = dashboardUrlWithoutPanelParams();
       modalRoot.hidden = false;
       document.body.classList.add("has-modal-open");
+      const cachedPayload = panelCache.get(fetchUrl);
+      if (cachedPayload) {
+        contentNode.innerHTML = cachedPayload.html;
+        if (!preserveHistory) {
+          window.history.replaceState({}, "", historyUrl || cachedPayload.historyUrl || fetchUrl);
+        }
+        hydratePanelContent(contentNode);
+        return;
+      }
+
       contentNode.innerHTML = '<div class="panel-modal-loading">Loading…</div>';
       if (!preserveHistory && historyUrl) {
         window.history.replaceState({}, "", historyUrl);
       }
 
       try {
-        const response = await window.fetch(fetchUrl, {
-          headers: {
-            "X-Requested-With": "fetch",
-          },
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to load panel ${fetchUrl}`);
+        const payload = await fetchPanelPayload(fetchUrl);
+        if (requestToken !== openRequestToken) {
+          return;
         }
-        contentNode.innerHTML = await response.text();
+        contentNode.innerHTML = payload.html;
+        if (!preserveHistory && !historyUrl && payload.historyUrl) {
+          window.history.replaceState({}, "", payload.historyUrl);
+        }
         hydratePanelContent(contentNode);
       } catch (error) {
         console.error(error);
@@ -405,15 +637,13 @@
       if (!(contentNode instanceof HTMLElement)) {
         return;
       }
-      const response = await window.fetch(form.action, {
+      clearPanelCache();
+      const { response, html } = await fetchFragmentHtml(form.action, {
         method: (form.method || "post").toUpperCase(),
-        headers: {
-          "X-Requested-With": "fetch",
-        },
         body: new window.FormData(form),
       });
       const nextHistoryUrl = response.headers.get("X-Panel-History-Url");
-      contentNode.innerHTML = await response.text();
+      contentNode.innerHTML = html;
       if (nextHistoryUrl) {
         window.history.replaceState({}, "", nextHistoryUrl);
       }
@@ -429,6 +659,22 @@
       const fetchUrl = trigger.dataset.panelModalUrl || "";
       const historyUrl = trigger.dataset.panelHistoryUrl || "";
       void openModal(fetchUrl, historyUrl);
+    });
+
+    document.addEventListener("mouseover", (event) => {
+      const trigger = event.target instanceof Element ? event.target.closest("[data-panel-modal-url]") : null;
+      if (!(trigger instanceof HTMLElement)) {
+        return;
+      }
+      prefetchPanel(trigger.dataset.panelModalUrl || "");
+    });
+
+    document.addEventListener("focusin", (event) => {
+      const trigger = event.target instanceof Element ? event.target.closest("[data-panel-modal-url]") : null;
+      if (!(trigger instanceof HTMLElement)) {
+        return;
+      }
+      prefetchPanel(trigger.dataset.panelModalUrl || "");
     });
 
     document.addEventListener(
@@ -483,6 +729,7 @@
 
   initToast();
   initConfirmModal();
+  initFragmentSwaps();
   initPanelModal();
   initCollectionOverflowToggles();
   initBookingForms();

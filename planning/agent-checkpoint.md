@@ -137,6 +137,7 @@ Known-good on this machine after the latest cleanup pass:
   - `/?panel=bookings&trip_instance_id={id}`
   - `/?panel=trackers&trip_instance_id={id}`
   - `/groups/{id}/edit`
+  - `/groups/new`
 
 ## Storage Hygiene Notes
 

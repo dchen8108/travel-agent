@@ -48,7 +48,6 @@ Suggested fields:
 
 - `trip_group_id`
 - `label`
-- `description` optional
 - `data_scope`
 - timestamps
 

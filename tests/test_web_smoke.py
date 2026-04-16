@@ -53,9 +53,9 @@ def test_core_pages_render(tmp_path: Path) -> None:
     new_booking_redirect = client.get("/bookings/new", follow_redirects=False)
     assert new_booking_redirect.status_code == 303
     assert "Start+from+a+trip+to+add+a+booking." in new_booking_redirect.headers["location"]
-    new_group_redirect = client.get("/groups/new", follow_redirects=False)
-    assert new_group_redirect.status_code == 303
-    assert new_group_redirect.headers["location"] == "/?create_group=1#dashboard-groups"
+    new_group_page = client.get("/groups/new")
+    assert new_group_page.status_code == 200
+    assert 'id="collection-new-editor"' in new_group_page.text
     trackers_redirect = client.get("/trackers", follow_redirects=False)
     assert trackers_redirect.status_code == 303
     assert trackers_redirect.headers["location"] == "/#all-travel"
@@ -547,6 +547,67 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     assert "Work Trips" in detail.text
     assert "Edit collection" in detail.text
     assert "Create trip" in detail.text
+
+
+def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+    repository = Repository(settings)
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+    other_group = save_trip_group(repository, trip_group_id=None, label="Family")
+
+    create_editor = client.get("/groups/new/inline-editor")
+    assert create_editor.status_code == 200
+    assert 'id="collection-new-editor"' in create_editor.text
+    assert 'name="label"' in create_editor.text
+
+    edit_editor = client.get(f"/groups/{group.trip_group_id}/inline-editor")
+    assert edit_editor.status_code == 200
+    assert 'value="Commute"' in edit_editor.text
+    assert f"/groups/{group.trip_group_id}/card" in edit_editor.text
+
+    duplicate = client.post(
+        "/groups",
+        data={
+            "trip_group_id": "",
+            "label": "Commute",
+            "cancel_url": "/#dashboard-groups",
+        },
+        headers={"X-Requested-With": "fetch"},
+    )
+    assert duplicate.status_code == 400
+    assert "Group names must be unique." in duplicate.text
+
+    edit_duplicate = client.post(
+        "/groups",
+        data={
+            "trip_group_id": other_group.trip_group_id,
+            "label": "Commute",
+            "cancel_url": f"/#group-{other_group.trip_group_id}",
+        },
+        headers={"X-Requested-With": "fetch"},
+    )
+    assert edit_duplicate.status_code == 400
+    assert "Group names must be unique." in edit_duplicate.text
+    assert f'value="Commute"' in edit_duplicate.text
+
+    create = client.post(
+        "/groups",
+        data={
+            "trip_group_id": "",
+            "label": "Errands",
+            "cancel_url": "/#dashboard-groups",
+        },
+        headers={"X-Requested-With": "fetch"},
+    )
+    assert create.status_code == 200
+    assert "Errands" in create.text
+    assert "Create trip" in create.text
 
 
 def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
