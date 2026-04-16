@@ -10,6 +10,7 @@ from app.services.itinerary_display import (
     fetch_target_route_label,
     format_departure_time_label,
     format_departure_window_label,
+    format_refresh_timestamp_label,
     route_option_display_label,
     tracker_best_fetch_target,
 )
@@ -128,6 +129,15 @@ def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str
 
     trackers = trackers_for_instance(snapshot, trip_instance_id)
     total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)
+    oldest_tracker_refresh_at = min(
+        (
+            target.last_fetch_finished_at
+            for tracker in trackers
+            for target in fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+            if target.last_fetch_finished_at is not None
+        ),
+        default=None,
+    )
     tracker_rows = [
         row
         for tracker in trackers
@@ -150,6 +160,11 @@ def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str
         "trip_groups": trip_groups,
         "tracker_rows": tracker_rows,
         "total_fetch_targets": total_fetch_targets,
+        "tracker_refresh_footer_label": (
+            f"Oldest refresh · {format_refresh_timestamp_label(oldest_tracker_refresh_at)}"
+            if oldest_tracker_refresh_at is not None
+            else ""
+        ),
         "bookings": bookings,
         "booking_views": booking_views,
     }

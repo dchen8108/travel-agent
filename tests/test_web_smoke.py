@@ -2635,6 +2635,7 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     assert "BUR → SFO" in trackers_page.text
     assert "LAX → SFO" in trackers_page.text
     assert "https://www.google.com/travel/flights" in trackers_page.text
+    assert "Oldest refresh" not in trackers_page.text
     assert "Search details" not in trackers_page.text
 
 
@@ -2671,6 +2672,7 @@ def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -
     trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
 
     assert "Checking" in trackers_page.text
+    assert "Oldest refresh" in trackers_page.text
     assert "Search details" not in trackers_page.text
 
 

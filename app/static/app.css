@@ -3021,6 +3021,15 @@ button.collection-trip-pill[hidden] {
   overflow: hidden;
 }
 
+.detail-modal-footnote {
+  margin: 2px 4px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: right;
+}
+
 .booking-panel-form {
   padding: 20px 22px;
 }

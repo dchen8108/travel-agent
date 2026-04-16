@@ -13,6 +13,9 @@
       {% include "partials/tracker_modal_row.html" %}
     {% endfor %}
   </div>
+  {% if tracker_refresh_footer_label %}
+  <p class="detail-modal-footnote">{{ tracker_refresh_footer_label }}</p>
+  {% endif %}
   {% else %}
   <article class="compact-empty-state">
     <strong>No trackers yet.</strong>

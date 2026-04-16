@@ -5,6 +5,7 @@ import re
 
 from app.catalog import airline_display
 from app.models.booking import Booking
+from app.models.base import utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 
@@ -44,6 +45,17 @@ def format_departure_window_label(start_time: str, end_time: str) -> str:
     if end_label:
         return f"Until {end_label}"
     return "Time window"
+
+
+def format_refresh_timestamp_label(value: datetime, *, now: datetime | None = None) -> str:
+    local_value = value.astimezone()
+    current = now.astimezone() if now is not None else utcnow()
+    time_label = format_departure_time_label(local_value.strftime("%H:%M"))
+    if local_value.date() == current.date():
+        return time_label
+    if local_value.year == current.year:
+        return f"{local_value.strftime('%b')} {local_value.day} · {time_label}"
+    return f"{local_value.strftime('%b')} {local_value.day}, {local_value.year} · {time_label}"
 
 
 def travel_day_delta_label(anchor_date: date, travel_date: date | None) -> str:
