@@ -10,4 +10,5 @@ __pycache__/
 data/
 legacy/
 *.lock
+!frontend/package-lock.json
 config/local/

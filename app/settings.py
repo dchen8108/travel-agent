@@ -14,6 +14,8 @@ class Settings(BaseModel):
     config_dir: Path = project_root / "config"
     templates_dir: Path = project_root / "app" / "templates"
     static_dir: Path = project_root / "app" / "static"
+    frontend_dir: Path = project_root / "frontend"
+    frontend_dist_dir: Path = frontend_dir / "dist"
 
     @property
     def config_local_dir(self) -> Path:

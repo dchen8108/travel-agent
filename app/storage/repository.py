@@ -4,10 +4,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 import sqlite3
+from threading import RLock
 from typing import Any, Iterator
 
 from app.models.base import AppState
 from app.settings import Settings
+from app.storage.json_store import save_json_model
 from app.storage.repositories import (
     AppStateRepositoryMixin,
     BookingsRepositoryMixin,
@@ -25,6 +27,10 @@ from app.storage.sqlite_store import (
     replace_rows,
     upsert_rows,
 )
+
+
+_initialized_db_paths: dict[Path, int] = {}
+_initialized_db_paths_lock = RLock()
 
 
 @dataclass
@@ -53,19 +59,20 @@ class Repository(
             return
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.config_dir.mkdir(parents=True, exist_ok=True)
-        connection = connect(self.db_path)
-        try:
-            initialize_schema(connection)
-        finally:
-            connection.close()
-
-        self._initialized = True
-        try:
+        with _initialized_db_paths_lock:
+            current_db_mtime_ns = self.db_path.stat().st_mtime_ns if self.db_path.exists() else -1
+            if _initialized_db_paths.get(self.db_path) != current_db_mtime_ns:
+                connection = connect(self.db_path)
+                try:
+                    initialize_schema(connection)
+                finally:
+                    connection.close()
+                _initialized_db_paths[self.db_path] = (
+                    self.db_path.stat().st_mtime_ns if self.db_path.exists() else current_db_mtime_ns
+                )
             if not self.app_state_path.exists():
-                self.save_app_state(AppState())
-        except Exception:
-            self._initialized = False
-            raise
+                save_json_model(self.app_state_path, AppState())
+        self._initialized = True
 
     @contextmanager
     def transaction(self) -> Iterator[Repository]:
