@@ -156,30 +156,35 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
         f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}&trip_label=Conference%20Arrival"
     )
     assert form_page.status_code == 200
-    assert "Starting from Booking ZZZ999." in form_page.text
-    assert 'name="source_unmatched_booking_id" value="' + unmatched.unmatched_booking_id + '"' in form_page.text
-    assert 'name="label" value="Conference Arrival"' in form_page.text
-    assert '"origin_airports": ["LAX"]' in form_page.text
-    assert '"destination_airports": ["SEA"]' in form_page.text
+    assert '<div id="root"></div>' in form_page.text
+
+    form_payload = client.get(
+        "/api/trips/new-form",
+        params={
+            "unmatched_booking_id": unmatched.unmatched_booking_id,
+            "trip_label": "Conference Arrival",
+        },
+    )
+    assert form_payload.status_code == 200
+    payload = form_payload.json()
+    assert payload["sourceBooking"]["referenceLabel"] == "Booking ZZZ999"
+    assert payload["values"]["label"] == "Conference Arrival"
+    assert payload["routeOptions"][0]["originAirports"] == ["LAX"]
+    assert payload["routeOptions"][0]["destinationAirports"] == ["SEA"]
 
     save = client.post(
-        "/trips",
-        data={
-            "label": "Conference Arrival",
-            "trip_kind": "one_time",
-            "source_unmatched_booking_id": unmatched.unmatched_booking_id,
-            "anchor_date": "2026-05-10",
-            "anchor_weekday": "",
-            "preference_mode": "equal",
-            "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"00:00","end_time":"02:30"}]',
+        "/api/trips/editor",
+        json={
+            **payload["values"],
+            "routeOptions": payload["routeOptions"],
+            "sourceUnmatchedBookingId": unmatched.unmatched_booking_id,
         },
-        follow_redirects=False,
     )
-    assert save.status_code == 303
+    assert save.status_code == 200
     trip = _trip_by_label(repository, "Conference Arrival")
     trip_instance_id = _trip_instance_id_for_trip(repository, trip.trip_id)
-    assert "panel=bookings" in save.headers["location"]
-    assert f"trip_instance_id={trip_instance_id}" in save.headers["location"]
+    assert "panel=bookings" in save.json()["redirectTo"]
+    assert f"trip_instance_id={trip_instance_id}" in save.json()["redirectTo"]
 
     stored_booking = next(item for item in repository.load_bookings() if item.record_locator == "ZZZ999")
     assert stored_booking.route_option_id != ""
@@ -219,9 +224,16 @@ def test_unmatched_booking_ui_does_not_fall_back_to_internal_ids(tmp_path: Path)
 
     form_page = client.get(f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}")
     assert form_page.status_code == 200
-    assert "Starting from Imported booking." in form_page.text
-    assert 'name="label" value="SFO to BUR"' in form_page.text
-    assert f"Starting from booking {unmatched.unmatched_booking_id}." not in form_page.text
+    assert '<div id="root"></div>' in form_page.text
+    form_payload = client.get(
+        "/api/trips/new-form",
+        params={"unmatched_booking_id": unmatched.unmatched_booking_id},
+    )
+    assert form_payload.status_code == 200
+    payload = form_payload.json()
+    assert payload["sourceBooking"]["referenceLabel"] == "Imported booking"
+    assert payload["values"]["label"] == "SFO to BUR"
+    assert f"booking {unmatched.unmatched_booking_id}" not in json.dumps(payload).lower()
 
 
 def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
@@ -329,8 +341,9 @@ def test_trip_form_collection_picker_uses_field_wrapper_not_label(tmp_path: Path
     trip_page = client.get("/trips/new")
 
     assert trip_page.status_code == 200
-    assert 'class="field"' in trip_page.text
-    assert "<label>\n        <span data-trip-group-label>" not in trip_page.text
+    assert '<div id="root"></div>' in trip_page.text
+    assert '"tripGroups":[' in trip_page.text
+    assert "data-trip-group-label" not in trip_page.text
 
 
 def test_trip_create_rejects_invalid_collection_picker_payload(tmp_path: Path) -> None:
@@ -600,7 +613,12 @@ def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
     )
     assert edit_duplicate.status_code == 400
     assert "Group names must be unique." in edit_duplicate.text
-    assert f'value="Commute"' in edit_duplicate.text
+    reloaded_other_group = next(
+        item
+        for item in Repository(settings).load_trip_groups()
+        if item.trip_group_id == other_group.trip_group_id
+    )
+    assert reloaded_other_group.label == "Family"
 
     create = client.post(
         "/groups",
@@ -610,10 +628,15 @@ def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
             "cancel_url": "/#dashboard-groups",
         },
         headers={"X-Requested-With": "fetch"},
+        follow_redirects=False,
     )
-    assert create.status_code == 200
-    assert "Errands" in create.text
-    assert "Create trip" in create.text
+    assert create.status_code == 303
+    created_group = next(
+        item
+        for item in Repository(settings).load_trip_groups()
+        if item.label == "Errands"
+    )
+    assert create.headers["location"] == f"/?message=Trip+group+saved#group-{created_group.trip_group_id}"
 
 
 def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
@@ -1159,8 +1182,11 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
 
     edit_page = client.get(f"/trips/{trip.trip_id}/edit")
     assert edit_page.status_code == 200
-    assert '"preference_mode": "ranked_bias"' in edit_page.text
-    assert '"savings_needed_vs_previous": 50' in edit_page.text
+    assert '<div id="root"></div>' in edit_page.text
+
+    form_payload = client.get(f"/api/trips/{trip.trip_id}/edit-form").json()
+    assert form_payload["values"]["preferenceMode"] == "ranked_bias"
+    assert form_payload["routeOptions"][1]["savingsNeededVsPrevious"] == 50
 
 
 def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
@@ -1196,12 +1222,16 @@ def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
     assert route_option.fare_class_policy == "exclude_basic"
     assert tracker.fare_class_policy == "exclude_basic"
 
-    edit_page = client.get(f"/trips/{repository.load_trips()[0].trip_id}/edit")
+    trip = repository.load_trips()[0]
+    edit_page = client.get(f"/trips/{trip.trip_id}/edit")
     assert edit_page.status_code == 200
-    assert '"fare_class_policy": "exclude_basic"' in edit_page.text
+    assert '<div id="root"></div>' in edit_page.text
+
+    form_payload = client.get(f"/api/trips/{trip.trip_id}/edit-form").json()
+    assert form_payload["routeOptions"][0]["fareClassPolicy"] == "exclude_basic"
 
 
-def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> None:
+def test_edit_trip_validation_error_returns_plain_error_and_preserves_trip(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1251,10 +1281,10 @@ def test_edit_trip_validation_error_preserves_edit_context(tmp_path: Path) -> No
     )
 
     assert response.status_code == 400
-    assert "Trip not saved." in response.text
     assert "This Trip Label is already used by a recurring trip." in response.text
-    assert "Conflict Trip" in response.text
-    assert f'name=\"trip_id\" value=\"{trip_id}\"' in response.text
+    trip = _trip_by_label(Repository(settings), "Original Trip")
+    assert trip.trip_id == trip_id
+    assert trip.label == "Original Trip"
 
 
 def test_editing_detached_trip_anchor_date_updates_same_instance(tmp_path: Path) -> None:
@@ -2129,11 +2159,13 @@ def test_weekly_trip_edit_page_warns_about_linked_trips_and_locks_trip_type(tmp_
 
     edit_page = client.get(f"/trips/{trip_id}/edit")
     assert edit_page.status_code == 200
-    assert "Editing this recurring trip will affect" in edit_page.text
-    assert "detach that trip first" in edit_page.text
-    assert 'name="trip_kind" value="weekly"' in edit_page.text
-    assert "Trip type is fixed after creation." in edit_page.text
-    assert 'input type="radio" name="trip_kind"' not in edit_page.text
+    assert '<div id="root"></div>' in edit_page.text
+    form_payload = client.get(f"/api/trips/{trip_id}/edit-form")
+    assert form_payload.status_code == 200
+    payload = form_payload.json()
+    assert payload["recurringEditWarning"]["linkedTripCount"] >= 1
+    assert payload["values"]["tripKind"] == "weekly"
+    assert payload["values"]["label"] == "Protected Weekly Trip"
 
 
 def test_trip_instance_detail_links_attached_generated_trip_to_recurring_edit(tmp_path: Path) -> None:

@@ -2,6 +2,9 @@ import type {
   BookingPanelPayload,
   CollectionCard,
   DashboardPayload,
+  TripEditorPayload,
+  TripEditorRouteOption,
+  TripEditorValues,
   TrackerPanelPayload,
 } from "../types";
 
@@ -97,5 +100,38 @@ export const api = {
   },
   trackerPanel(tripInstanceId: string): Promise<TrackerPanelPayload> {
     return request<TrackerPanelPayload>(`/api/trip-instances/${tripInstanceId}/trackers`);
+  },
+  tripEditorNew(params: URLSearchParams): Promise<TripEditorPayload> {
+    const query = params.toString();
+    return request<TripEditorPayload>(`/api/trips/new-form${query ? `?${query}` : ""}`);
+  },
+  tripEditorEdit(tripId: string, params: URLSearchParams): Promise<TripEditorPayload> {
+    const query = params.toString();
+    return request<TripEditorPayload>(`/api/trips/${tripId}/edit-form${query ? `?${query}` : ""}`);
+  },
+  createTrip(values: TripEditorValues, routeOptions: TripEditorRouteOption[], sourceUnmatchedBookingId: string): Promise<{ message: string; redirectTo: string }> {
+    return request<{ message: string; redirectTo: string }>("/api/trips/editor", {
+      method: "POST",
+      body: JSON.stringify({
+        ...values,
+        routeOptions,
+        sourceUnmatchedBookingId,
+      }),
+    });
+  },
+  updateTrip(tripId: string, values: TripEditorValues, routeOptions: TripEditorRouteOption[], sourceUnmatchedBookingId: string): Promise<{ message: string; redirectTo: string }> {
+    return request<{ message: string; redirectTo: string }>(`/api/trips/${tripId}/editor`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...values,
+        routeOptions,
+        sourceUnmatchedBookingId,
+      }),
+    });
+  },
+  detachTripInstance(tripInstanceId: string): Promise<{ message: string; redirectTo: string }> {
+    return request<{ message: string; redirectTo: string }>(`/api/trip-instances/${tripInstanceId}/detach`, {
+      method: "POST",
+    });
   },
 };

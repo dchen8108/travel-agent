@@ -28,6 +28,7 @@ from app.services.snapshot_queries import (
     trip_group_by_id,
     trip_instance_by_id,
 )
+from app.services.trip_editor import edit_trip_form_payload, new_trip_form_payload
 
 
 def _date_tile_value(value: date) -> dict[str, str]:
@@ -376,4 +377,46 @@ def tracker_panel_payload(snapshot, *, trip_instance_id: str) -> dict[str, objec
         ],
         "lastRefreshLabel": detail["tracker_refresh_footer_label"],
         "tripAnchorDate": trip_instance.anchor_date.isoformat(),
+    }
+
+
+def trip_editor_payload_for_new(
+    snapshot,
+    *,
+    trip_kind: str,
+    trip_group_id: str,
+    unmatched_booking_id: str,
+    trip_label: str,
+) -> dict[str, object]:
+    payload = new_trip_form_payload(
+        snapshot,
+        trip_kind=trip_kind,
+        trip_group_id=trip_group_id,
+        unmatched_booking_id=unmatched_booking_id,
+        trip_label=trip_label,
+    )
+    return {
+        **payload,
+        "tripGroups": [
+            {"value": group.trip_group_id, "label": group.label}
+            for group in trip_groups(snapshot)
+        ],
+        "catalogs": json.loads(catalogs_json()),
+    }
+
+
+def trip_editor_payload_for_edit(
+    snapshot,
+    *,
+    trip_id: str,
+    trip_instance_id: str = "",
+) -> dict[str, object]:
+    payload = edit_trip_form_payload(snapshot, trip_id, trip_instance_id=trip_instance_id)
+    return {
+        **payload,
+        "tripGroups": [
+            {"value": group.trip_group_id, "label": group.label}
+            for group in trip_groups(snapshot)
+        ],
+        "catalogs": json.loads(catalogs_json()),
     }

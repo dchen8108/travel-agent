@@ -3,13 +3,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from app.routes.api import booking_panel_api, dashboard_api, tracker_panel_api
+from app.services.dashboard_snapshot import load_persisted_snapshot
+from app.services.frontend_api import (
+    booking_panel_payload,
+    dashboard_payload,
+    tracker_panel_payload,
+    trip_editor_payload_for_edit,
+    trip_editor_payload_for_new,
+)
+from app.settings import Settings, get_settings
 from app.storage.repository import Repository
 from app.web import get_repository
-from app.settings import Settings, get_settings
 
 router = APIRouter(tags=["spa"])
 
@@ -37,6 +46,8 @@ def _dashboard_query_string(*, trip_group_ids: list[str], include_booked: bool) 
 @router.get("/", include_in_schema=False)
 @router.get("/app", include_in_schema=False)
 @router.get("/app/{path:path}", include_in_schema=False)
+@router.get("/trips/new", include_in_schema=False)
+@router.get("/trips/{trip_id}/edit", include_in_schema=False)
 def app_shell(
     request: Request,
     settings: Settings = Depends(get_settings),
@@ -55,21 +66,32 @@ def app_shell(
             """,
             status_code=503,
         )
+    request_path = request.url.path.rstrip("/") or "/"
+    normalized_path = (
+        request_path.removeprefix("/app")
+        if request_path == "/app" or request_path.startswith("/app/")
+        else request_path
+    ) or "/"
     trip_group_ids = request.query_params.getlist("trip_group_id")
     include_booked = request.query_params.get("include_booked", "true").lower() != "false"
-    bootstrap_payload: dict[str, object] = {
-        "dashboard": {
-            "query": _dashboard_query_string(
-                trip_group_ids=trip_group_ids,
-                include_booked=include_booked,
-            ),
-            "data": dashboard_api(
-                trip_group_id=trip_group_ids or None,
-                include_booked=include_booked,
-                repository=repository,
-            ),
-        }
-    }
+    snapshot = load_persisted_snapshot(repository)
+    bootstrap_payload: dict[str, object] = {}
+    is_trip_editor_path = normalized_path == "/trips/new" or (
+        normalized_path.startswith("/trips/") and normalized_path.endswith("/edit")
+    )
+    if not is_trip_editor_path:
+            bootstrap_payload["dashboard"] = {
+                "query": _dashboard_query_string(
+                    trip_group_ids=trip_group_ids,
+                    include_booked=include_booked,
+                ),
+                "data": dashboard_payload(
+                    snapshot,
+                    today=date.today(),
+                    selected_trip_group_ids=trip_group_ids,
+                    include_booked=include_booked,
+                ),
+            }
     panel = request.query_params.get("panel", "")
     trip_instance_id = request.query_params.get("trip_instance_id", "").strip()
     if panel == "bookings" and trip_instance_id:
@@ -80,11 +102,11 @@ def app_shell(
                 "tripInstanceId": trip_instance_id,
                 "mode": mode,
                 "bookingId": booking_id,
-                "data": booking_panel_api(
+                "data": booking_panel_payload(
+                    snapshot,
                     trip_instance_id=trip_instance_id,
                     mode=mode,
                     booking_id=booking_id,
-                    repository=repository,
                 ),
             }
         except HTTPException:
@@ -93,12 +115,44 @@ def app_shell(
         try:
             bootstrap_payload["trackerPanel"] = {
                 "tripInstanceId": trip_instance_id,
-                "data": tracker_panel_api(
-                    trip_instance_id=trip_instance_id,
-                    repository=repository,
+                "data": tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id),
+            }
+        except HTTPException:
+            pass
+    if normalized_path == "/trips/new":
+        try:
+            bootstrap_payload["tripEditor"] = {
+                "mode": "create",
+                "tripId": "",
+                "query": request.url.query,
+                "data": trip_editor_payload_for_new(
+                    snapshot,
+                    trip_kind=request.query_params.get("trip_kind", "one_time"),
+                    trip_group_id=request.query_params.get("trip_group_id", ""),
+                    unmatched_booking_id=request.query_params.get("unmatched_booking_id", ""),
+                    trip_label=request.query_params.get("trip_label", ""),
                 ),
             }
         except HTTPException:
+            pass
+        except KeyError:
+            pass
+    elif normalized_path.startswith("/trips/") and normalized_path.endswith("/edit"):
+        trip_id = normalized_path.split("/")[2]
+        try:
+            bootstrap_payload["tripEditor"] = {
+                "mode": "edit",
+                "tripId": trip_id,
+                "query": request.url.query,
+                "data": trip_editor_payload_for_edit(
+                    snapshot,
+                    trip_id=trip_id,
+                    trip_instance_id=request.query_params.get("trip_instance_id", ""),
+                ),
+            }
+        except HTTPException:
+            pass
+        except KeyError:
             pass
     response = HTMLResponse(_inject_bootstrap(index_path.read_text(encoding="utf-8"), bootstrap_payload))
     response.headers["Cache-Control"] = "no-store"

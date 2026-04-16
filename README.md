@@ -71,7 +71,7 @@ Frontend stack:
 
 - the React/Vite dashboard is now the primary app at `/`
 - `/app` remains as a compatibility entry to the same SPA
-- trip create/edit pages still stay on the FastAPI-rendered path
+- trip create/edit now also render through the SPA shell at `/trips/new` and `/trips/{id}/edit`
 
 To work on the frontend locally:
 
@@ -81,7 +81,7 @@ npm install
 npm run dev
 ```
 
-That starts the Vite dev server and proxies API and edit-page requests back to the FastAPI app. For a production-style local build, run:
+That starts the Vite dev server and proxies API requests back to the FastAPI app. For a production-style local build, run:
 
 ```bash
 npm --prefix frontend run build

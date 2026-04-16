@@ -174,4 +174,60 @@ export interface FrontendBootstrap {
     tripInstanceId: string;
     data: TrackerPanelPayload;
   };
+  tripEditor?: {
+    mode: "create" | "edit";
+    tripId: string;
+    query: string;
+    data: TripEditorPayload;
+  };
+}
+
+export interface TripEditorValues {
+  tripId: string;
+  label: string;
+  tripKind: "one_time" | "weekly";
+  tripGroupIds: string[];
+  preferenceMode: "equal" | "ranked_bias";
+  anchorDate: string;
+  anchorWeekday: string;
+  dataScope: string;
+}
+
+export interface TripEditorRouteOption {
+  routeOptionId: string;
+  savingsNeededVsPrevious: number;
+  originAirports: string[];
+  destinationAirports: string[];
+  airlines: string[];
+  dayOffset: number;
+  startTime: string;
+  endTime: string;
+  fareClassPolicy: "include_basic" | "exclude_basic";
+}
+
+export interface TripEditorPayload {
+  mode: "create" | "edit";
+  values: TripEditorValues;
+  routeOptions: TripEditorRouteOption[];
+  sourceBooking: null | {
+    unmatchedBookingId: string;
+    referenceLabel: string;
+    routeLabel: string;
+    departureDate: string;
+    departureTime: string;
+    arrivalTime: string;
+    airlineLabel: string;
+  };
+  recurringEditWarning: null | {
+    linkedTripCount: number;
+    linkedTripLabel: string;
+    detachableTripInstanceId: string;
+  };
+  tripGroups: Array<{ value: string; label: string }>;
+  catalogs: {
+    airports: Array<{ value: string; label: string; keywords: string }>;
+    airlines: Array<{ value: string; label: string; keywords: string }>;
+    weekdays: string[];
+    tripKinds: Array<{ value: string; label: string }>;
+  };
 }

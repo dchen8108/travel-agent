@@ -20,10 +20,16 @@ from app.services.frontend_api import (
     booking_panel_payload,
     collection_card_value,
     dashboard_payload,
+    trip_editor_payload_for_edit,
+    trip_editor_payload_for_new,
     tracker_panel_payload,
 )
 from app.services.groups import delete_trip_group, save_trip_group
 from app.services.trip_instances import delete_generated_trip_instance
+from app.services.trip_instances import detach_generated_trip_instance
+from app.services.refresh_queue import queue_refresh_for_trip_instance, queued_refresh_message
+from app.services.data_scope import include_test_data_for_processing
+from app.services.trip_editor import TripSaveInput, route_option_payloads, save_trip_workflow
 from app.services.trips import delete_trip, set_trip_active
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -57,6 +63,18 @@ class UnmatchedBookingLinkBody(BaseModel):
     tripInstanceId: str
 
 
+class TripEditorBody(BaseModel):
+    label: str
+    tripKind: str
+    tripGroupIds: list[str] = []
+    preferenceMode: str = "equal"
+    anchorDate: str = ""
+    anchorWeekday: str = ""
+    routeOptions: list[dict[str, object]] = []
+    dataScope: str = DataScope.LIVE
+    sourceUnmatchedBookingId: str = ""
+
+
 def _booking_candidate(body: BookingBody) -> BookingCandidate:
     if not body.airline.strip():
         raise HTTPException(status_code=400, detail="Choose an airline.")
@@ -86,6 +104,25 @@ def _booking_candidate(body: BookingBody) -> BookingCandidate:
     )
 
 
+def _trip_save_input(body: TripEditorBody, *, trip_id: str | None = None) -> TripSaveInput:
+    try:
+        anchor_date = date.fromisoformat(body.anchorDate) if body.anchorDate else None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Choose a valid travel date.") from exc
+    return TripSaveInput(
+        trip_id=trip_id,
+        label=body.label.strip(),
+        trip_kind=body.tripKind.strip() or "one_time",
+        trip_group_ids=body.tripGroupIds,
+        preference_mode=body.preferenceMode.strip() or "equal",
+        anchor_date=anchor_date,
+        anchor_weekday=body.anchorWeekday.strip(),
+        route_options=route_option_payloads(body.routeOptions),
+        data_scope=body.dataScope.strip() or DataScope.LIVE,
+        source_unmatched_booking_id=body.sourceUnmatchedBookingId.strip(),
+    )
+
+
 @router.get("/dashboard")
 def dashboard_api(
     trip_group_id: list[str] | None = Query(default=None),
@@ -99,6 +136,75 @@ def dashboard_api(
         selected_trip_group_ids=trip_group_id,
         include_booked=include_booked,
     )
+
+
+@router.get("/trips/new-form")
+def trip_editor_new_api(
+    trip_kind: str = "one_time",
+    trip_group_id: str = "",
+    unmatched_booking_id: str = "",
+    trip_label: str = "",
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    snapshot = load_persisted_snapshot(repository)
+    try:
+        return trip_editor_payload_for_new(
+            snapshot,
+            trip_kind=trip_kind,
+            trip_group_id=trip_group_id,
+            unmatched_booking_id=unmatched_booking_id,
+            trip_label=trip_label,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/trips/{trip_id}/edit-form")
+def trip_editor_edit_api(
+    trip_id: str,
+    trip_instance_id: str = "",
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    snapshot = load_persisted_snapshot(repository)
+    try:
+        return trip_editor_payload_for_edit(
+            snapshot,
+            trip_id=trip_id,
+            trip_instance_id=trip_instance_id,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/trips/editor")
+def create_trip_api(
+    body: TripEditorBody,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    try:
+        result = save_trip_workflow(repository, data=_trip_save_input(body))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "message": result.message,
+        "redirectTo": result.redirect_to,
+    }
+
+
+@router.patch("/trips/{trip_id}/editor")
+def update_trip_api(
+    trip_id: str,
+    body: TripEditorBody,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    try:
+        result = save_trip_workflow(repository, data=_trip_save_input(body, trip_id=trip_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "message": result.message,
+        "redirectTo": result.redirect_to,
+    }
 
 
 @router.get("/collections/{trip_group_id}")
@@ -198,6 +304,30 @@ def delete_trip_instance_api(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     sync_and_persist(repository)
     return Response(status_code=204)
+
+
+@router.post("/trip-instances/{trip_instance_id}/detach")
+def detach_trip_instance_api(
+    trip_instance_id: str,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    try:
+        trip_instance = detach_generated_trip_instance(repository, trip_instance_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    snapshot = sync_and_persist(repository)
+    queued_count = queue_refresh_for_trip_instance(
+        snapshot,
+        repository,
+        trip_instance_id=trip_instance.trip_instance_id,
+        include_test_data=include_test_data_for_processing(snapshot.app_state),
+    )
+    return {
+        "message": queued_refresh_message("Trip detached", queued_count),
+        "redirectTo": f"/trips/{trip_instance.trip_id}/edit",
+    }
 
 
 @router.get("/trip-instances/{trip_instance_id}/bookings")

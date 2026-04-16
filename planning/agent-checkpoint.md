@@ -48,8 +48,8 @@ Stack:
 
 - Python `3.12`
 - FastAPI
-- Jinja templates
-- vanilla JS
+- React + Vite + TypeScript SPA at `/`
+- legacy Jinja templates only for a shrinking compatibility surface
 - local SQLite storage
 
 Runtime storage/config:
@@ -60,13 +60,10 @@ Runtime storage/config:
 - local secrets, OAuth artifacts, and machine-specific overrides: `config/local/`
 - there is no remaining runtime bootstrap from SQLite `app_state`; JSON config is the only live app-config source now
 
-Frontend JS is split by concern:
+Frontend code is split across:
 
-- `app/static/app.js`
-- `app/static/pickers.js`
-- `app/static/trip_form.js`
-- `app/static/booking_form.js`
-- `app/static/scheduled_filters.js`
+- `frontend/src/` for the primary SPA
+- a small remaining Jinja compatibility surface under `app/routes/bookings.py` and `app/routes/trackers.py`
 
 ## Background Jobs
 
@@ -160,7 +157,8 @@ High-signal docs:
 Entrypoints:
 
 - [app/main.py](/Users/davidchen/code/travel-agent/app/main.py)
-- [app/routes/today.py](/Users/davidchen/code/travel-agent/app/routes/today.py)
+- [app/routes/spa.py](/Users/davidchen/code/travel-agent/app/routes/spa.py)
+- [app/routes/api.py](/Users/davidchen/code/travel-agent/app/routes/api.py)
 - [app/routes/bookings.py](/Users/davidchen/code/travel-agent/app/routes/bookings.py)
 - [app/routes/groups.py](/Users/davidchen/code/travel-agent/app/routes/groups.py)
 - [app/routes/trackers.py](/Users/davidchen/code/travel-agent/app/routes/trackers.py)
