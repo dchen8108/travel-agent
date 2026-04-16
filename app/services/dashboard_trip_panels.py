@@ -26,6 +26,7 @@ from app.services.snapshot_queries import (
     recurring_rule_for_instance,
     trip_for_instance,
 )
+from app.services.tracker_refresh_state import tracker_target_display_state
 
 
 @dataclass(frozen=True)
@@ -35,13 +36,14 @@ class TrackerSearchRowView:
     row: dict[str, object]
 
 
-def _tracker_target_row_view(trip_instance, tracker, target, *, is_best_target: bool) -> TrackerSearchRowView:
-    if target.latest_price is not None:
+def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_best_target: bool) -> TrackerSearchRowView:
+    display_state = tracker_target_display_state(target, snapshot.app_state)
+    if display_state == "priced":
         signal_tone = "accent" if is_best_target else "neutral"
         signal_is_status = False
         signal_status_kind = ""
-        headline = format_money(target.latest_price)
-    elif target.last_fetch_status in {"no_results", "no_window_match"}:
+        headline = format_money(target.latest_price or 0)
+    elif display_state == "unavailable":
         signal_tone = "neutral"
         signal_is_status = True
         signal_status_kind = "unavailable"
@@ -113,6 +115,7 @@ def tracker_search_rows(snapshot, trip_instance, tracker) -> list[TrackerSearchR
     )
     return [
         _tracker_target_row_view(
+            snapshot,
             trip_instance,
             tracker,
             target,

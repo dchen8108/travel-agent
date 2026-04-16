@@ -19,6 +19,7 @@ from app.services.scheduled_trip_state import (
     trackers_for_instance,
     trip_monitoring_status_label,
 )
+from app.services.tracker_refresh_state import tracker_has_fresh_price
 from app.services.snapshot_queries import (
     fetch_targets_for_tracker,
     group_for_instance,
@@ -122,7 +123,11 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
         display_tracker,
         fetch_targets_for_tracker(snapshot, display_tracker.tracker_id) if display_tracker is not None else [],
     )
-    current_price = tracker.latest_observed_price if tracker is not None else None
+    current_price = (
+        tracker.latest_observed_price
+        if tracker is not None and tracker_has_fresh_price(tracker, snapshot.app_state)
+        else None
+    )
 
     current_offer: dict[str, object] | None = None
     current_offer_price = ""

@@ -5,6 +5,7 @@ from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.money import format_money
 from app.services.recommendations import best_tracker_for_instance
+from app.services.tracker_refresh_state import tracker_has_fresh_price, tracker_target_display_state
 from app.services.snapshot_queries import (
     fetch_targets_for_tracker,
     route_option_by_id,
@@ -52,15 +53,24 @@ def trackers_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[
 
 
 def best_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None:
-    return best_tracker_for_instance(trackers_for_instance(snapshot, trip_instance_id))
+    fresh_trackers = [
+        tracker
+        for tracker in trackers_for_instance(snapshot, trip_instance_id)
+        if tracker_has_fresh_price(tracker, snapshot.app_state)
+    ]
+    return best_tracker_for_instance(fresh_trackers)
 
 
 def tracker_option_fetch_state(snapshot: AppSnapshot, tracker: Tracker) -> dict[str, object]:
     targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+    display_states = [
+        tracker_target_display_state(target, snapshot.app_state)
+        for target in targets
+    ]
     statuses = {target.last_fetch_status for target in targets}
-    has_live_price = tracker.latest_observed_price is not None
-    all_unavailable = bool(targets) and statuses.issubset(
-        {FetchTargetStatus.NO_RESULTS, FetchTargetStatus.NO_WINDOW_MATCH}
+    has_live_price = tracker_has_fresh_price(tracker, snapshot.app_state)
+    all_unavailable = bool(display_states) and all(
+        state == "unavailable" for state in display_states
     )
     return {
         "targets": targets,

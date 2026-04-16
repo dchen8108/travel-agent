@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 
 from app.models.base import AppState, utcnow
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip_instance import TripInstance
+from app.services.tracker_refresh_state import tracker_refresh_cutoff
 
 
 def apply_fetch_target_rollups(
@@ -17,8 +18,7 @@ def apply_fetch_target_rollups(
     app_state: AppState | None = None,
 ) -> list[Tracker]:
     state = app_state or AppState()
-    fresh_window = timedelta(hours=state.tracker_freshness_window_hours)
-    freshness_cutoff = utcnow() - fresh_window
+    freshness_cutoff = tracker_refresh_cutoff(state)
     by_tracker: dict[str, list[TrackerFetchTarget]] = defaultdict(list)
     for target in fetch_targets:
         if target.latest_price is None or target.latest_fetched_at is None:

@@ -2743,6 +2743,43 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
     assert "Search details" not in trackers_page.text
 
 
+def test_trip_trackers_page_hides_stale_target_prices(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Stale tracker price",
+            "trip_kind": "one_time",
+            "anchor_date": (date.today() + timedelta(days=7)).isoformat(),
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    repository = Repository(settings)
+    fetch_targets = repository.load_tracker_fetch_targets()
+    fetch_targets[0].latest_price = 123
+    fetch_targets[0].latest_fetched_at = utcnow() - timedelta(hours=80)
+    fetch_targets[0].last_fetch_status = FetchTargetStatus.SUCCESS
+    fetch_targets[0].last_fetch_finished_at = fetch_targets[0].latest_fetched_at
+    repository.replace_tracker_fetch_targets(fetch_targets)
+
+    trip_instance_id = _trip_instance_id_for_label(repository, "Stale tracker price")
+    trackers_page = client.get(f"/trip-instances/{trip_instance_id}/trackers-panel")
+
+    assert "$123" not in trackers_page.text
+    assert "timeline-offer-status-icon--pending" in trackers_page.text
+
+
 def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
