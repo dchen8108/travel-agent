@@ -17,6 +17,7 @@ from app.services.bookings import (
 )
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.frontend_api import (
+    booking_form_payload,
     booking_panel_payload,
     collection_card_value,
     dashboard_payload,
@@ -123,6 +124,20 @@ def _trip_save_input(body: TripEditorBody, *, trip_id: str | None = None) -> Tri
     )
 
 
+def _dashboard_view_payload(
+    snapshot,
+    *,
+    trip_group_ids: list[str] | None,
+    include_booked: bool,
+) -> dict[str, object]:
+    return dashboard_payload(
+        snapshot,
+        today=date.today(),
+        selected_trip_group_ids=trip_group_ids,
+        include_booked=include_booked,
+    )
+
+
 @router.get("/dashboard")
 def dashboard_api(
     trip_group_id: list[str] | None = Query(default=None),
@@ -219,6 +234,8 @@ def collection_api(
 @router.post("/collections")
 def create_collection_api(
     body: CollectionBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
@@ -229,15 +246,16 @@ def create_collection_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    snapshot = load_persisted_snapshot(repository)
-    return collection_card_value(snapshot, group.trip_group_id, today=date.today())
+    snapshot = sync_and_persist(repository)
+    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
 @router.patch("/collections/{trip_group_id}")
 def update_collection_api(
     trip_group_id: str,
     body: CollectionBody,
+    selected_trip_group_id: list[str] | None = Query(default=None, alias="trip_group_id"),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
@@ -248,9 +266,8 @@ def update_collection_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    snapshot = load_persisted_snapshot(repository)
-    return collection_card_value(snapshot, group.trip_group_id, today=date.today())
+    snapshot = sync_and_persist(repository)
+    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=selected_trip_group_id, include_booked=include_booked)}
 
 
 @router.delete("/collections/{trip_group_id}", status_code=204)
@@ -272,22 +289,29 @@ def delete_collection_api(
 def update_trip_status_api(
     trip_id: str,
     body: TripStatusBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
         set_trip_active(repository, trip_id, body.active)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    snapshot = load_persisted_snapshot(repository)
-    return {"tripId": trip_id, "active": body.active, "collections": dashboard_payload(snapshot, today=date.today())["collections"]}
+    snapshot = sync_and_persist(repository)
+    return {
+        "tripId": trip_id,
+        "active": body.active,
+        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
+    }
 
 
-@router.delete("/trip-instances/{trip_instance_id}", status_code=204)
+@router.delete("/trip-instances/{trip_instance_id}")
 def delete_trip_instance_api(
     trip_instance_id: str,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
-) -> Response:
+) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
     instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
     if instance is None:
@@ -302,8 +326,8 @@ def delete_trip_instance_api(
             delete_generated_trip_instance(repository, trip_instance_id)
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    return Response(status_code=204)
+    snapshot = sync_and_persist(repository)
+    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
 @router.post("/trip-instances/{trip_instance_id}/detach")
@@ -346,6 +370,20 @@ def booking_panel_api(
     )
 
 
+@router.get("/trip-instances/{trip_instance_id}/booking-form")
+def booking_form_api(
+    trip_instance_id: str,
+    booking_id: str = "",
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    snapshot = load_persisted_snapshot(repository)
+    return booking_form_payload(
+        snapshot,
+        trip_instance_id=trip_instance_id,
+        booking_id=booking_id,
+    )
+
+
 @router.get("/trip-instances/{trip_instance_id}/trackers")
 def tracker_panel_api(
     trip_instance_id: str,
@@ -358,6 +396,8 @@ def tracker_panel_api(
 @router.post("/bookings")
 def create_booking_api(
     body: BookingBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     candidate = _booking_candidate(body)
@@ -372,15 +412,19 @@ def create_booking_api(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if unmatched is not None or booking is None:
         raise HTTPException(status_code=400, detail="Booking must be linked to a scheduled trip.")
-    sync_and_persist(repository)
-    snapshot = load_persisted_snapshot(repository)
-    return booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list")
+    snapshot = sync_and_persist(repository)
+    return {
+        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
+        "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
+    }
 
 
 @router.patch("/bookings/{booking_id}")
 def update_booking_api(
     booking_id: str,
     body: BookingBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     candidate = _booking_candidate(body)
@@ -393,30 +437,43 @@ def update_booking_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    snapshot = load_persisted_snapshot(repository)
-    return booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list")
+    snapshot = sync_and_persist(repository)
+    return {
+        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
+        "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
+    }
 
 
-@router.post("/bookings/{booking_id}/unlink", status_code=204)
+@router.post("/bookings/{booking_id}/unlink")
 def unlink_booking_api(
     booking_id: str,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
-) -> Response:
+) -> dict[str, object]:
+    snapshot = load_persisted_snapshot(repository)
+    booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
     try:
         unlink_booking(repository, booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    return Response(status_code=204)
+    snapshot = sync_and_persist(repository)
+    return {
+        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
+        "panel": booking_panel_payload(snapshot, trip_instance_id=booking.trip_instance_id, mode="list"),
+    }
 
 
-@router.post("/unmatched-bookings/{unmatched_booking_id}/link", status_code=204)
+@router.post("/unmatched-bookings/{unmatched_booking_id}/link")
 def link_unmatched_booking_api(
     unmatched_booking_id: str,
     body: UnmatchedBookingLinkBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
-) -> Response:
+) -> dict[str, object]:
     try:
         resolve_unmatched_booking_to_trip_instance(
             repository,
@@ -425,18 +482,29 @@ def link_unmatched_booking_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    return Response(status_code=204)
+    snapshot = sync_and_persist(repository)
+    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
-@router.delete("/bookings/{booking_id}", status_code=204)
+@router.delete("/bookings/{booking_id}")
 def delete_booking_api(
     booking_id: str,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
-) -> Response:
+) -> dict[str, object]:
+    snapshot = load_persisted_snapshot(repository)
+    booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
     try:
         delete_booking_record(repository, booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    sync_and_persist(repository)
-    return Response(status_code=204)
+    snapshot = sync_and_persist(repository)
+    return {
+        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
+        "panel": (
+            booking_panel_payload(snapshot, trip_instance_id=booking.trip_instance_id, mode="list")
+            if booking is not None and booking.trip_instance_id
+            else None
+        ),
+    }

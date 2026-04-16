@@ -120,13 +120,17 @@ export type DashboardActionItem =
 
 export interface BookingPanelPayload {
   trip: TripIdentity;
-  mode: "list" | "create" | "edit";
   rows: Array<{
     bookingId: string;
     offer: Offer;
     warning: string;
   }>;
-  form: null | {
+}
+
+export interface BookingFormPayload {
+  trip: TripIdentity;
+  mode: "create" | "edit";
+  form: {
     values: {
       bookingId: string;
       tripInstanceId: string;
@@ -148,6 +152,14 @@ export interface BookingPanelPayload {
   };
 }
 
+export interface DashboardMutationPayload {
+  dashboard: DashboardPayload;
+}
+
+export interface BookingMutationPayload extends DashboardMutationPayload {
+  panel: BookingPanelPayload | null;
+}
+
 export interface TrackerPanelPayload {
   trip: TripIdentity;
   rows: Array<{
@@ -166,9 +178,13 @@ export interface FrontendBootstrap {
   };
   bookingPanel?: {
     tripInstanceId: string;
-    mode: "list" | "create" | "edit";
-    bookingId: string;
     data: BookingPanelPayload;
+  };
+  bookingForm?: {
+    tripInstanceId: string;
+    mode: "create" | "edit";
+    bookingId: string;
+    data: BookingFormPayload;
   };
   trackerPanel?: {
     tripInstanceId: string;

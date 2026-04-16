@@ -8,7 +8,7 @@ interface Props {
 
 export function FilterBar({ options, selected, includeBooked, onToggleOption, onToggleBooked }: Props) {
   return (
-    <div className="filter-bar">
+    <div className="filter-bar" role="group" aria-label="Trip filters">
       <div className="filter-chip-row">
         {options.map((option) => {
           const active = selected.includes(option.value);
@@ -17,6 +17,7 @@ export function FilterBar({ options, selected, includeBooked, onToggleOption, on
               key={option.value}
               type="button"
               className={`filter-chip ${active ? "is-active" : ""}`}
+              aria-pressed={active}
               onClick={() => onToggleOption(option.value)}
             >
               {option.label}
@@ -24,7 +25,12 @@ export function FilterBar({ options, selected, includeBooked, onToggleOption, on
           );
         })}
       </div>
-      <button type="button" className={`filter-toggle ${includeBooked ? "is-active" : ""}`} onClick={onToggleBooked}>
+      <button
+        type="button"
+        className={`filter-toggle ${includeBooked ? "is-active" : ""}`}
+        aria-pressed={includeBooked}
+        onClick={onToggleBooked}
+      >
         {includeBooked ? "Showing booked trips" : "Planned trips only"}
       </button>
     </div>

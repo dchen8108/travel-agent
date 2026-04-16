@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
-import type { BookingPanelPayload } from "../types";
+import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
+import type { BookingFormPayload, BookingPanelPayload, DashboardPayload } from "../types";
 import { DeleteIcon, DetachIcon, EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { Modal } from "./Modal";
@@ -13,7 +14,9 @@ interface Props {
   tripInstanceId: string;
   mode: "list" | "create" | "edit";
   bookingId: string;
+  dashboardFilters: URLSearchParams;
   onClose: () => void;
+  onReplaceDashboard: (payload: DashboardPayload) => void;
   onChangeMode: (mode: "list" | "create" | "edit", bookingId?: string) => void;
 }
 
@@ -33,30 +36,40 @@ function blankBookingForm(tripInstanceId: string): Record<string, string> {
   };
 }
 
-export function BookingPanel({ tripInstanceId, mode, bookingId, onClose, onChangeMode }: Props) {
+export function BookingPanel({
+  tripInstanceId,
+  mode,
+  bookingId,
+  dashboardFilters,
+  onClose,
+  onReplaceDashboard,
+  onChangeMode,
+}: Props) {
   const queryClient = useQueryClient();
   const listQuery = useQuery({
-    queryKey: ["booking-panel", tripInstanceId],
-    queryFn: () => api.bookingPanel(tripInstanceId, "list"),
+    queryKey: bookingPanelQueryKey(tripInstanceId),
+    queryFn: () => api.bookingPanel(tripInstanceId),
     placeholderData: (previous) => previous,
   });
-  const editQuery = useQuery({
-    queryKey: ["booking-form", tripInstanceId, bookingId],
-    queryFn: () => api.bookingPanel(tripInstanceId, "edit", bookingId),
-    enabled: mode === "edit" && Boolean(bookingId),
+  const formQuery = useQuery({
+    queryKey: bookingFormQueryKey(tripInstanceId, mode === "edit" ? bookingId : ""),
+    queryFn: () => api.bookingForm(tripInstanceId, mode === "edit" ? bookingId : ""),
+    enabled: mode !== "list",
   });
 
   const saveMutation = useMutation({
     mutationFn: async (values: Record<string, string>) => {
       if (mode === "edit" && values.bookingId) {
-        return api.updateBooking(values.bookingId, values);
+        return api.updateBooking(values.bookingId, values, dashboardFilters);
       }
-      return api.createBooking(values);
+      return api.createBooking(values, dashboardFilters);
     },
-    onSuccess: async (result) => {
-      queryClient.setQueryData(["booking-panel", tripInstanceId], result);
+    onSuccess: (result) => {
+      if (result.panel) {
+        queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
+      }
+      onReplaceDashboard(result.dashboard);
       queryClient.removeQueries({ queryKey: ["booking-form", tripInstanceId] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onChangeMode("list");
     },
   });
@@ -64,26 +77,31 @@ export function BookingPanel({ tripInstanceId, mode, bookingId, onClose, onChang
   const rowMutation = useMutation({
     mutationFn: async ({ bookingId: rowBookingId, kind }: { bookingId: string; kind: "delete" | "unlink" }) => {
       if (kind === "delete") {
-        await api.deleteBooking(rowBookingId);
-      } else {
-        await api.unlinkBooking(rowBookingId);
+        return api.deleteBooking(rowBookingId, dashboardFilters);
       }
+      return api.unlinkBooking(rowBookingId, dashboardFilters);
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["booking-panel", tripInstanceId] });
+    onSuccess: (result) => {
+      if (result.panel) {
+        queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
+      }
+      onReplaceDashboard(result.dashboard);
       queryClient.removeQueries({ queryKey: ["booking-form", tripInstanceId] });
       onChangeMode("list");
     },
   });
 
-  const payload = listQuery.data;
-  const formPayload = mode === "edit" ? editQuery.data : payload;
+  function prefetchCreateForm() {
+    queryClient.prefetchQuery({
+      queryKey: bookingFormQueryKey(tripInstanceId),
+      queryFn: () => api.bookingForm(tripInstanceId),
+    });
+  }
 
   function prefetchEditForm(rowBookingId: string) {
     queryClient.prefetchQuery({
-      queryKey: ["booking-form", tripInstanceId, rowBookingId],
-      queryFn: () => api.bookingPanel(tripInstanceId, "edit", rowBookingId),
+      queryKey: bookingFormQueryKey(tripInstanceId, rowBookingId),
+      queryFn: () => api.bookingForm(tripInstanceId, rowBookingId),
     });
   }
 
@@ -101,10 +119,12 @@ export function BookingPanel({ tripInstanceId, mode, bookingId, onClose, onChang
     await rowMutation.mutateAsync({ bookingId: bookingIdToUnlink, kind: "unlink" });
   }
 
-  const loading = listQuery.isLoading || !payload || (mode === "edit" && (editQuery.isLoading || !formPayload?.form));
+  const panelPayload = listQuery.data;
+  const formPayload = mode === "list" ? null : formQuery.data;
+  const loading = listQuery.isLoading || !panelPayload || (mode !== "list" && (formQuery.isLoading || !formPayload?.form));
   const error =
     (listQuery.isError && (listQuery.error instanceof Error ? listQuery.error.message : "Unable to load bookings."))
-    || (mode === "edit" && editQuery.isError && (editQuery.error instanceof Error ? editQuery.error.message : "Unable to load booking."));
+    || (mode !== "list" && formQuery.isError && (formQuery.error instanceof Error ? formQuery.error.message : "Unable to load booking."));
 
   return (
     <Modal title="Bookings" onClose={onClose}>
@@ -114,15 +134,16 @@ export function BookingPanel({ tripInstanceId, mode, bookingId, onClose, onChang
         <div className="modal-loading">Loading bookings…</div>
       ) : (
         <BookingPanelContent
-          payload={payload}
+          payload={panelPayload}
           mode={mode}
-          formValues={mode === "edit" ? formPayload?.form?.values ?? blankBookingForm(tripInstanceId) : blankBookingForm(tripInstanceId)}
-          formSubmitLabel={mode === "edit" ? formPayload?.form?.submitLabel ?? "Save booking" : "Create booking"}
-          formCatalogs={formPayload?.catalogs ?? payload.catalogs}
+          formValues={formPayload?.form?.values ?? blankBookingForm(tripInstanceId)}
+          formSubmitLabel={formPayload?.form?.submitLabel ?? "Create booking"}
+          formCatalogs={formPayload?.catalogs}
           onChangeMode={onChangeMode}
           onSave={async (values) => saveMutation.mutateAsync(values)}
           onDelete={handleDelete}
           onDetach={handleDetach}
+          onPrefetchCreate={prefetchCreateForm}
           onPrefetchEdit={prefetchEditForm}
         />
       )}
@@ -140,17 +161,19 @@ function BookingPanelContent({
   onSave,
   onDelete,
   onDetach,
+  onPrefetchCreate,
   onPrefetchEdit,
 }: {
   payload: BookingPanelPayload;
   mode: "list" | "create" | "edit";
   formValues: Record<string, string>;
   formSubmitLabel: string;
-  formCatalogs: BookingPanelPayload["catalogs"];
+  formCatalogs: BookingFormPayload["catalogs"] | undefined;
   onChangeMode: (mode: "list" | "create" | "edit", bookingId?: string) => void;
   onSave: (values: Record<string, string>) => Promise<unknown>;
   onDelete: (bookingId: string) => Promise<void>;
   onDetach: (bookingId: string) => Promise<void>;
+  onPrefetchCreate: () => void;
   onPrefetchEdit: (bookingId: string) => void;
 }) {
   const showingForm = mode !== "list";
@@ -160,7 +183,14 @@ function BookingPanelContent({
       <div className="modal-panel-head">
         <TripIdentityRow trip={payload.trip} />
         {mode === "list" ? (
-          <button type="button" className="primary-button" onClick={() => onChangeMode("create")}>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => onChangeMode("create")}
+            onMouseEnter={onPrefetchCreate}
+            onFocus={onPrefetchCreate}
+            onPointerDown={onPrefetchCreate}
+          >
             Create booking
           </button>
         ) : null}
@@ -168,7 +198,7 @@ function BookingPanelContent({
       {showingForm ? (
         <BookingForm
           initialValues={formValues}
-          catalogs={formCatalogs}
+          catalogs={formCatalogs!}
           submitLabel={formSubmitLabel}
           onSubmit={onSave}
           onCancel={() => onChangeMode("list")}

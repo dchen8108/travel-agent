@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.frontend_api import (
+    booking_form_payload,
     booking_panel_payload,
     dashboard_payload,
     tracker_panel_payload,
@@ -100,15 +101,23 @@ def app_shell(
         try:
             bootstrap_payload["bookingPanel"] = {
                 "tripInstanceId": trip_instance_id,
-                "mode": mode,
-                "bookingId": booking_id,
                 "data": booking_panel_payload(
                     snapshot,
                     trip_instance_id=trip_instance_id,
-                    mode=mode,
-                    booking_id=booking_id,
+                    mode="list",
                 ),
             }
+            if mode in {"create", "edit"}:
+                bootstrap_payload["bookingForm"] = {
+                    "tripInstanceId": trip_instance_id,
+                    "mode": mode,
+                    "bookingId": booking_id,
+                    "data": booking_form_payload(
+                        snapshot,
+                        trip_instance_id=trip_instance_id,
+                        booking_id=booking_id if mode == "edit" else "",
+                    ),
+                }
         except HTTPException:
             pass
     if panel == "trackers" and trip_instance_id:

@@ -1,6 +1,9 @@
 import type {
+  BookingFormPayload,
+  BookingMutationPayload,
   BookingPanelPayload,
   CollectionCard,
+  DashboardMutationPayload,
   DashboardPayload,
   TripEditorPayload,
   TripEditorRouteOption,
@@ -35,6 +38,11 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function withDashboardFilters(path: string, filters?: URLSearchParams): string {
+  const query = filters?.toString() ?? "";
+  return query ? `${path}?${query}` : path;
+}
+
 export const api = {
   dashboard(params: URLSearchParams): Promise<DashboardPayload> {
     const query = params.toString();
@@ -43,60 +51,63 @@ export const api = {
   collection(groupId: string): Promise<CollectionCard> {
     return request<CollectionCard>(`/api/collections/${groupId}`);
   },
-  createCollection(label: string): Promise<CollectionCard> {
-    return request<CollectionCard>("/api/collections", {
+  createCollection(label: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
+    return request<DashboardMutationPayload>(withDashboardFilters("/api/collections", filters), {
       method: "POST",
       body: JSON.stringify({ label }),
     });
   },
-  updateCollection(groupId: string, label: string): Promise<CollectionCard> {
-    return request<CollectionCard>(`/api/collections/${groupId}`, {
+  updateCollection(groupId: string, label: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
+    return request<DashboardMutationPayload>(withDashboardFilters(`/api/collections/${groupId}`, filters), {
       method: "PATCH",
       body: JSON.stringify({ label }),
     });
   },
-  toggleRecurringTrip(tripId: string, active: boolean): Promise<{ tripId: string; active: boolean; collections: CollectionCard[] }> {
-    return request<{ tripId: string; active: boolean; collections: CollectionCard[] }>(`/api/trips/${tripId}/status`, {
+  toggleRecurringTrip(tripId: string, active: boolean, filters?: URLSearchParams): Promise<{ tripId: string; active: boolean; dashboard: DashboardPayload }> {
+    return request<{ tripId: string; active: boolean; dashboard: DashboardPayload }>(withDashboardFilters(`/api/trips/${tripId}/status`, filters), {
       method: "PATCH",
       body: JSON.stringify({ active }),
     });
   },
-  deleteTripInstance(tripInstanceId: string): Promise<void> {
-    return request(`/api/trip-instances/${tripInstanceId}`, {
+  deleteTripInstance(tripInstanceId: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
+    return request<DashboardMutationPayload>(withDashboardFilters(`/api/trip-instances/${tripInstanceId}`, filters), {
       method: "DELETE",
     });
   },
-  bookingPanel(tripInstanceId: string, mode: "list" | "create" | "edit", bookingId = ""): Promise<BookingPanelPayload> {
+  bookingPanel(tripInstanceId: string): Promise<BookingPanelPayload> {
+    return request<BookingPanelPayload>(`/api/trip-instances/${tripInstanceId}/bookings?mode=list`);
+  },
+  bookingForm(tripInstanceId: string, bookingId = ""): Promise<BookingFormPayload> {
     const params = new URLSearchParams();
-    params.set("mode", mode);
     if (bookingId) {
       params.set("booking_id", bookingId);
     }
-    return request<BookingPanelPayload>(`/api/trip-instances/${tripInstanceId}/bookings?${params}`);
+    const query = params.toString();
+    return request<BookingFormPayload>(`/api/trip-instances/${tripInstanceId}/booking-form${query ? `?${query}` : ""}`);
   },
-  createBooking(payload: Record<string, string>): Promise<BookingPanelPayload> {
-    return request<BookingPanelPayload>("/api/bookings", {
+  createBooking(payload: Record<string, string>, filters?: URLSearchParams): Promise<BookingMutationPayload> {
+    return request<BookingMutationPayload>(withDashboardFilters("/api/bookings", filters), {
       method: "POST",
       body: JSON.stringify(payload),
     });
   },
-  updateBooking(bookingId: string, payload: Record<string, string>): Promise<BookingPanelPayload> {
-    return request<BookingPanelPayload>(`/api/bookings/${bookingId}`, {
+  updateBooking(bookingId: string, payload: Record<string, string>, filters?: URLSearchParams): Promise<BookingMutationPayload> {
+    return request<BookingMutationPayload>(withDashboardFilters(`/api/bookings/${bookingId}`, filters), {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
   },
-  unlinkBooking(bookingId: string): Promise<void> {
-    return request(`/api/bookings/${bookingId}/unlink`, { method: "POST" });
+  unlinkBooking(bookingId: string, filters?: URLSearchParams): Promise<BookingMutationPayload> {
+    return request<BookingMutationPayload>(withDashboardFilters(`/api/bookings/${bookingId}/unlink`, filters), { method: "POST" });
   },
-  linkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string): Promise<void> {
-    return request(`/api/unmatched-bookings/${unmatchedBookingId}/link`, {
+  linkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
+    return request<DashboardMutationPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}/link`, filters), {
       method: "POST",
       body: JSON.stringify({ tripInstanceId }),
     });
   },
-  deleteBooking(bookingId: string): Promise<void> {
-    return request(`/api/bookings/${bookingId}`, { method: "DELETE" });
+  deleteBooking(bookingId: string, filters?: URLSearchParams): Promise<BookingMutationPayload> {
+    return request<BookingMutationPayload>(withDashboardFilters(`/api/bookings/${bookingId}`, filters), { method: "DELETE" });
   },
   trackerPanel(tripInstanceId: string): Promise<TrackerPanelPayload> {
     return request<TrackerPanelPayload>(`/api/trip-instances/${tripInstanceId}/trackers`);

@@ -84,6 +84,7 @@ def test_dashboard_api_returns_collections_and_trip_rows(client, repository: Rep
     payload = response.json()
     assert payload["collections"][0]["label"] == "Commute"
     assert payload["trips"][0]["trip"]["title"] == "Commute"
+    assert payload["trips"][0]["trip"]["dateTile"]["monthDay"] == "Apr 20"
     assert payload["trips"][0]["bookedOffer"]["metaLabel"].endswith("BDJ594")
 
 
@@ -91,11 +92,16 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     trip_instance_id = _seed_dashboard_trip(repository)
 
     bookings_response = client.get(f"/api/trip-instances/{trip_instance_id}/bookings?mode=list")
+    booking_form_response = client.get(f"/api/trip-instances/{trip_instance_id}/booking-form")
     trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
     create_response = client.get(f"/api/trip-instances/{trip_instance_id}/bookings?mode=create")
 
     assert bookings_response.status_code == 200
     assert bookings_response.json()["rows"][0]["offer"]["detail"] == "LAX → SFO · Southwest"
+    assert bookings_response.json()["form"] is None
+    assert bookings_response.json()["catalogs"] is None
+    assert booking_form_response.status_code == 200
+    assert booking_form_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
     assert trackers_response.status_code == 200
     assert trackers_response.json()["trip"]["title"] == "Commute"
     assert trackers_response.json()["rows"]

@@ -104,6 +104,10 @@ textarea {
   gap: 1.5rem;
 }
 
+.dashboard-layout > * {
+  min-width: 0;
+}
+
 .flash-banner {
   display: flex;
   align-items: center;
@@ -124,6 +128,7 @@ textarea {
 }
 
 .surface {
+  min-width: 0;
   border: 1px solid var(--surface-border);
   border-radius: 2rem;
   background: var(--surface);
@@ -363,6 +368,26 @@ textarea {
   min-width: 0;
 }
 
+.collection-card__titleline--editing {
+  display: grid;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.collection-card__editor {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.collection-card__eyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--copy-muted);
+}
+
 .collection-card__titleline h3,
 .collection-card__titleline strong {
   margin: 0;
@@ -457,7 +482,7 @@ textarea {
 
 .trip-row {
   display: grid;
-  grid-template-columns: minmax(16rem, 1.2fr) minmax(17rem, 1fr) minmax(17rem, 1fr);
+  grid-template-columns: minmax(14rem, 1.1fr) minmax(15rem, 1fr) minmax(15rem, 1fr);
   gap: 1rem;
   align-items: stretch;
   border: 1px solid var(--surface-border);
@@ -479,7 +504,8 @@ textarea {
 }
 
 .trip-identity-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.9rem;
   min-width: 0;
@@ -489,9 +515,13 @@ textarea {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 900;
-  white-space: nowrap;
+  line-height: 1.05;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 
 .date-tile {
@@ -586,6 +616,7 @@ textarea {
   align-items: center;
   gap: 0.55rem;
   margin-top: 0.35rem;
+  flex-wrap: wrap;
 }
 
 .offer-block__delta {
@@ -640,6 +671,7 @@ textarea {
   width: min(1240px, 100%);
   max-height: calc(100vh - 3rem);
   overflow: auto;
+  overscroll-behavior: contain;
   border-radius: 2rem;
   border: 1px solid var(--surface-border);
   background: rgba(255, 251, 246, 0.98);
@@ -656,6 +688,7 @@ textarea {
 }
 
 .modal-kicker {
+  margin: 0;
   font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -708,6 +741,10 @@ textarea {
 
 .modal-list-row--tracker {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.modal-list-row--tracker .offer-block__body {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .modal-row-warning {
@@ -1116,11 +1153,11 @@ textarea {
 
 @media (max-width: 1100px) {
   .trip-row {
-    grid-template-columns: minmax(14rem, 1.05fr) minmax(14rem, 1fr) minmax(14rem, 1fr);
+    grid-template-columns: minmax(12rem, 1fr) minmax(13rem, 1fr) minmax(13rem, 1fr);
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 860px) {
   .trip-row {
     grid-template-columns: 1fr;
   }
@@ -1148,20 +1185,47 @@ textarea {
   }
 
   .page-header,
-  .surface__header,
-  .modal-panel-head,
+  .surface__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .collection-card__header {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .modal-panel-head {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .modal-shell {
+    width: 100%;
+    max-height: calc(100vh - 1.5rem);
+    padding: 1rem;
+  }
+
   .trip-identity-row {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .trip-identity-row__actions {
+    grid-column: 2;
   }
 
   .filter-bar {
+    flex-direction: column;
     align-items: stretch;
+  }
+
+  .filter-toggle {
+    align-self: flex-start;
   }
 
   .page-header__stats {
@@ -1180,6 +1244,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .modal-list-row__actions {
+    justify-self: start;
+  }
+
   .trip-editor-grid,
   .choice-card-grid {
     grid-template-columns: 1fr;
@@ -1189,5 +1257,13 @@ textarea {
   .route-card-react__header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .booking-form-actions {
+    position: sticky;
+    bottom: -1rem;
+    padding-top: 0.85rem;
+    padding-bottom: 0.1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96) 38%);
   }
 }

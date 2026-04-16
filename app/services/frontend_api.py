@@ -331,22 +331,23 @@ def booking_panel_payload(
     editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if booking_id else None
     if booking_id and editing_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
+    rows = [
+        {
+            "bookingId": booking.booking_id,
+            "offer": _offer_value(
+                booking_offer_summary(
+                    booking,
+                    anchor_date=trip_instance_by_id(snapshot, trip_instance_id).anchor_date,
+                )
+            ),
+            "warning": booking_route_tracking_state(snapshot, booking).get("warning", ""),
+        }
+        for booking in bookings
+    ]
     return {
         "trip": trip_identity_value(snapshot, trip_instance_id),
         "mode": mode,
-        "rows": [
-            {
-                "bookingId": booking.booking_id,
-                "offer": _offer_value(
-                    booking_offer_summary(
-                        booking,
-                        anchor_date=trip_instance_by_id(snapshot, trip_instance_id).anchor_date,
-                    )
-                ),
-                "warning": booking_route_tracking_state(snapshot, booking).get("warning", ""),
-            }
-            for booking in bookings
-        ],
+        "rows": rows,
         "form": (
             {
                 "values": booking_form_state_value(editing_booking, trip_instance_id=trip_instance_id)
@@ -357,6 +358,30 @@ def booking_panel_payload(
             if mode in {"create", "edit"}
             else None
         ),
+        "catalogs": json.loads(catalogs_json()) if mode in {"create", "edit"} else None,
+    }
+
+
+def booking_form_payload(
+    snapshot,
+    *,
+    trip_instance_id: str,
+    booking_id: str = "",
+) -> dict[str, object]:
+    trip_instance_dashboard_context(snapshot, trip_instance_id)
+    bookings = bookings_for_instance(snapshot, trip_instance_id)
+    editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if booking_id else None
+    if booking_id and editing_booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return {
+        "trip": trip_identity_value(snapshot, trip_instance_id),
+        "mode": "edit" if editing_booking is not None else "create",
+        "form": {
+            "values": booking_form_state_value(editing_booking, trip_instance_id=trip_instance_id)
+            if editing_booking is not None
+            else booking_form_state_value(None, trip_instance_id=trip_instance_id),
+            "submitLabel": "Save booking" if editing_booking is not None else "Create booking",
+        },
         "catalogs": json.loads(catalogs_json()),
     }
 

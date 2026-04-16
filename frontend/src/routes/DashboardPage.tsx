@@ -1,32 +1,49 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { api } from "../lib/api";
-import type { CollectionCard as CollectionCardValue, DashboardPayload, TripRow as TripRowValue } from "../types";
 import { ActionItemsSection } from "../components/ActionItemsSection";
+import { BookingPanel } from "../components/BookingPanel";
 import { CollectionCard } from "../components/CollectionCard";
 import { CollectionEditorCard } from "../components/CollectionEditorCard";
-import { BookingPanel } from "../components/BookingPanel";
 import { FilterBar } from "../components/FilterBar";
-import { TrackerPanel } from "../components/TrackerPanel";
-import { TripRow } from "../components/TripRow";
 import { IconButton } from "../components/IconButton";
 import { CloseIcon } from "../components/Icons";
 import { PrefetchLink } from "../components/PrefetchLink";
+import { TrackerPanel } from "../components/TrackerPanel";
+import { TripRow } from "../components/TripRow";
+import { api } from "../lib/api";
+import { bookingFormQueryKey, bookingPanelQueryKey, dashboardQueryKey, trackerPanelQueryKey } from "../lib/queryKeys";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
+import type { CollectionCard as CollectionCardValue, DashboardPayload, TripRow as TripRowValue } from "../types";
+
+function initialCollectionEditor(searchParams: URLSearchParams) {
+  if (searchParams.get("create_group") === "1") {
+    return { mode: "create" as const };
+  }
+  const groupId = searchParams.get("edit_group_id") ?? "";
+  return groupId ? { mode: "edit" as const, groupId } : null;
+}
+
+function initialBookingPanelState(searchParams: URLSearchParams) {
+  return {
+    mode: (searchParams.get("booking_mode") as "list" | "create" | "edit" | null) ?? "list",
+    bookingId: searchParams.get("booking_id") ?? "",
+  };
+}
 
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [collectionEditor, setCollectionEditor] = useState<{ mode: "create" | "edit"; groupId?: string } | null>(() => {
-    if (searchParams.get("create_group") === "1") {
-      return { mode: "create" };
-    }
-    const groupId = searchParams.get("edit_group_id") ?? "";
-    return groupId ? { mode: "edit", groupId } : null;
-  });
+  const [collectionEditor, setCollectionEditor] = useState<{ mode: "create" | "edit"; groupId?: string } | null>(() => (
+    initialCollectionEditor(searchParams)
+  ));
+  const [bookingPanelState, setBookingPanelState] = useState<{ mode: "list" | "create" | "edit"; bookingId: string }>(() => (
+    initialBookingPanelState(searchParams)
+  ));
 
+  const panel = searchParams.get("panel");
+  const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
   const selectedTripGroupIds = searchParams.getAll("trip_group_id");
   const includeBooked = searchParams.get("include_booked") !== "false";
   const flashMessage = searchParams.get("message") ?? "";
@@ -34,7 +51,7 @@ export function DashboardPage() {
 
   const dashboardFilters = useMemo(() => {
     const params = new URLSearchParams();
-    for (const value of selectedTripGroupIds) {
+    for (const value of [...selectedTripGroupIds].sort()) {
       params.append("trip_group_id", value);
     }
     if (!includeBooked) {
@@ -42,54 +59,61 @@ export function DashboardPage() {
     }
     return params;
   }, [includeBooked, selectedTripGroupIds]);
+  const dashboardQueryString = dashboardFilters.toString();
 
   const dashboardQuery = useQuery({
-    queryKey: ["dashboard", dashboardFilters.toString()],
+    queryKey: dashboardQueryKey(dashboardQueryString),
     queryFn: () => api.dashboard(dashboardFilters),
     placeholderData: (previous) => previous,
   });
 
+  useEffect(() => {
+    const nextEditor = initialCollectionEditor(searchParams);
+    if (nextEditor) {
+      setCollectionEditor(nextEditor);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (panel === "bookings" && panelTripInstanceId) {
+      setBookingPanelState(initialBookingPanelState(searchParams));
+      return;
+    }
+    setBookingPanelState({ mode: "list", bookingId: "" });
+  }, [panel, panelTripInstanceId, searchParams]);
+
+  function replaceCurrentDashboard(next: DashboardPayload) {
+    queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), next);
+    void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+  }
+
   const collectionMutation = useMutation({
     mutationFn: async ({ label, groupId }: { label: string; groupId?: string }) => (
-      groupId ? api.updateCollection(groupId, label) : api.createCollection(label)
+      groupId ? api.updateCollection(groupId, label, dashboardFilters) : api.createCollection(label, dashboardFilters)
     ),
-    onSuccess: (collection) => {
+    onSuccess: ({ dashboard }) => {
       setCollectionEditor(null);
       clearCollectionEditorParams();
-      queryClient.setQueriesData<DashboardPayload>({ queryKey: ["dashboard"] }, (current) => {
-        if (!current) {
-          return current;
-        }
-        const existingIndex = current.collections.findIndex((item) => item.groupId === collection.groupId);
-        const collections = [...current.collections];
-        if (existingIndex >= 0) {
-          collections[existingIndex] = collection;
-        } else {
-          collections.unshift(collection);
-        }
-        return { ...current, collections };
-      });
+      replaceCurrentDashboard(dashboard);
     },
   });
 
   const toggleTripMutation = useMutation({
-    mutationFn: ({ tripId, active }: { tripId: string; active: boolean }) => api.toggleRecurringTrip(tripId, active),
-    onSuccess: (result) => {
-      queryClient.setQueriesData<DashboardPayload>({ queryKey: ["dashboard"] }, (current) => (
-        current ? { ...current, collections: result.collections } : current
-      ));
+    mutationFn: ({ tripId, active }: { tripId: string; active: boolean }) => api.toggleRecurringTrip(tripId, active, dashboardFilters),
+    onSuccess: ({ dashboard }) => {
+      replaceCurrentDashboard(dashboard);
     },
   });
 
   const deleteTripMutation = useMutation({
-    mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId, dashboardFilters),
+    onSuccess: ({ dashboard }) => {
+      replaceCurrentDashboard(dashboard);
     },
   });
 
   const unmatchedMutation = useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       unmatchedBookingId,
       tripInstanceId,
       kind,
@@ -99,16 +123,15 @@ export function DashboardPage() {
       kind: "link" | "delete";
     }) => {
       if (kind === "delete") {
-        await api.deleteBooking(unmatchedBookingId);
-        return;
+        return api.deleteBooking(unmatchedBookingId, dashboardFilters);
       }
       if (!tripInstanceId) {
         throw new Error("Choose a scheduled trip.");
       }
-      await api.linkUnmatchedBooking(unmatchedBookingId, tripInstanceId);
+      return api.linkUnmatchedBooking(unmatchedBookingId, tripInstanceId, dashboardFilters);
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    onSuccess: ({ dashboard }) => {
+      replaceCurrentDashboard(dashboard);
     },
   });
 
@@ -169,38 +192,37 @@ export function DashboardPage() {
 
   function prefetchBookingPanel(tripInstanceId: string) {
     queryClient.prefetchQuery({
-      queryKey: ["booking-panel", tripInstanceId],
-      queryFn: () => api.bookingPanel(tripInstanceId, "list"),
+      queryKey: bookingPanelQueryKey(tripInstanceId),
+      queryFn: () => api.bookingPanel(tripInstanceId),
+    });
+    queryClient.prefetchQuery({
+      queryKey: bookingFormQueryKey(tripInstanceId),
+      queryFn: () => api.bookingForm(tripInstanceId),
     });
   }
 
   function prefetchTrackerPanel(tripInstanceId: string) {
     queryClient.prefetchQuery({
-      queryKey: ["tracker-panel", tripInstanceId],
+      queryKey: trackerPanelQueryKey(tripInstanceId),
       queryFn: () => api.trackerPanel(tripInstanceId),
     });
   }
 
-  function openPanel(panel: "bookings" | "trackers", tripInstanceId: string, mode = "list", bookingId = "") {
+  function openPanel(
+    nextPanel: "bookings" | "trackers",
+    tripInstanceId: string,
+    mode: "list" | "create" | "edit" = "list",
+    bookingId = "",
+  ) {
     const next = new URLSearchParams(searchParams);
-    next.set("panel", panel);
+    next.set("panel", nextPanel);
     next.set("trip_instance_id", tripInstanceId);
-    if (panel === "bookings") {
-      if (mode !== "list") {
-        next.set("booking_mode", mode);
-      } else {
-        next.delete("booking_mode");
-      }
-      if (bookingId) {
-        next.set("booking_id", bookingId);
-      } else {
-        next.delete("booking_id");
-      }
-    } else {
-      next.delete("booking_mode");
-      next.delete("booking_id");
-    }
+    next.delete("booking_mode");
+    next.delete("booking_id");
     setSearchParams(next, { replace: false });
+    if (nextPanel === "bookings") {
+      setBookingPanelState({ mode, bookingId });
+    }
   }
 
   function closePanel() {
@@ -210,6 +232,11 @@ export function DashboardPage() {
     next.delete("booking_mode");
     next.delete("booking_id");
     setSearchParams(next, { replace: false });
+    setBookingPanelState({ mode: "list", bookingId: "" });
+  }
+
+  function changeBookingMode(mode: "list" | "create" | "edit", bookingId = "") {
+    setBookingPanelState({ mode, bookingId });
   }
 
   async function handleDeleteTrip(row: TripRowValue) {
@@ -233,11 +260,6 @@ export function DashboardPage() {
     }
     await unmatchedMutation.mutateAsync({ unmatchedBookingId, kind: "delete" });
   }
-
-  const panel = searchParams.get("panel");
-  const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
-  const bookingMode = (searchParams.get("booking_mode") as "list" | "create" | "edit" | null) ?? "list";
-  const bookingId = searchParams.get("booking_id") ?? "";
 
   return (
     <div className="app-shell">
@@ -363,10 +385,12 @@ export function DashboardPage() {
       {panel === "bookings" && panelTripInstanceId ? (
         <BookingPanel
           tripInstanceId={panelTripInstanceId}
-          mode={bookingMode}
-          bookingId={bookingId}
+          mode={bookingPanelState.mode}
+          bookingId={bookingPanelState.bookingId}
+          dashboardFilters={dashboardFilters}
           onClose={closePanel}
-          onChangeMode={(nextMode, nextBookingId) => openPanel("bookings", panelTripInstanceId, nextMode, nextBookingId)}
+          onReplaceDashboard={replaceCurrentDashboard}
+          onChangeMode={changeBookingMode}
         />
       ) : null}
       {panel === "trackers" && panelTripInstanceId ? (

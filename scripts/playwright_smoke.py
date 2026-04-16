@@ -106,7 +106,8 @@ def main() -> int:
             browser = playwright.chromium.launch(headless=not args.headed)
             page = browser.new_page(viewport={"width": 1440, "height": 1024})
             page.set_default_timeout(args.timeout_ms)
-            page.goto(target_url, wait_until="networkidle")
+            page.goto(target_url, wait_until="domcontentloaded")
+            page.wait_for_timeout(args.wait_ms)
 
             for selector in args.wait_for:
                 page.wait_for_selector(selector)

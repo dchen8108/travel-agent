@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
@@ -6,9 +6,13 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: "default" | "danger";
 };
 
-export function IconButton({ label, children, tone = "default", className = "", ...props }: Props) {
+export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButton(
+  { label, children, tone = "default", className = "", ...props },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       type="button"
       aria-label={label}
       title={label}
@@ -18,4 +22,4 @@ export function IconButton({ label, children, tone = "default", className = "", 
       {children}
     </button>
   );
-}
+});
