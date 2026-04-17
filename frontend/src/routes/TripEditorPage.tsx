@@ -20,12 +20,6 @@ function blankRouteOption(): TripEditorRouteOption {
   };
 }
 
-function applyMessage(target: string, message: string) {
-  const url = new URL(target, window.location.origin);
-  url.searchParams.set("message", message);
-  return `${url.pathname}${url.search}${url.hash}`;
-}
-
 function fallbackCancelUrl(values: TripEditorValues, searchParams: URLSearchParams) {
   const explicitGroupId = searchParams.get("trip_group_id");
   if (explicitGroupId) {
@@ -105,7 +99,9 @@ export function TripEditorPage() {
       );
     },
     onSuccess: (result) => {
-      navigate(applyMessage(result.redirectTo, result.message));
+      navigate(result.redirectTo, {
+        state: { toast: { message: result.message, kind: "success" as const } },
+      });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Unable to save trip.");
@@ -115,7 +111,9 @@ export function TripEditorPage() {
   const detachMutation = useMutation({
     mutationFn: (tripInstanceId: string) => api.detachTripInstance(tripInstanceId),
     onSuccess: (result) => {
-      navigate(applyMessage(result.redirectTo, result.message));
+      navigate(result.redirectTo, {
+        state: { toast: { message: result.message, kind: "success" as const } },
+      });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Unable to detach trip.");

@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import { ConfirmProvider } from "./components/ConfirmProvider";
+import { ToastProvider } from "./components/ToastProvider";
 import { DashboardPage } from "./routes/DashboardPage";
 import { frontendBootstrap } from "./lib/bootstrap";
 import {
@@ -52,17 +54,21 @@ const queryClient = createQueryClient();
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/app" element={<DashboardPage />} />
-          <Route path="/trips/new" element={<TripEditorPage />} />
-          <Route path="/trips/:tripId/edit" element={<TripEditorPage />} />
-          <Route path="/app/trips/new" element={<TripEditorPage />} />
-          <Route path="/app/trips/:tripId/edit" element={<TripEditorPage />} />
-          <Route path="*" element={<DashboardPage />} />
-        </Routes>
-      </BrowserRouter>
+      <ToastProvider>
+        <ConfirmProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/app" element={<DashboardPage />} />
+              <Route path="/trips/new" element={<TripEditorPage />} />
+              <Route path="/trips/:tripId/edit" element={<TripEditorPage />} />
+              <Route path="/app/trips/new" element={<TripEditorPage />} />
+              <Route path="/app/trips/:tripId/edit" element={<TripEditorPage />} />
+              <Route path="*" element={<DashboardPage />} />
+            </Routes>
+          </BrowserRouter>
+        </ConfirmProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ActionItemsSection } from "../components/ActionItemsSection";
 import { BookingPanel } from "../components/BookingPanel";
 import { CollectionCard } from "../components/CollectionCard";
 import { CollectionEditorCard } from "../components/CollectionEditorCard";
+import { useConfirm } from "../components/ConfirmProvider";
 import { FilterBar } from "../components/FilterBar";
-import { IconButton } from "../components/IconButton";
-import { CloseIcon } from "../components/Icons";
 import { PrefetchLink } from "../components/PrefetchLink";
 import { TrackerPanel } from "../components/TrackerPanel";
 import { TripRow } from "../components/TripRow";
+import { useToast } from "../components/ToastProvider";
 import { api } from "../lib/api";
 import { bookingFormQueryKey, bookingPanelQueryKey, dashboardQueryKey, trackerPanelQueryKey } from "../lib/queryKeys";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
@@ -32,9 +32,17 @@ function initialBookingPanelState(searchParams: URLSearchParams) {
   };
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function DashboardPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { pushToast } = useToast();
+  const { confirm } = useConfirm();
   const [collectionEditor, setCollectionEditor] = useState<{ mode: "create" | "edit"; groupId?: string } | null>(() => (
     initialCollectionEditor(searchParams)
   ));
@@ -46,8 +54,6 @@ export function DashboardPage() {
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
   const selectedTripGroupIds = searchParams.getAll("trip_group_id");
   const includeBooked = searchParams.get("include_booked") !== "false";
-  const flashMessage = searchParams.get("message") ?? "";
-  const flashMessageKind = searchParams.get("message_kind") ?? "success";
 
   const dashboardFilters = useMemo(() => {
     const params = new URLSearchParams();
@@ -75,6 +81,31 @@ export function DashboardPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    const state = location.state as { toast?: { message: string; kind?: "success" | "error" } } | null;
+    const toast = state?.toast;
+    if (!toast?.message) {
+      return;
+    }
+    pushToast({ message: toast.message, kind: toast.kind });
+    navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null });
+  }, [location.hash, location.pathname, location.search, location.state, navigate, pushToast]);
+
+  useEffect(() => {
+    const message = searchParams.get("message");
+    if (!message) {
+      return;
+    }
+    pushToast({
+      message,
+      kind: searchParams.get("message_kind") === "error" ? "error" : "success",
+    });
+    const next = new URLSearchParams(searchParams);
+    next.delete("message");
+    next.delete("message_kind");
+    setSearchParams(next, { replace: true });
+  }, [pushToast, searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (panel === "bookings" && panelTripInstanceId) {
       setBookingPanelState(initialBookingPanelState(searchParams));
       return;
@@ -95,6 +126,7 @@ export function DashboardPage() {
       setCollectionEditor(null);
       clearCollectionEditorParams();
       replaceCurrentDashboard(dashboard);
+      pushToast({ message: "Collection saved" });
     },
   });
 
@@ -109,6 +141,7 @@ export function DashboardPage() {
     mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId, dashboardFilters),
     onSuccess: ({ dashboard }) => {
       replaceCurrentDashboard(dashboard);
+      pushToast({ message: "Trip deleted" });
     },
   });
 
@@ -171,13 +204,6 @@ export function DashboardPage() {
   function startEditCollection(groupId: string) {
     setCollectionEditor({ mode: "edit", groupId });
     clearCollectionEditorParams();
-  }
-
-  function dismissMessage() {
-    const next = new URLSearchParams(searchParams);
-    next.delete("message");
-    next.delete("message_kind");
-    setSearchParams(next, { replace: true });
   }
 
   function toggleBookedFilter() {
@@ -244,21 +270,49 @@ export function DashboardPage() {
     if (!confirmation) {
       return;
     }
-    if (!window.confirm(`${confirmation.title}\n\n${confirmation.description}`)) {
+    const approved = await confirm({
+      title: confirmation.title,
+      description: confirmation.description,
+      actionLabel: "Delete trip",
+      cancelLabel: "Keep trip",
+      tone: "danger",
+    });
+    if (!approved) {
       return;
     }
-    await deleteTripMutation.mutateAsync(row.trip.tripInstanceId);
+    try {
+      await deleteTripMutation.mutateAsync(row.trip.tripInstanceId);
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to delete trip."), kind: "error" });
+    }
   }
 
   async function handleLinkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string) {
-    await unmatchedMutation.mutateAsync({ unmatchedBookingId, tripInstanceId, kind: "link" });
+    try {
+      await unmatchedMutation.mutateAsync({ unmatchedBookingId, tripInstanceId, kind: "link" });
+      pushToast({ message: "Booking linked" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to link booking."), kind: "error" });
+    }
   }
 
   async function handleDeleteUnmatchedBooking(unmatchedBookingId: string) {
-    if (!window.confirm("Delete this booking?")) {
+    const approved = await confirm({
+      title: "Delete this booking?",
+      description: "It will be removed from needs linking.",
+      actionLabel: "Delete booking",
+      cancelLabel: "Keep booking",
+      tone: "danger",
+    });
+    if (!approved) {
       return;
     }
-    await unmatchedMutation.mutateAsync({ unmatchedBookingId, kind: "delete" });
+    try {
+      await unmatchedMutation.mutateAsync({ unmatchedBookingId, kind: "delete" });
+      pushToast({ message: "Booking deleted" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to delete booking."), kind: "error" });
+    }
   }
 
   return (
@@ -279,16 +333,6 @@ export function DashboardPage() {
           </div>
         </div>
       </header>
-
-      {flashMessage ? (
-        <div className={`flash-banner flash-banner--${flashMessageKind}`}>
-          <span>{flashMessage}</span>
-          <IconButton label="Dismiss message" onClick={dismissMessage}>
-            <CloseIcon />
-          </IconButton>
-        </div>
-      ) : null}
-
       <main className="dashboard-layout">
         {dashboardQuery.data ? (
           <ActionItemsSection

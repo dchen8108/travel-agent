@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
 import type { BookingFormPayload, BookingPanelPayload, DashboardPayload } from "../types";
+import { useConfirm } from "./ConfirmProvider";
 import { DeleteIcon, DetachIcon, EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { Modal } from "./Modal";
 import { OfferBlock } from "./OfferBlock";
 import { BookingForm } from "./BookingForm";
+import { useToast } from "./ToastProvider";
 import { TripIdentityRow } from "./TripIdentityRow";
 
 interface Props {
@@ -36,6 +38,10 @@ function blankBookingForm(tripInstanceId: string): Record<string, string> {
   };
 }
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function BookingPanel({
   tripInstanceId,
   mode,
@@ -46,6 +52,8 @@ export function BookingPanel({
   onChangeMode,
 }: Props) {
   const queryClient = useQueryClient();
+  const { pushToast } = useToast();
+  const { confirm } = useConfirm();
   const listQuery = useQuery({
     queryKey: bookingPanelQueryKey(tripInstanceId),
     queryFn: () => api.bookingPanel(tripInstanceId),
@@ -71,6 +79,7 @@ export function BookingPanel({
       onReplaceDashboard(result.dashboard);
       queryClient.removeQueries({ queryKey: ["booking-form", tripInstanceId] });
       onChangeMode("list");
+      pushToast({ message: mode === "edit" ? "Booking saved" : "Booking created" });
     },
   });
 
@@ -81,13 +90,14 @@ export function BookingPanel({
       }
       return api.unlinkBooking(rowBookingId, dashboardFilters);
     },
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
       if (result.panel) {
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
       onReplaceDashboard(result.dashboard);
       queryClient.removeQueries({ queryKey: ["booking-form", tripInstanceId] });
       onChangeMode("list");
+      pushToast({ message: variables.kind === "delete" ? "Booking deleted" : "Booking needs linking" });
     },
   });
 
@@ -106,17 +116,38 @@ export function BookingPanel({
   }
 
   async function handleDelete(bookingIdToDelete: string) {
-    if (!window.confirm("Delete this booking?")) {
+    const approved = await confirm({
+      title: "Delete this booking?",
+      description: "This removes it from the trip and from the app.",
+      actionLabel: "Delete booking",
+      cancelLabel: "Keep booking",
+      tone: "danger",
+    });
+    if (!approved) {
       return;
     }
-    await rowMutation.mutateAsync({ bookingId: bookingIdToDelete, kind: "delete" });
+    try {
+      await rowMutation.mutateAsync({ bookingId: bookingIdToDelete, kind: "delete" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to delete booking."), kind: "error" });
+    }
   }
 
   async function handleDetach(bookingIdToUnlink: string) {
-    if (!window.confirm("Detach this booking from the trip?")) {
+    const approved = await confirm({
+      title: "Detach this booking from the trip?",
+      description: "It will move back to needs linking.",
+      actionLabel: "Detach booking",
+      cancelLabel: "Keep booking",
+    });
+    if (!approved) {
       return;
     }
-    await rowMutation.mutateAsync({ bookingId: bookingIdToUnlink, kind: "unlink" });
+    try {
+      await rowMutation.mutateAsync({ bookingId: bookingIdToUnlink, kind: "unlink" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to detach booking."), kind: "error" });
+    }
   }
 
   const panelPayload = listQuery.data;
