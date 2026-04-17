@@ -166,7 +166,7 @@ function UnmatchedBookingCard({
           </IconButton>
           <div className="attention-card__alternate-action">
             <PrefetchLink
-              className="secondary-button"
+              className="primary-button"
               to={item.createTripHref}
               onPrefetch={() => void prefetchTripEditorFromHref(queryClient, item.createTripHref)}
             >
