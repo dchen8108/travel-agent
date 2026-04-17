@@ -384,6 +384,11 @@ textarea {
   min-height: auto;
 }
 
+.attention-card__booking-row .offer-block__body {
+  border-left: 0;
+  padding-left: 0;
+}
+
 .attention-card__booking-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
