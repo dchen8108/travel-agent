@@ -160,7 +160,6 @@ function UnmatchedBookingCard({
           <IconButton
             label="Link booking"
             disabled={!selectedTripInstanceId}
-            tone="accent"
             onClick={() => onLink(item.unmatchedBookingId, selectedTripInstanceId)}
           >
             <LinkIcon />
