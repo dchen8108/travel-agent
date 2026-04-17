@@ -218,7 +218,7 @@ export function CollectionCard({
         {pillRailCanExpand ? (
           <div className="collection-card__pill-toggle">
             <button type="button" className="ghost-button" onClick={() => setPillsExpanded((current) => !current)}>
-              {pillsExpanded ? "Show fewer" : "Show all dates"}
+              {pillsExpanded ? "Show less" : "Show all"}
             </button>
           </div>
         ) : null}
