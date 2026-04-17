@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { SearchSelectField } from "./SearchSelectField";
+
 interface Props {
   initialValues: Record<string, string>;
   catalogs: {
@@ -38,35 +40,56 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
   }
 
   return (
-    <form className="booking-form-card" onSubmit={handleSubmit}>
-      <div className="booking-form-grid">
-        <label>
+    <form className="booking-form-card trip-editor-form" onSubmit={handleSubmit}>
+      <div className="booking-form-grid trip-editor-grid">
+        <div className="field-block">
           <span>Airline</span>
-          <select value={values.airline} onChange={(event) => update("airline", event.target.value)} disabled={submitting}>
-            <option value="">Choose</option>
-            {catalogs.airlines.map((item) => (
-              <option key={item.value} value={item.value}>{item.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
+          <SearchSelectField
+            options={catalogs.airlines.map((item) => ({
+              value: item.value,
+              label: item.label,
+              keywords: `${item.value} ${item.label}`,
+              summary: item.label,
+            }))}
+            value={values.airline}
+            onChange={(value) => update("airline", value)}
+            placeholder="Search airlines"
+            allowEmpty
+            emptySelectionLabel="Choose"
+          />
+        </div>
+        <div className="field-block">
           <span>Origin</span>
-          <select value={values.originAirport} onChange={(event) => update("originAirport", event.target.value)} disabled={submitting}>
-            <option value="">Choose</option>
-            {catalogs.airports.map((item) => (
-              <option key={item.value} value={item.value}>{item.value} · {item.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
+          <SearchSelectField
+            options={catalogs.airports.map((item) => ({
+              value: item.value,
+              label: item.label,
+              keywords: `${item.value} ${item.label}`,
+              summary: `${item.value} · ${item.label}`,
+            }))}
+            value={values.originAirport}
+            onChange={(value) => update("originAirport", value)}
+            placeholder="Search origins"
+            allowEmpty
+            emptySelectionLabel="Choose"
+          />
+        </div>
+        <div className="field-block">
           <span>Destination</span>
-          <select value={values.destinationAirport} onChange={(event) => update("destinationAirport", event.target.value)} disabled={submitting}>
-            <option value="">Choose</option>
-            {catalogs.airports.map((item) => (
-              <option key={item.value} value={item.value}>{item.value} · {item.label}</option>
-            ))}
-          </select>
-        </label>
+          <SearchSelectField
+            options={catalogs.airports.map((item) => ({
+              value: item.value,
+              label: item.label,
+              keywords: `${item.value} ${item.label}`,
+              summary: `${item.value} · ${item.label}`,
+            }))}
+            value={values.destinationAirport}
+            onChange={(value) => update("destinationAirport", value)}
+            placeholder="Search destinations"
+            allowEmpty
+            emptySelectionLabel="Choose"
+          />
+        </div>
         <label>
           <span>Departure date</span>
           <input type="date" value={values.departureDate} onChange={(event) => update("departureDate", event.target.value)} disabled={submitting} />
@@ -88,7 +111,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
           <input type="text" value={values.recordLocator} onChange={(event) => update("recordLocator", event.target.value)} disabled={submitting} />
         </label>
       </div>
-      <label>
+      <label className="field-block field-block--full">
         <span>Notes</span>
         <textarea value={values.notes} onChange={(event) => update("notes", event.target.value)} disabled={submitting} rows={3} />
       </label>
