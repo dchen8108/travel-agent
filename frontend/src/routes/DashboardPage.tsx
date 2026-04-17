@@ -38,38 +38,14 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 function optimisticSetRecurringTripActive(dashboard: DashboardPayload, tripId: string, active: boolean): DashboardPayload {
-  const nextCollections = dashboard.collections.map((collection) => ({
-    ...collection,
-    recurringTrips: collection.recurringTrips.map((trip) => (
-      trip.tripId === tripId ? { ...trip, active } : trip
-    )),
-  }));
-
-  if (active) {
-    return {
-      ...dashboard,
-      collections: nextCollections,
-    };
-  }
-
-  const removedTripRows = dashboard.trips.filter((row) => row.trip.tripId === tripId);
-  const removedTripInstanceIds = new Set(removedTripRows.map((row) => row.trip.tripInstanceId));
-  const removedBookedCount = removedTripRows.filter((row) => row.bookedOffer).length;
-
   return {
     ...dashboard,
-    counts: {
-      totalUpcoming: Math.max(0, dashboard.counts.totalUpcoming - removedTripRows.length),
-      totalBooked: Math.max(0, dashboard.counts.totalBooked - removedBookedCount),
-    },
-    collections: nextCollections.map((collection) => ({
+    collections: dashboard.collections.map((collection) => ({
       ...collection,
-      upcomingTrips: collection.upcomingTrips.filter((trip) => trip.tripId !== tripId),
+      recurringTrips: collection.recurringTrips.map((trip) => (
+        trip.tripId === tripId ? { ...trip, active } : trip
+      )),
     })),
-    trips: dashboard.trips.filter((row) => row.trip.tripId !== tripId),
-    actionItems: dashboard.actionItems.filter((item) => (
-      item.kind === "unmatchedBooking" || !removedTripInstanceIds.has(item.row.trip.tripInstanceId)
-    )),
   };
 }
 
