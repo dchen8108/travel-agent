@@ -48,7 +48,7 @@ def _seed_dashboard_trip(repository: Repository) -> str:
             departure_date=date(2026, 4, 20),
             departure_time="06:00",
             arrival_time="07:20",
-            booked_price=7840,
+            booked_price="78.40",
             record_locator="BDJ594",
         ),
         trip_instance_id=trip_instance_id,
@@ -183,3 +183,99 @@ def test_dashboard_api_suppresses_rebook_card_when_preference_buffer_erases_raw_
     payload = response.json()
     rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
     assert rebook_items == []
+
+
+def test_dashboard_api_uses_price_drop_copy_for_same_route_rebook(client, repository: Repository) -> None:
+    trip_instance_id = _seed_dashboard_trip(repository)
+
+    trackers = repository.load_trackers()
+    now = utcnow()
+    for tracker in trackers:
+        tracker.latest_observed_price = 70
+        tracker.latest_fetched_at = now
+        tracker.last_signal_at = now
+        tracker.latest_signal_source = "background_fetch"
+    repository.upsert_trackers(trackers)
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
+    assert len(rebook_items) == 1
+    assert rebook_items[0]["title"] == "Price drop"
+    assert rebook_items[0]["badge"] == "$8.40 lower"
+
+
+def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Cross-route commute",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "22:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            },
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "LAX",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "22:00",
+                "fare_class_policy": "exclude_basic",
+                "savings_needed_vs_previous": 30,
+            },
+        ],
+        preference_mode="ranked_bias",
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="SFO",
+            destination_airport="LAX",
+            departure_date=date(2026, 4, 20),
+            departure_time="18:01",
+            arrival_time="19:33",
+            booked_price="78.40",
+            record_locator="ORBKFC",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    trackers = repository.load_trackers()
+    now = utcnow()
+    for tracker in trackers:
+        if tracker.rank == 1:
+            tracker.latest_observed_price = 96
+        elif tracker.rank == 2:
+            tracker.latest_observed_price = 130
+        tracker.latest_fetched_at = now
+        tracker.last_signal_at = now
+        tracker.latest_signal_source = "background_fetch"
+    repository.upsert_trackers(trackers)
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
+    assert len(rebook_items) == 1
+    assert rebook_items[0]["title"] == "Better option"
+    assert rebook_items[0]["badge"] == "After preferences"
