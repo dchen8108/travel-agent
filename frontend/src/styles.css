@@ -465,6 +465,13 @@ textarea {
   gap: 1rem;
 }
 
+.collection-card__titleblock {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+}
+
 .collection-card__titleline {
   display: flex;
   align-items: center;
@@ -508,9 +515,24 @@ textarea {
   background: white;
 }
 
+.collection-card__input--inline {
+  min-height: 0;
+  max-width: min(32rem, 100%);
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.95rem;
+  font-size: 1.12rem;
+  font-weight: 900;
+  color: var(--copy);
+  box-shadow: 0 0 0 1px rgba(17, 142, 132, 0.08);
+}
+
 .collection-card__header-actions {
   display: flex;
   gap: 0.55rem;
+}
+
+.collection-card__header-actions--inline {
+  flex-shrink: 0;
 }
 
 .recurring-grid {

@@ -1,29 +1,117 @@
+import { useEffect, useState, type KeyboardEvent } from "react";
+
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { CollectionCard as CollectionCardValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
-import { EditIcon } from "./Icons";
+import { CheckIcon, CloseIcon, EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { PrefetchLink } from "./PrefetchLink";
 
 interface Props {
   collection: CollectionCardValue;
   onEdit: () => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: (label: string) => Promise<unknown>;
   onToggleRecurringTrip: (tripId: string, active: boolean) => void;
   pendingRecurringTripId?: string;
+  editing?: boolean;
 }
 
-export function CollectionCard({ collection, onEdit, onToggleRecurringTrip, pendingRecurringTripId = "" }: Props) {
+export function CollectionCard({
+  collection,
+  onEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onToggleRecurringTrip,
+  pendingRecurringTripId = "",
+  editing = false,
+}: Props) {
   const queryClient = useQueryClient();
+  const [label, setLabel] = useState(collection.label);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLabel(collection.label);
+  }, [collection.label]);
+
+  useEffect(() => {
+    if (!editing) {
+      setError("");
+      setSaving(false);
+      setLabel(collection.label);
+    }
+  }, [collection.label, editing]);
+
+  async function handleSave() {
+    if (!onSaveEdit) {
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await onSaveEdit(label);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save collection.");
+      setSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setError("");
+    setSaving(false);
+    setLabel(collection.label);
+    onCancelEdit?.();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      handleCancel();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void handleSave();
+    }
+  }
 
   return (
     <article className="collection-card" id={`group-${collection.groupId}`}>
       <div className="collection-card__header">
-        <div className="collection-card__titleline">
-          <h3>{collection.label}</h3>
-          <IconButton label="Edit collection" onClick={onEdit}>
-            <EditIcon />
-          </IconButton>
+        <div className="collection-card__titleblock">
+          <div className="collection-card__titleline">
+            {editing ? (
+              <>
+                <input
+                  className="collection-card__input collection-card__input--inline"
+                  value={label}
+                  onChange={(event) => setLabel(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Collection name"
+                  disabled={saving}
+                  autoFocus
+                />
+                <div className="collection-card__header-actions collection-card__header-actions--inline">
+                  <IconButton label="Save collection" onClick={() => void handleSave()} disabled={saving}>
+                    <CheckIcon />
+                  </IconButton>
+                  <IconButton label="Cancel" onClick={handleCancel} disabled={saving}>
+                    <CloseIcon />
+                  </IconButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>{collection.label}</h3>
+                <IconButton label="Edit collection" onClick={onEdit}>
+                  <EditIcon />
+                </IconButton>
+              </>
+            )}
+          </div>
+          {editing && error ? <p className="inline-error">{error}</p> : null}
         </div>
         <PrefetchLink
           className="primary-button"
@@ -55,7 +143,7 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip, pend
               <button
                 type="button"
                 className={`status-toggle ${trip.active ? "is-active" : ""}`}
-                disabled={pendingRecurringTripId === trip.tripId}
+                disabled={pendingRecurringTripId === trip.tripId || editing}
                 onClick={() => onToggleRecurringTrip(trip.tripId, !trip.active)}
               >
                 <span>{pendingRecurringTripId === trip.tripId ? "Updating…" : trip.active ? "Active" : "Paused"}</span>

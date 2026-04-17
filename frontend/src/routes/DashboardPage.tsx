@@ -501,24 +501,16 @@ export function DashboardPage() {
               />
             ) : null}
             {dashboardQuery.data?.collections.map((collection: CollectionCardValue) => (
-              collectionEditor?.mode === "edit" && collectionEditor.groupId === collection.groupId ? (
-                <CollectionEditorCard
-                  key={collection.groupId}
-                  collectionId={collection.groupId}
-                  mode="edit"
-                  initialLabel={collection.label}
-                  onCancel={stopCollectionEditing}
-                  onSave={(label) => collectionMutation.mutateAsync({ label, groupId: collection.groupId })}
-                />
-              ) : (
-                <CollectionCard
-                  key={collection.groupId}
-                  collection={collection}
-                  onEdit={() => startEditCollection(collection.groupId)}
-                  onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}
-                  pendingRecurringTripId={toggleTripMutation.isPending ? (toggleTripMutation.variables?.tripId ?? "") : ""}
-                />
-              )
+              <CollectionCard
+                key={collection.groupId}
+                collection={collection}
+                editing={collectionEditor?.mode === "edit" && collectionEditor.groupId === collection.groupId}
+                onEdit={() => startEditCollection(collection.groupId)}
+                onCancelEdit={stopCollectionEditing}
+                onSaveEdit={(label) => collectionMutation.mutateAsync({ label, groupId: collection.groupId })}
+                onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}
+                pendingRecurringTripId={toggleTripMutation.isPending ? (toggleTripMutation.variables?.tripId ?? "") : ""}
+              />
             ))}
           </div>
         </section>
