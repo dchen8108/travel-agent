@@ -23,7 +23,38 @@ export function DeleteIcon() {
 export function ViewIcon() {
   return svg(
     <>
-      <path d="M12 5c4.6 0 8.3 2.8 10 7-1.7 4.2-5.4 7-10 7S3.7 16.2 2 12c1.7-4.2 5.4-7 10-7Zm0 2c-3.3 0-6.1 1.8-7.7 5 1.6 3.2 4.4 5 7.7 5s6.1-1.8 7.7-5c-1.6-3.2-4.4-5-7.7-5Zm0 2.5A2.5 2.5 0 1 1 12 17a2.5 2.5 0 0 1 0-5Z" fill="currentColor" />
+      <path
+        d="M6.5 4.5h11A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 9.25h8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 12.5h6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 15.75h5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
     </>,
   );
 }
