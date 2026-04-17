@@ -148,7 +148,7 @@ def booking_effective_price(snapshot: AppSnapshot, booking: Booking | None) -> D
         return None
     matched_tracker = _tracker_for_route_option(snapshot, booking.trip_instance_id, booking.route_option_id)
     if matched_tracker is None:
-        return None
+        return raw_price
     return raw_price + parse_money(matched_tracker.preference_bias_dollars or 0)
 
 

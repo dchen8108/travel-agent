@@ -413,3 +413,55 @@ def test_rebook_suppresses_price_drop_when_preference_buffer_erases_raw_savings(
     assert rebook_savings(snapshot, instance.trip_instance_id) is None
     reason = trip_status_detail(snapshot, instance.trip_instance_id)
     assert "Current best raw alternative is $130 with an effective comparison price of $180." in reason
+
+
+def test_rebook_uses_zero_booking_bias_when_booking_has_no_matched_route(repository: Repository) -> None:
+    snapshot, instance, trackers = _single_instance_snapshot(
+        repository,
+        preference_mode="ranked_bias",
+        payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            },
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "United",
+                "day_offset": 0,
+                "start_time": "18:00",
+                "end_time": "22:00",
+                "savings_needed_vs_previous": 50,
+            },
+        ],
+    )
+
+    booking = Booking(
+        booking_id="book_1",
+        trip_instance_id=instance.trip_instance_id,
+        route_option_id="",
+        airline="Alaska",
+        origin_airport="BUR",
+        destination_airport="SFO",
+        departure_date=instance.anchor_date,
+        departure_time="07:00",
+        booked_price=180,
+        record_locator="BIAS01",
+    )
+
+    fresh_at = utcnow()
+    trackers[0].latest_observed_price = 180
+    trackers[0].latest_fetched_at = fresh_at
+    trackers[1].latest_observed_price = 120
+    trackers[1].latest_fetched_at = fresh_at
+    recompute_trip_states(snapshot.trip_instances, trackers, [booking])
+    snapshot.bookings = [booking]
+
+    assert rebook_savings(snapshot, instance.trip_instance_id) == 10
+    reason = trip_status_detail(snapshot, instance.trip_instance_id)
+    assert "Current best raw alternative is $120" in reason
+    assert "$10 below your booked effective price of $180" in reason
