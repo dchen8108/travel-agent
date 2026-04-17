@@ -318,13 +318,103 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
         for item in payload["trips"]
     )
 
+
+def test_unmatched_booking_does_not_preselect_unrelated_trip(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    create = client.post(
+        "/trips",
+        data={
+            "label": "Unrelated trip",
+            "trip_kind": "one_time",
+            "anchor_date": "2026-06-10",
+            "anchor_weekday": "",
+            "route_options_json": '[{"origin_airports":["BUR"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
+        },
+        follow_redirects=False,
+    )
+    assert create.status_code == 303
+
+    booking, unmatched = record_booking(
+        Repository(settings),
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="JFK",
+            destination_airport="LAX",
+            departure_date=date(2026, 6, 10),
+            departure_time="21:30",
+            arrival_time="00:45",
+            booked_price=36.20,
+            record_locator="SKLOAK",
+        ),
+    )
+    assert booking is None
+    assert unmatched is not None
+
+    payload = _dashboard_payload(client)
+    unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["preferredTripInstanceId"] == ""
+    assert any(group["options"] for group in unmatched_item["tripOptions"])
+
+
+def test_unmatched_booking_preselects_first_suggested_match(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    client = TestClient(create_app(settings))
+
+    for label in ("Zulu match", "Alpha match"):
+        create = client.post(
+            "/trips",
+            data={
+                "label": label,
+                "trip_kind": "one_time",
+                "anchor_date": "2026-06-10",
+                "anchor_weekday": "",
+                "route_options_json": '[{"origin_airports":["JFK"],"destination_airports":["LAX"],"airlines":["Alaska"],"day_offset":0,"start_time":"20:00","end_time":"23:00"}]',
+            },
+            follow_redirects=False,
+        )
+        assert create.status_code == 303
+
     repository = Repository(settings)
-    booking = repository.load_bookings()[0]
-    trip_page = client.get(f"/trip-instances/{booking.trip_instance_id}/bookings-panel", follow_redirects=False)
-    assert trip_page.status_code == 303
-    assert f"panel=bookings&trip_instance_id={booking.trip_instance_id}" in trip_page.headers["location"]
-    booking_payload = _booking_panel_payload(client, booking.trip_instance_id)
-    assert any(row["offer"]["metaLabel"].endswith("ABC123") for row in booking_payload["rows"])
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="JFK",
+            destination_airport="LAX",
+            departure_date=date(2026, 6, 10),
+            departure_time="21:30",
+            arrival_time="00:45",
+            booked_price=36.20,
+            record_locator="MULTI01",
+        ),
+    )
+    assert booking is None
+    assert unmatched is not None
+
+    matching_instances = sorted(
+        [
+            item
+            for item in repository.load_trip_instances()
+            if item.display_label in {"Zulu match", "Alpha match"}
+        ],
+        key=lambda item: (item.anchor_date, item.display_label.lower()),
+    )
+
+    payload = _dashboard_payload(client)
+    unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["preferredTripInstanceId"] == matching_instances[0].trip_instance_id
 
 
 def test_booking_form_picker_fields_use_field_wrappers_not_labels(tmp_path: Path) -> None:

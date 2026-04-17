@@ -685,6 +685,12 @@ textarea {
   color: var(--danger);
 }
 
+.icon-button--accent {
+  color: var(--accent-strong);
+  border-color: rgba(17, 142, 132, 0.32);
+  background: rgba(214, 238, 233, 0.72);
+}
+
 .offer-block {
   display: flex;
   align-items: stretch;

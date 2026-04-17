@@ -204,6 +204,7 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
                 "title": "Link booking",
                 "dateTile": _date_tile_value(unmatched.departure_date),
                 "unmatchedBookingId": unmatched.unmatched_booking_id,
+                "preferredTripInstanceId": card["suggested_trip_instances"][0].trip_instance_id if card["suggested_trip_instances"] else "",
                 "offer": _offer_value(
                     booking_offer_summary(
                         unmatched,

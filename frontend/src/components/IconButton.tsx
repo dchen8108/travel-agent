@@ -3,7 +3,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
   children: ReactNode;
-  tone?: "default" | "danger";
+  tone?: "default" | "danger" | "accent";
 };
 
 export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButton(

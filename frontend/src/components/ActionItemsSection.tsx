@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { DashboardActionItem, DashboardUnmatchedBookingActionItem, TripRow as TripRowValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import { DateTile } from "./DateTile";
-import { DeleteIcon } from "./Icons";
+import { DeleteIcon, LinkIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
 import { PrefetchLink } from "./PrefetchLink";
@@ -91,8 +91,8 @@ function UnmatchedBookingCard({
 }) {
   const queryClient = useQueryClient();
   const firstOptionValue = useMemo(
-    () => item.tripOptions.flatMap((group) => group.options)[0]?.value ?? "",
-    [item.tripOptions],
+    () => item.preferredTripInstanceId,
+    [item.preferredTripInstanceId],
   );
   const tripOptions = useMemo(
     () => item.tripOptions.flatMap((group) => (
@@ -107,6 +107,10 @@ function UnmatchedBookingCard({
     [item.tripOptions],
   );
   const [selectedTripInstanceId, setSelectedTripInstanceId] = useState(firstOptionValue);
+
+  useEffect(() => {
+    setSelectedTripInstanceId(firstOptionValue || "");
+  }, [firstOptionValue, item.unmatchedBookingId]);
 
   return (
     <article className="attention-card attention-card--unmatched">
@@ -126,7 +130,7 @@ function UnmatchedBookingCard({
           </div>
         </div>
         <label className="attention-card__field attention-card__field--inline">
-          <span>Scheduled trip</span>
+          <span>Link to trip</span>
           <SearchSelectField
             options={tripOptions.map((option) => ({ ...option, meta: option.groupLabel }))}
             value={selectedTripInstanceId}
@@ -138,14 +142,14 @@ function UnmatchedBookingCard({
           />
         </label>
         <div className="attention-card__control-actions attention-card__control-actions--inline">
-          <button
-            type="button"
-            className="primary-button"
+          <IconButton
+            label="Link booking"
             disabled={!selectedTripInstanceId}
+            tone="accent"
             onClick={() => onLink(item.unmatchedBookingId, selectedTripInstanceId)}
           >
-            Link booking
-          </button>
+            <LinkIcon />
+          </IconButton>
           <div className="attention-card__alternate-action">
             <PrefetchLink
               className="secondary-button"

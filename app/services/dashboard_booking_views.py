@@ -51,10 +51,12 @@ def unmatched_booking_resolution_views(snapshot: AppSnapshot) -> list[dict[str, 
         ],
         key=lambda item: (item.departure_date, item.departure_time, item.record_locator),
     ):
-        candidate_ids = [
+        candidate_ids = {
             item for item in split_pipe(unmatched.candidate_trip_instance_ids) if item in trip_instances_by_id
+        }
+        suggested_trip_instances = [
+            item for item in selectable_trip_instances if item.trip_instance_id in candidate_ids
         ]
-        suggested_trip_instances = [trip_instances_by_id[item] for item in candidate_ids]
         suggested_ids = {item.trip_instance_id for item in suggested_trip_instances}
         other_trip_instances = [
             item for item in selectable_trip_instances if item.trip_instance_id not in suggested_ids

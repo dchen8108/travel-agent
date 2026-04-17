@@ -105,6 +105,7 @@ export interface DashboardUnmatchedBookingActionItem {
   title: string;
   dateTile: DateTile;
   unmatchedBookingId: string;
+  preferredTripInstanceId: string;
   offer: Offer;
   tripOptions: TripOptionGroup[];
   createTripHref: string;

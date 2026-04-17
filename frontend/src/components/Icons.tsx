@@ -32,6 +32,12 @@ export function AddIcon() {
   return svg(<path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" fill="currentColor" />);
 }
 
+export function LinkIcon() {
+  return svg(
+    <path d="M9.7 14.3a1 1 0 0 1 1.4 0 2 2 0 0 0 2.8 0l3.5-3.5a2 2 0 1 0-2.8-2.8l-1.2 1.2A1 1 0 0 1 12 7.8l1.2-1.2a4 4 0 1 1 5.7 5.7l-3.5 3.5a4 4 0 0 1-5.7 0 1 1 0 0 1 0-1.5ZM14.3 9.7a1 1 0 0 1 0 1.4 2 2 0 0 0 0 2.8 1 1 0 0 1-1.4 1.4 4 4 0 0 1 0-5.7 1 1 0 0 1 1.4 0Zm-4.6 4.6a1 1 0 0 1 0-1.4 2 2 0 0 0 0-2.8L6.2 6.6a2 2 0 0 0-2.8 2.8l1.2 1.2A1 1 0 0 1 3.2 12L2 10.8a4 4 0 0 1 5.7-5.7l3.5 3.5a4 4 0 0 1 0 5.7 1 1 0 0 1-1.5 0Z" fill="currentColor" />
+  );
+}
+
 export function CheckIcon() {
   return svg(<path d="m9.2 16.6-4.1-4.1 1.4-1.4 2.7 2.7 8.3-8.3 1.4 1.4-9.7 9.7Z" fill="currentColor" />);
 }
