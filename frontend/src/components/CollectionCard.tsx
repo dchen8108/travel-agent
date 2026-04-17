@@ -157,16 +157,10 @@ export function CollectionCard({
           collection.upcomingTrips.map((trip) => (
             <span
               key={trip.tripInstanceId}
-              className={`trip-pill trip-pill--${trip.lifecycle}`}
+              className={`trip-pill trip-pill--${trip.lifecycle}${trip.attentionKind ? ` trip-pill--attention-${trip.attentionKind}` : ""}`}
               title={trip.title}
             >
               <span>{trip.label}</span>
-              {trip.attentionKind ? (
-                <span
-                  className={`trip-pill__marker trip-pill__marker--${trip.attentionKind}`}
-                  aria-hidden="true"
-                />
-              ) : null}
             </span>
           ))
         ) : (
