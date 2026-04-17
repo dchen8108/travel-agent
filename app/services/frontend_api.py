@@ -9,7 +9,6 @@ from app.catalog import catalogs_json
 from app.models.base import TripInstanceInheritanceMode, TripKind
 from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
-from app.services.dashboard_booking_views import booking_reference_label, default_trip_label_for_booking
 from app.services.dashboard_page import dashboard_attention_views
 from app.services.dashboard_queries import scheduled_ledger_view, trip_groups
 from app.services.dashboard_trip_panels import tracker_search_rows, trip_instance_dashboard_context
@@ -203,8 +202,6 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
             {
                 "kind": "unmatchedBooking",
                 "title": "Link booking",
-                "sourceLabel": f"{booking_reference_label(unmatched)} · {unmatched.source.replace('_', ' ')}",
-                "suggestedTripLabel": default_trip_label_for_booking(unmatched),
                 "unmatchedBookingId": unmatched.unmatched_booking_id,
                 "offer": _offer_value(
                     booking_offer_summary(

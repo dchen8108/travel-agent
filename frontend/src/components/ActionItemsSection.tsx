@@ -112,8 +112,6 @@ function UnmatchedBookingCard({
       <div className="attention-card__header">
         <div>
           <p className="attention-card__eyebrow">{item.title}</p>
-          <h3 className="attention-card__title">{item.suggestedTripLabel}</h3>
-          <p className="attention-card__meta">{item.sourceLabel}</p>
         </div>
         <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(item.unmatchedBookingId)}>
           <DeleteIcon />

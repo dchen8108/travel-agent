@@ -240,7 +240,7 @@ def test_unmatched_booking_ui_does_not_fall_back_to_internal_ids(tmp_path: Path)
 
     payload = _dashboard_payload(client)
     unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
-    assert unmatched_item["suggestedTripLabel"] == "SFO to BUR"
+    assert unmatched_item["title"] == "Link booking"
     assert f'Booking {unmatched.unmatched_booking_id}' not in json.dumps(payload)
 
     form_page = client.get(f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}")
@@ -1006,7 +1006,7 @@ def test_booking_can_be_unlinked_from_ui(tmp_path: Path) -> None:
 
     payload = _dashboard_payload(client)
     unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
-    assert unmatched_item["sourceLabel"].startswith("Booking UNLINK123")
+    assert unmatched_item["offer"]["metaLabel"].endswith("UNLINK123")
 
 
 def test_unlinked_booking_can_be_deleted_from_dashboard(tmp_path: Path) -> None:
@@ -2336,7 +2336,7 @@ def test_one_time_trip_with_booking_can_still_be_deleted(tmp_path: Path) -> None
 
     payload = _dashboard_payload(client)
     unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
-    assert unmatched_item["sourceLabel"].startswith("Booking DELBOOK1")
+    assert unmatched_item["offer"]["metaLabel"].endswith("DELBOOK1")
 
 
 def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: Path) -> None:
@@ -2395,7 +2395,7 @@ def test_generated_trip_with_booking_can_be_deleted_and_needs_relink(tmp_path: P
 
     payload = _dashboard_payload(client)
     unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
-    assert unmatched_item["sourceLabel"].startswith("Booking DELGEN1")
+    assert unmatched_item["offer"]["metaLabel"].endswith("DELGEN1")
 
 
 def test_booking_edit_page_does_not_show_delete_controls(tmp_path: Path) -> None:
