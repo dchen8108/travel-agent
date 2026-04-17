@@ -34,7 +34,32 @@ export function AddIcon() {
 
 export function LinkIcon() {
   return svg(
-    <path d="M9.7 14.3a1 1 0 0 1 1.4 0 2 2 0 0 0 2.8 0l3.5-3.5a2 2 0 1 0-2.8-2.8l-1.2 1.2A1 1 0 0 1 12 7.8l1.2-1.2a4 4 0 1 1 5.7 5.7l-3.5 3.5a4 4 0 0 1-5.7 0 1 1 0 0 1 0-1.5ZM14.3 9.7a1 1 0 0 1 0 1.4 2 2 0 0 0 0 2.8 1 1 0 0 1-1.4 1.4 4 4 0 0 1 0-5.7 1 1 0 0 1 1.4 0Zm-4.6 4.6a1 1 0 0 1 0-1.4 2 2 0 0 0 0-2.8L6.2 6.6a2 2 0 0 0-2.8 2.8l1.2 1.2A1 1 0 0 1 3.2 12L2 10.8a4 4 0 0 1 5.7-5.7l3.5 3.5a4 4 0 0 1 0 5.7 1 1 0 0 1-1.5 0Z" fill="currentColor" />
+    <>
+      <path
+        d="m10 14-2.8 2.8a3 3 0 1 1-4.2-4.2L5.8 9.8a3 3 0 0 1 4.2 0"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="m14 10 2.8-2.8a3 3 0 1 1 4.2 4.2l-2.8 2.8a3 3 0 0 1-4.2 0"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="m9 15 6-6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </>
   );
 }
 
@@ -54,6 +79,39 @@ export function RefreshIcon() {
 
 export function DetachIcon() {
   return svg(
-    <path d="m9.7 14.3 1.4 1.4-2.7 2.7a4 4 0 1 1-5.7-5.7L5.4 10l1.4 1.4-2.7 2.7a2 2 0 0 0 2.8 2.8l2.8-2.6Zm4.6-4.6-1.4-1.4 2.7-2.7a4 4 0 1 1 5.7 5.7L18.6 14l-1.4-1.4 2.7-2.7a2 2 0 1 0-2.8-2.8l-2.8 2.6ZM8 13.4l5.4-5.4 1.4 1.4-5.4 5.4L8 13.4Z" fill="currentColor" />
+    <>
+      <path
+        d="m8.5 15.5-1.3 1.3a3 3 0 1 1-4.2-4.2l2.1-2.1"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="m15.5 8.5 1.3-1.3a3 3 0 1 1 4.2 4.2l-2.1 2.1"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="m9.5 9.5 5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M6 18 18 6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </>
   );
 }
