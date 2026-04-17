@@ -13,7 +13,6 @@ from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.refresh_queue import (
-    queued_refresh_message,
     queue_refresh_for_trip,
     queue_refresh_for_trip_instance,
 )
@@ -186,7 +185,7 @@ def activate_trip_action(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = sync_and_persist(repository)
-    queued_count = queue_refresh_for_trip(
+    queue_refresh_for_trip(
         snapshot,
         repository,
         trip_id=trip_id,
@@ -195,7 +194,7 @@ def activate_trip_action(
     return redirect_back(
         request,
         fallback_url="/#all-travel",
-        message=queued_refresh_message("Trip activated", queued_count),
+        message="Trip activated",
     )
 
 
@@ -240,7 +239,7 @@ def detach_trip_instance_action(
             message_kind="error",
         )
     snapshot = sync_and_persist(repository)
-    queued_count = queue_refresh_for_trip_instance(
+    queue_refresh_for_trip_instance(
         snapshot,
         repository,
         trip_instance_id=trip_instance.trip_instance_id,
@@ -248,7 +247,7 @@ def detach_trip_instance_action(
     )
     return redirect_with_message(
         f"/trips/{trip_instance.trip_id}/edit",
-        queued_refresh_message("Trip detached", queued_count),
+        "Trip detached",
     )
 
 

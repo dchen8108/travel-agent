@@ -7,7 +7,7 @@ from app.services.dashboard_trip_panels import trip_instance_dashboard_context
 from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.snapshot_queries import trip_for_instance
-from app.services.refresh_queue import queued_refresh_message, queue_refresh_for_trip_instance
+from app.services.refresh_queue import manual_refresh_message, queue_refresh_for_trip_instance
 from app.services.data_scope import include_test_data_for_processing
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
@@ -123,5 +123,5 @@ def queue_tracker_refresh(
             trip_instance_id=trip_instance_id,
             panel="trackers",
         ),
-        queued_refresh_message("Refresh queued", queued_count),
+        manual_refresh_message(queued_count),
     )

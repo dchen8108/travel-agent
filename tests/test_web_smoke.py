@@ -593,7 +593,7 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     )
     assert create.status_code == 303
     group_id = Repository(settings).load_trip_groups()[0].trip_group_id
-    assert create.headers["location"] == f"/?message=Trip+group+saved#group-{group_id}"
+    assert create.headers["location"] == f"/?message=Collection+saved#group-{group_id}"
 
     payload = _dashboard_payload(client)
     assert any(item["label"] == "Work Trips" for item in payload["collections"])
@@ -665,7 +665,7 @@ def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
         for item in Repository(settings).load_trip_groups()
         if item.label == "Errands"
     )
-    assert create.headers["location"] == f"/?message=Trip+group+saved#group-{created_group.trip_group_id}"
+    assert create.headers["location"] == f"/?message=Collection+saved#group-{created_group.trip_group_id}"
 
 
 def test_today_page_surfaces_planned_booked_and_unmatched_items(tmp_path: Path) -> None:
@@ -1163,7 +1163,7 @@ def test_trip_creation_queues_refresh_targets_immediately(tmp_path: Path) -> Non
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert "Refresh+queued+for+2+airport-pair+searches." in response.headers["location"]
+    assert response.headers["location"].startswith("/?message=Trip+saved#scheduled-inst_")
 
     repository = Repository(settings)
     fetch_targets = repository.load_tracker_fetch_targets()
@@ -1778,7 +1778,7 @@ def test_group_delete_removes_manual_memberships(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert delete.status_code == 303
-    assert delete.headers["location"] == "/?message=Trip+group+deleted#dashboard-groups"
+    assert delete.headers["location"] == "/?message=Collection+deleted#dashboard-groups"
     assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_groups())
     assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_instance_group_memberships())
 
@@ -1899,7 +1899,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
     assert activate.status_code == 303
     assert (
         activate.headers["location"]
-        == "/?message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches.#all-travel"
+        == "/?message=Trip+activated#all-travel"
     )
 
     pause_from_page = client.post(
@@ -1918,7 +1918,7 @@ def test_pause_and_activate_trip_redirect_to_trips_by_default(tmp_path: Path) ->
     assert activate_from_page.status_code == 303
     assert (
         activate_from_page.headers["location"]
-        == "/?message=Trip+activated.+Refresh+queued+for+16+airport-pair+searches.#all-travel"
+        == "/?message=Trip+activated#all-travel"
     )
 
 
@@ -1958,7 +1958,7 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
 
     activate = client.post(f"/trips/{trip_id}/activate", follow_redirects=False)
     assert activate.status_code == 303
-    assert "Trip+activated.+Refresh+queued+for+16+airport-pair+searches." in activate.headers["location"]
+    assert activate.headers["location"] == "/?message=Trip+activated#all-travel"
 
     refreshed_targets = repository.load_tracker_fetch_targets()
     assert len(refreshed_targets) == 16
@@ -2788,7 +2788,7 @@ def test_trip_trackers_page_can_queue_a_rolling_refresh(tmp_path: Path) -> None:
     trip_instance_id = _trip_instance_id_for_label(Repository(settings), "Refresh queue test")
     queue = client.post(f"/trip-instances/{trip_instance_id}/trackers/queue-refresh", follow_redirects=False)
     assert queue.status_code == 303
-    assert "Refresh+queued+for+2+airport-pair+searches." in queue.headers["location"]
+    assert "message=Refresh+requested." in queue.headers["location"]
 
 
 def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path: Path) -> None:

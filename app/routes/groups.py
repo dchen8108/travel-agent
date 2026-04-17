@@ -30,7 +30,7 @@ def group_detail(
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
-        raise HTTPException(status_code=404, detail="Trip group not found")
+        raise HTTPException(status_code=404, detail="Collection not found")
     return RedirectResponse(url=f"/#group-{group.trip_group_id}", status_code=303)
 
 
@@ -42,7 +42,7 @@ def group_card(
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
-        raise HTTPException(status_code=404, detail="Trip group not found")
+        raise HTTPException(status_code=404, detail="Collection not found")
     return RedirectResponse(url=f"/#group-{trip_group_id}", status_code=303)
 
 
@@ -54,7 +54,7 @@ def edit_group(
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
-        raise HTTPException(status_code=404, detail="Trip group not found")
+        raise HTTPException(status_code=404, detail="Collection not found")
     return RedirectResponse(
         url=f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}",
         status_code=303,
@@ -69,7 +69,7 @@ def edit_group_inline_editor(
     snapshot = load_persisted_snapshot(repository)
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
-        raise HTTPException(status_code=404, detail="Trip group not found")
+        raise HTTPException(status_code=404, detail="Collection not found")
     return RedirectResponse(
         url=f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}",
         status_code=303,
@@ -92,7 +92,7 @@ async def save_group_action(
         )
     except ValueError as exc:
         return PlainTextResponse(str(exc), status_code=400)
-    return redirect_with_message(f"/#group-{group.trip_group_id}", "Trip group saved")
+    return redirect_with_message(f"/#group-{group.trip_group_id}", "Collection saved")
 
 
 @router.post("/groups/{trip_group_id}/delete")
@@ -112,4 +112,4 @@ def delete_group_action(
             message=str(exc),
             message_kind="error",
         )
-    return redirect_with_message("/#dashboard-groups", "Trip group deleted")
+    return redirect_with_message("/#dashboard-groups", "Collection deleted")

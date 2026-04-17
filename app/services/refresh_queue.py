@@ -9,12 +9,10 @@ from app.services.snapshots import AppSnapshot
 from app.storage.repository import Repository
 
 
-def queued_refresh_message(base_message: str, queued_count: int) -> str:
-    if queued_count == 1:
-        return f"{base_message}. Refresh queued for 1 airport-pair search."
-    if queued_count > 1:
-        return f"{base_message}. Refresh queued for {queued_count} airport-pair searches."
-    return base_message
+def manual_refresh_message(queued_count: int) -> str:
+    if queued_count > 0:
+        return "Refresh requested."
+    return "Nothing to refresh yet."
 
 
 def _queued_targets(

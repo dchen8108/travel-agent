@@ -28,7 +28,7 @@ from app.services.frontend_api import (
 from app.services.groups import delete_trip_group, save_trip_group
 from app.services.trip_instances import delete_generated_trip_instance
 from app.services.trip_instances import detach_generated_trip_instance
-from app.services.refresh_queue import queue_refresh_for_trip_instance, queued_refresh_message
+from app.services.refresh_queue import queue_refresh_for_trip_instance
 from app.services.data_scope import include_test_data_for_processing
 from app.services.trip_editor import TripSaveInput, route_option_payloads, save_trip_workflow
 from app.services.trips import delete_trip, set_trip_active
@@ -342,14 +342,14 @@ def detach_trip_instance_api(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     snapshot = sync_and_persist(repository)
-    queued_count = queue_refresh_for_trip_instance(
+    queue_refresh_for_trip_instance(
         snapshot,
         repository,
         trip_instance_id=trip_instance.trip_instance_id,
         include_test_data=include_test_data_for_processing(snapshot.app_state),
     )
     return {
-        "message": queued_refresh_message("Trip detached", queued_count),
+        "message": "Trip detached",
         "redirectTo": f"/trips/{trip_instance.trip_id}/edit",
     }
 

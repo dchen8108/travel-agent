@@ -16,7 +16,7 @@ from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
 from app.services.data_scope import include_test_data_for_processing
 from app.services.group_memberships import replace_manual_trip_instance_groups
 from app.services.groups import find_or_create_trip_group
-from app.services.refresh_queue import queue_refresh_for_trip, queued_refresh_message
+from app.services.refresh_queue import queue_refresh_for_trip
 from app.services.snapshot_queries import (
     groups_for_rule,
     groups_for_trip,
@@ -336,16 +336,13 @@ def save_trip_workflow(
         )
         snapshot = sync_and_persist(repository)
 
-    queued_count = queue_refresh_for_trip(
+    queue_refresh_for_trip(
         snapshot,
         repository,
         trip_id=trip.trip_id,
         include_test_data=include_test_data_for_processing(snapshot.app_state),
     )
-    message = queued_refresh_message(
-        "Trip created from booking" if data.source_unmatched_booking_id else "Trip saved",
-        queued_count,
-    )
+    message = "Trip created from booking" if data.source_unmatched_booking_id else "Trip saved"
     warning_count = linked_booking_route_warning_count(snapshot, trip)
     if warning_count:
         booking_noun = "booking" if warning_count == 1 else "bookings"
