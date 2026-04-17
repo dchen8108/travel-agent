@@ -1174,22 +1174,21 @@ textarea {
   position: relative;
 }
 
-.multi-select-react[open] {
+.multi-select-react.is-open {
   z-index: 2;
 }
 
 .multi-select-react__summary {
-  list-style: none;
+  display: block;
+  width: 100%;
   min-height: 2.85rem;
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--surface-border);
   border-radius: 0.95rem;
   background: rgba(255, 252, 246, 0.92);
   cursor: pointer;
-}
-
-.multi-select-react__summary::-webkit-details-marker {
-  display: none;
+  text-align: left;
+  appearance: none;
 }
 
 .multi-select-react__chips {
