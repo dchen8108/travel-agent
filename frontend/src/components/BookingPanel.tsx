@@ -57,7 +57,6 @@ export function BookingPanel({
   const listQuery = useQuery({
     queryKey: bookingPanelQueryKey(tripInstanceId),
     queryFn: () => api.bookingPanel(tripInstanceId),
-    placeholderData: (previous) => previous,
   });
   const formQuery = useQuery({
     queryKey: bookingFormQueryKey(tripInstanceId, mode === "edit" ? bookingId : ""),

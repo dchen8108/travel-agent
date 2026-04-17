@@ -194,6 +194,12 @@ textarea {
   color: var(--copy-muted);
 }
 
+.quiet-state-card__actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.65rem;
+}
+
 .primary-button,
 .secondary-button {
   display: inline-flex;
@@ -382,15 +388,6 @@ textarea {
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--copy-muted);
-}
-
-.attention-card__field select {
-  min-height: 3rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--surface-border);
-  border-radius: 1rem;
-  background: white;
-  color: var(--copy);
 }
 
 .attention-card__control-actions {

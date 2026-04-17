@@ -7,6 +7,7 @@ import { DeleteIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
 import { PrefetchLink } from "./PrefetchLink";
+import { SearchSelectField } from "./SearchSelectField";
 import { TripRow } from "./TripRow";
 
 interface Props {
@@ -92,6 +93,18 @@ function UnmatchedBookingCard({
     () => item.tripOptions.flatMap((group) => group.options)[0]?.value ?? "",
     [item.tripOptions],
   );
+  const tripOptions = useMemo(
+    () => item.tripOptions.flatMap((group) => (
+      group.options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        keywords: `${group.label} ${option.label}`,
+        summary: option.label,
+        groupLabel: group.label,
+      }))
+    )),
+    [item.tripOptions],
+  );
   const [selectedTripInstanceId, setSelectedTripInstanceId] = useState(firstOptionValue);
 
   return (
@@ -112,19 +125,15 @@ function UnmatchedBookingCard({
       <div className="attention-card__controls">
         <label className="attention-card__field">
           <span>Scheduled trip</span>
-          <select
+          <SearchSelectField
+            options={tripOptions.map((option) => ({ ...option, meta: option.groupLabel }))}
             value={selectedTripInstanceId}
-            onChange={(event) => setSelectedTripInstanceId(event.target.value)}
-          >
-            <option value="">Choose one</option>
-            {item.tripOptions.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.options.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            onChange={setSelectedTripInstanceId}
+            placeholder="Choose scheduled trip"
+            allowEmpty
+            emptySelectionLabel="Choose one"
+            renderOptionMeta={(option) => <small>{option.meta}</small>}
+          />
         </label>
         <div className="attention-card__control-actions">
           <button

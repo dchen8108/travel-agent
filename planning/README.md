@@ -9,7 +9,7 @@ Use these first when you need the implementation as it exists today:
 - `agent-checkpoint.md`: current product/runtime snapshot and bootstrap guide for a fresh agent
 - `sqlite-storage.md`: current SQLite-backed storage model and runtime layout
 - `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
-- `trip-groups-and-recurring-rules.md`: transition-era architecture notes; useful context, but not an exact schema reference
+- there are no active historical planning docs in this directory; recover old migration notes from git history if needed
 
 The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the main source of truth for:
 
@@ -24,15 +24,13 @@ The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the m
 These are still useful, but they are more focused background than canonical implementation docs:
 
 - `google-flights-poc.md`
-- `trip-groups-and-recurring-rules.md`
-- `v1-ui-pass.md`
 
 ## Current Product Baseline
 
 - `travel-agent` is a local-first recurring flight control panel
-- `Trip Group` is a pure organizational bucket for concrete scheduled trips
-- `Trip` can be a one-time trip or a recurring rule authoring object
-- the normal UI requires recurring rules to belong to at least one group
+- `Collection` is a pure organizational bucket for concrete scheduled trips
+- `Trip` can be a one-time trip or a recurring trip authoring object
+- the normal UI requires recurring trips to belong to at least one collection
 - scheduled trips can belong to zero or more groups and at most one rule
 - attached recurring instances inherit rule group targets; detached instances freeze them
 - the dashboard at `/` is the canonical operational surface

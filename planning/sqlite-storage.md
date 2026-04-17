@@ -148,7 +148,7 @@ Key columns:
 - `created_at`
 - `updated_at`
 
-This table is the real polling queue for the background fetcher.
+This table is the persisted stale-first worklist for the background fetcher. `refresh_requested_at` is a priority hint, not a standalone user-visible queue.
 
 ### `bookings`
 

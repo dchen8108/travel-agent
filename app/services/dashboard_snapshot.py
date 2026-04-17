@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date
+from pathlib import Path
 from threading import Lock
 
 from app.services.data_scope import filter_snapshot, include_test_data_for_ui
@@ -10,14 +12,16 @@ from app.storage.repository import Repository
 
 
 _snapshot_cache_lock = Lock()
-_snapshot_cache_entry: tuple[int, int, AppSnapshot] | None = None
+_snapshot_cache_entry: tuple[Path, Path, int, int, AppSnapshot] | None = None
 
 
-def _snapshot_signature(repository: Repository) -> tuple[int, int]:
+def _snapshot_signature(repository: Repository) -> tuple[Path, Path, int, int]:
     repository.ensure_data_dir()
+    db_path = repository.db_path.resolve()
+    app_state_path = repository.app_state_path.resolve()
     db_mtime_ns = repository.db_path.stat().st_mtime_ns if repository.db_path.exists() else 0
     app_state_mtime_ns = repository.app_state_path.stat().st_mtime_ns if repository.app_state_path.exists() else 0
-    return db_mtime_ns, app_state_mtime_ns
+    return db_path, app_state_path, db_mtime_ns, app_state_mtime_ns
 
 
 def _load_snapshot_uncached(repository: Repository) -> AppSnapshot:
@@ -43,7 +47,7 @@ def _load_snapshot_uncached(repository: Repository) -> AppSnapshot:
 def _store_snapshot_cache(repository: Repository, snapshot: AppSnapshot) -> AppSnapshot:
     global _snapshot_cache_entry
     with _snapshot_cache_lock:
-        _snapshot_cache_entry = (*_snapshot_signature(repository), snapshot)
+        _snapshot_cache_entry = (*_snapshot_signature(repository), deepcopy(snapshot))
     return snapshot
 
 
@@ -51,8 +55,8 @@ def load_persisted_snapshot(repository: Repository) -> AppSnapshot:
     """Load the last persisted runtime snapshot without mutating state."""
     signature = _snapshot_signature(repository)
     with _snapshot_cache_lock:
-        if _snapshot_cache_entry is not None and _snapshot_cache_entry[:2] == signature:
-            return _snapshot_cache_entry[2]
+        if _snapshot_cache_entry is not None and _snapshot_cache_entry[:4] == signature:
+            return deepcopy(_snapshot_cache_entry[4])
     return _store_snapshot_cache(repository, _load_snapshot_uncached(repository))
 
 

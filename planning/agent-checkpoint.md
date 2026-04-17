@@ -12,9 +12,9 @@ This is the high-signal bootstrap note for a fresh agent. It should describe the
 
 Core product shape:
 
-- `Trip Group` organizes related scheduled trips
-- `Recurring Rule` generates future scheduled trips into one or more groups
-- `Trip` is the authoring object for either a one-time trip or a recurring rule
+- `Collection` organizes related scheduled trips
+- `Recurring Trip` generates future scheduled trips into one or more collections
+- `Trip` is the authoring object for either a one-time trip or a recurring trip
 - `Trip Instance` is the concrete dated trip you actually manage
 - `Route Option` is a ranked itinerary definition under a trip
 - `Tracker` and `Tracker Fetch Target` are derived monitoring objects
@@ -29,7 +29,7 @@ Primary screens:
 
 - dashboard at `/`
 - dashboard modal panels for trip bookings and trackers
-- focused create/edit flows such as `/trips/new` and trip-scoped `/bookings/new?trip_instance_id=...`
+- focused create/edit flow for trips at `/trips/new` and `/trips/{id}/edit`
 - compatibility redirects under `/groups/{trip_group_id}`, `/trip-instances/{trip_instance_id}`, and `/trips/{trip_id}`
 - the persistent Milemark mark/wordmark is the global route back to `/`; page-level `Back` links are only local navigation helpers
 
@@ -37,8 +37,9 @@ Important hierarchy:
 
 - the dashboard is the canonical operational page
 - groups are organizational only and are inspected inline on collection cards
+- collections are organizational only and are inspected inline on collection cards
 - scheduled trips are inspected inline in the dashboard ledger, with bookings and trackers opening in modal panels
-- recurring rules do not keep a standalone detail page; `/trips/{trip_id}` redirects to edit for weekly rules
+- recurring trips do not keep a standalone detail page; `/trips/{trip_id}` redirects to edit for weekly trips
 - `/groups/{id}` and `/trip-instances/{id}` are compatibility redirects, not primary destinations
 - unlinked bookings are resolved inline on the dashboard
 
@@ -70,7 +71,7 @@ Frontend code is split across:
 
 - entrypoint: `app/jobs/fetch_google_flights.py`
 - conservative serial worker
-- queue-based cadence, with launchd defaults coming from `config/app_state.json`
+- stale-first cadence, with launchd defaults coming from `config/app_state.json`
 - fetch-target leases prevent overlapping workers from fetching the same tracker concurrently
 
 ### Gmail Booking Poller
@@ -115,9 +116,9 @@ Frontend code is split across:
 - booking comparison is trip-level, using the best current route after preference bias
 - bookings can optionally link back to the exact tracked route when the match is unique
 - there is no separate user-facing skip lifecycle; recurring exceptions are represented by deleting attached occurrences or detaching them into standalone one-time trips
-- deleting a recurring occurrence suppresses regeneration for that rule/date
+- deleting a recurring occurrence suppresses regeneration for that recurring trip/date
 - one-time trip deletion is a tombstone, not a hard delete
-- recurring rules are required to belong to at least one group in the normal UI
+- recurring trips are required to belong to at least one collection in the normal UI
 - test data is explicit through `data_scope = live | test`
 
 ## Current Verification Baseline
@@ -150,7 +151,6 @@ High-signal docs:
 - [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md)
 - [planning/sqlite-storage.md](/Users/davidchen/code/travel-agent/planning/sqlite-storage.md)
 - [planning/gmail-booking-ingestion.md](/Users/davidchen/code/travel-agent/planning/gmail-booking-ingestion.md)
-- [planning/trip-groups-and-recurring-rules.md](/Users/davidchen/code/travel-agent/planning/trip-groups-and-recurring-rules.md) for transition context only
 
 Entrypoints:
 

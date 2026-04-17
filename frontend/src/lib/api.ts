@@ -2,7 +2,6 @@ import type {
   BookingFormPayload,
   BookingMutationPayload,
   BookingPanelPayload,
-  CollectionCard,
   DashboardMutationPayload,
   DashboardPayload,
   TripEditorPayload,
@@ -47,9 +46,6 @@ export const api = {
   dashboard(params: URLSearchParams): Promise<DashboardPayload> {
     const query = params.toString();
     return request<DashboardPayload>(`/api/dashboard${query ? `?${query}` : ""}`);
-  },
-  collection(groupId: string): Promise<CollectionCard> {
-    return request<CollectionCard>(`/api/collections/${groupId}`);
   },
   createCollection(label: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
     return request<DashboardMutationPayload>(withDashboardFilters("/api/collections", filters), {

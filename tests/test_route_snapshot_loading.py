@@ -182,3 +182,15 @@ def test_trip_detail_prefers_persisted_snapshot_when_instance_exists(
         trip_instance_id=instance.trip_instance_id,
     )
     assert calls["persisted"] == 1
+
+
+def test_invalid_bookings_panel_deep_link_returns_404(client) -> None:
+    response = client.get("/?panel=bookings&trip_instance_id=inst_missing")
+
+    assert response.status_code == 404
+
+
+def test_invalid_trip_editor_deep_link_returns_404(client) -> None:
+    response = client.get("/trips/trip_missing/edit")
+
+    assert response.status_code == 404

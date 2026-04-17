@@ -462,6 +462,18 @@ export function DashboardPage() {
             onPrefetchBookings={prefetchBookingPanel}
             onPrefetchTrackers={prefetchTrackerPanel}
           />
+        ) : dashboardQuery.isError ? (
+          <section className="surface">
+            <article className="quiet-state-card">
+              <strong>Unable to load dashboard.</strong>
+              <p>{dashboardQuery.error instanceof Error ? dashboardQuery.error.message : "Try again in a moment."}</p>
+              <div className="quiet-state-card__actions">
+                <button type="button" className="secondary-button" onClick={() => void dashboardQuery.refetch()}>
+                  Retry
+                </button>
+              </div>
+            </article>
+          </section>
         ) : null}
 
         <section className="surface" id="dashboard-groups">
@@ -538,6 +550,16 @@ export function DashboardPage() {
                 ))}
               </div>
             </>
+          ) : dashboardQuery.isError ? (
+            <article className="quiet-state-card">
+              <strong>Unable to load trips.</strong>
+              <p>{dashboardQuery.error instanceof Error ? dashboardQuery.error.message : "Try again in a moment."}</p>
+              <div className="quiet-state-card__actions">
+                <button type="button" className="secondary-button" onClick={() => void dashboardQuery.refetch()}>
+                  Retry
+                </button>
+              </div>
+            </article>
           ) : (
             <div className="surface-loading">Loading trips…</div>
           )}

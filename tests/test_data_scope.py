@@ -53,6 +53,29 @@ def test_load_persisted_snapshot_hides_test_scoped_rows_by_default(tmp_path: Pat
     assert [trip.trip_id for trip in snapshot.trips] == ["trip_live"]
 
 
+def test_load_persisted_snapshot_returns_isolated_copies(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    repository.upsert_trip(
+        Trip(
+            trip_id="trip_live",
+            label="Live Trip",
+            trip_kind="one_time",
+            data_scope=DataScope.LIVE,
+            anchor_date=date(2026, 4, 20),
+        )
+    )
+
+    first = load_persisted_snapshot(repository)
+    first.trips[0].label = "Mutated in memory"
+
+    second = load_persisted_snapshot(repository)
+
+    assert second.trips[0].label == "Live Trip"
+
+
 def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path: Path) -> None:
     settings = _settings(tmp_path)
     repository = Repository(settings)

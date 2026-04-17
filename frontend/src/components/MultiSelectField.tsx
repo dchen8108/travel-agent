@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import { usePickerPopover } from "../lib/usePickerPopover";
 
@@ -26,6 +26,7 @@ export function MultiSelectField({
   maxSelections,
 }: Props) {
   const { rootRef, searchRef, open, setOpen, toggleOpen } = usePickerPopover();
+  const listboxId = useId();
   const [query, setQuery] = useState("");
   const selected = useMemo(
     () => options.filter((option) => values.includes(option.value)),
@@ -67,6 +68,7 @@ export function MultiSelectField({
         className="picker-react__summary"
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls={listboxId}
         onClick={toggleOpen}
       >
         {selected.length ? (
@@ -91,7 +93,7 @@ export function MultiSelectField({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={placeholder}
           />
-          <div className="picker-react__options" role="listbox" aria-multiselectable="true">
+          <div className="picker-react__options" id={listboxId} role="listbox" aria-multiselectable="true">
             {filtered.length ? (
               filtered.map((option) => {
                 const checked = values.includes(option.value);
@@ -101,7 +103,8 @@ export function MultiSelectField({
                     type="button"
                     className={`picker-react__option ${checked ? "is-selected" : ""}`}
                     onClick={() => toggle(option.value)}
-                    aria-pressed={checked}
+                    role="option"
+                    aria-selected={checked}
                   >
                     <span className="picker-react__option-check">{checked ? "✓" : ""}</span>
                     <span className="picker-react__option-copy">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
 import { usePickerPopover } from "../lib/usePickerPopover";
 
@@ -7,6 +7,7 @@ interface Option {
   label: string;
   keywords?: string;
   summary?: string;
+  meta?: string;
 }
 
 interface Props {
@@ -31,6 +32,7 @@ export function SearchSelectField({
   renderOptionMeta,
 }: Props) {
   const { rootRef, searchRef, open, setOpen, toggleOpen } = usePickerPopover();
+  const listboxId = useId();
   const [query, setQuery] = useState("");
 
   const selected = useMemo(
@@ -43,7 +45,7 @@ export function SearchSelectField({
       return options;
     }
     return options.filter((option) => {
-      const haystack = `${option.value} ${option.label} ${option.keywords ?? ""} ${option.summary ?? ""}`.toLowerCase();
+      const haystack = `${option.value} ${option.label} ${option.keywords ?? ""} ${option.summary ?? ""} ${option.meta ?? ""}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [options, query]);
@@ -66,6 +68,7 @@ export function SearchSelectField({
         className="picker-react__summary"
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls={listboxId}
         onClick={toggleOpen}
       >
         {selected ? (
@@ -84,13 +87,15 @@ export function SearchSelectField({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={placeholder}
           />
-          <div className="picker-react__options" role="listbox" aria-multiselectable="false">
+          <div className="picker-react__options" id={listboxId} role="listbox" aria-multiselectable="false">
             {filtered.length || (allowEmpty && value) ? (
               <>
                 {allowEmpty && value ? (
                   <button
                     type="button"
                     className="picker-react__option"
+                    role="option"
+                    aria-selected={false}
                     onClick={() => selectValue("")}
                   >
                     <span className="picker-react__option-check" />
@@ -108,11 +113,12 @@ export function SearchSelectField({
                     type="button"
                     className={`picker-react__option ${checked ? "is-selected" : ""}`}
                     onClick={() => selectValue(option.value)}
-                    aria-pressed={checked}
+                    role="option"
+                    aria-selected={checked}
                   >
                     <span className="picker-react__option-check">{checked ? "✓" : ""}</span>
                     <span className="picker-react__option-copy">
-                      <strong>{option.value}</strong>
+                      <strong>{option.summary ?? option.value}</strong>
                       {renderOptionMeta ? renderOptionMeta(option) : <small>{option.label}</small>}
                     </span>
                   </button>

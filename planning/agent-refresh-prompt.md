@@ -16,7 +16,6 @@ Minimum reading list:
 - README.md
 - planning/README.md
 - planning/agent-checkpoint.md
-- planning/v1-ui-pass.md
 - app/main.py
 - app/routes/*.py
 - app/services/*.py

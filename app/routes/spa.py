@@ -81,53 +81,47 @@ def app_shell(
         normalized_path.startswith("/trips/") and normalized_path.endswith("/edit")
     )
     if not is_trip_editor_path:
-            bootstrap_payload["dashboard"] = {
-                "query": _dashboard_query_string(
-                    trip_group_ids=trip_group_ids,
-                    include_booked=include_booked,
-                ),
-                "data": dashboard_payload(
-                    snapshot,
-                    today=date.today(),
-                    selected_trip_group_ids=trip_group_ids,
-                    include_booked=include_booked,
-                ),
-            }
+        bootstrap_payload["dashboard"] = {
+            "query": _dashboard_query_string(
+                trip_group_ids=trip_group_ids,
+                include_booked=include_booked,
+            ),
+            "data": dashboard_payload(
+                snapshot,
+                today=date.today(),
+                selected_trip_group_ids=trip_group_ids,
+                include_booked=include_booked,
+            ),
+        }
     panel = request.query_params.get("panel", "")
     trip_instance_id = request.query_params.get("trip_instance_id", "").strip()
     if panel == "bookings" and trip_instance_id:
         mode = request.query_params.get("booking_mode", "list")
         booking_id = request.query_params.get("booking_id", "").strip()
-        try:
-            bootstrap_payload["bookingPanel"] = {
+        bootstrap_payload["bookingPanel"] = {
+            "tripInstanceId": trip_instance_id,
+            "data": booking_panel_payload(
+                snapshot,
+                trip_instance_id=trip_instance_id,
+                mode="list",
+            ),
+        }
+        if mode in {"create", "edit"}:
+            bootstrap_payload["bookingForm"] = {
                 "tripInstanceId": trip_instance_id,
-                "data": booking_panel_payload(
+                "mode": mode,
+                "bookingId": booking_id,
+                "data": booking_form_payload(
                     snapshot,
                     trip_instance_id=trip_instance_id,
-                    mode="list",
+                    booking_id=booking_id if mode == "edit" else "",
                 ),
             }
-            if mode in {"create", "edit"}:
-                bootstrap_payload["bookingForm"] = {
-                    "tripInstanceId": trip_instance_id,
-                    "mode": mode,
-                    "bookingId": booking_id,
-                    "data": booking_form_payload(
-                        snapshot,
-                        trip_instance_id=trip_instance_id,
-                        booking_id=booking_id if mode == "edit" else "",
-                    ),
-                }
-        except HTTPException:
-            pass
     if panel == "trackers" and trip_instance_id:
-        try:
-            bootstrap_payload["trackerPanel"] = {
-                "tripInstanceId": trip_instance_id,
-                "data": tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id),
-            }
-        except HTTPException:
-            pass
+        bootstrap_payload["trackerPanel"] = {
+            "tripInstanceId": trip_instance_id,
+            "data": tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id),
+        }
     if normalized_path == "/trips/new":
         try:
             bootstrap_payload["tripEditor"] = {
@@ -142,10 +136,8 @@ def app_shell(
                     trip_label=request.query_params.get("trip_label", ""),
                 ),
             }
-        except HTTPException:
-            pass
-        except KeyError:
-            pass
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=error.args[0] if error.args else "Trip not found") from error
     elif normalized_path.startswith("/trips/") and normalized_path.endswith("/edit"):
         trip_id = normalized_path.split("/")[2]
         try:
@@ -159,10 +151,8 @@ def app_shell(
                     trip_instance_id=request.query_params.get("trip_instance_id", ""),
                 ),
             }
-        except HTTPException:
-            pass
-        except KeyError:
-            pass
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=error.args[0] if error.args else "Trip not found") from error
     response = HTMLResponse(_inject_bootstrap(index_path.read_text(encoding="utf-8"), bootstrap_payload))
     response.headers["Cache-Control"] = "no-store"
     return response

@@ -70,6 +70,11 @@ export function TripEditorPage() {
     queryFn: () => (tripId ? api.tripEditorEdit(tripId, editorParams) : api.tripEditorNew(editorParams)),
   });
 
+  const cancelHref = useMemo(
+    () => (formQuery.data ? fallbackCancelUrl(formQuery.data.values, searchParams) : "/#all-travel"),
+    [formQuery.data, searchParams],
+  );
+
   useEffect(() => {
     if (!formQuery.data) {
       return;
@@ -144,9 +149,6 @@ export function TripEditorPage() {
     });
   }
 
-  if (formQuery.isLoading || !values || !formQuery.data) {
-    return <div className="app-shell"><div className="surface-loading">Loading trip editor…</div></div>;
-  }
   if (formQuery.isError) {
     return (
       <div className="app-shell">
@@ -155,6 +157,9 @@ export function TripEditorPage() {
         </div>
       </div>
     );
+  }
+  if (formQuery.isLoading || !values || !formQuery.data) {
+    return <div className="app-shell"><div className="surface-loading">Loading trip editor…</div></div>;
   }
 
   const payload = formQuery.data;
@@ -477,7 +482,7 @@ export function TripEditorPage() {
             <button
               type="button"
               className="secondary-button"
-              onClick={() => navigate(fallbackCancelUrl(values, searchParams))}
+              onClick={() => navigate(cancelHref)}
               disabled={saveMutation.isPending}
             >
               Cancel

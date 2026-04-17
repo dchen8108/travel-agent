@@ -98,14 +98,14 @@ def main() -> None:
             include_test_data=include_test_data,
             app_state=snapshot.app_state,
         )
-        target_by_id = {
+        fresh_target_by_id = {
             target.fetch_target_id: target
-            for target in snapshot.tracker_fetch_targets
+            for target in repository.load_tracker_fetch_targets()
         }
         due_targets = [
-            target_by_id[target_id]
+            fresh_target_by_id[target_id]
             for target_id in selected_target_ids
-            if target_id in target_by_id
+            if target_id in fresh_target_by_id
         ]
         total_stale_target_count = len(all_stale_targets)
         _emit_log(
