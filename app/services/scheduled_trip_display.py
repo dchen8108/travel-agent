@@ -69,7 +69,7 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     if record_locator:
         booking_meta = f"{departure_time} · {record_locator}" if departure_time else record_locator
     return {
-        "label": "Booked at",
+        "label": "Booked",
         "detail": booking_route_label(booking_like),
         "meta_label": booking_meta,
         "day_delta_label": (
