@@ -125,7 +125,7 @@ def _rebook_attention_title_and_badge(card: dict[str, object]) -> tuple[str, str
     booking = card.get("booking")
     tracker = card.get("tracker")
     if booking is None or tracker is None:
-        return "Better option", "After preferences"
+        return "Better option after preferences", ""
 
     same_route = bool(getattr(booking, "route_option_id", "")) and (
         getattr(booking, "route_option_id", "") == getattr(tracker, "route_option_id", "")
@@ -135,7 +135,7 @@ def _rebook_attention_title_and_badge(card: dict[str, object]) -> tuple[str, str
     if same_route and booking_raw is not None and tracker_raw is not None and tracker_raw < booking_raw:
         raw_savings = booking_raw - tracker_raw
         return "Price drop", f"{format_money(raw_savings)} lower"
-    return "Better option", "After preferences"
+    return "Better option after preferences", ""
 
 
 def collection_card_value(snapshot, trip_group_id: str, *, today: date) -> dict[str, object]:

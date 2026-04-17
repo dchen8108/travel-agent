@@ -277,5 +277,5 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
     payload = response.json()
     rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
     assert len(rebook_items) == 1
-    assert rebook_items[0]["title"] == "Better option"
-    assert rebook_items[0]["badge"] == "After preferences"
+    assert rebook_items[0]["title"] == "Better option after preferences"
+    assert rebook_items[0]["badge"] == ""
