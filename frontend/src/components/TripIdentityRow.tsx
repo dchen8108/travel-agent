@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type { TripIdentity } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
+import { DateTile } from "./DateTile";
 import { DeleteIcon, EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { PrefetchLink } from "./PrefetchLink";
@@ -16,10 +17,7 @@ export function TripIdentityRow({ trip, onDelete }: Props) {
 
   return (
     <div className="trip-identity-row">
-      <div className="date-tile">
-        <span className="date-tile__weekday">{trip.dateTile.weekday}</span>
-        <span className="date-tile__month-day">{trip.dateTile.monthDay}</span>
-      </div>
+      <DateTile tile={trip.dateTile} />
       <div className="trip-identity-row__copy">
         <h3>{trip.title}</h3>
       </div>

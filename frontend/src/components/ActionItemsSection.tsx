@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type { DashboardActionItem, DashboardUnmatchedBookingActionItem, TripRow as TripRowValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
+import { DateTile } from "./DateTile";
 import { DeleteIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
@@ -113,14 +114,16 @@ function UnmatchedBookingCard({
         <div>
           <p className="attention-card__eyebrow">{item.title}</p>
         </div>
-        <span className="attention-card__badge">{item.bookingDateLabel}</span>
         <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(item.unmatchedBookingId)}>
           <DeleteIcon />
         </IconButton>
       </div>
       <div className="attention-card__workflow">
-        <div className="attention-card__offer-shell">
-          <OfferBlock kind="booked" offer={item.offer} />
+        <div className="attention-card__booking-row">
+          <DateTile tile={item.dateTile} />
+          <div className="attention-card__offer-shell">
+            <OfferBlock kind="booked" offer={item.offer} />
+          </div>
         </div>
         <label className="attention-card__field attention-card__field--inline">
           <span>Scheduled trip</span>
