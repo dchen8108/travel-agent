@@ -250,6 +250,14 @@ textarea {
   min-width: 0;
 }
 
+.filter-chip-divider {
+  align-self: center;
+  width: 1px;
+  height: 1.9rem;
+  margin: 0 0.1rem;
+  background: var(--line);
+}
+
 .filter-chip,
 .filter-toggle,
 .status-toggle,

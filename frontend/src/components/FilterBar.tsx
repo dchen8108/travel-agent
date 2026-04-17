@@ -24,6 +24,7 @@ export function FilterBar({ options, selected, includeBooked, onToggleOption, on
             </button>
           );
         })}
+        {options.length > 0 ? <span className="filter-chip-divider" aria-hidden="true" /> : null}
         <button
           type="button"
           className={`filter-chip ${includeBooked ? "is-active" : ""}`}
