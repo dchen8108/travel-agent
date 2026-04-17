@@ -113,15 +113,16 @@ function UnmatchedBookingCard({
         <div>
           <p className="attention-card__eyebrow">{item.title}</p>
         </div>
+        <span className="attention-card__badge">{item.bookingDateLabel}</span>
         <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(item.unmatchedBookingId)}>
           <DeleteIcon />
         </IconButton>
       </div>
-      <div className="attention-card__offer-shell">
-        <OfferBlock kind="booked" offer={item.offer} />
-      </div>
-      <div className="attention-card__controls">
-        <label className="attention-card__field">
+      <div className="attention-card__workflow">
+        <div className="attention-card__offer-shell">
+          <OfferBlock kind="booked" offer={item.offer} />
+        </div>
+        <label className="attention-card__field attention-card__field--inline">
           <span>Scheduled trip</span>
           <SearchSelectField
             options={tripOptions.map((option) => ({ ...option, meta: option.groupLabel }))}
@@ -133,7 +134,7 @@ function UnmatchedBookingCard({
             renderOptionMeta={(option) => <small>{option.meta}</small>}
           />
         </label>
-        <div className="attention-card__control-actions">
+        <div className="attention-card__control-actions attention-card__control-actions--inline">
           <button
             type="button"
             className="primary-button"

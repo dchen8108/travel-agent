@@ -241,6 +241,7 @@ def test_unmatched_booking_ui_does_not_fall_back_to_internal_ids(tmp_path: Path)
     payload = _dashboard_payload(client)
     unmatched_item = next(item for item in payload["actionItems"] if item["kind"] == "unmatchedBooking")
     assert unmatched_item["title"] == "Link booking"
+    assert unmatched_item["bookingDateLabel"] == "Wed, Jun 10"
     assert f'Booking {unmatched.unmatched_booking_id}' not in json.dumps(payload)
 
     form_page = client.get(f"/trips/new?unmatched_booking_id={unmatched.unmatched_booking_id}")

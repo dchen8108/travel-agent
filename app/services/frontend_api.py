@@ -202,6 +202,7 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
             {
                 "kind": "unmatchedBooking",
                 "title": "Link booking",
+                "bookingDateLabel": unmatched.departure_date.strftime("%a, %b %d"),
                 "unmatchedBookingId": unmatched.unmatched_booking_id,
                 "offer": _offer_value(
                     booking_offer_summary(

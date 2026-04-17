@@ -103,6 +103,7 @@ export interface TripOptionGroup {
 export interface DashboardUnmatchedBookingActionItem {
   kind: "unmatchedBooking";
   title: string;
+  bookingDateLabel: string;
   unmatchedBookingId: string;
   offer: Offer;
   tripOptions: TripOptionGroup[];

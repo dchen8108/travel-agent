@@ -373,27 +373,34 @@ textarea {
   min-height: auto;
 }
 
-.attention-card__controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  justify-content: space-between;
+.attention-card__workflow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 1fr) auto;
   gap: 1rem;
+  align-items: end;
+  margin-top: 0.6rem;
 }
 
 .attention-card__field {
   display: grid;
   gap: 0.4rem;
-  min-width: min(28rem, 100%);
+  min-width: 0;
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--copy-muted);
+}
+
+.attention-card__field--inline,
+.attention-card__control-actions--inline {
+  border-left: 1px solid var(--line);
+  padding-left: 1rem;
 }
 
 .attention-card__control-actions {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.7rem;
+  justify-content: flex-end;
 }
 
 .collection-card {
@@ -1272,6 +1279,16 @@ textarea {
 @media (max-width: 860px) {
   .trip-row {
     grid-template-columns: 1fr;
+  }
+
+  .attention-card__workflow {
+    grid-template-columns: 1fr;
+  }
+
+  .attention-card__field--inline,
+  .attention-card__control-actions--inline {
+    border-left: 0;
+    padding-left: 0;
   }
 
   .offer-block {
