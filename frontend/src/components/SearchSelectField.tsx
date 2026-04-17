@@ -15,6 +15,7 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  ariaLabel?: string;
   emptyText?: string;
   allowEmpty?: boolean;
   emptySelectionLabel?: string;
@@ -26,6 +27,7 @@ export function SearchSelectField({
   value,
   onChange,
   placeholder,
+  ariaLabel,
   emptyText = "No matches",
   allowEmpty = false,
   emptySelectionLabel = "Choose",
@@ -66,6 +68,7 @@ export function SearchSelectField({
       <button
         type="button"
         className="picker-react__summary"
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
@@ -83,6 +86,7 @@ export function SearchSelectField({
             ref={searchRef}
             type="text"
             className="picker-react__search"
+            aria-label={ariaLabel ?? placeholder}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={placeholder}

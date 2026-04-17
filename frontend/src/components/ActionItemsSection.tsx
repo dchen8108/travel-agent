@@ -144,18 +144,18 @@ function UnmatchedBookingCard({
             />
           </div>
         </div>
-        <label className="attention-card__field attention-card__field--inline">
-          <span>Link to trip</span>
+        <div className="attention-card__field attention-card__field--inline attention-card__field--compact">
           <SearchSelectField
             options={tripOptions.map((option) => ({ ...option, meta: option.groupLabel }))}
             value={selectedTripInstanceId}
             onChange={setSelectedTripInstanceId}
-            placeholder="Choose scheduled trip"
+            placeholder="Choose one"
+            ariaLabel="Link booking to trip"
             allowEmpty
             emptySelectionLabel="Choose one"
             renderOptionMeta={(option) => <small>{option.meta}</small>}
           />
-        </label>
+        </div>
         <div className="attention-card__control-actions attention-card__control-actions--inline">
           <IconButton
             label="Link booking"

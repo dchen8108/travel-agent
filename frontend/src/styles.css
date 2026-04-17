@@ -385,7 +385,7 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 1fr) auto;
   gap: 1rem;
-  align-items: end;
+  align-items: center;
   margin-top: 0.6rem;
 }
 
@@ -396,6 +396,11 @@ textarea {
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--copy-muted);
+}
+
+.attention-card__field--compact {
+  gap: 0;
+  align-self: center;
 }
 
 .attention-card__field--inline,
