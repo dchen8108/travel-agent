@@ -6,7 +6,6 @@ from datetime import date
 from fastapi import HTTPException
 
 from app.catalog import catalogs_json
-from app.money import format_money, parse_money
 from app.models.base import TripInstanceInheritanceMode, TripKind
 from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
@@ -29,6 +28,7 @@ from app.services.snapshot_queries import (
     trip_instance_by_id,
 )
 from app.services.trip_editor import edit_trip_form_payload, new_trip_form_payload
+from app.services.trip_attention import rebook_attention_kind, rebook_attention_title_and_badge
 
 
 def _date_tile_value(value: date) -> dict[str, str]:
@@ -121,23 +121,6 @@ def trip_row_value(snapshot, trip_instance_id: str) -> dict[str, object]:
     }
 
 
-def _rebook_attention_title_and_badge(card: dict[str, object]) -> tuple[str, str]:
-    booking = card.get("booking")
-    tracker = card.get("tracker")
-    if booking is None or tracker is None:
-        return "Better option after preferences", ""
-
-    same_route = bool(getattr(booking, "route_option_id", "")) and (
-        getattr(booking, "route_option_id", "") == getattr(tracker, "route_option_id", "")
-    )
-    booking_raw = parse_money(getattr(booking, "booked_price", None))
-    tracker_raw = parse_money(getattr(tracker, "latest_observed_price", None))
-    if same_route and booking_raw is not None and tracker_raw is not None and tracker_raw < booking_raw:
-        raw_savings = booking_raw - tracker_raw
-        return "Price drop", f"{format_money(raw_savings)} lower"
-    return "Better option after preferences", ""
-
-
 def collection_card_value(snapshot, trip_group_id: str, *, today: date) -> dict[str, object]:
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
@@ -162,7 +145,8 @@ def collection_card_value(snapshot, trip_group_id: str, *, today: date) -> dict[
                 "href": item["href"],
                 "label": item["label"],
                 "title": item["title"],
-                "tone": item["tone"],
+                "lifecycle": item["lifecycle"],
+                "attentionKind": item["attention_kind"],
             }
             for item in view["upcoming_trip_views"]
         ],
@@ -242,11 +226,12 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
             }
         )
     for card in attention["rebook_views"]:
-        title, badge = _rebook_attention_title_and_badge(card)
+        attention_kind = rebook_attention_kind(snapshot, card["instance"].trip_instance_id)
+        title, badge = rebook_attention_title_and_badge(snapshot, card["instance"].trip_instance_id)
         items.append(
             {
                 "kind": "tripAttention",
-                "attentionKind": "rebook",
+                "attentionKind": attention_kind,
                 "title": title,
                 "badge": badge,
                 "row": trip_row_value(snapshot, card["instance"].trip_instance_id),

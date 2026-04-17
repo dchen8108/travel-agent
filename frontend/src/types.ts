@@ -1,5 +1,7 @@
 export type OfferTone = "neutral" | "success" | "accent" | "warning";
 export type OfferStatusKind = "" | "pending" | "unavailable";
+export type TripAttentionKind = "overbooked" | "priceDrop" | "betterOption" | "needsBooking";
+export type TripLifecycle = "planned" | "booked";
 
 export interface DateTile {
   weekday: string;
@@ -64,7 +66,8 @@ export interface CollectionCard {
     href: string;
     label: string;
     title: string;
-    tone: string;
+    lifecycle: TripLifecycle;
+    attentionKind: TripAttentionKind | "";
   }>;
 }
 
@@ -108,7 +111,7 @@ export interface DashboardUnmatchedBookingActionItem {
 
 export interface DashboardTripAttentionActionItem {
   kind: "tripAttention";
-  attentionKind: "overbooked" | "rebook" | "needsBooking";
+  attentionKind: TripAttentionKind;
   title: string;
   badge: string;
   row: TripRow;

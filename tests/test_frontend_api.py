@@ -57,6 +57,55 @@ def _seed_dashboard_trip(repository: Repository) -> str:
     return trip_instance_id
 
 
+def _seed_grouped_recurring_trip(repository: Repository) -> str:
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Commute",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        trip_group_ids=[group.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(
+        instance.trip_instance_id
+        for instance in repository.load_trip_instances()
+        if instance.anchor_date == date(2026, 4, 20)
+    )
+    record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 20),
+            departure_time="06:00",
+            arrival_time="07:20",
+            booked_price="78.40",
+            record_locator="BDJ594",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    return trip_instance_id
+
+
 def test_repository_initialization_is_shared_per_db_path(settings, monkeypatch) -> None:
     calls = 0
     real_initialize = repository_module.initialize_schema
@@ -181,7 +230,9 @@ def test_dashboard_api_suppresses_rebook_card_when_preference_buffer_erases_raw_
 
     assert response.status_code == 200
     payload = response.json()
-    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
+    rebook_items = [
+        item for item in payload["actionItems"] if item.get("attentionKind") in {"priceDrop", "betterOption"}
+    ]
     assert rebook_items == []
 
 
@@ -201,7 +252,7 @@ def test_dashboard_api_uses_price_drop_copy_for_same_route_rebook(client, reposi
 
     assert response.status_code == 200
     payload = response.json()
-    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
+    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "priceDrop"]
     assert len(rebook_items) == 1
     assert rebook_items[0]["title"] == "Price drop"
     assert rebook_items[0]["badge"] == "$8.40 lower"
@@ -275,7 +326,36 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
 
     assert response.status_code == 200
     payload = response.json()
-    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
+    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "betterOption"]
     assert len(rebook_items) == 1
     assert rebook_items[0]["title"] == "Better option after preferences"
     assert rebook_items[0]["badge"] == ""
+
+
+def test_dashboard_api_collection_pills_expose_lifecycle_and_attention_kind(client, repository: Repository) -> None:
+    trip_instance_id = _seed_grouped_recurring_trip(repository)
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    pill = payload["collections"][0]["upcomingTrips"][0]
+    assert pill["lifecycle"] == "booked"
+    assert pill["attentionKind"] == ""
+
+    trackers = repository.load_trackers()
+    now = utcnow()
+    for tracker in trackers:
+        if tracker.trip_instance_id == trip_instance_id:
+            tracker.latest_observed_price = 70
+            tracker.latest_fetched_at = now
+            tracker.last_signal_at = now
+            tracker.latest_signal_source = "background_fetch"
+    repository.upsert_trackers(trackers)
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    pill = payload["collections"][0]["upcomingTrips"][0]
+    assert pill["attentionKind"] == "priceDrop"

@@ -10,8 +10,14 @@
   --accent: #118e84;
   --accent-strong: #0f6b65;
   --accent-soft: #d6eee9;
+  --success-soft: #e4f0e7;
+  --success-copy: #2b6d45;
+  --info-soft: #e6eef8;
+  --info-copy: #335f95;
+  --danger-soft: #f5e0e1;
   --warning-soft: #faedd0;
   --warning-copy: #8f6d1d;
+  --warning-strong: #b57a16;
   --danger: #a44d4f;
   font-family: "Avenir Next", "Inter", system-ui, sans-serif;
 }
@@ -269,11 +275,19 @@ textarea {
 }
 
 .attention-card--overbooked {
-  background: rgba(250, 237, 208, 0.55);
+  background: rgba(245, 224, 225, 0.72);
 }
 
-.attention-card--rebook {
+.attention-card--priceDrop {
   background: rgba(214, 238, 233, 0.55);
+}
+
+.attention-card--betterOption {
+  background: rgba(230, 238, 248, 0.72);
+}
+
+.attention-card--needsBooking {
+  background: rgba(250, 237, 208, 0.55);
 }
 
 .attention-card__header {
@@ -294,6 +308,26 @@ textarea {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--copy-muted);
+}
+
+.attention-card--overbooked .attention-card__eyebrow,
+.attention-card--overbooked .attention-card__badge {
+  color: var(--danger);
+}
+
+.attention-card--priceDrop .attention-card__eyebrow,
+.attention-card--priceDrop .attention-card__badge {
+  color: var(--accent-strong);
+}
+
+.attention-card--betterOption .attention-card__eyebrow,
+.attention-card--betterOption .attention-card__badge {
+  color: var(--info-copy);
+}
+
+.attention-card--needsBooking .attention-card__eyebrow,
+.attention-card--needsBooking .attention-card__badge {
+  color: var(--warning-copy);
 }
 
 .attention-card__title {
@@ -462,22 +496,49 @@ textarea {
 }
 
 .trip-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   padding: 0.5rem 0.85rem;
+  padding-right: 1.15rem;
   font-weight: 800;
 }
 
-.trip-pill--accent {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-
-.trip-pill--success {
-  color: var(--accent-strong);
-}
-
-.trip-pill--warning {
+.trip-pill--planned {
   color: var(--warning-copy);
   background: var(--warning-soft);
+}
+
+.trip-pill--booked {
+  color: var(--success-copy);
+  background: var(--success-soft);
+}
+
+.trip-pill__marker {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  width: 0.52rem;
+  height: 0.52rem;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(29, 43, 57, 0.06);
+}
+
+.trip-pill__marker--overbooked {
+  background: var(--danger);
+}
+
+.trip-pill__marker--priceDrop {
+  background: var(--accent);
+}
+
+.trip-pill__marker--betterOption {
+  background: var(--info-copy);
+}
+
+.trip-pill__marker--needsBooking {
+  background: var(--warning-strong);
 }
 
 .trip-row {

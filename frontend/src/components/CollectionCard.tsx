@@ -65,8 +65,19 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Pr
       <div className="pill-row">
         {collection.upcomingTrips.length > 0 ? (
           collection.upcomingTrips.map((trip) => (
-            <PrefetchLink key={`${collection.groupId}-${trip.label}`} className={`trip-pill trip-pill--${trip.tone}`} to={trip.href} title={trip.title}>
-              {trip.label}
+            <PrefetchLink
+              key={`${collection.groupId}-${trip.label}`}
+              className={`trip-pill trip-pill--${trip.lifecycle}`}
+              to={trip.href}
+              title={trip.title}
+            >
+              <span>{trip.label}</span>
+              {trip.attentionKind ? (
+                <span
+                  className={`trip-pill__marker trip-pill__marker--${trip.attentionKind}`}
+                  aria-hidden="true"
+                />
+              ) : null}
             </PrefetchLink>
           ))
         ) : (
