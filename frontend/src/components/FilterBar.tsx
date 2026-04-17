@@ -26,11 +26,11 @@ export function FilterBar({ options, selected, includeBooked, onToggleOption, on
         })}
         <button
           type="button"
-          className={`filter-chip ${!includeBooked ? "is-active" : ""}`}
-          aria-pressed={!includeBooked}
+          className={`filter-chip ${includeBooked ? "is-active" : ""}`}
+          aria-pressed={includeBooked}
           onClick={onToggleBooked}
         >
-          Hide booked
+          Show booked
         </button>
       </div>
     </div>
