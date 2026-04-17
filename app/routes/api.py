@@ -16,7 +16,7 @@ from app.services.bookings import (
     update_booking,
     update_unmatched_booking,
 )
-from app.services.dashboard_snapshot import load_persisted_snapshot
+from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
 from app.services.frontend_api import (
     booking_form_payload,
     booking_panel_payload,
@@ -148,12 +148,7 @@ def dashboard_api(
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
-    return dashboard_payload(
-        snapshot,
-        today=date.today(),
-        selected_trip_group_ids=trip_group_id,
-        include_booked=include_booked,
-    )
+    return _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)
 
 
 @router.get("/trips/new-form")
@@ -242,14 +237,14 @@ def create_collection_api(
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
-        group = save_trip_group(
+        save_trip_group(
             repository,
             trip_group_id=None,
             label=body.label,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
@@ -262,14 +257,14 @@ def update_collection_api(
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
-        group = save_trip_group(
+        save_trip_group(
             repository,
             trip_group_id=trip_group_id,
             label=body.label,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=selected_trip_group_id, include_booked=include_booked)}
 
 
@@ -300,7 +295,7 @@ def update_trip_status_api(
         set_trip_active(repository, trip_id, body.active)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {
         "tripId": trip_id,
         "active": body.active,
@@ -329,7 +324,7 @@ def delete_trip_instance_api(
             delete_generated_trip_instance(repository, trip_instance_id)
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
@@ -424,7 +419,7 @@ def create_booking_api(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if unmatched is not None or booking is None:
         raise HTTPException(status_code=400, detail="Booking must be linked to a scheduled trip.")
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {
         "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
@@ -449,7 +444,7 @@ def update_booking_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {
         "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
@@ -473,7 +468,7 @@ def update_unmatched_booking_api(
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {
         "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
     }
@@ -494,7 +489,7 @@ def unlink_booking_api(
         unlink_booking(repository, booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {
         "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=booking.trip_instance_id, mode="list"),
@@ -517,7 +512,7 @@ def link_unmatched_booking_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
@@ -534,7 +529,7 @@ def delete_booking_api(
         delete_booking_record(repository, booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    snapshot = sync_and_persist(repository)
+    snapshot = load_live_snapshot(repository)
     return {
         "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": (

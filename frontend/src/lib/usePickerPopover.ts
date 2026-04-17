@@ -5,6 +5,7 @@ const PICKER_OPEN_EVENT = "picker:open";
 export function usePickerPopover() {
   const fieldId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -31,13 +32,13 @@ export function usePickerPopover() {
 
     function handlePointerDown(event: PointerEvent) {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        closePicker();
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setOpen(false);
+        closePicker({ restoreFocus: true });
       }
     }
 
@@ -55,6 +56,15 @@ export function usePickerPopover() {
     setOpen(true);
   }
 
+  function closePicker({ restoreFocus = false }: { restoreFocus?: boolean } = {}) {
+    setOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => {
+        summaryRef.current?.focus();
+      });
+    }
+  }
+
   function toggleOpen() {
     setOpen((current) => {
       const next = !current;
@@ -67,10 +77,12 @@ export function usePickerPopover() {
 
   return {
     rootRef,
+    summaryRef,
     searchRef,
     open,
     setOpen,
     openPicker,
+    closePicker,
     toggleOpen,
   };
 }

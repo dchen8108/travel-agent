@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
 
 import { usePickerPopover } from "../lib/usePickerPopover";
 
@@ -25,9 +25,11 @@ export function MultiSelectField({
   emptyText = "No selections",
   maxSelections,
 }: Props) {
-  const { rootRef, searchRef, open, setOpen, toggleOpen } = usePickerPopover();
+  const { rootRef, summaryRef, searchRef, open, openPicker, closePicker, toggleOpen } = usePickerPopover();
   const listboxId = useId();
+  const optionIdPrefix = useId();
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const selected = useMemo(
     () => options.filter((option) => values.includes(option.value)),
     [options, values],
@@ -46,8 +48,20 @@ export function MultiSelectField({
   useEffect(() => {
     if (!open) {
       setQuery("");
+      setActiveIndex(-1);
+      return;
     }
-  }, [open]);
+    const selectedIndex = filtered.findIndex((option) => values.includes(option.value));
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : filtered.length > 0 ? 0 : -1);
+  }, [filtered, open, values]);
+
+  useEffect(() => {
+    if (!open || activeIndex < 0) {
+      return;
+    }
+    const node = rootRef.current?.querySelector<HTMLElement>(`#${optionIdPrefix}-${activeIndex}`);
+    node?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open, optionIdPrefix, rootRef]);
 
   function toggle(value: string) {
     const exists = values.includes(value);
@@ -61,15 +75,68 @@ export function MultiSelectField({
     onChange([...values, value]);
   }
 
+  function moveActiveIndex(direction: 1 | -1) {
+    if (!filtered.length) {
+      return;
+    }
+    setActiveIndex((current) => {
+      if (current === -1) {
+        return direction === 1 ? 0 : filtered.length - 1;
+      }
+      return (current + direction + filtered.length) % filtered.length;
+    });
+  }
+
+  function handleSummaryKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPicker();
+    }
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveActiveIndex(1);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveActiveIndex(-1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setActiveIndex(filtered.length > 0 ? 0 : -1);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setActiveIndex(filtered.length > 0 ? filtered.length - 1 : -1);
+      return;
+    }
+    if ((event.key === "Enter" || event.key === " ") && activeIndex >= 0) {
+      event.preventDefault();
+      toggle(filtered[activeIndex]!.value);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePicker({ restoreFocus: true });
+    }
+  }
+
   return (
     <div ref={rootRef} className={`picker-react${open ? " is-open" : ""}`}>
       <button
+        ref={summaryRef}
         type="button"
         className="picker-react__summary"
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
         onClick={toggleOpen}
+        onKeyDown={handleSummaryKeyDown}
       >
         {selected.length ? (
           <span className="picker-react__chips">
@@ -89,22 +156,31 @@ export function MultiSelectField({
             ref={searchRef}
             type="text"
             className="picker-react__search"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listboxId}
+            aria-activedescendant={activeIndex >= 0 ? `${optionIdPrefix}-${activeIndex}` : undefined}
+            aria-autocomplete="list"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder={placeholder}
           />
           <div className="picker-react__options" id={listboxId} role="listbox" aria-multiselectable="true">
             {filtered.length ? (
-              filtered.map((option) => {
+              filtered.map((option, index) => {
                 const checked = values.includes(option.value);
                 return (
                   <button
                     key={option.value}
+                    id={`${optionIdPrefix}-${index}`}
                     type="button"
-                    className={`picker-react__option ${checked ? "is-selected" : ""}`}
+                    className={`picker-react__option ${checked ? "is-selected" : ""}${index === activeIndex ? " is-active" : ""}`}
                     onClick={() => toggle(option.value)}
+                    onMouseEnter={() => setActiveIndex(index)}
                     role="option"
                     aria-selected={checked}
+                    tabIndex={-1}
                   >
                     <span className="picker-react__option-check">{checked ? "✓" : ""}</span>
                     <span className="picker-react__option-copy">

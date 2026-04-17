@@ -1384,6 +1384,11 @@ textarea {
   background: rgba(214, 238, 233, 0.35);
 }
 
+.picker-react__option.is-active {
+  border-color: rgba(17, 142, 132, 0.22);
+  background: rgba(241, 248, 247, 0.96);
+}
+
 .picker-react__option-check {
   display: inline-flex;
   align-items: center;

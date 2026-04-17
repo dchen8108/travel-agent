@@ -690,7 +690,7 @@ def test_group_creation_and_detail_flow(tmp_path: Path) -> None:
     assert any(item["label"] == "Work Trips" for item in payload["collections"])
 
 
-def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
+def test_collection_inline_editor_validation_flow(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -701,14 +701,6 @@ def test_collection_inline_editor_fetch_flow(tmp_path: Path) -> None:
     repository = Repository(settings)
     group = save_trip_group(repository, trip_group_id=None, label="Commute")
     other_group = save_trip_group(repository, trip_group_id=None, label="Family")
-
-    create_editor = client.get("/groups/new/inline-editor", follow_redirects=False)
-    assert create_editor.status_code == 303
-    assert create_editor.headers["location"] == "/?create_group=1#dashboard-groups"
-
-    edit_editor = client.get(f"/groups/{group.trip_group_id}/inline-editor", follow_redirects=False)
-    assert edit_editor.status_code == 303
-    assert edit_editor.headers["location"] == f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}"
 
     duplicate = client.post(
         "/groups",

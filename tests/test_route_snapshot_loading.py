@@ -157,6 +157,14 @@ def test_group_edit_uses_persisted_snapshot(client, repository: Repository, monk
     assert calls["persisted"] == 1
 
 
+def test_removed_group_inline_editor_routes_return_404(client, repository: Repository) -> None:
+    group = save_trip_group(repository, trip_group_id=None, label="Editable Group")
+
+    assert client.get("/groups/new/inline-editor", follow_redirects=False).status_code == 404
+    assert client.get(f"/groups/{group.trip_group_id}/card", follow_redirects=False).status_code == 404
+    assert client.get(f"/groups/{group.trip_group_id}/inline-editor", follow_redirects=False).status_code == 404
+
+
 def test_trip_detail_prefers_persisted_snapshot_when_instance_exists(
     client,
     repository: Repository,

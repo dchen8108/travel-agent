@@ -17,11 +17,6 @@ def new_group() -> Response:
     return RedirectResponse(url="/?create_group=1#dashboard-groups", status_code=303)
 
 
-@router.get("/groups/new/inline-editor")
-def new_group_inline_editor() -> Response:
-    return RedirectResponse(url="/?create_group=1#dashboard-groups", status_code=303)
-
-
 @router.get("/groups/{trip_group_id}")
 def group_detail(
     trip_group_id: str,
@@ -34,35 +29,8 @@ def group_detail(
     return RedirectResponse(url=f"/#group-{group.trip_group_id}", status_code=303)
 
 
-@router.get("/groups/{trip_group_id}/card")
-def group_card(
-    trip_group_id: str,
-    repository: Repository = Depends(get_repository),
-) -> Response:
-    snapshot = load_persisted_snapshot(repository)
-    group = trip_group_by_id(snapshot, trip_group_id)
-    if group is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return RedirectResponse(url=f"/#group-{trip_group_id}", status_code=303)
-
-
 @router.get("/groups/{trip_group_id}/edit")
 def edit_group(
-    trip_group_id: str,
-    repository: Repository = Depends(get_repository),
-) -> Response:
-    snapshot = load_persisted_snapshot(repository)
-    group = trip_group_by_id(snapshot, trip_group_id)
-    if group is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return RedirectResponse(
-        url=f"/?edit_group_id={group.trip_group_id}#group-{group.trip_group_id}",
-        status_code=303,
-    )
-
-
-@router.get("/groups/{trip_group_id}/inline-editor")
-def edit_group_inline_editor(
     trip_group_id: str,
     repository: Repository = Depends(get_repository),
 ) -> Response:

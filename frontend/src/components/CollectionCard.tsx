@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { CollectionCard as CollectionCardValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
-import { CheckIcon, CloseIcon, EditIcon } from "./Icons";
+import { EditIcon } from "./Icons";
+import { CollectionNameEditor } from "./CollectionNameEditor";
 import { IconButton } from "./IconButton";
 import { PrefetchLink } from "./PrefetchLink";
 
@@ -29,24 +30,9 @@ export function CollectionCard({
 }: Props) {
   const queryClient = useQueryClient();
   const pillRailRef = useRef<HTMLDivElement | null>(null);
-  const [label, setLabel] = useState(collection.label);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
   const [pillsExpanded, setPillsExpanded] = useState(false);
   const [pillRailCanExpand, setPillRailCanExpand] = useState(false);
   const [pillRailCollapsedHeight, setPillRailCollapsedHeight] = useState(0);
-
-  useEffect(() => {
-    setLabel(collection.label);
-  }, [collection.label]);
-
-  useEffect(() => {
-    if (!editing) {
-      setError("");
-      setSaving(false);
-      setLabel(collection.label);
-    }
-  }, [collection.label, editing]);
 
   useEffect(() => {
     setPillsExpanded(false);
@@ -87,74 +73,26 @@ export function CollectionCard({
     return () => window.removeEventListener("resize", recompute);
   }, [collection.upcomingTrips.length]);
 
-  async function handleSave() {
-    if (!onSaveEdit) {
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await onSaveEdit(label);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save collection.");
-      setSaving(false);
-    }
-  }
-
-  function handleCancel() {
-    setError("");
-    setSaving(false);
-    setLabel(collection.label);
-    onCancelEdit?.();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      handleCancel();
-      return;
-    }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      void handleSave();
-    }
-  }
-
   return (
     <article className="collection-card" id={`group-${collection.groupId}`}>
       <div className="collection-card__header">
         <div className="collection-card__titleblock">
-          <div className="collection-card__titleline">
-            {editing ? (
-              <>
-                <input
-                  className="collection-card__input collection-card__input--inline"
-                  value={label}
-                  onChange={(event) => setLabel(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Collection name"
-                  disabled={saving}
-                  autoFocus
-                />
-                <div className="collection-card__header-actions collection-card__header-actions--inline">
-                  <IconButton label="Save collection" variant="inline" onClick={() => void handleSave()} disabled={saving}>
-                    <CheckIcon />
-                  </IconButton>
-                  <IconButton label="Cancel" variant="inline" onClick={handleCancel} disabled={saving}>
-                    <CloseIcon />
-                  </IconButton>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3>{collection.label}</h3>
-                <IconButton label="Edit collection" variant="inline" onClick={onEdit}>
-                  <EditIcon />
-                </IconButton>
-              </>
-            )}
-          </div>
-          {editing && error ? <p className="inline-error">{error}</p> : null}
+          {editing ? (
+            <CollectionNameEditor
+              mode="edit"
+              variant="inline"
+              initialLabel={collection.label}
+              onCancel={() => onCancelEdit?.()}
+              onSave={(nextLabel) => onSaveEdit?.(nextLabel) ?? Promise.resolve()}
+            />
+          ) : (
+            <div className="collection-card__titleline">
+              <h3>{collection.label}</h3>
+              <IconButton label="Edit collection" variant="inline" onClick={onEdit}>
+                <EditIcon />
+              </IconButton>
+            </div>
+          )}
         </div>
         <PrefetchLink
           className="primary-button"
