@@ -172,7 +172,9 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (panel === "bookings" && panelTripInstanceId) {
-      setBookingPanelState(initialBookingPanelState(searchParams));
+      if (searchParams.has("booking_mode") || searchParams.has("booking_id")) {
+        setBookingPanelState(initialBookingPanelState(searchParams));
+      }
       return;
     }
     setBookingPanelState({ mode: "list", bookingId: "" });
