@@ -137,10 +137,10 @@ export function CollectionCard({
                   autoFocus
                 />
                 <div className="collection-card__header-actions collection-card__header-actions--inline">
-                  <IconButton label="Save collection" onClick={() => void handleSave()} disabled={saving}>
+                  <IconButton label="Save collection" variant="inline" onClick={() => void handleSave()} disabled={saving}>
                     <CheckIcon />
                   </IconButton>
-                  <IconButton label="Cancel" onClick={handleCancel} disabled={saving}>
+                  <IconButton label="Cancel" variant="inline" onClick={handleCancel} disabled={saving}>
                     <CloseIcon />
                   </IconButton>
                 </div>
@@ -148,7 +148,7 @@ export function CollectionCard({
             ) : (
               <>
                 <h3>{collection.label}</h3>
-                <IconButton label="Edit collection" onClick={onEdit}>
+                <IconButton label="Edit collection" variant="inline" onClick={onEdit}>
                   <EditIcon />
                 </IconButton>
               </>
@@ -172,7 +172,7 @@ export function CollectionCard({
                 <div className="recurring-card__titleline">
                   <strong>{trip.label}</strong>
                   <PrefetchLink
-                    className="icon-link"
+                    className="icon-link icon-link--inline"
                     to={trip.editHref}
                     aria-label="Edit recurring trip"
                     title="Edit recurring trip"

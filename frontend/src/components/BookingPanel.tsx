@@ -241,6 +241,7 @@ function BookingPanelContent({
               <div className="offer-action-cluster modal-list-row__actions">
                 <IconButton
                   label="Edit booking"
+                  variant="inline"
                   onClick={() => onChangeMode("edit", row.bookingId)}
                   onMouseEnter={() => onPrefetchEdit(row.bookingId)}
                   onFocus={() => onPrefetchEdit(row.bookingId)}
@@ -248,10 +249,10 @@ function BookingPanelContent({
                 >
                   <EditIcon />
                 </IconButton>
-                <IconButton label="Detach booking" onClick={() => onDetach(row.bookingId)}>
+                <IconButton label="Detach booking" variant="inline" onClick={() => onDetach(row.bookingId)}>
                   <DetachIcon />
                 </IconButton>
-                <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(row.bookingId)}>
+                <IconButton label="Delete booking" tone="danger" variant="inline" onClick={() => onDelete(row.bookingId)}>
                   <DeleteIcon />
                 </IconButton>
               </div>

@@ -23,7 +23,7 @@ export function TripIdentityRow({ trip, onDelete }: Props) {
       </div>
       <div className="trip-identity-row__actions">
         <PrefetchLink
-          className="icon-link"
+          className="icon-link icon-link--inline"
           to={trip.editHref}
           aria-label="Edit trip"
           title="Edit trip"
@@ -32,7 +32,7 @@ export function TripIdentityRow({ trip, onDelete }: Props) {
           <EditIcon />
         </PrefetchLink>
         {trip.delete && onDelete ? (
-          <IconButton label={trip.delete.confirmation.action} tone="danger" onClick={onDelete}>
+          <IconButton label={trip.delete.confirmation.action} tone="danger" variant="inline" onClick={onDelete}>
             <DeleteIcon />
           </IconButton>
         ) : null}

@@ -763,8 +763,27 @@ textarea {
   height: 1.15rem;
 }
 
+.icon-button--inline,
+.icon-link--inline {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.icon-button--inline:hover,
+.icon-button--inline:focus-visible,
+.icon-link--inline:hover,
+.icon-link--inline:focus-visible {
+  background: rgba(29, 43, 57, 0.06);
+}
+
 .icon-button--danger {
   color: var(--danger);
+}
+
+.icon-button--danger.icon-button--inline:hover,
+.icon-button--danger.icon-button--inline:focus-visible {
+  background: rgba(164, 77, 79, 0.1);
 }
 
 .icon-button--accent {

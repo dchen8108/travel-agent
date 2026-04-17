@@ -23,6 +23,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
           {onCreate ? (
             <IconButton
               label="Create booking"
+              variant="inline"
               onClick={onCreate}
               onMouseEnter={onPrefetchAction}
               onFocus={onPrefetchAction}
@@ -75,6 +76,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
         {actions ? actions : onOpen ? (
           <IconButton
             label={kind === "booked" ? "View bookings" : "View trackers"}
+            variant="inline"
             onClick={onOpen}
             onMouseEnter={onPrefetchAction}
             onFocus={onPrefetchAction}

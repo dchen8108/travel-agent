@@ -133,10 +133,10 @@ function UnmatchedBookingCard({
               offer={item.offer}
               actions={(
                 <div className="offer-action-cluster">
-                  <IconButton label="Edit booking" onClick={() => onEdit(item.unmatchedBookingId)}>
+                  <IconButton label="Edit booking" variant="inline" onClick={() => onEdit(item.unmatchedBookingId)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(item.unmatchedBookingId)}>
+                  <IconButton label="Delete booking" tone="danger" variant="inline" onClick={() => onDelete(item.unmatchedBookingId)}>
                     <DeleteIcon />
                   </IconButton>
                 </div>
@@ -160,6 +160,7 @@ function UnmatchedBookingCard({
           <IconButton
             label="Link booking"
             disabled={!selectedTripInstanceId}
+            variant="inline"
             onClick={() => onLink(item.unmatchedBookingId, selectedTripInstanceId)}
           >
             <LinkIcon />
