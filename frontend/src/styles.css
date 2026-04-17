@@ -596,8 +596,11 @@ textarea {
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 6.1rem;
   padding: 0.5rem 0.85rem;
   font-weight: 800;
+  text-align: center;
   cursor: default;
 }
 
