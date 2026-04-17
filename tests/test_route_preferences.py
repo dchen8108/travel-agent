@@ -5,6 +5,7 @@ from datetime import date
 from app.models.booking import Booking
 from app.models.base import utcnow
 from app.services.scheduled_trip_state import (
+    rebook_savings,
     trackers_for_instance,
     trip_lifecycle_status_label,
     trip_status_detail,
@@ -337,6 +338,61 @@ def test_rebook_uses_trip_level_best_option_when_booking_exists(repository: Repo
     booking = Booking(
         booking_id="book_1",
         trip_instance_id=instance.trip_instance_id,
+        route_option_id=trackers[0].route_option_id,
+        airline="Alaska",
+        origin_airport="BUR",
+        destination_airport="SFO",
+        departure_date=instance.anchor_date,
+        departure_time="07:00",
+        booked_price=180,
+        record_locator="BIAS01",
+    )
+
+    fresh_at = utcnow()
+    trackers[0].latest_observed_price = 180
+    trackers[0].latest_fetched_at = fresh_at
+    trackers[1].latest_observed_price = 129
+    trackers[1].latest_fetched_at = fresh_at
+    recompute_trip_states(snapshot.trip_instances, trackers, [booking])
+    snapshot.bookings = [booking]
+    refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
+    assert trip_lifecycle_status_label(snapshot, refreshed.trip_instance_id) == "Booked"
+    assert rebook_savings(snapshot, refreshed.trip_instance_id) == 1
+    reason = trip_status_detail(snapshot, refreshed.trip_instance_id)
+    assert reason.startswith("Tracking.")
+    assert "Current best raw alternative is $129" in reason
+    assert "$1 below your booked effective price of $180" in reason
+
+
+def test_rebook_suppresses_price_drop_when_preference_buffer_erases_raw_savings(repository: Repository) -> None:
+    snapshot, instance, trackers = _single_instance_snapshot(
+        repository,
+        preference_mode="ranked_bias",
+        payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            },
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "United",
+                "day_offset": 0,
+                "start_time": "18:00",
+                "end_time": "22:00",
+                "savings_needed_vs_previous": 50,
+            },
+        ],
+    )
+
+    booking = Booking(
+        booking_id="book_1",
+        trip_instance_id=instance.trip_instance_id,
+        route_option_id=trackers[0].route_option_id,
         airline="Alaska",
         origin_airport="BUR",
         destination_airport="SFO",
@@ -353,8 +409,7 @@ def test_rebook_uses_trip_level_best_option_when_booking_exists(repository: Repo
     trackers[1].latest_fetched_at = fresh_at
     recompute_trip_states(snapshot.trip_instances, trackers, [booking])
     snapshot.bookings = [booking]
-    refreshed = next(item for item in snapshot.trip_instances if item.trip_instance_id == instance.trip_instance_id)
-    assert trip_lifecycle_status_label(snapshot, refreshed.trip_instance_id) == "Booked"
-    reason = trip_status_detail(snapshot, refreshed.trip_instance_id)
-    assert reason.startswith("Tracking.")
-    assert "Current comparable price is $130" in reason
+
+    assert rebook_savings(snapshot, instance.trip_instance_id) is None
+    reason = trip_status_detail(snapshot, instance.trip_instance_id)
+    assert "Current best raw alternative is $130 with an effective comparison price of $180." in reason

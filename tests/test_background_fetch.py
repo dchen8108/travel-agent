@@ -1340,6 +1340,7 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
     booking = Booking(
         booking_id="book_1",
         trip_instance_id="inst_1",
+        route_option_id="opt_1",
         airline="Alaska",
         origin_airport="BUR",
         destination_airport="SFO",
@@ -1362,7 +1363,10 @@ def test_booked_trip_uses_trip_level_best_tracker_for_rebook_checks() -> None:
         },
     )()
     assert trip_lifecycle_status_label(snapshot, trip_instance.trip_instance_id) == "Booked"
-    assert "Current comparable price is $120" in trip_status_detail(snapshot, trip_instance.trip_instance_id)
+    assert (
+        "Current best raw alternative is $120, $30 below your booked effective price of $150."
+        in trip_status_detail(snapshot, trip_instance.trip_instance_id)
+    )
 
 
 def test_queue_rolling_refresh_marks_all_matching_targets_requested_now(repository: Repository) -> None:

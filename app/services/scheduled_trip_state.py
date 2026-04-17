@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from app.models.base import AppState, BookingStatus, FetchTargetStatus
 from app.models.booking import Booking
 from app.models.tracker import Tracker
-from app.money import format_money
+from app.money import format_money, parse_money
 from app.services.recommendations import best_tracker_for_instance
 from app.services.tracker_refresh_state import tracker_has_fresh_price, tracker_target_display_state
 from app.services.snapshot_queries import (
@@ -112,6 +114,44 @@ def comparison_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker 
     return best_tracker(snapshot, trip_instance_id)
 
 
+def _tracker_for_route_option(
+    snapshot: AppSnapshot,
+    trip_instance_id: str,
+    route_option_id: str,
+) -> Tracker | None:
+    if not route_option_id:
+        return None
+    return next(
+        (
+            tracker
+            for tracker in trackers_for_instance(snapshot, trip_instance_id)
+            if tracker.route_option_id == route_option_id
+        ),
+        None,
+    )
+
+
+def tracker_effective_price(tracker: Tracker | None) -> Decimal | None:
+    if tracker is None:
+        return None
+    raw_price = parse_money(tracker.latest_observed_price)
+    if raw_price is None:
+        return None
+    return raw_price + parse_money(tracker.preference_bias_dollars or 0)
+
+
+def booking_effective_price(snapshot: AppSnapshot, booking: Booking | None) -> Decimal | None:
+    if booking is None:
+        return None
+    raw_price = parse_money(booking.booked_price)
+    if raw_price is None:
+        return None
+    matched_tracker = _tracker_for_route_option(snapshot, booking.trip_instance_id, booking.route_option_id)
+    if matched_tracker is None:
+        return None
+    return raw_price + parse_money(matched_tracker.preference_bias_dollars or 0)
+
+
 def booking_route_tracking_state(snapshot: AppSnapshot, booking: Booking) -> dict[str, object]:
     trip_instance = trip_instance_by_id(snapshot, booking.trip_instance_id)
     if trip_instance is None:
@@ -141,17 +181,20 @@ def booking_route_tracking_state(snapshot: AppSnapshot, booking: Booking) -> dic
     }
 
 
-def rebook_savings(snapshot: AppSnapshot, trip_instance_id: str) -> int | None:
+def rebook_savings(snapshot: AppSnapshot, trip_instance_id: str) -> Decimal | None:
     booking = booking_for_instance(snapshot, trip_instance_id)
     tracker = comparison_tracker(snapshot, trip_instance_id)
+    booking_effective = booking_effective_price(snapshot, booking)
+    tracker_effective = tracker_effective_price(tracker)
     if (
         booking is None
         or tracker is None
-        or tracker.latest_observed_price is None
-        or tracker.latest_observed_price >= booking.booked_price
+        or booking_effective is None
+        or tracker_effective is None
+        or tracker_effective >= booking_effective
     ):
         return None
-    return booking.booked_price - tracker.latest_observed_price
+    return booking_effective - tracker_effective
 
 
 def trip_lifecycle_status_key(snapshot: AppSnapshot, trip_instance_id: str) -> str:
@@ -209,6 +252,8 @@ def trip_status_detail(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     active_bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
     active_count = len(active_bookings)
     tracker = comparison_tracker(snapshot, trip_instance_id)
+    tracker_effective = tracker_effective_price(tracker)
+    booking_effective = booking_effective_price(snapshot, booking)
     monitoring_label = trip_monitoring_status_label(snapshot, trip_instance_id)
     if booking is not None:
         savings = rebook_savings(snapshot, trip_instance_id)
@@ -231,13 +276,14 @@ def trip_status_detail(snapshot: AppSnapshot, trip_instance_id: str) -> str:
             )
         if savings is not None and tracker is not None and tracker.latest_observed_price is not None:
             return (
-                f"{monitoring_label}. Current comparable price is {format_money(tracker.latest_observed_price)}, "
-                f"{format_money(savings)} below your booked price of {format_money(booking.booked_price)}."
+                f"{monitoring_label}. Current best raw alternative is {format_money(tracker.latest_observed_price)}, "
+                f"{format_money(savings)} below your booked effective price of {format_money(booking_effective)}."
             )
-        if tracker is not None and tracker.latest_observed_price is not None:
+        if tracker is not None and tracker.latest_observed_price is not None and tracker_effective is not None:
             return (
-                f"{monitoring_label}. Booked at {format_money(booking.booked_price)}. Current comparable price is "
-                f"{format_money(tracker.latest_observed_price)}."
+                f"{monitoring_label}. Booked at {format_money(booking.booked_price)}. "
+                f"Current best raw alternative is {format_money(tracker.latest_observed_price)} "
+                f"with an effective comparison price of {format_money(tracker_effective)}."
             )
         return f"{monitoring_label}. Booked at {format_money(booking.booked_price)}. No current comparison price yet."
     tracker = best_tracker(snapshot, trip_instance_id)

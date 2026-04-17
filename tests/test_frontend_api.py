@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from app.models.base import utcnow
 
 from app.models.base import DataScope
 from app.services.bookings import BookingCandidate, record_booking
@@ -107,3 +108,78 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert trackers_response.json()["rows"]
     assert create_response.status_code == 200
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
+
+
+def test_dashboard_api_suppresses_rebook_card_when_preference_buffer_erases_raw_savings(
+    client,
+    repository: Repository,
+) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Preference commute",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            },
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "United",
+                "day_offset": 0,
+                "start_time": "18:00",
+                "end_time": "22:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 50,
+            },
+        ],
+        preference_mode="ranked_bias",
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 20),
+            departure_time="07:00",
+            arrival_time="08:20",
+            booked_price=180,
+            record_locator="PREF01",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    trackers = repository.load_trackers()
+    now = utcnow()
+    for tracker in trackers:
+        if tracker.rank == 1:
+            tracker.latest_observed_price = 180
+        elif tracker.rank == 2:
+            tracker.latest_observed_price = 130
+        tracker.latest_fetched_at = now
+        tracker.last_signal_at = now
+        tracker.latest_signal_source = "background_fetch"
+    repository.upsert_trackers(trackers)
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "rebook"]
+    assert rebook_items == []
