@@ -146,13 +146,15 @@ function UnmatchedBookingCard({
           >
             Link booking
           </button>
-          <PrefetchLink
-            className="secondary-button"
-            to={item.createTripHref}
-            onPrefetch={() => void prefetchTripEditorFromHref(queryClient, item.createTripHref)}
-          >
-            Create trip
-          </PrefetchLink>
+          <div className="attention-card__alternate-action">
+            <PrefetchLink
+              className="secondary-button"
+              to={item.createTripHref}
+              onPrefetch={() => void prefetchTripEditorFromHref(queryClient, item.createTripHref)}
+            >
+              Create trip
+            </PrefetchLink>
+          </div>
         </div>
       </div>
     </article>

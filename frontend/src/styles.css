@@ -406,9 +406,23 @@ textarea {
 
 .attention-card__control-actions {
   display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.7rem;
   justify-content: flex-end;
+}
+
+.attention-card__control-actions--inline {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.attention-card__alternate-action {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 1rem;
+  margin-left: 0.3rem;
+  border-left: 1px solid var(--line);
 }
 
 .collection-card {
@@ -1301,6 +1315,12 @@ textarea {
   .attention-card__control-actions--inline {
     border-left: 0;
     padding-left: 0;
+  }
+
+  .attention-card__alternate-action {
+    border-left: 0;
+    padding-left: 0;
+    margin-left: 0;
   }
 
   .offer-block {
