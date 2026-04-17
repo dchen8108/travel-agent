@@ -585,11 +585,45 @@ textarea {
   opacity: 0.72;
 }
 
+.collection-card__pill-section {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
 .pill-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
-  margin-top: 1rem;
+}
+
+.pill-row--overflowing {
+  position: relative;
+  overflow: hidden;
+  transition: max-height 180ms ease;
+}
+
+.pill-row--overflowing.pill-row--collapsed::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2.4rem;
+  background: linear-gradient(to bottom, rgba(255, 252, 246, 0), rgba(255, 252, 246, 0.96));
+  pointer-events: none;
+}
+
+.collection-card__pill-toggle {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.collection-card__pill-toggle .ghost-button {
+  min-height: 2.2rem;
+  padding: 0 0.8rem;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--copy-muted);
 }
 
 .trip-pill {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -28,9 +28,13 @@ export function CollectionCard({
   editing = false,
 }: Props) {
   const queryClient = useQueryClient();
+  const pillRailRef = useRef<HTMLDivElement | null>(null);
   const [label, setLabel] = useState(collection.label);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pillsExpanded, setPillsExpanded] = useState(false);
+  const [pillRailCanExpand, setPillRailCanExpand] = useState(false);
+  const [pillRailCollapsedHeight, setPillRailCollapsedHeight] = useState(0);
 
   useEffect(() => {
     setLabel(collection.label);
@@ -43,6 +47,45 @@ export function CollectionCard({
       setLabel(collection.label);
     }
   }, [collection.label, editing]);
+
+  useEffect(() => {
+    setPillsExpanded(false);
+  }, [collection.groupId, collection.upcomingTrips.length]);
+
+  useEffect(() => {
+    const rail = pillRailRef.current;
+    if (!rail) {
+      setPillRailCanExpand(false);
+      return;
+    }
+
+    const recompute = () => {
+      const firstPill = rail.querySelector<HTMLElement>(".trip-pill");
+      if (!firstPill) {
+        setPillRailCanExpand(false);
+        setPillRailCollapsedHeight(0);
+        return;
+      }
+      const styles = window.getComputedStyle(rail);
+      const rowGap = Number.parseFloat(styles.rowGap || styles.gap || "0") || 0;
+      const collapsedHeight = firstPill.getBoundingClientRect().height * 2 + rowGap;
+      setPillRailCollapsedHeight(collapsedHeight);
+      setPillRailCanExpand(rail.scrollHeight > collapsedHeight + 1);
+    };
+
+    recompute();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        recompute();
+      });
+      observer.observe(rail);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", recompute);
+    return () => window.removeEventListener("resize", recompute);
+  }, [collection.upcomingTrips.length]);
 
   async function handleSave() {
     if (!onSaveEdit) {
@@ -152,20 +195,33 @@ export function CollectionCard({
           ))}
         </div>
       ) : null}
-      <div className="pill-row">
-        {collection.upcomingTrips.length > 0 ? (
-          collection.upcomingTrips.map((trip) => (
-            <span
-              key={trip.tripInstanceId}
-              className={`trip-pill trip-pill--${trip.lifecycle}${trip.attentionKind ? ` trip-pill--attention-${trip.attentionKind}` : ""}`}
-              title={trip.title}
-            >
-              <span>{trip.label}</span>
-            </span>
-          ))
-        ) : (
-          <p className="empty-copy">No trips yet.</p>
-        )}
+      <div className="collection-card__pill-section">
+        <div
+          ref={pillRailRef}
+          className={`pill-row${pillRailCanExpand ? " pill-row--overflowing" : ""}${!pillsExpanded ? " pill-row--collapsed" : ""}`}
+          style={!pillsExpanded && pillRailCanExpand && pillRailCollapsedHeight ? { maxHeight: `${pillRailCollapsedHeight}px` } : undefined}
+        >
+          {collection.upcomingTrips.length > 0 ? (
+            collection.upcomingTrips.map((trip) => (
+              <span
+                key={trip.tripInstanceId}
+                className={`trip-pill trip-pill--${trip.lifecycle}${trip.attentionKind ? ` trip-pill--attention-${trip.attentionKind}` : ""}`}
+                title={trip.title}
+              >
+                <span>{trip.label}</span>
+              </span>
+            ))
+          ) : (
+            <p className="empty-copy">No trips yet.</p>
+          )}
+        </div>
+        {pillRailCanExpand ? (
+          <div className="collection-card__pill-toggle">
+            <button type="button" className="ghost-button" onClick={() => setPillsExpanded((current) => !current)}>
+              {pillsExpanded ? "Show fewer" : "Show all dates"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </article>
   );
