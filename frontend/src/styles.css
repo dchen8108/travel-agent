@@ -506,6 +506,11 @@ textarea {
   color: var(--accent-strong);
 }
 
+.status-toggle:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
 .pill-row {
   display: flex;
   flex-wrap: wrap;

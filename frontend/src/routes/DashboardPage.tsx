@@ -36,6 +36,71 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function optimisticSetRecurringTripActive(dashboard: DashboardPayload, tripId: string, active: boolean): DashboardPayload {
+  const nextCollections = dashboard.collections.map((collection) => ({
+    ...collection,
+    recurringTrips: collection.recurringTrips.map((trip) => (
+      trip.tripId === tripId ? { ...trip, active } : trip
+    )),
+  }));
+
+  if (active) {
+    return {
+      ...dashboard,
+      collections: nextCollections,
+    };
+  }
+
+  const removedTripRows = dashboard.trips.filter((row) => row.trip.tripId === tripId);
+  const removedTripInstanceIds = new Set(removedTripRows.map((row) => row.trip.tripInstanceId));
+  const removedBookedCount = removedTripRows.filter((row) => row.bookedOffer).length;
+
+  return {
+    ...dashboard,
+    counts: {
+      totalUpcoming: Math.max(0, dashboard.counts.totalUpcoming - removedTripRows.length),
+      totalBooked: Math.max(0, dashboard.counts.totalBooked - removedBookedCount),
+    },
+    collections: nextCollections.map((collection) => ({
+      ...collection,
+      upcomingTrips: collection.upcomingTrips.filter((trip) => trip.tripId !== tripId),
+    })),
+    trips: dashboard.trips.filter((row) => row.trip.tripId !== tripId),
+    actionItems: dashboard.actionItems.filter((item) => (
+      item.kind === "unmatchedBooking" || !removedTripInstanceIds.has(item.row.trip.tripInstanceId)
+    )),
+  };
+}
+
+function optimisticRemoveTripInstance(dashboard: DashboardPayload, tripInstanceId: string): DashboardPayload {
+  const removedRow = dashboard.trips.find((row) => row.trip.tripInstanceId === tripInstanceId);
+
+  return {
+    ...dashboard,
+    counts: {
+      totalUpcoming: Math.max(0, dashboard.counts.totalUpcoming - (removedRow ? 1 : 0)),
+      totalBooked: Math.max(0, dashboard.counts.totalBooked - (removedRow?.bookedOffer ? 1 : 0)),
+    },
+    collections: dashboard.collections.map((collection) => ({
+      ...collection,
+      upcomingTrips: collection.upcomingTrips.filter((trip) => trip.tripInstanceId !== tripInstanceId),
+    })),
+    trips: dashboard.trips.filter((row) => row.trip.tripInstanceId !== tripInstanceId),
+    actionItems: dashboard.actionItems.filter((item) => (
+      item.kind === "unmatchedBooking" || item.row.trip.tripInstanceId !== tripInstanceId
+    )),
+  };
+}
+
+function optimisticRemoveUnmatchedBooking(dashboard: DashboardPayload, unmatchedBookingId: string): DashboardPayload {
+  return {
+    ...dashboard,
+    actionItems: dashboard.actionItems.filter((item) => (
+      item.kind !== "unmatchedBooking" || item.unmatchedBookingId !== unmatchedBookingId
+    )),
+  };
+}
+
 export function DashboardPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -132,6 +197,23 @@ export function DashboardPage() {
 
   const toggleTripMutation = useMutation({
     mutationFn: ({ tripId, active }: { tripId: string; active: boolean }) => api.toggleRecurringTrip(tripId, active, dashboardFilters),
+    onMutate: async ({ tripId, active }) => {
+      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      if (previous) {
+        queryClient.setQueryData(
+          dashboardQueryKey(dashboardQueryString),
+          optimisticSetRecurringTripActive(previous, tripId, active),
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+      }
+      pushToast({ message: errorMessage(error, "Unable to update recurring trip."), kind: "error" });
+    },
     onSuccess: ({ dashboard }) => {
       replaceCurrentDashboard(dashboard);
     },
@@ -139,6 +221,23 @@ export function DashboardPage() {
 
   const deleteTripMutation = useMutation({
     mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId, dashboardFilters),
+    onMutate: async (tripInstanceId) => {
+      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      if (previous) {
+        queryClient.setQueryData(
+          dashboardQueryKey(dashboardQueryString),
+          optimisticRemoveTripInstance(previous, tripInstanceId),
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _tripInstanceId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+      }
+      pushToast({ message: errorMessage(error, "Unable to delete trip."), kind: "error" });
+    },
     onSuccess: ({ dashboard }) => {
       replaceCurrentDashboard(dashboard);
       pushToast({ message: "Trip deleted" });
@@ -162,6 +261,23 @@ export function DashboardPage() {
         throw new Error("Choose a scheduled trip.");
       }
       return api.linkUnmatchedBooking(unmatchedBookingId, tripInstanceId, dashboardFilters);
+    },
+    onMutate: async ({ unmatchedBookingId }) => {
+      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      if (previous) {
+        queryClient.setQueryData(
+          dashboardQueryKey(dashboardQueryString),
+          optimisticRemoveUnmatchedBooking(previous, unmatchedBookingId),
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+      }
+      pushToast({ message: errorMessage(error, "Unable to update booking."), kind: "error" });
     },
     onSuccess: ({ dashboard }) => {
       replaceCurrentDashboard(dashboard);
@@ -282,8 +398,8 @@ export function DashboardPage() {
     }
     try {
       await deleteTripMutation.mutateAsync(row.trip.tripInstanceId);
-    } catch (error) {
-      pushToast({ message: errorMessage(error, "Unable to delete trip."), kind: "error" });
+    } catch {
+      // error toast + rollback are handled by the mutation lifecycle
     }
   }
 
@@ -291,8 +407,8 @@ export function DashboardPage() {
     try {
       await unmatchedMutation.mutateAsync({ unmatchedBookingId, tripInstanceId, kind: "link" });
       pushToast({ message: "Booking linked" });
-    } catch (error) {
-      pushToast({ message: errorMessage(error, "Unable to link booking."), kind: "error" });
+    } catch {
+      // error toast + rollback are handled by the mutation lifecycle
     }
   }
 
@@ -310,8 +426,8 @@ export function DashboardPage() {
     try {
       await unmatchedMutation.mutateAsync({ unmatchedBookingId, kind: "delete" });
       pushToast({ message: "Booking deleted" });
-    } catch (error) {
-      pushToast({ message: errorMessage(error, "Unable to delete booking."), kind: "error" });
+    } catch {
+      // error toast + rollback are handled by the mutation lifecycle
     }
   }
 
@@ -380,6 +496,7 @@ export function DashboardPage() {
                   collection={collection}
                   onEdit={() => startEditCollection(collection.groupId)}
                   onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}
+                  pendingRecurringTripId={toggleTripMutation.isPending ? (toggleTripMutation.variables?.tripId ?? "") : ""}
                 />
               )
             ))}

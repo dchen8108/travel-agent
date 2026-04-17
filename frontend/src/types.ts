@@ -63,6 +63,8 @@ export interface CollectionCard {
     editHref: string;
   }>;
   upcomingTrips: Array<{
+    tripId: string;
+    tripInstanceId: string;
     href: string;
     label: string;
     title: string;

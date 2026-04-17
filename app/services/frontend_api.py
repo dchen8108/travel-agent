@@ -142,6 +142,8 @@ def collection_card_value(snapshot, trip_group_id: str, *, today: date) -> dict[
         ],
         "upcomingTrips": [
             {
+                "tripId": item["instance"].trip_id,
+                "tripInstanceId": item["instance"].trip_instance_id,
                 "href": item["href"],
                 "label": item["label"],
                 "title": item["title"],

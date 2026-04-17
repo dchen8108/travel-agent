@@ -10,9 +10,10 @@ interface Props {
   collection: CollectionCardValue;
   onEdit: () => void;
   onToggleRecurringTrip: (tripId: string, active: boolean) => void;
+  pendingRecurringTripId?: string;
 }
 
-export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Props) {
+export function CollectionCard({ collection, onEdit, onToggleRecurringTrip, pendingRecurringTripId = "" }: Props) {
   const queryClient = useQueryClient();
 
   return (
@@ -54,9 +55,10 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Pr
               <button
                 type="button"
                 className={`status-toggle ${trip.active ? "is-active" : ""}`}
+                disabled={pendingRecurringTripId === trip.tripId}
                 onClick={() => onToggleRecurringTrip(trip.tripId, !trip.active)}
               >
-                <span>{trip.active ? "Active" : "Paused"}</span>
+                <span>{pendingRecurringTripId === trip.tripId ? "Updating…" : trip.active ? "Active" : "Paused"}</span>
               </button>
             </article>
           ))}
@@ -66,7 +68,7 @@ export function CollectionCard({ collection, onEdit, onToggleRecurringTrip }: Pr
         {collection.upcomingTrips.length > 0 ? (
           collection.upcomingTrips.map((trip) => (
             <PrefetchLink
-              key={`${collection.groupId}-${trip.label}`}
+              key={trip.tripInstanceId}
               className={`trip-pill trip-pill--${trip.lifecycle}`}
               to={trip.href}
               title={trip.title}
