@@ -143,7 +143,7 @@ export function CollectionCard({
               <button
                 type="button"
                 className={`status-toggle ${trip.active ? "is-active" : ""}`}
-                disabled={pendingRecurringTripId === trip.tripId || editing}
+                disabled={pendingRecurringTripId === trip.tripId}
                 onClick={() => onToggleRecurringTrip(trip.tripId, !trip.active)}
               >
                 <span>{pendingRecurringTripId === trip.tripId ? "Updating…" : trip.active ? "Active" : "Paused"}</span>
