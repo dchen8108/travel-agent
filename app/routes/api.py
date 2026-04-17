@@ -29,7 +29,7 @@ from app.services.groups import delete_trip_group, save_trip_group
 from app.services.trip_instances import delete_generated_trip_instance
 from app.services.trip_instances import detach_generated_trip_instance
 from app.services.refresh_queue import queue_refresh_for_trip_instance
-from app.services.data_scope import include_test_data_for_processing
+from app.services.data_scope import filter_snapshot, include_test_data_for_processing, include_test_data_for_ui
 from app.services.trip_editor import TripSaveInput, route_option_payloads, save_trip_workflow
 from app.services.trips import delete_trip, set_trip_active
 from app.services.workflows import sync_and_persist
@@ -130,8 +130,9 @@ def _dashboard_view_payload(
     trip_group_ids: list[str] | None,
     include_booked: bool,
 ) -> dict[str, object]:
+    filtered_snapshot = filter_snapshot(snapshot, include_test_data=include_test_data_for_ui(snapshot.app_state))
     return dashboard_payload(
-        snapshot,
+        filtered_snapshot,
         today=date.today(),
         selected_trip_group_ids=trip_group_ids,
         include_booked=include_booked,

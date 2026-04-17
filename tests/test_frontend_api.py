@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from app.models.base import utcnow
 
-from app.models.base import DataScope
+from app.models.base import AppState, DataScope
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.groups import save_trip_group
 from app.services.trips import save_trip
@@ -136,6 +136,67 @@ def test_dashboard_api_returns_collections_and_trip_rows(client, repository: Rep
     assert payload["trips"][0]["trip"]["title"] == "Commute"
     assert payload["trips"][0]["trip"]["dateTile"]["monthDay"] == "Apr 20"
     assert payload["trips"][0]["bookedOffer"]["metaLabel"].endswith("BDJ594")
+
+
+def test_trip_status_mutation_dashboard_payload_hides_test_scoped_rows(client, repository: Repository) -> None:
+    repository.save_app_state(AppState(show_test_data=False, process_test_data=False))
+    live_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Live recurring",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    save_trip(
+        repository,
+        trip_id=None,
+        label="QA Hidden recurring",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Wednesday",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.TEST,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    response = client.patch(f"/api/trips/{live_trip.trip_id}/status", json={"active": False})
+
+    assert response.status_code == 200
+    payload = response.json()["dashboard"]
+    trip_titles = [item["trip"]["title"] for item in payload["trips"]]
+    action_titles = [item.get("row", {}).get("trip", {}).get("title", "") for item in payload["actionItems"] if item["kind"] == "tripAttention"]
+    collection_labels = [item["label"] for item in payload["collections"]]
+
+    assert "QA Hidden recurring" not in trip_titles
+    assert "QA Hidden recurring" not in action_titles
+    assert "QA Hidden recurring" not in collection_labels
 
 
 def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository: Repository) -> None:
