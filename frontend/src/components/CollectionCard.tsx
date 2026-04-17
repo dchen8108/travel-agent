@@ -155,10 +155,9 @@ export function CollectionCard({
       <div className="pill-row">
         {collection.upcomingTrips.length > 0 ? (
           collection.upcomingTrips.map((trip) => (
-            <PrefetchLink
+            <span
               key={trip.tripInstanceId}
               className={`trip-pill trip-pill--${trip.lifecycle}`}
-              to={trip.href}
               title={trip.title}
             >
               <span>{trip.label}</span>
@@ -168,7 +167,7 @@ export function CollectionCard({
                   aria-hidden="true"
                 />
               ) : null}
-            </PrefetchLink>
+            </span>
           ))
         ) : (
           <p className="empty-copy">No trips yet.</p>

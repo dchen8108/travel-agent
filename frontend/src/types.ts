@@ -65,7 +65,6 @@ export interface CollectionCard {
   upcomingTrips: Array<{
     tripId: string;
     tripInstanceId: string;
-    href: string;
     label: string;
     title: string;
     lifecycle: TripLifecycle;

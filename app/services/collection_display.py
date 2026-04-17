@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.services.dashboard_navigation import trip_focus_url
 from app.services.dashboard_queries import recurring_rules_for_group, scheduled_instances
 from app.services.scheduled_trip_display import trip_ui_label
 from app.services.scheduled_trip_state import active_booking_count_for_instance
@@ -18,7 +17,6 @@ def group_trip_pill_view(snapshot, instance, *, today: date) -> dict[str, object
     title = trip_ui_label(snapshot, instance.trip_instance_id)
     return {
         "instance": instance,
-        "href": trip_focus_url(snapshot, instance.trip_id, trip_instance_id=instance.trip_instance_id),
         "label": instance.anchor_date.strftime("%b %d"),
         "title": (
             f"{title} · {attention_label or status_label} · {instance.anchor_date.strftime('%a, %b %d')}"
