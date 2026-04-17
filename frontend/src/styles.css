@@ -14,6 +14,8 @@
   --success-copy: #2b6d45;
   --info-soft: #e6eef8;
   --info-copy: #335f95;
+  --link-soft: #ece6f7;
+  --link-copy: #65518f;
   --danger-soft: #f5e0e1;
   --warning-soft: #faedd0;
   --warning-copy: #8f6d1d;
@@ -302,6 +304,10 @@ textarea {
   background: rgba(245, 224, 225, 0.72);
 }
 
+.attention-card--unmatched {
+  background: var(--link-soft);
+}
+
 .attention-card--priceDrop {
   background: rgba(214, 238, 233, 0.55);
 }
@@ -337,6 +343,11 @@ textarea {
 .attention-card--overbooked .attention-card__eyebrow,
 .attention-card--overbooked .attention-card__badge {
   color: var(--danger);
+}
+
+.attention-card--unmatched .attention-card__eyebrow,
+.attention-card--unmatched .attention-card__badge {
+  color: var(--link-copy);
 }
 
 .attention-card--priceDrop .attention-card__eyebrow,
