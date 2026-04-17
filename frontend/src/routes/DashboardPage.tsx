@@ -376,7 +376,6 @@ export function DashboardPage() {
     next.delete("booking_mode");
     next.delete("booking_id");
     setSearchParams(next, { replace: false });
-    setBookingPanelState({ mode: "list", bookingId: "" });
   }
 
   function changeBookingMode(mode: "list" | "create" | "edit", bookingId = "") {
