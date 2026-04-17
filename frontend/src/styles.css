@@ -597,7 +597,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   padding: 0.5rem 0.85rem;
-  padding-right: 1.15rem;
+  padding-right: 1.28rem;
   font-weight: 800;
 }
 
@@ -613,13 +613,13 @@ textarea {
 
 .trip-pill__marker {
   position: absolute;
-  top: 0.42rem;
+  top: 50%;
   right: 0.42rem;
-  width: 0.52rem;
-  height: 0.52rem;
-  border: 2px solid rgba(255, 255, 255, 0.92);
+  transform: translateY(-50%);
+  width: 0.28rem;
+  height: 1rem;
   border-radius: 999px;
-  box-shadow: 0 0 0 1px rgba(29, 43, 57, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
 .trip-pill__marker--overbooked {
