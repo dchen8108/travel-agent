@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { DashboardActionItem, DashboardUnmatchedBookingActionItem, TripRow as TripRowValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import { DateTile } from "./DateTile";
-import { DeleteIcon, LinkIcon } from "./Icons";
+import { DeleteIcon, EditIcon, LinkIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
 import { PrefetchLink } from "./PrefetchLink";
@@ -17,6 +17,7 @@ interface Props {
   onOpenTrackers: (tripInstanceId: string) => void;
   onDeleteTrip: (row: TripRowValue) => void;
   onLinkUnmatchedBooking: (unmatchedBookingId: string, tripInstanceId: string) => Promise<void>;
+  onEditUnmatchedBooking: (unmatchedBookingId: string) => void;
   onDeleteUnmatchedBooking: (unmatchedBookingId: string) => Promise<void>;
   onPrefetchBookings?: (tripInstanceId: string) => void;
   onPrefetchTrackers?: (tripInstanceId: string) => void;
@@ -28,6 +29,7 @@ export function ActionItemsSection({
   onOpenTrackers,
   onDeleteTrip,
   onLinkUnmatchedBooking,
+  onEditUnmatchedBooking,
   onDeleteUnmatchedBooking,
   onPrefetchBookings,
   onPrefetchTrackers,
@@ -50,6 +52,7 @@ export function ActionItemsSection({
                 key={item.unmatchedBookingId}
                 item={item}
                 onLink={onLinkUnmatchedBooking}
+                onEdit={onEditUnmatchedBooking}
                 onDelete={onDeleteUnmatchedBooking}
               />
             ) : (
@@ -83,10 +86,12 @@ export function ActionItemsSection({
 function UnmatchedBookingCard({
   item,
   onLink,
+  onEdit,
   onDelete,
 }: {
   item: DashboardUnmatchedBookingActionItem;
   onLink: (unmatchedBookingId: string, tripInstanceId: string) => Promise<void>;
+  onEdit: (unmatchedBookingId: string) => void;
   onDelete: (unmatchedBookingId: string) => Promise<void>;
 }) {
   const queryClient = useQueryClient();
@@ -118,15 +123,25 @@ function UnmatchedBookingCard({
         <div>
           <p className="attention-card__eyebrow">{item.title}</p>
         </div>
-        <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(item.unmatchedBookingId)}>
-          <DeleteIcon />
-        </IconButton>
       </div>
       <div className="attention-card__workflow">
         <div className="attention-card__booking-row">
           <DateTile tile={item.dateTile} />
           <div className="attention-card__offer-shell">
-            <OfferBlock kind="booked" offer={item.offer} />
+            <OfferBlock
+              kind="booked"
+              offer={item.offer}
+              actions={(
+                <div className="offer-action-cluster">
+                  <IconButton label="Edit booking" onClick={() => onEdit(item.unmatchedBookingId)}>
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton label="Delete booking" tone="danger" onClick={() => onDelete(item.unmatchedBookingId)}>
+                    <DeleteIcon />
+                  </IconButton>
+                </div>
+              )}
+            />
           </div>
         </div>
         <label className="attention-card__field attention-card__field--inline">

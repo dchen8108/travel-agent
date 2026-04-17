@@ -14,6 +14,10 @@ export function trackerPanelQueryKey(tripInstanceId: string) {
   return ["tracker-panel", tripInstanceId] as const;
 }
 
+export function unmatchedBookingFormQueryKey(unmatchedBookingId: string) {
+  return ["unmatched-booking-form", unmatchedBookingId] as const;
+}
+
 export function tripEditorQueryKey(mode: "create" | "edit", tripId: string, query: string) {
   return ["trip-editor", mode, tripId, query] as const;
 }

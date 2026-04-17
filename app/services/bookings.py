@@ -611,6 +611,46 @@ def update_booking(
     return updated
 
 
+def update_unmatched_booking(
+    repository: Repository,
+    *,
+    unmatched_booking_id: str,
+    candidate: BookingCandidate,
+) -> Booking:
+    unmatched_bookings = repository.load_unmatched_bookings()
+    existing = next((item for item in unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
+    if existing is None:
+        raise KeyError("Booking not found")
+
+    updated = Booking(
+        booking_id=existing.booking_id,
+        source=existing.source,
+        trip_instance_id="",
+        route_option_id="",
+        data_scope=existing.data_scope,
+        airline=candidate.airline,
+        origin_airport=candidate.origin_airport,
+        destination_airport=candidate.destination_airport,
+        departure_date=candidate.departure_date,
+        departure_time=candidate.departure_time,
+        arrival_time=candidate.arrival_time,
+        booked_price=candidate.booked_price,
+        record_locator=candidate.record_locator,
+        booked_at=existing.booked_at,
+        status=existing.status,
+        match_status=existing.match_status,
+        raw_summary=existing.raw_summary,
+        candidate_trip_instance_ids=existing.candidate_trip_instance_ids,
+        auto_link_enabled=existing.auto_link_enabled,
+        resolution_status=existing.resolution_status,
+        notes=candidate.notes,
+        created_at=existing.created_at,
+        updated_at=utcnow(),
+    )
+    repository.upsert_unmatched_bookings([updated])
+    return updated
+
+
 def delete_booking_record(
     repository: Repository,
     *,

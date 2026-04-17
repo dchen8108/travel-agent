@@ -11,6 +11,7 @@ import { FilterBar } from "../components/FilterBar";
 import { PrefetchLink } from "../components/PrefetchLink";
 import { TrackerPanel } from "../components/TrackerPanel";
 import { TripRow } from "../components/TripRow";
+import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEditorModal";
 import { useToast } from "../components/ToastProvider";
 import { api } from "../lib/api";
 import { bookingFormQueryKey, bookingPanelQueryKey, dashboardQueryKey, trackerPanelQueryKey } from "../lib/queryKeys";
@@ -114,6 +115,7 @@ export function DashboardPage() {
   const [bookingPanelState, setBookingPanelState] = useState<{ mode: "list" | "create" | "edit"; bookingId: string }>(() => (
     initialBookingPanelState(searchParams)
   ));
+  const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
 
   const panel = searchParams.get("panel");
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
@@ -432,6 +434,10 @@ export function DashboardPage() {
     }
   }
 
+  function handleEditUnmatchedBooking(unmatchedBookingId: string) {
+    setEditingUnmatchedBookingId(unmatchedBookingId);
+  }
+
   return (
     <div className="app-shell">
       <header className="page-header">
@@ -458,6 +464,7 @@ export function DashboardPage() {
             onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
             onDeleteTrip={handleDeleteTrip}
             onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
+            onEditUnmatchedBooking={handleEditUnmatchedBooking}
             onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
             onPrefetchBookings={prefetchBookingPanel}
             onPrefetchTrackers={prefetchTrackerPanel}
@@ -579,6 +586,14 @@ export function DashboardPage() {
       ) : null}
       {panel === "trackers" && panelTripInstanceId ? (
         <TrackerPanel tripInstanceId={panelTripInstanceId} onClose={closePanel} />
+      ) : null}
+      {editingUnmatchedBookingId ? (
+        <UnmatchedBookingEditorModal
+          unmatchedBookingId={editingUnmatchedBookingId}
+          dashboardFilters={dashboardFilters}
+          onClose={() => setEditingUnmatchedBookingId("")}
+          onReplaceDashboard={replaceCurrentDashboard}
+        />
       ) : null}
     </div>
   );

@@ -14,6 +14,7 @@ from app.services.bookings import (
     resolve_unmatched_booking_to_trip_instance,
     unlink_booking,
     update_booking,
+    update_unmatched_booking,
 )
 from app.services.dashboard_snapshot import load_persisted_snapshot
 from app.services.frontend_api import (
@@ -21,6 +22,7 @@ from app.services.frontend_api import (
     booking_panel_payload,
     collection_card_value,
     dashboard_payload,
+    unmatched_booking_form_payload,
     trip_editor_payload_for_edit,
     trip_editor_payload_for_new,
     tracker_panel_payload,
@@ -385,6 +387,15 @@ def booking_form_api(
     )
 
 
+@router.get("/unmatched-bookings/{unmatched_booking_id}/form")
+def unmatched_booking_form_api(
+    unmatched_booking_id: str,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    snapshot = load_persisted_snapshot(repository)
+    return unmatched_booking_form_payload(snapshot, unmatched_booking_id=unmatched_booking_id)
+
+
 @router.get("/trip-instances/{trip_instance_id}/trackers")
 def tracker_panel_api(
     trip_instance_id: str,
@@ -442,6 +453,29 @@ def update_booking_api(
     return {
         "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
+    }
+
+
+@router.patch("/unmatched-bookings/{unmatched_booking_id}")
+def update_unmatched_booking_api(
+    unmatched_booking_id: str,
+    body: BookingBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    candidate = _booking_candidate(body)
+    try:
+        update_unmatched_booking(
+            repository,
+            unmatched_booking_id=unmatched_booking_id,
+            candidate=candidate,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    snapshot = sync_and_persist(repository)
+    return {
+        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
     }
 
 

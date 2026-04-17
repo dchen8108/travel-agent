@@ -157,6 +157,32 @@ export interface BookingFormPayload {
   };
 }
 
+export interface UnmatchedBookingFormPayload {
+  dateTile: DateTile;
+  offer: Offer;
+  mode: "edit";
+  form: {
+    values: {
+      bookingId: string;
+      tripInstanceId: string;
+      airline: string;
+      originAirport: string;
+      destinationAirport: string;
+      departureDate: string;
+      departureTime: string;
+      arrivalTime: string;
+      bookedPrice: string;
+      recordLocator: string;
+      notes: string;
+    };
+    submitLabel: string;
+  };
+  catalogs: {
+    airports: Array<{ value: string; label: string; keywords: string }>;
+    airlines: Array<{ value: string; label: string; keywords: string }>;
+  };
+}
+
 export interface DashboardMutationPayload {
   dashboard: DashboardPayload;
 }

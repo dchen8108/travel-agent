@@ -4,6 +4,7 @@ import type {
   BookingPanelPayload,
   DashboardMutationPayload,
   DashboardPayload,
+  UnmatchedBookingFormPayload,
   TripEditorPayload,
   TripEditorRouteOption,
   TripEditorValues,
@@ -81,6 +82,9 @@ export const api = {
     const query = params.toString();
     return request<BookingFormPayload>(`/api/trip-instances/${tripInstanceId}/booking-form${query ? `?${query}` : ""}`);
   },
+  unmatchedBookingForm(unmatchedBookingId: string): Promise<UnmatchedBookingFormPayload> {
+    return request<UnmatchedBookingFormPayload>(`/api/unmatched-bookings/${unmatchedBookingId}/form`);
+  },
   createBooking(payload: Record<string, string>, filters?: URLSearchParams): Promise<BookingMutationPayload> {
     return request<BookingMutationPayload>(withDashboardFilters("/api/bookings", filters), {
       method: "POST",
@@ -100,6 +104,12 @@ export const api = {
     return request<DashboardMutationPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}/link`, filters), {
       method: "POST",
       body: JSON.stringify({ tripInstanceId }),
+    });
+  },
+  updateUnmatchedBooking(unmatchedBookingId: string, payload: Record<string, string>, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
+    return request<DashboardMutationPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}`, filters), {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     });
   },
   deleteBooking(bookingId: string, filters?: URLSearchParams): Promise<BookingMutationPayload> {

@@ -238,7 +238,7 @@ function BookingPanelContent({
           {payload.rows.map((row) => (
             <article key={row.bookingId} className="modal-list-row">
               <OfferBlock kind="booked" offer={row.offer} />
-              <div className="modal-list-row__actions">
+              <div className="offer-action-cluster modal-list-row__actions">
                 <IconButton
                   label="Edit booking"
                   onClick={() => onChangeMode("edit", row.bookingId)}

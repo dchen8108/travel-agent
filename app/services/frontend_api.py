@@ -390,6 +390,31 @@ def booking_form_payload(
     }
 
 
+def unmatched_booking_form_payload(
+    snapshot,
+    *,
+    unmatched_booking_id: str,
+) -> dict[str, object]:
+    unmatched = next((item for item in snapshot.unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
+    if unmatched is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return {
+        "dateTile": _date_tile_value(unmatched.departure_date),
+        "offer": _offer_value(
+            booking_offer_summary(
+                unmatched,
+                anchor_date=unmatched.departure_date,
+            )
+        ),
+        "mode": "edit",
+        "form": {
+            "values": booking_form_state_value(unmatched, trip_instance_id=""),
+            "submitLabel": "Save booking",
+        },
+        "catalogs": json.loads(catalogs_json()),
+    }
+
+
 def tracker_panel_payload(snapshot, *, trip_instance_id: str) -> dict[str, object]:
     detail = trip_instance_dashboard_context(snapshot, trip_instance_id)
     trip_instance = detail["trip_instance"]

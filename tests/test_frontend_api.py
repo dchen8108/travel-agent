@@ -220,6 +220,56 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
 
 
+def test_unmatched_booking_form_and_update_api(client, repository: Repository) -> None:
+    _seed_dashboard_trip(repository)
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="JFK",
+            destination_airport="LAX",
+            departure_date=date(2026, 6, 10),
+            departure_time="21:30",
+            arrival_time="00:45",
+            booked_price="36.20",
+            record_locator="SKLOAK",
+        ),
+    )
+    assert booking is None
+    assert unmatched is not None
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    form_response = client.get(f"/api/unmatched-bookings/{unmatched.unmatched_booking_id}/form")
+
+    assert form_response.status_code == 200
+    form_payload = form_response.json()
+    assert form_payload["dateTile"] == {"weekday": "WED", "monthDay": "Jun 10"}
+    assert form_payload["form"]["values"]["recordLocator"] == "SKLOAK"
+    assert form_payload["form"]["values"]["tripInstanceId"] == ""
+
+    update_response = client.patch(
+        f"/api/unmatched-bookings/{unmatched.unmatched_booking_id}",
+        json={
+            "tripInstanceId": "",
+            "airline": "Delta",
+            "originAirport": "JFK",
+            "destinationAirport": "LAX",
+            "departureDate": "2026-06-10",
+            "departureTime": "21:45",
+            "arrivalTime": "01:00",
+            "bookedPrice": "41.20",
+            "recordLocator": "EDIT01",
+            "notes": "Updated from modal",
+        },
+    )
+
+    assert update_response.status_code == 200
+    dashboard = update_response.json()["dashboard"]
+    unmatched_item = next(item for item in dashboard["actionItems"] if item["kind"] == "unmatchedBooking")
+    assert unmatched_item["offer"]["detail"] == "JFK → LAX · Delta"
+    assert unmatched_item["offer"]["metaLabel"].endswith("EDIT01")
+
+
 def test_dashboard_api_suppresses_rebook_card_when_preference_buffer_erases_raw_savings(
     client,
     repository: Repository,

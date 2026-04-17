@@ -903,6 +903,7 @@ textarea {
   padding-left: 0;
 }
 
+.offer-action-cluster,
 .modal-list-row__actions {
   display: inline-flex;
   align-items: center;
@@ -943,6 +944,18 @@ textarea {
   display: flex;
   gap: 0.7rem;
   justify-content: flex-end;
+}
+
+.unmatched-booking-editor__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+}
+
+.unmatched-booking-editor__offer .offer-block {
+  border-left: 0;
+  padding-left: 0;
 }
 
 .modal-footer-note {
@@ -1426,6 +1439,10 @@ textarea {
 
   .modal-list-row__actions {
     justify-self: start;
+  }
+
+  .unmatched-booking-editor__head {
+    grid-template-columns: 1fr;
   }
 
   .trip-editor-grid,

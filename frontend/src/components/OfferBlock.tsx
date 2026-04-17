@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type { Offer } from "../types";
 import { AddIcon, RefreshIcon, ViewIcon } from "./Icons";
 import { IconButton } from "./IconButton";
@@ -9,9 +11,10 @@ interface Props {
   emptyState?: boolean;
   onCreate?: () => void;
   onPrefetchAction?: () => void;
+  actions?: ReactNode;
 }
 
-export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, onPrefetchAction }: Props) {
+export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, onPrefetchAction, actions }: Props) {
   if (emptyState) {
     return (
       <div className="offer-block offer-block--empty">
@@ -55,7 +58,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
 
   return (
     <div className={`offer-block offer-block--${kind}`}>
-      <div className={`offer-block__body${onOpen ? " offer-block__body--with-action" : ""}`}>
+      <div className={`offer-block__body${onOpen || actions ? " offer-block__body--with-action" : ""}`}>
         {offer.href ? (
           <a
             className="offer-block__content offer-block__content--link"
@@ -69,7 +72,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
         ) : (
           <div className="offer-block__content">{offerContent}</div>
         )}
-        {onOpen ? (
+        {actions ? actions : onOpen ? (
           <IconButton
             label={kind === "booked" ? "View bookings" : "View trackers"}
             onClick={onOpen}
