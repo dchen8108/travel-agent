@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 import re
 
-from app.catalog import airline_display, airline_marketing_code
+from app.catalog import airline_marketing_code
 from app.models.booking import Booking
 from app.models.base import utcnow
 from app.models.tracker import Tracker
@@ -27,14 +27,14 @@ _SUPERSCRIPT_TRANSLATION = str.maketrans({
 
 def booking_route_label(booking: Booking) -> str:
     route = f"{booking.origin_airport} \u2192 {booking.destination_airport}"
-    airline = booking_airline_label(booking)
-    return f"{route} \u00b7 {airline}" if airline else route
+    flight_designator = booking_airline_label(booking)
+    return f"{route} \u00b7 {flight_designator}" if flight_designator else route
 
 
 def booking_airline_label(booking: Booking) -> str:
     flight_number = " ".join(str(getattr(booking, "flight_number", "") or "").strip().upper().split())
     if not flight_number:
-        return airline_display(booking.airline)
+        return ""
     marketing_code = airline_marketing_code(booking.airline)
     compact_prefix = f"{marketing_code}".upper()
     if flight_number.startswith(f"{compact_prefix} "):
@@ -139,11 +139,7 @@ def fetch_target_route_label(
     *,
     fallback_tracker: Tracker | None = None,
 ) -> str:
-    route = f"{target.origin_airport} \u2192 {target.destination_airport}"
-    airline = airline_display(target.latest_airline) if target.latest_airline else ""
-    if not airline and fallback_tracker is not None and len(fallback_tracker.airline_codes) == 1:
-        airline = airline_display(fallback_tracker.airline_codes[0])
-    return f"{route} \u00b7 {airline}" if airline else route
+    return f"{target.origin_airport} \u2192 {target.destination_airport}"
 
 
 def tracker_display_label(
@@ -158,8 +154,6 @@ def tracker_display_label(
     route = tracker_route_label(tracker)
     if not route:
         return ""
-    if len(tracker.airline_codes) == 1:
-        return f"{route} \u00b7 {airline_display(tracker.airline_codes[0])}"
     return route
 
 
@@ -173,10 +167,7 @@ def route_option_display_label(
     destinations = compact_airport_codes(destination_codes)
     if origins and destinations:
         route = f"{origins} \u2192 {destinations}"
-    airlines = ", ".join(airline_display(code) for code in airline_codes if code)
-    if route and airlines:
-        return f"{route} \u00b7 {airlines}"
-    return route or airlines
+    return route
 
 
 def tracker_best_fetch_target(

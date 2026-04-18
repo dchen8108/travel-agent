@@ -83,7 +83,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
     assert row["booked_offer"] is None
     assert row["current_offer"] == {
         "label": "Live fare",
-        "detail": "BUR → SFO · Southwest",
+        "detail": "BUR → SFO",
         "airline_key": "Southwest",
         "primary_meta_label": "6:35 AM",
         "meta_badges": [],
@@ -146,7 +146,7 @@ def test_unbooked_trip_row_fallback_route_spaces_multi_airport_options() -> None
 
     assert row["current_offer"] == {
         "label": "Live fare",
-        "detail": "LAX | BUR → SFO | OAK · Southwest",
+        "detail": "LAX | BUR → SFO | OAK",
         "airline_key": "Southwest",
         "primary_meta_label": "",
         "meta_badges": [],
@@ -224,7 +224,7 @@ def test_unbooked_trip_row_hides_stale_tracker_price() -> None:
 
     assert row["current_offer"] == {
         "label": "Live fare",
-        "detail": "LAX | BUR → SFO | OAK · Southwest",
+        "detail": "LAX | BUR → SFO | OAK",
         "airline_key": "Southwest",
         "primary_meta_label": "",
         "meta_badges": [],
@@ -330,7 +330,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     }
     assert row["current_offer"] == {
         "label": "Live fare",
-        "detail": "BUR → SFO · Southwest",
+        "detail": "BUR → SFO",
         "airline_key": "Southwest",
         "primary_meta_label": "",
         "meta_badges": [],
@@ -436,7 +436,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
     }
     assert row["current_offer"] == {
         "label": "Live fare",
-        "detail": "BUR → SFO · Southwest",
+        "detail": "BUR → SFO",
         "airline_key": "Southwest",
         "primary_meta_label": "6:10 AM⁺¹",
         "meta_badges": [],

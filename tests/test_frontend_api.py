@@ -313,7 +313,7 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     create_response = client.get(f"/api/trip-instances/{trip_instance_id}/bookings?mode=create")
 
     assert bookings_response.status_code == 200
-    assert bookings_response.json()["rows"][0]["offer"]["detail"] == "LAX → SFO · Southwest"
+    assert bookings_response.json()["rows"][0]["offer"]["detail"] == "LAX → SFO"
     assert bookings_response.json()["rows"][0]["offer"]["metaBadges"] == []
     assert bookings_response.json()["form"] is None
     assert bookings_response.json()["catalogs"] is None
@@ -491,7 +491,7 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
     assert update_response.json() == {"ok": True}
     dashboard = client.get("/api/dashboard").json()
     unmatched_item = next(item for item in dashboard["actionItems"] if item["kind"] == "unmatchedBooking")
-    assert unmatched_item["offer"]["detail"] == "JFK → LAX · Delta"
+    assert unmatched_item["offer"]["detail"] == "JFK → LAX"
     assert unmatched_item["offer"]["metaLabel"].endswith("EDIT01")
 
 
