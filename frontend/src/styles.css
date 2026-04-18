@@ -1514,14 +1514,6 @@ textarea {
   cursor: progress;
 }
 
-.time-range-field__labels {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-  color: var(--copy-muted);
-}
-
 .route-card-react__header,
 .route-card-react__actions {
   display: flex;

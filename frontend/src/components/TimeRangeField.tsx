@@ -253,11 +253,6 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
             />
           </div>
         </div>
-        <div className="time-range-field__labels" aria-hidden="true">
-          <span>12:00 AM</span>
-          <span>12:00 PM</span>
-          <span>11:59 PM</span>
-        </div>
       </div>
     </div>
   );
