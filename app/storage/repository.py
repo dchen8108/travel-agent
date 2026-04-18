@@ -24,13 +24,22 @@ from app.storage.sqlite_store import (
     fetch_all,
     immediate_transaction,
     initialize_schema,
+    run_startup_repairs,
     replace_rows,
     upsert_rows,
 )
 
 
-_initialized_db_paths: dict[Path, int] = {}
+_initialized_db_paths: dict[Path, tuple[int, int] | None] = {}
 _initialized_db_paths_lock = RLock()
+_UNINITIALIZED = object()
+
+
+def _db_file_identity(path: Path) -> tuple[int, int] | None:
+    if not path.exists():
+        return None
+    stat_result = path.stat()
+    return stat_result.st_dev, stat_result.st_ino
 
 
 @dataclass
@@ -60,16 +69,15 @@ class Repository(
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.config_dir.mkdir(parents=True, exist_ok=True)
         with _initialized_db_paths_lock:
-            current_db_mtime_ns = self.db_path.stat().st_mtime_ns if self.db_path.exists() else -1
-            if _initialized_db_paths.get(self.db_path) != current_db_mtime_ns:
-                connection = connect(self.db_path)
-                try:
+            current_db_identity = _db_file_identity(self.db_path)
+            connection = connect(self.db_path)
+            try:
+                if _initialized_db_paths.get(self.db_path, _UNINITIALIZED) != current_db_identity:
                     initialize_schema(connection)
-                finally:
-                    connection.close()
-                _initialized_db_paths[self.db_path] = (
-                    self.db_path.stat().st_mtime_ns if self.db_path.exists() else current_db_mtime_ns
-                )
+                    _initialized_db_paths[self.db_path] = _db_file_identity(self.db_path)
+                run_startup_repairs(connection)
+            finally:
+                connection.close()
             if not self.app_state_path.exists():
                 save_json_model(self.app_state_path, AppState())
         self._initialized = True

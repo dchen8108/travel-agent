@@ -14,6 +14,7 @@ from app.models.base import (
 )
 from app.models.booking import Booking
 from app.models.tracker import Tracker
+from app.models.trip_instance import TripInstance
 from app.route_options import time_in_window_exclusive_end
 from app.route_options import join_pipe, split_pipe
 from app.services.data_scope import filter_items, include_test_data_for_processing
@@ -166,14 +167,24 @@ def _route_option_id_for_booking(
     return ""
 
 
+def _matching_context(
+    repository: Repository,
+    *,
+    data_scope: str,
+) -> tuple[list[TripInstance], list[Tracker]]:
+    include_test_data = include_test_data_for_processing(repository.load_app_state()) or str(data_scope) == DataScope.TEST
+    trip_instances = filter_items(repository.load_trip_instances(), include_test_data=include_test_data)
+    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
+    return trip_instances, trackers
+
+
 def matching_trip_instance_ids_for_booking(
     repository: Repository,
     candidate: BookingCandidate,
     *,
     data_scope: str = DataScope.LIVE,
 ) -> list[str]:
-    include_test_data = include_test_data_for_processing(repository.load_app_state()) or str(data_scope) == DataScope.TEST
-    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
+    _, trackers = _matching_context(repository, data_scope=data_scope)
     return _matching_trip_instance_ids_for_booking(candidate, trackers)
 
 
@@ -348,10 +359,7 @@ def record_booking(
     data_scope: str = DataScope.LIVE,
     auto_link: bool = True,
 ) -> tuple[Booking | None, Booking | None]:
-    app_state = repository.load_app_state()
-    include_test_data = include_test_data_for_processing(app_state) or str(data_scope) == DataScope.TEST
-    trip_instances = filter_items(repository.load_trip_instances(), include_test_data=include_test_data)
-    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
+    trip_instances, trackers = _matching_context(repository, data_scope=data_scope)
 
     selected_trip = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None) if trip_instance_id else None
 
@@ -428,6 +436,10 @@ def resolve_unmatched_booking_to_trip_instance(
 ) -> Booking:
     unmatched_bookings = repository.load_unmatched_bookings()
     unmatched = next((item for item in unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
+    trip_instances, trackers = _matching_context(
+        repository,
+        data_scope=str(unmatched.data_scope) if unmatched is not None else DataScope.LIVE,
+    )
     if unmatched is None:
         existing = next((item for item in repository.load_bookings() if item.booking_id == unmatched_booking_id), None)
         if existing is not None and existing.trip_instance_id == trip_instance_id:
@@ -442,7 +454,7 @@ def resolve_unmatched_booking_to_trip_instance(
     trip_instance = next(
         (
             item
-            for item in repository.load_trip_instances()
+            for item in trip_instances
             if item.trip_instance_id == trip_instance_id and not item.deleted
         ),
         None,
@@ -470,7 +482,7 @@ def resolve_unmatched_booking_to_trip_instance(
         trip_instance_id=trip_instance_id,
         route_option_id=_route_option_id_for_booking(
             candidate,
-            repository.load_trackers(),
+            trackers,
             trip_instance_id=trip_instance_id,
         ),
         data_scope=unmatched.data_scope,
@@ -510,9 +522,11 @@ def resolve_unmatched_booking_to_trip(
 ) -> Booking | None:
     unmatched_bookings = repository.load_unmatched_bookings()
     unmatched = next((item for item in unmatched_bookings if item.unmatched_booking_id == unmatched_booking_id), None)
+    data_scope = str(unmatched.data_scope) if unmatched is not None else DataScope.LIVE
+    trip_instances, trackers = _matching_context(repository, data_scope=data_scope)
     trip_instance_ids = {
         item.trip_instance_id
-        for item in repository.load_trip_instances()
+        for item in trip_instances
         if item.trip_id == trip_id and not item.deleted
     }
     if unmatched is None:
@@ -546,7 +560,7 @@ def resolve_unmatched_booking_to_trip(
         return None
     matching_trip_instance_ids = [
         item
-        for item in _matching_trip_instance_ids_for_booking(candidate, repository.load_trackers())
+        for item in _matching_trip_instance_ids_for_booking(candidate, trackers)
         if item in trip_instance_ids
     ]
     if len(matching_trip_instance_ids) != 1:
@@ -615,10 +629,7 @@ def update_booking(
     if not trip_instance_id:
         raise ValueError("Choose a scheduled trip or detach the booking instead.")
 
-    app_state = repository.load_app_state()
-    include_test_data = include_test_data_for_processing(app_state) or str(existing.data_scope) == DataScope.TEST
-    trip_instances = filter_items(repository.load_trip_instances(), include_test_data=include_test_data)
-    trackers = filter_items(repository.load_trackers(), include_test_data=include_test_data)
+    trip_instances, trackers = _matching_context(repository, data_scope=str(existing.data_scope))
     selected_trip = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
     if selected_trip is None or selected_trip.deleted:
         raise ValueError("Choose a valid scheduled trip.")

@@ -207,6 +207,57 @@ def test_unmatched_booking_link_rejects_missing_trip_instance(repository: Reposi
     assert repository.load_bookings() == []
 
 
+def test_live_unmatched_booking_does_not_resolve_to_test_trip_instance(repository: Repository) -> None:
+    test_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Test Scope Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        data_scope="test",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    test_trip_instance_id = next(
+        item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == test_trip.trip_id
+    )
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="LIVE01",
+        ),
+        data_scope="live",
+    )
+
+    assert booking is None
+    assert unmatched is not None
+
+    with pytest.raises(KeyError, match="Scheduled trip not found"):
+        resolve_unmatched_booking_to_trip_instance(
+            repository,
+            unmatched_booking_id=unmatched.unmatched_booking_id,
+            trip_instance_id=test_trip_instance_id,
+        )
+
+
 def test_unmatched_booking_can_be_resolved_to_a_new_trip(repository: Repository) -> None:
     booking, unmatched = record_booking(
         repository,

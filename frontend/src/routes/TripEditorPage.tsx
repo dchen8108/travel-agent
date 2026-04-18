@@ -89,6 +89,13 @@ export function TripEditorPage() {
     setSavePhase("idle");
   }, [formQuery.data]);
 
+  useEffect(() => {
+    if (!values || routeOptions.length > 1 || values.preferenceMode === "equal") {
+      return;
+    }
+    setValues((current) => (current ? { ...current, preferenceMode: "equal" } : current));
+  }, [routeOptions.length, values]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!values) {
@@ -231,8 +238,8 @@ export function TripEditorPage() {
             saveMutation.mutate();
           }}
         >
-          <div className="trip-editor-grid">
-            <label>
+          <div className="trip-editor-grid trip-editor-grid--overview">
+            <label className="field-block--span-2">
               <span>Trip label</span>
               <input
                 type="text"
@@ -270,7 +277,7 @@ export function TripEditorPage() {
               )}
             </div>
 
-            <div className="field-block">
+            <div className="field-block field-block--span-2">
               <span>{weekly ? "Target collections" : "Collections"}</span>
               <MultiSelectField
                 options={payload.tripGroups}
@@ -317,40 +324,11 @@ export function TripEditorPage() {
           </div>
 
           <section className="choice-card-surface">
-            <div className="section-header-react">
-              <h2>Preference</h2>
-            </div>
-            <div className="choice-card-grid">
-              <label className={`choice-card-react ${values.preferenceMode === "equal" ? "is-selected" : ""}`}>
-                <input
-                  type="radio"
-                  name="preferenceMode"
-                  checked={values.preferenceMode === "equal"}
-                  onChange={() => updateValues({ preferenceMode: "equal" })}
-                />
-                <span>
-                  <strong>Treat all options equally</strong>
-                  <small>Cheapest match wins.</small>
-                </span>
-              </label>
-              <label className={`choice-card-react ${values.preferenceMode === "ranked_bias" ? "is-selected" : ""}`}>
-                <input
-                  type="radio"
-                  name="preferenceMode"
-                  checked={values.preferenceMode === "ranked_bias"}
-                  onChange={() => updateValues({ preferenceMode: "ranked_bias" })}
-                />
-                <span>
-                  <strong>Prefer option order</strong>
-                  <small>Option 1 wins unless another saves enough.</small>
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <section className="choice-card-surface">
-            <div className="section-header-react">
-              <h2>Routes</h2>
+            <div className="section-header-react section-header-react--editor">
+              <div className="section-header-react__copy">
+                <h2>Routes</h2>
+                <p className="muted-copy">Define the acceptable routes for this trip. Add another route only when you want Milemark to compare alternatives.</p>
+              </div>
               <button
                 type="button"
                 className="secondary-button"
@@ -359,18 +337,57 @@ export function TripEditorPage() {
                 Add route
               </button>
             </div>
+            {routeOptions.length > 1 ? (
+              <div className="route-preference-bar">
+                <div className="route-preference-bar__copy">
+                  <strong>Route preference</strong>
+                  <small>
+                    {values.preferenceMode === "equal"
+                      ? "All route options are treated equally. The cheapest valid match wins."
+                      : "Options are checked in order. Lower options must beat the option above by the savings you set."}
+                  </small>
+                </div>
+                <div className="trip-type-switch route-preference-bar__switch">
+                  <label className={`trip-type-switch__pill ${values.preferenceMode === "equal" ? "is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="preferenceMode"
+                      checked={values.preferenceMode === "equal"}
+                      onChange={() => updateValues({ preferenceMode: "equal" })}
+                    />
+                    <span>Equal</span>
+                  </label>
+                  <label className={`trip-type-switch__pill ${values.preferenceMode === "ranked_bias" ? "is-selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="preferenceMode"
+                      checked={values.preferenceMode === "ranked_bias"}
+                      onChange={() => updateValues({ preferenceMode: "ranked_bias" })}
+                    />
+                    <span>Ordered</span>
+                  </label>
+                </div>
+              </div>
+            ) : null}
             <div className="route-editor-stack">
               {routeOptions.map((route, index) => (
                 <article key={`${route.routeOptionId || "new"}-${index}`} className="route-card-react">
                   <div className="route-card-react__header">
-                    <strong>Option {index + 1}</strong>
+                    <div className="route-card-react__title">
+                      <strong>Option {index + 1}</strong>
+                      {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" ? (
+                        <small className="muted-copy">
+                          {index === 0 ? "Top priority" : `Must beat option ${index} by the amount below.`}
+                        </small>
+                      ) : null}
+                    </div>
                     <div className="route-card-react__actions">
                       <button type="button" className="ghost-button" onClick={() => moveRoute(index, -1)} disabled={index === 0}>Up</button>
                       <button type="button" className="ghost-button" onClick={() => moveRoute(index, 1)} disabled={index === routeOptions.length - 1}>Down</button>
                       <button type="button" className="danger-button" onClick={() => removeRoute(index)} disabled={routeOptions.length === 1}>Remove</button>
                     </div>
                   </div>
-                  <div className="trip-editor-grid">
+                  <div className="trip-editor-grid route-card-react__grid">
                     <div className="field-block">
                       <span>Origin airports</span>
                       <MultiSelectField
@@ -401,6 +418,21 @@ export function TripEditorPage() {
                       />
                     </div>
                     <div className="field-block">
+                      <span>Fare</span>
+                      <SearchSelectField
+                        options={payload.catalogs.fareClasses.map((item) => ({
+                          value: item.value,
+                          label: item.label,
+                          keywords: item.keywords,
+                          summary: item.label,
+                        }))}
+                        value={route.fareClass}
+                        onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
+                        placeholder="Choose fare"
+                        disabled={saveMutation.isPending}
+                      />
+                    </div>
+                    <div className="field-block">
                       <span>Travel day</span>
                       <div className="day-offset-switch">
                         {[
@@ -427,30 +459,15 @@ export function TripEditorPage() {
                       onChange={(next) => updateRoute(index, next)}
                       disabled={saveMutation.isPending}
                     />
-                    <div className="field-block">
-                      <span>Fare</span>
-                      <SearchSelectField
-                        options={payload.catalogs.fareClasses.map((item) => ({
-                          value: item.value,
-                          label: item.label,
-                          keywords: item.keywords,
-                          summary: item.label,
-                        }))}
-                        value={route.fareClass}
-                        onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
-                        placeholder="Choose fare"
-                        disabled={saveMutation.isPending}
-                      />
-                    </div>
                     {values.preferenceMode === "ranked_bias" ? (
                       index === 0 ? (
-                        <div className="field-block">
-                          <span>Preference buffer</span>
+                        <div className="field-block route-card-react__priority-note">
+                          <span>Preference</span>
                           <small className="muted-copy">Top preference. Lower-ranked options need savings to beat it.</small>
                         </div>
                       ) : (
                         <label>
-                          <span>Savings needed vs option {index}</span>
+                          <span>Must beat option {index} by</span>
                           <input
                             type="number"
                             min={0}

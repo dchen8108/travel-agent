@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 from app.models.base import AppState
 from app.settings import Settings
@@ -169,6 +171,25 @@ def test_initialize_schema_repairs_tracker_fetch_targets_shape_even_when_version
     assert "next_fetch_not_before" not in columns
     assert "refresh_requested_at" in columns
     assert user_version == SCHEMA_VERSION
+
+
+def test_repository_does_not_rerun_schema_init_after_db_mtime_change(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    first = Repository(settings)
+    first.ensure_data_dir()
+
+    os.utime(first.db_path, None)
+
+    second = Repository(settings)
+    with patch("app.storage.repository.initialize_schema") as initialize_schema_mock:
+        second.ensure_data_dir()
+
+    initialize_schema_mock.assert_not_called()
 
 
 def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_path: Path) -> None:

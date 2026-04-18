@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from app.money import format_money
-from app.services.collection_display import group_summary_view
 from app.services.dashboard_booking_views import unmatched_booking_resolution_views
 from app.services.dashboard_navigation import trip_focus_url
-from app.services.dashboard_queries import scheduled_instances, scheduled_ledger_view, trip_groups
+from app.services.dashboard_queries import scheduled_instances
 from app.services.scheduled_trip_display import trip_ui_context_label, trip_ui_label
 from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
@@ -148,45 +147,4 @@ def dashboard_attention_views(
         "rebook_views": rebook_views,
         "book_now_views": book_now_views,
         "total_upcoming": len(upcoming_instances),
-    }
-
-
-def build_dashboard_page_context(
-    snapshot,
-    *,
-    today: date,
-    selected_trip_group_ids: list[str] | None = None,
-    include_booked: bool = True,
-    collection_editor_state: dict[str, object] | None = None,
-) -> dict[str, object]:
-    scheduled_view = scheduled_ledger_view(
-        snapshot,
-        today=today,
-        selected_trip_group_ids=selected_trip_group_ids,
-        include_booked=include_booked,
-    )
-    attention = dashboard_attention_views(snapshot, today=today)
-    group_views = [
-        group_summary_view(snapshot, group, today=today)
-        for group in sorted(
-            trip_groups(snapshot),
-            key=lambda item: (
-                next(
-                    (
-                        instance.anchor_date
-                        for instance in scheduled_instances(snapshot, trip_group_ids={item.trip_group_id}, today=today)
-                    ),
-                    date.max,
-                ),
-                item.label.lower(),
-            ),
-        )
-    ]
-    return {
-        **attention,
-        "group_views": group_views,
-        "collection_editor_state": collection_editor_state,
-        "scheduled_filter_action_path": "/",
-        "scheduled_filter_clear_path": "/#all-travel",
-        **scheduled_view,
     }

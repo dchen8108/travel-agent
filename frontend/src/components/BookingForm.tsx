@@ -49,121 +49,151 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
 
   return (
     <form className="booking-form-card trip-editor-form" onSubmit={handleSubmit}>
-      <div className="booking-form-grid trip-editor-grid">
-        <div className="field-block">
-          <span>Airline</span>
-          <SearchSelectField
-            options={catalogs.airlines.map((item) => ({
-              value: item.value,
-              label: item.label,
-              keywords: `${item.value} ${item.label}`,
-              summary: item.label,
-            }))}
-            value={values.airline}
-            onChange={(value) => update("airline", value)}
-            placeholder="Search airlines"
-            allowEmpty
-            emptySelectionLabel="Choose"
-            disabled={submitting}
-          />
+      <section className="form-section">
+        <div className="form-section__header">
+          <strong>Route</strong>
+          <small>Where and what fare you booked.</small>
         </div>
-        <div className="field-block">
-          <span>Origin</span>
-          <SearchSelectField
-            options={catalogs.airports.map((item) => ({
-              value: item.value,
-              label: item.label,
-              keywords: `${item.value} ${item.label}`,
-              summary: `${item.value} · ${item.label}`,
-            }))}
-            value={values.originAirport}
-            onChange={(value) => update("originAirport", value)}
-            placeholder="Search origins"
-            allowEmpty
-            emptySelectionLabel="Choose"
-            disabled={submitting}
-          />
+        <div className="booking-form-grid">
+          <div className="field-block">
+            <span>Airline</span>
+            <SearchSelectField
+              options={catalogs.airlines.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: `${item.value} ${item.label}`,
+                summary: item.label,
+              }))}
+              value={values.airline}
+              onChange={(value) => update("airline", value)}
+              placeholder="Search airlines"
+              allowEmpty
+              emptySelectionLabel="Choose"
+              disabled={submitting}
+            />
+          </div>
+          <div className="field-block">
+            <span>Origin</span>
+            <SearchSelectField
+              options={catalogs.airports.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: `${item.value} ${item.label}`,
+                summary: `${item.value} · ${item.label}`,
+              }))}
+              value={values.originAirport}
+              onChange={(value) => update("originAirport", value)}
+              placeholder="Search origins"
+              allowEmpty
+              emptySelectionLabel="Choose"
+              disabled={submitting}
+            />
+          </div>
+          <div className="field-block">
+            <span>Destination</span>
+            <SearchSelectField
+              options={catalogs.airports.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: `${item.value} ${item.label}`,
+                summary: `${item.value} · ${item.label}`,
+              }))}
+              value={values.destinationAirport}
+              onChange={(value) => update("destinationAirport", value)}
+              placeholder="Search destinations"
+              allowEmpty
+              emptySelectionLabel="Choose"
+              disabled={submitting}
+            />
+          </div>
+          <div className="field-block">
+            <span>Fare</span>
+            <SearchSelectField
+              options={catalogs.fareClasses.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: item.label,
+                summary: item.label,
+              }))}
+              value={values.fareClass}
+              onChange={(value) => update("fareClass", value)}
+              placeholder="Choose fare"
+              disabled={submitting}
+            />
+          </div>
         </div>
-        <div className="field-block">
-          <span>Destination</span>
-          <SearchSelectField
-            options={catalogs.airports.map((item) => ({
-              value: item.value,
-              label: item.label,
-              keywords: `${item.value} ${item.label}`,
-              summary: `${item.value} · ${item.label}`,
-            }))}
-            value={values.destinationAirport}
-            onChange={(value) => update("destinationAirport", value)}
-            placeholder="Search destinations"
-            allowEmpty
-            emptySelectionLabel="Choose"
-            disabled={submitting}
-          />
+      </section>
+
+      <section className="form-section">
+        <div className="form-section__header">
+          <strong>Timing</strong>
+          <small>When the flight departs and lands.</small>
         </div>
-        <div className="field-block">
-          <span>Fare</span>
-          <SearchSelectField
-            options={catalogs.fareClasses.map((item) => ({
-              value: item.value,
-              label: item.label,
-              keywords: item.label,
-              summary: item.label,
-            }))}
-            value={values.fareClass}
-            onChange={(value) => update("fareClass", value)}
-            placeholder="Choose fare"
-            disabled={submitting}
-          />
+        <div className="booking-form-grid">
+          <label>
+            <span>Departure date</span>
+            <input type="date" value={values.departureDate} onChange={(event) => update("departureDate", event.target.value)} disabled={submitting} />
+          </label>
+          <label>
+            <span>Departure time</span>
+            <input type="time" value={values.departureTime} onChange={(event) => update("departureTime", event.target.value)} disabled={submitting} />
+          </label>
+          <label>
+            <span>Arrival time</span>
+            <input type="time" value={values.arrivalTime} onChange={(event) => update("arrivalTime", event.target.value)} disabled={submitting} />
+          </label>
+          <div className="field-block">
+            <span>Arrival day</span>
+            <SearchSelectField
+              options={ARRIVAL_DAY_OPTIONS.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: item.label,
+                summary: item.label,
+              }))}
+              value={values.arrivalDayOffset || "0"}
+              onChange={(value) => update("arrivalDayOffset", value)}
+              placeholder="Choose arrival day"
+              disabled={submitting}
+            />
+          </div>
         </div>
-        <label>
-          <span>Departure date</span>
-          <input type="date" value={values.departureDate} onChange={(event) => update("departureDate", event.target.value)} disabled={submitting} />
-        </label>
-        <label>
-          <span>Departure time</span>
-          <input type="time" value={values.departureTime} onChange={(event) => update("departureTime", event.target.value)} disabled={submitting} />
-        </label>
-        <label>
-          <span>Arrival time</span>
-          <input type="time" value={values.arrivalTime} onChange={(event) => update("arrivalTime", event.target.value)} disabled={submitting} />
-        </label>
-        <div className="field-block">
-          <span>Arrival day</span>
-          <SearchSelectField
-            options={ARRIVAL_DAY_OPTIONS.map((item) => ({
-              value: item.value,
-              label: item.label,
-              keywords: item.label,
-              summary: item.label,
-            }))}
-            value={values.arrivalDayOffset || "0"}
-            onChange={(value) => update("arrivalDayOffset", value)}
-            placeholder="Choose arrival day"
-            disabled={submitting}
-          />
+      </section>
+
+      <section className="form-section">
+        <div className="form-section__header">
+          <strong>Booking details</strong>
+          <small>Optional metadata and what you paid.</small>
         </div>
-        <label>
-          <span>Flight number</span>
-          <input type="text" value={values.flightNumber} onChange={(event) => update("flightNumber", event.target.value)} disabled={submitting} placeholder="AS 1105" />
+        <div className="booking-form-grid booking-form-grid--details">
+          <label>
+            <span>Booked price</span>
+            <input type="text" value={values.bookedPrice} onChange={(event) => update("bookedPrice", event.target.value)} disabled={submitting} placeholder="$198" />
+          </label>
+          <label>
+            <span>Record locator</span>
+            <input type="text" value={values.recordLocator} onChange={(event) => update("recordLocator", event.target.value)} disabled={submitting} />
+          </label>
+          <label>
+            <span>Flight number</span>
+            <input type="text" value={values.flightNumber} onChange={(event) => update("flightNumber", event.target.value)} disabled={submitting} placeholder="AS 1105" />
+          </label>
+        </div>
+      </section>
+
+      <section className="form-section">
+        <div className="form-section__header">
+          <strong>Notes</strong>
+          <small>Anything worth keeping with the booking.</small>
+        </div>
+        <label className="field-block field-block--full">
+          <textarea value={values.notes} onChange={(event) => update("notes", event.target.value)} disabled={submitting} rows={3} />
         </label>
-        <label>
-          <span>Booked price</span>
-          <input type="text" value={values.bookedPrice} onChange={(event) => update("bookedPrice", event.target.value)} disabled={submitting} placeholder="$198" />
-        </label>
-        <label>
-          <span>Record locator</span>
-          <input type="text" value={values.recordLocator} onChange={(event) => update("recordLocator", event.target.value)} disabled={submitting} />
-        </label>
-      </div>
-      <label className="field-block field-block--full">
-        <span>Notes</span>
-        <textarea value={values.notes} onChange={(event) => update("notes", event.target.value)} disabled={submitting} rows={3} />
-      </label>
+      </section>
       {error ? <p className="inline-error">{error}</p> : null}
       <div className="booking-form-actions">
-        <button type="submit" className="primary-button" disabled={submitting}>{submitting ? busyLabel : submitLabel}</button>
         <button type="button" className="secondary-button" onClick={onCancel} disabled={submitting}>Cancel</button>
+        <button type="submit" className="primary-button" disabled={submitting}>{submitting ? busyLabel : submitLabel}</button>
       </div>
     </form>
   );

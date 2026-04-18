@@ -36,14 +36,11 @@ Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) 
 
 Compatibility note:
 
-- `/trips`, `/bookings`, and `/trackers` are redirect-only compatibility endpoints now
 - the dashboard at `/` is the primary operational surface
-- collection inspection and collection create/edit happen inline on dashboard collection cards
+- collections are inspected and edited inline on dashboard collection cards
 - trip inspection happens inline on dashboard trip rows and the bookings/trackers modal panels
-- `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
 - trips keep dedicated create/edit pages
-- bookings create/edit live inside the bookings modal; `/bookings/new` and `/bookings/{id}/edit` are compatibility redirects into that modal
-- `/groups/new` and `/groups/{id}/edit` are compatibility redirects into the dashboard inline collection editor state
+- a limited set of old routes still exist as compatibility redirects into the SPA; new work should target `/`, `/trips/new`, `/trips/{id}/edit`, and the `/api/...` endpoints directly
 
 ## Core Objects
 
@@ -70,7 +67,6 @@ Then open `http://127.0.0.1:8000`.
 Frontend stack:
 
 - the React/Vite dashboard is now the primary app at `/`
-- `/app` remains as a compatibility entry to the same SPA
 - trip create/edit now also render through the SPA shell at `/trips/new` and `/trips/{id}/edit`
 - there is no mounted server-rendered Jinja UI surface anymore; FastAPI serves the SPA shell, JSON APIs, and compatibility redirects
 

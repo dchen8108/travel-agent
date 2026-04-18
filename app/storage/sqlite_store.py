@@ -92,6 +92,15 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def run_startup_repairs(connection: sqlite3.Connection) -> None:
+    # Keep lightweight, idempotent data repairs separate from the heavier
+    # schema initialization cache. These repairs are safe to rerun on every
+    # startup and should still fire when an existing database is mutated
+    # outside the app process.
+    _migrate_data_scope_to_v7(connection)
+    connection.commit()
+
+
 def fetch_all(
     connection: sqlite3.Connection,
     query: str,

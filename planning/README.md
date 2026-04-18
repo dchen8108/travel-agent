@@ -1,6 +1,6 @@
 # Planning
 
-This directory is for current operational and architecture notes only. Old planning snapshots that no longer describe the live product should live in git history, not in the active repo.
+This directory is for current operational and architecture notes only. Historical notes that no longer describe the live product belong under `planning/archive/` or in git history, not alongside active docs.
 
 ## Current References
 
@@ -9,7 +9,7 @@ Use these first when you need the implementation as it exists today:
 - `agent-checkpoint.md`: current product/runtime snapshot and bootstrap guide for a fresh agent
 - `sqlite-storage.md`: current SQLite-backed storage model and runtime layout
 - `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
-- there are no active historical planning docs in this directory; recover old migration notes from git history if needed
+- there are no active historical planning docs in this directory; recover old migration notes from `planning/archive/` or git history if needed
 
 The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the main source of truth for:
 
@@ -19,11 +19,12 @@ The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the m
 - background fetch behavior
 - storage/config layout
 
-## Secondary References
+## Archive
 
-These are still useful, but they are more focused background than canonical implementation docs:
+These are historical references, not current source-of-truth docs:
 
-- `google-flights-poc.md`
+- `archive/google-flights-poc.md`
+- `archive/agent-refresh-prompt.md`
 
 ## Current Product Baseline
 
