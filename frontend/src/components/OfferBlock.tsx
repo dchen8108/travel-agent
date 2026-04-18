@@ -37,6 +37,19 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
     );
   }
 
+  const actionContent = actions ?? (onOpen ? (
+    <IconButton
+      label={kind === "booked" ? "View bookings" : "View trackers"}
+      variant="inline"
+      onClick={onOpen}
+      onMouseEnter={onPrefetchAction}
+      onFocus={onPrefetchAction}
+      onPointerDown={onPrefetchAction}
+    >
+      <ViewIcon />
+    </IconButton>
+  ) : null);
+
   const offerContent = (
     <>
       <div className="offer-block__copy">
@@ -58,19 +71,22 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
           </div>
         ) : null}
       </div>
-      <div className="offer-block__price-column">
-        {offer.priceIsStatus && offer.statusKind === "pending" ? (
-          <span className="offer-block__status-icon"><RefreshIcon /></span>
-        ) : (
-          <strong className={`offer-block__price offer-block__price--${offer.tone}`}>{offer.priceLabel}</strong>
-        )}
+      <div className="offer-block__trailing">
+        <div className="offer-block__price-column">
+          {offer.priceIsStatus && offer.statusKind === "pending" ? (
+            <span className="offer-block__status-icon"><RefreshIcon /></span>
+          ) : (
+            <strong className={`offer-block__price offer-block__price--${offer.tone}`}>{offer.priceLabel}</strong>
+          )}
+        </div>
+        {actionContent ? <div className="offer-block__actions">{actionContent}</div> : null}
       </div>
     </>
   );
 
   return (
     <div className={`offer-block offer-block--${kind}`}>
-      <div className={`offer-block__body${onOpen || actions ? " offer-block__body--with-action" : ""}`}>
+      <div className="offer-block__body">
         {offer.href ? (
           <a
             className="offer-block__content offer-block__content--link"
@@ -84,18 +100,6 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
         ) : (
           <div className="offer-block__content">{offerContent}</div>
         )}
-        {actions ? actions : onOpen ? (
-          <IconButton
-            label={kind === "booked" ? "View bookings" : "View trackers"}
-            variant="inline"
-            onClick={onOpen}
-            onMouseEnter={onPrefetchAction}
-            onFocus={onPrefetchAction}
-            onPointerDown={onPrefetchAction}
-          >
-            <ViewIcon />
-          </IconButton>
-        ) : null}
       </div>
     </div>
   );
