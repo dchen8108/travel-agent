@@ -32,6 +32,13 @@ export function Modal({ title, onClose, children, size = "default" }: Props) {
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const computedPaddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0;
+    const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${computedPaddingRight + scrollbarWidth}px`;
+    }
     document.body.style.overflow = "hidden";
 
     const initialFocus = closeButtonRef.current ?? focusableElements(shellRef.current)[0] ?? shellRef.current;
@@ -64,6 +71,7 @@ export function Modal({ title, onClose, children, size = "default" }: Props) {
     return () => {
       document.removeEventListener("keydown", handleKeydown);
       document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
       previousFocus?.focus();
     };
   }, []);
