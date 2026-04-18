@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { CloseIcon } from "./Icons";
 import { IconButton } from "./IconButton";
@@ -29,7 +29,7 @@ export function Modal({ title, onClose, children, size = "default" }: Props) {
 
   onCloseRef.current = onClose;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
