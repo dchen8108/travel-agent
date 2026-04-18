@@ -30,7 +30,6 @@ from app.services.snapshot_queries import (
 from app.services.snapshots import AppSnapshot
 from app.catalog import airline_marketing_code
 from app.money import format_money
-from app.models.base import fare_class_label
 
 
 def _offer_meta_value(primary_meta_label: str = "", meta_badges: list[str] | None = None) -> tuple[str, list[str], str]:
@@ -75,17 +74,13 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     departure_time = getattr(booking_like, "departure_time", "")
     arrival_time = getattr(booking_like, "arrival_time", "")
     record_locator = getattr(booking_like, "record_locator", "") or ""
-    meta_badges: list[str] = []
-    fare_class = getattr(booking_like, "fare_class", "")
-    if fare_class:
-        meta_badges.append(fare_class_label(fare_class))
     flight_number = getattr(booking_like, "flight_number", "") or ""
     primary_meta_parts = [format_time_range_label(departure_time, arrival_time)]
     if flight_number:
         airline_code = airline_marketing_code(getattr(booking_like, "airline", "") or "")
         primary_meta_parts.append(f"{airline_code} {flight_number}".strip())
     primary_meta_label = " · ".join(part for part in primary_meta_parts if part)
-    _, badges, booking_meta = _offer_meta_value(primary_meta_label, meta_badges)
+    _, badges, booking_meta = _offer_meta_value(primary_meta_label, [])
     if record_locator:
         booking_meta = " · ".join(part for part in [booking_meta, record_locator] if part)
     return {
@@ -181,13 +176,12 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             if current_target is not None and current_price is not None
             else ""
         )
-        current_offer_badges = [fare_class_label(display_tracker.fare_class)] if display_tracker is not None and display_tracker.fare_class else []
         current_offer = live_fare_offer_summary(
             anchor_date=instance.anchor_date if instance is not None else date.today(),
             travel_date=display_tracker.travel_date if display_tracker is not None else None,
             detail=current_offer_detail,
             primary_meta_label=current_offer_primary_meta,
-            meta_badges=current_offer_badges,
+            meta_badges=[],
             price_label=current_offer_price,
             href=current_offer_href,
             tone=current_offer_tone,
