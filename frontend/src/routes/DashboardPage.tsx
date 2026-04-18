@@ -568,7 +568,11 @@ export function DashboardPage() {
               <button type="button" className="primary-button" onClick={startCreateCollection}>
                 Create collection
               </button>
-            ) : null}
+            ) : (
+              <span className="primary-button surface__header-action-placeholder" aria-hidden="true">
+                Create collection
+              </span>
+            )}
           </div>
           <div className="collection-board-react">
             {collectionEditor?.mode === "create" ? (

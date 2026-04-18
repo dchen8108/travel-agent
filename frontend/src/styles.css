@@ -175,6 +175,11 @@ textarea {
   font-size: 1.45rem;
 }
 
+.surface__header-action-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .quiet-state-card {
   display: grid;
   gap: 0.35rem;
