@@ -119,12 +119,10 @@ def dashboard_attention_views(
     booked_instances = [
         instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     ]
-    overbooked_window_cutoff = today + timedelta(days=snapshot.app_state.dashboard_overbooked_window_days)
     overbooked_instances = [
         instance
         for instance in booked_instances
         if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 1
-        and instance.anchor_date <= overbooked_window_cutoff
     ]
     overbooked_instance_ids = {
         instance.trip_instance_id for instance in overbooked_instances

@@ -882,7 +882,7 @@ def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None
     assert overbooked[0]["badge"] == "2 active"
 
 
-def test_today_page_respects_configured_attention_windows(tmp_path: Path) -> None:
+def test_today_page_only_applies_needs_booking_window(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -946,7 +946,8 @@ def test_today_page_respects_configured_attention_windows(tmp_path: Path) -> Non
     page = client.get("/")
     assert page.status_code == 200
     assert "Book upcoming trips" not in page.text
-    assert "Resolve multiple bookings" not in page.text
+    payload = _dashboard_payload(client)
+    assert any(item.get("attentionKind") == "overbooked" for item in payload["actionItems"])
 
 
 def test_new_weekly_rule_without_groups_creates_matching_group(tmp_path: Path) -> None:

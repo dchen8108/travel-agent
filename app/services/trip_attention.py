@@ -49,9 +49,7 @@ def rebook_attention_title_and_badge(snapshot, trip_instance_id: str) -> tuple[s
 def dashboard_trip_attention_kind(snapshot, instance, *, today: date) -> str | None:
     active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
     if active_booking_count > 1:
-        overbooked_cutoff = today + timedelta(days=snapshot.app_state.dashboard_overbooked_window_days)
-        if instance.anchor_date <= overbooked_cutoff:
-            return TRIP_ATTENTION_OVERBOOKED
+        return TRIP_ATTENTION_OVERBOOKED
 
     if active_booking_count > 0:
         return rebook_attention_kind(snapshot, instance.trip_instance_id)
