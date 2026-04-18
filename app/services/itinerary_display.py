@@ -13,6 +13,9 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 def booking_route_label(booking: Booking) -> str:
     route = f"{booking.origin_airport} \u2192 {booking.destination_airport}"
     airline = airline_display(booking.airline)
+    flight_number = (getattr(booking, "flight_number", "") or "").strip()
+    if airline and flight_number:
+        airline = f"{airline} {flight_number}"
     return f"{route} \u00b7 {airline}" if airline else route
 
 

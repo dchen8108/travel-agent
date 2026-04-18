@@ -304,6 +304,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
                 departure_date="2026-04-06",
                 departure_time="08:15",
                 arrival_time="09:45",
+                flight_number="2285",
                 booked_price=124,
             )
         ],
@@ -317,7 +318,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
 
     assert row["booked_offer"] == {
         "label": "Booking",
-        "detail": "LAX → SFO · Delta",
+        "detail": "LAX → SFO · Delta 2285",
         "primary_meta_label": "8:15 AM",
         "meta_badges": ["Basic Economy"],
         "meta_label": "8:15 AM · Basic Economy",
@@ -409,6 +410,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
                 departure_date="2026-04-05",
                 departure_time="23:30",
                 arrival_time="01:10",
+                flight_number="2285",
                 booked_price=124,
             )
         ],
@@ -422,7 +424,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
 
     assert row["booked_offer"] == {
         "label": "Booking",
-        "detail": "LAX → SFO · Delta",
+        "detail": "LAX → SFO · Delta 2285",
         "primary_meta_label": "11:30 PM",
         "meta_badges": ["Basic Economy"],
         "meta_label": "11:30 PM · Basic Economy",
