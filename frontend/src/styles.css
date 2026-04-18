@@ -1835,10 +1835,6 @@ textarea {
     flex: 1;
   }
 
-  .booking-form-grid {
-    grid-template-columns: 1fr;
-  }
-
   .modal-list-row {
     grid-template-columns: 1fr;
   }
@@ -1881,5 +1877,11 @@ textarea {
     padding-top: 0.85rem;
     padding-bottom: 0.1rem;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96) 38%);
+  }
+}
+
+@media (max-width: 620px) {
+  .booking-form-grid {
+    grid-template-columns: 1fr;
   }
 }
