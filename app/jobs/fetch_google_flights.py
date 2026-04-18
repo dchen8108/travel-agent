@@ -166,6 +166,7 @@ def main() -> None:
             )
 
         stage = "persist"
+        snapshot.tracker_fetch_targets = result.updated_targets
         apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
         recompute_trip_states(snapshot.trip_instances, snapshot.trackers, snapshot.bookings)
         price_records = build_price_records(

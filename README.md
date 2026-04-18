@@ -7,7 +7,7 @@ This MVP is built around a simple idea:
 - you organize travel into named `Collections`
 - you define recurring trips that generate scheduled travel on a cadence
 - each trip owns one or more ranked `Route Options`
-- each route option corresponds to one Google Flights tracker/search definition, including whether Basic economy should be included or excluded
+- each route option corresponds to one Google Flights tracker/search definition, including the selected fare class
 - trips can treat route options equally or require lower-ranked options to clear user-defined savings thresholds
 - recurring trips generate dated `Trip Instances` that can stay attached or be detached later
 - the app keeps concrete `Trip Instances` and per-instance `Trackers`
@@ -97,7 +97,7 @@ Then open `http://127.0.0.1:8000`.
 2. Create a one-time trip or a recurring trip-backed trip.
 3. Choose whether route options should be treated equally or in ranked order.
 4. Add ranked `Route Options`.
-5. For each route option, choose whether Google Flights should include or exclude Basic economy fares.
+5. For each route option, choose the fare class to track.
 6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
 7. Use the dashboard to review collections, recurring trips, upcoming travel, and any bookings that still need linking.
 8. Use collection cards to inspect recurring trips and jump straight into recurring-trip edits.
@@ -319,6 +319,6 @@ Important behavior:
 - each row represents one parsed itinerary/price, not just the cheapest result
 - current tracker state still stores only the latest best rollup
 - price history is append-only and survives tracker-definition edits
-- each row also records whether the originating tracker allowed or excluded Basic economy fares
+- each row also records the originating tracker fare class
 
 This gives the app a long-term local fact table for analytics without changing the live tracker UI yet.

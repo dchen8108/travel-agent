@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { trackerPanelQueryKey } from "../lib/queryKeys";
 import type { TrackerPanelPayload } from "../types";
 import { Modal } from "./Modal";
 import { OfferBlock } from "./OfferBlock";
@@ -14,7 +15,7 @@ interface Props {
 
 export function TrackerPanel({ tripInstanceId, initialPanel, onClose }: Props) {
   const panelQuery = useQuery({
-    queryKey: ["tracker-panel", tripInstanceId],
+    queryKey: trackerPanelQueryKey(tripInstanceId),
     queryFn: () => api.trackerPanel(tripInstanceId),
     placeholderData: initialPanel ?? undefined,
   });

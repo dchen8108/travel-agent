@@ -15,7 +15,13 @@ import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEdito
 import { useToast } from "../components/ToastProvider";
 import { api } from "../lib/api";
 import { prefetchOnce } from "../lib/prefetch";
-import { bookingFormQueryKey, bookingPanelQueryKey, dashboardQueryKey, trackerPanelQueryKey } from "../lib/queryKeys";
+import {
+  bookingFormQueryKey,
+  bookingPanelQueryKey,
+  dashboardQueryKey,
+  dashboardQueryPrefix,
+  trackerPanelQueryKey,
+} from "../lib/queryKeys";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import type {
   BookingPanelPayload,
@@ -178,7 +184,6 @@ export function DashboardPage() {
   const dashboardQuery = useQuery({
     queryKey: dashboardQueryKey(dashboardQueryString),
     queryFn: () => api.dashboard(dashboardFilters),
-    placeholderData: (previous) => previous,
   });
   const visibleTripRows = useMemo(() => tripRowLookup(dashboardQuery.data), [dashboardQuery.data]);
 
@@ -252,7 +257,7 @@ export function DashboardPage() {
 
   function replaceCurrentDashboard(next: DashboardPayload) {
     queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), next);
-    void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+    void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
   }
 
   function refreshCurrentDashboard() {
@@ -301,7 +306,7 @@ export function DashboardPage() {
       setCollectionEditor((current) => (
         current?.mode === "edit" && current.groupId === groupId ? null : current
       ));
-      void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
       pushToast({ message: "Collection deleted" });
     },
   });
@@ -326,7 +331,7 @@ export function DashboardPage() {
       pushToast({ message: errorMessage(error, "Unable to update recurring trip."), kind: "error" });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
     },
   });
 

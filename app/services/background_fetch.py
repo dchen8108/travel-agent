@@ -211,6 +211,7 @@ def run_fetch_batch(
 ) -> FetchBatchResult:
     now = now or utcnow()
     max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
+    target_by_id = {target.fetch_target_id: target for target in fetch_targets}
     if max_targets <= 0 and due_targets is None:
         return FetchBatchResult(
             fetched_count=0,
@@ -413,11 +414,14 @@ def run_fetch_batch(
     finally:
         client.close()
 
+    for target in due_targets:
+        target_by_id[target.fetch_target_id] = target
+
     return FetchBatchResult(
         fetched_count=len(due_targets),
         selected_count=len(due_targets),
         startup_jitter_applied_seconds=startup_jitter_applied_seconds,
-        updated_targets=fetch_targets,
+        updated_targets=[target_by_id.get(target.fetch_target_id, target) for target in fetch_targets],
         successful_fetches=successful_fetches,
         attempts=attempts,
     )

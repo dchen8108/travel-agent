@@ -695,6 +695,73 @@ def test_run_fetch_batch_updates_targets_and_rolls_up_prices(repository: Reposit
     assert all(attempt.matching_offer_count == 1 for attempt in result.attempts)
 
 
+def test_run_fetch_batch_returns_merged_updated_targets_for_fresh_claimed_rows(repository: Repository, monkeypatch) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Fetch batch merged targets",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    tracker = next(
+        item
+        for item in snapshot.trackers
+        if item.trip_instance_id in {
+            instance.trip_instance_id
+            for instance in snapshot.trip_instances
+            if instance.trip_id == trip.trip_id
+        }
+    )
+    fresh_due_targets = repository.load_tracker_fetch_targets()
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname="IWWDBc">
+              <ul class="Rk10dc">
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+                  <span class="mv1WYe"><div>6:15 AM on Tue, Apr 1</div><div>7:25 AM on Tue, Apr 1</div></span>
+                  <div class="YMlIz FpEdX">$141</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        due_targets=fresh_due_targets,
+        sleep_between_requests=False,
+    )
+
+    assert all(target.latest_price is None for target in snapshot.tracker_fetch_targets)
+    assert any(target.latest_price == 141 for target in result.updated_targets)
+
+    apply_fetch_target_rollups(snapshot.trackers, result.updated_targets)
+
+    assert tracker.latest_observed_price == 141
+    assert tracker.latest_signal_source == "background_fetch"
+
+
 def test_run_fetch_batch_releases_claim_after_success(repository: Repository, monkeypatch) -> None:
     trip = save_trip(
         repository,

@@ -82,7 +82,7 @@ export function BookingPanel({
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
       onRefreshDashboard();
-      queryClient.removeQueries({ queryKey: ["booking-form", tripInstanceId] });
+      queryClient.removeQueries({ queryKey: bookingFormQueryKey(tripInstanceId) });
       onChangeMode("list");
       pushToast({ message: mode === "edit" ? "Booking saved" : "Booking created" });
     },
@@ -100,7 +100,7 @@ export function BookingPanel({
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
       onRefreshDashboard();
-      queryClient.removeQueries({ queryKey: ["booking-form", tripInstanceId] });
+      queryClient.removeQueries({ queryKey: bookingFormQueryKey(tripInstanceId) });
       onChangeMode("list");
       pushToast({ message: variables.kind === "delete" ? "Booking deleted" : "Booking needs linking" });
     },

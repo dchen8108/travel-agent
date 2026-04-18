@@ -3,6 +3,7 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api } from "../lib/api";
+import { tripEditorQueryKey } from "../lib/queryKeys";
 import type { TripEditorPayload, TripEditorRouteOption, TripEditorValues } from "../types";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { SearchSelectField } from "../components/SearchSelectField";
@@ -68,7 +69,7 @@ export function TripEditorPage() {
   }, [searchParams]);
 
   const formQuery = useQuery({
-    queryKey: ["trip-editor", mode, tripId, editorParams.toString()],
+    queryKey: tripEditorQueryKey(mode, tripId, editorParams.toString()),
     queryFn: () => (tripId ? api.tripEditorEdit(tripId, editorParams) : api.tripEditorNew(editorParams)),
   });
 

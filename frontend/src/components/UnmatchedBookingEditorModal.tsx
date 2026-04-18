@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { unmatchedBookingFormQueryKey } from "../lib/queryKeys";
 import { BookingForm } from "./BookingForm";
 import { DateTile } from "./DateTile";
 import { Modal } from "./Modal";
@@ -26,7 +27,7 @@ export function UnmatchedBookingEditorModal({
 }: Props) {
   const { pushToast } = useToast();
   const formQuery = useQuery({
-    queryKey: ["unmatched-booking-form", unmatchedBookingId],
+    queryKey: unmatchedBookingFormQueryKey(unmatchedBookingId),
     queryFn: () => api.unmatchedBookingForm(unmatchedBookingId),
   });
 

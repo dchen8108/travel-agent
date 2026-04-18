@@ -1,5 +1,9 @@
+export function dashboardQueryPrefix() {
+  return ["dashboard"] as const;
+}
+
 export function dashboardQueryKey(query: string) {
-  return ["dashboard", query] as const;
+  return [...dashboardQueryPrefix(), query] as const;
 }
 
 export function bookingPanelQueryKey(tripInstanceId: string) {
