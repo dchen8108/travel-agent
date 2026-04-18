@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from app.services.snapshot_queries import groups_for_trip, is_past_instance
+from app.services.snapshot_queries import is_past_instance
 from app.services.snapshots import AppSnapshot
 
 
@@ -16,22 +16,12 @@ def trip_focus_url(
     if trip is None:
         return "/#all-travel"
 
-    params: list[tuple[str, str]] = []
     anchor = ""
-    trip_groups = groups_for_trip(snapshot, trip)
-    if len(trip_groups) == 1:
-        trip_group = trip_groups[0]
-        params.append(("trip_group_id", trip_group.trip_group_id))
-        anchor = f"group-{trip_group.trip_group_id}"
     if trip_instance_id:
         trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
         if not (trip_instance and is_past_instance(trip_instance)):
             anchor = f"scheduled-{trip_instance_id}"
-
-    query = urlencode(params, doseq=True)
     url = "/"
-    if query:
-        url = f"{url}?{query}"
     if anchor:
         url = f"{url}#{anchor}"
     return url

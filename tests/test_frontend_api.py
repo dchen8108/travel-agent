@@ -257,6 +257,53 @@ def test_delete_collection_api_detaches_trips_without_deleting_them(client, repo
     assert any(item.trip_id == one_time_trip.trip_id for item in repository.load_trips())
 
 
+def test_update_trip_editor_redirect_does_not_select_collection_filter(client, repository: Repository) -> None:
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Commute",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        trip_group_ids=[group.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(
+        item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id and not item.deleted
+    )
+
+    form_response = client.get(f"/api/trips/{trip.trip_id}/edit-form")
+    assert form_response.status_code == 200
+    payload = form_response.json()
+
+    save_response = client.patch(
+        f"/api/trips/{trip.trip_id}/editor",
+        json={
+            **payload["values"],
+            "label": "Commute updated",
+            "routeOptions": payload["routeOptions"],
+        },
+    )
+
+    assert save_response.status_code == 200
+    assert save_response.json()["redirectTo"] == f"/#scheduled-{trip_instance_id}"
+
+
 def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository: Repository) -> None:
     trip_instance_id = _seed_dashboard_trip(repository)
 
