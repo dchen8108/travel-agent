@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 import re
 
-from app.catalog import airline_display
+from app.catalog import airline_display, airline_marketing_code
 from app.models.booking import Booking
 from app.models.base import utcnow
 from app.models.tracker import Tracker
@@ -12,8 +12,22 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 
 def booking_route_label(booking: Booking) -> str:
     route = f"{booking.origin_airport} \u2192 {booking.destination_airport}"
-    airline = airline_display(booking.airline)
+    airline = booking_airline_label(booking)
     return f"{route} \u00b7 {airline}" if airline else route
+
+
+def booking_airline_label(booking: Booking) -> str:
+    flight_number = " ".join(str(getattr(booking, "flight_number", "") or "").strip().upper().split())
+    if not flight_number:
+        return airline_display(booking.airline)
+    marketing_code = airline_marketing_code(booking.airline)
+    compact_prefix = f"{marketing_code}".upper()
+    if flight_number.startswith(f"{compact_prefix} "):
+        return flight_number
+    if flight_number.startswith(compact_prefix) and len(flight_number) > len(compact_prefix):
+        suffix = flight_number[len(compact_prefix):].strip()
+        return f"{compact_prefix} {suffix}".strip()
+    return f"{compact_prefix} {flight_number}".strip()
 
 
 def format_departure_time_label(value: str) -> str:

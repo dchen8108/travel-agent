@@ -28,7 +28,6 @@ from app.services.snapshot_queries import (
     trip_instance_by_id,
 )
 from app.services.snapshots import AppSnapshot
-from app.catalog import airline_marketing_code
 from app.money import format_money
 
 
@@ -74,12 +73,7 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     departure_time = getattr(booking_like, "departure_time", "")
     arrival_time = getattr(booking_like, "arrival_time", "")
     record_locator = getattr(booking_like, "record_locator", "") or ""
-    flight_number = getattr(booking_like, "flight_number", "") or ""
-    primary_meta_parts = [format_time_range_label(departure_time, arrival_time)]
-    if flight_number:
-        airline_code = airline_marketing_code(getattr(booking_like, "airline", "") or "")
-        primary_meta_parts.append(f"{airline_code} {flight_number}".strip())
-    primary_meta_label = " · ".join(part for part in primary_meta_parts if part)
+    primary_meta_label = format_time_range_label(departure_time, arrival_time)
     _, badges, booking_meta = _offer_meta_value(primary_meta_label, [])
     if record_locator:
         booking_meta = " · ".join(part for part in [booking_meta, record_locator] if part)
