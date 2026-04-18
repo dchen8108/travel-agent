@@ -59,6 +59,18 @@ AIRPORT_CODES = {item["code"] for item in SUPPORTED_AIRPORTS}
 AIRLINE_CODES = {item["code"] for item in SUPPORTED_AIRLINES}
 AIRPORT_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRPORTS}
 AIRLINE_FULL_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRLINES}
+AIRLINE_MARKETING_CODES = {
+    "Alaska": "AS",
+    "American": "AA",
+    "Delta": "DL",
+    "JetBlue": "B6",
+    "Southwest": "WN",
+    "United": "UA",
+    "Hawaiian": "HA",
+    "Frontier": "F9",
+    "Spirit": "NK",
+    "Sun Country": "SY",
+}
 AIRLINE_ALIASES = {
     "as": "Alaska",
     "alaska": "Alaska",
@@ -167,6 +179,11 @@ def airport_display(code: str) -> str:
 
 def airline_display(code: str) -> str:
     return airline_label(code)
+
+
+def airline_marketing_code(code: str) -> str:
+    normalized = normalize_airline_code(code)
+    return AIRLINE_MARKETING_CODES.get(normalized, normalized)
 
 
 @cache
