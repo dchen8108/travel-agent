@@ -288,7 +288,7 @@ export function TripEditorPage() {
               />
               <small className="muted-copy">
                 {weekly
-                  ? (isEdit && values.tripGroupIds.length ? "Recurring rules need at least one collection." : "Leave blank to create a matching collection.")
+                  ? (!values.tripGroupIds.length ? "Leave blank to create a matching collection." : "")
                   : (!payload.tripGroups.length ? "No collections yet." : "")}
               </small>
             </div>
@@ -326,47 +326,43 @@ export function TripEditorPage() {
           <section className="choice-card-surface">
             <div className="section-header-react section-header-react--editor">
               <div className="section-header-react__copy">
-                <h2>Routes</h2>
-                <p className="muted-copy">Define the acceptable routes for this trip. Add another route only when you want Milemark to compare alternatives.</p>
+                <h2>Flight options</h2>
               </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setRouteOptions((current) => [...current, blankRouteOption()])}
-              >
-                Add route
-              </button>
+              <div className="section-header-react__controls">
+                {routeOptions.length > 1 ? (
+                  <div className="trip-type-switch route-preference-bar__switch">
+                    <label className={`trip-type-switch__pill ${values.preferenceMode === "equal" ? "is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="preferenceMode"
+                        checked={values.preferenceMode === "equal"}
+                        onChange={() => updateValues({ preferenceMode: "equal" })}
+                      />
+                      <span>Equal</span>
+                    </label>
+                    <label className={`trip-type-switch__pill ${values.preferenceMode === "ranked_bias" ? "is-selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="preferenceMode"
+                        checked={values.preferenceMode === "ranked_bias"}
+                        onChange={() => updateValues({ preferenceMode: "ranked_bias" })}
+                      />
+                      <span>Ordered</span>
+                    </label>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setRouteOptions((current) => [...current, blankRouteOption()])}
+                >
+                  Add route
+                </button>
+              </div>
             </div>
-            {routeOptions.length > 1 ? (
-              <div className="route-preference-bar">
-                <div className="route-preference-bar__copy">
-                  <strong>Route preference</strong>
-                  <small>
-                    {values.preferenceMode === "equal"
-                      ? "All route options are treated equally. The cheapest valid match wins."
-                      : "Options are checked in order. Lower options must beat the option above by the savings you set."}
-                  </small>
-                </div>
-                <div className="trip-type-switch route-preference-bar__switch">
-                  <label className={`trip-type-switch__pill ${values.preferenceMode === "equal" ? "is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="preferenceMode"
-                      checked={values.preferenceMode === "equal"}
-                      onChange={() => updateValues({ preferenceMode: "equal" })}
-                    />
-                    <span>Equal</span>
-                  </label>
-                  <label className={`trip-type-switch__pill ${values.preferenceMode === "ranked_bias" ? "is-selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="preferenceMode"
-                      checked={values.preferenceMode === "ranked_bias"}
-                      onChange={() => updateValues({ preferenceMode: "ranked_bias" })}
-                    />
-                    <span>Ordered</span>
-                  </label>
-                </div>
+            {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" ? (
+              <div className="route-preference-note muted-copy">
+                Option 1 is preferred. Lower options only win when they beat the option above by the amount you set.
               </div>
             ) : null}
             <div className="route-editor-stack">
@@ -375,10 +371,8 @@ export function TripEditorPage() {
                   <div className="route-card-react__header">
                     <div className="route-card-react__title">
                       <strong>Option {index + 1}</strong>
-                      {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" ? (
-                        <small className="muted-copy">
-                          {index === 0 ? "Top priority" : `Must beat option ${index} by the amount below.`}
-                        </small>
+                      {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" && index === 0 ? (
+                        <small className="muted-copy">Preferred option</small>
                       ) : null}
                     </div>
                     <div className="route-card-react__actions">
@@ -452,6 +446,19 @@ export function TripEditorPage() {
                         ))}
                       </div>
                     </div>
+                    {values.preferenceMode === "ranked_bias" && index > 0 ? (
+                      <label>
+                        <span>Savings to beat option {index}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={route.savingsNeededVsPrevious}
+                          onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
+                          disabled={saveMutation.isPending}
+                        />
+                      </label>
+                    ) : null}
                     <TimeRangeField
                       label="Departure window"
                       startTime={route.startTime}
@@ -459,26 +466,6 @@ export function TripEditorPage() {
                       onChange={(next) => updateRoute(index, next)}
                       disabled={saveMutation.isPending}
                     />
-                    {values.preferenceMode === "ranked_bias" ? (
-                      index === 0 ? (
-                        <div className="field-block route-card-react__priority-note">
-                          <span>Preference</span>
-                          <small className="muted-copy">Top preference. Lower-ranked options need savings to beat it.</small>
-                        </div>
-                      ) : (
-                        <label>
-                          <span>Must beat option {index} by</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step={1}
-                            value={route.savingsNeededVsPrevious}
-                            onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
-                            disabled={saveMutation.isPending}
-                          />
-                        </label>
-                      )
-                    ) : null}
                   </div>
                 </article>
               ))}
