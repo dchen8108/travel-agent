@@ -947,6 +947,12 @@ textarea {
   color: var(--copy-muted);
 }
 
+.offer-block__primary-meta sup {
+  font-size: 0.68em;
+  line-height: 0;
+  vertical-align: super;
+}
+
 .offer-block__badge-row {
   display: flex;
   align-items: center;

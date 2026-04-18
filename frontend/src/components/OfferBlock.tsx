@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import type { Offer } from "../types";
 import { AirlineMark } from "./AirlineMark";
@@ -13,6 +13,18 @@ interface Props {
   onCreate?: () => void;
   onPrefetchAction?: () => void;
   actions?: ReactNode;
+}
+
+const SUPERSCRIPT_RUN = /([⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g;
+const SUPERSCRIPT_ONLY = /^[⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+$/;
+
+function renderPrimaryMeta(label: string) {
+  const parts = label.split(SUPERSCRIPT_RUN);
+  return parts.map((part, index) => (
+    SUPERSCRIPT_ONLY.test(part)
+      ? <sup key={`${part}-${index}`}>{part}</sup>
+      : <Fragment key={`${part}-${index}`}>{part}</Fragment>
+  ));
 }
 
 export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, onPrefetchAction, actions }: Props) {
@@ -62,7 +74,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
           <strong className="offer-block__detail">{offer.detail}</strong>
           {offer.primaryMetaLabel ? (
             <div className="offer-block__primary-meta-row">
-              <span className="offer-block__primary-meta">{offer.primaryMetaLabel}</span>
+              <span className="offer-block__primary-meta">{renderPrimaryMeta(offer.primaryMetaLabel)}</span>
             </div>
           ) : null}
           {offer.metaBadges.length ? (
