@@ -1399,6 +1399,8 @@ textarea {
   border: 1px solid var(--surface-border);
   border-radius: 1.15rem;
   background: rgba(255, 252, 246, 0.92);
+  width: min(36rem, 100%);
+  justify-self: start;
 }
 
 .time-range-field.is-disabled {
@@ -1427,17 +1429,16 @@ textarea {
 
 .time-range-field__slider {
   position: relative;
-  height: 2rem;
+  height: 2.1rem;
   display: flex;
   align-items: center;
-  overflow: visible;
 }
 
 .time-range-field__rail {
   position: relative;
-  width: calc(100% - 1.3rem);
+  width: 100%;
   height: 100%;
-  margin-inline: 0.65rem;
+  cursor: pointer;
 }
 
 .time-range-field__track {
@@ -1446,73 +1447,17 @@ textarea {
   height: 0.34rem;
   transform: translateY(-50%);
   border-radius: 999px;
-  background:
-    linear-gradient(
-      to right,
-      var(--line) 0%,
-      var(--line) var(--range-start),
-      rgba(17, 142, 132, 0.35) var(--range-start),
-      rgba(17, 142, 132, 0.35) var(--range-end),
-      var(--line) var(--range-end),
-      var(--line) 100%
-    );
+  background: var(--line);
 }
 
-.time-range-field__input {
+.time-range-field__selection {
   position: absolute;
-  inset: 0;
-  width: auto;
-  margin: 0;
-  background: none;
-  appearance: none;
-  -webkit-appearance: none;
-  pointer-events: none;
-}
-
-.time-range-field__input--start {
-  z-index: 3;
-}
-
-.time-range-field__input--end {
-  z-index: 4;
-}
-
-.time-range-field__input::-webkit-slider-runnable-track {
+  inset: 50% auto auto var(--range-start);
+  width: calc(var(--range-end) - var(--range-start));
   height: 0.34rem;
-  background: transparent;
-}
-
-.time-range-field__input::-moz-range-track {
-  height: 0.34rem;
-  background: transparent;
-}
-
-.time-range-field__input::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 1.2rem;
-  height: 1.2rem;
-  margin-top: calc((0.34rem - 1.2rem) / 2);
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.time-range-field__input::-moz-range-thumb {
-  width: 1.2rem;
-  height: 1.2rem;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.time-range-field__input:disabled::-webkit-slider-thumb,
-.time-range-field__input:disabled::-moz-range-thumb {
-  cursor: progress;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgba(17, 142, 132, 0.5);
 }
 
 .time-range-field__handle {
@@ -1525,22 +1470,29 @@ textarea {
   border: 2px solid rgba(17, 142, 132, 0.22);
   background: white;
   box-shadow: 0 4px 12px rgba(29, 43, 57, 0.12);
-  pointer-events: none;
+  cursor: grab;
 }
 
-.time-range-field__handle--start {
-  left: var(--range-start);
+.time-range-field__handle:hover,
+.time-range-field__handle:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 4px rgba(17, 142, 132, 0.12),
+    0 4px 12px rgba(29, 43, 57, 0.12);
 }
 
-.time-range-field__handle--end {
-  left: var(--range-end);
+.time-range-field__handle:active {
+  cursor: grabbing;
+}
+
+.time-range-field__handle:disabled {
+  cursor: progress;
 }
 
 .time-range-field__labels {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  padding-inline: 0.65rem;
   font-size: 0.8rem;
   color: var(--copy-muted);
 }
