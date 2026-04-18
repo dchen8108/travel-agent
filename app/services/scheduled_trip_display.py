@@ -83,7 +83,7 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     if record_locator:
         booking_meta = " · ".join(part for part in [booking_meta, record_locator] if part)
     return {
-        "label": f"Booking #{record_locator}" if record_locator else "Booking",
+        "label": f"Booking {record_locator}" if record_locator else "Booking",
         "detail": booking_route_label(booking_like),
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
