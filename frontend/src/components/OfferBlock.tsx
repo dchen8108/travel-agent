@@ -50,7 +50,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
     </IconButton>
   ) : null);
 
-  const offerContent = (
+  const offerMain = (
     <>
       <div className="offer-block__copy">
         <div className="offer-block__label-row">
@@ -71,22 +71,19 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
           </div>
         ) : null}
       </div>
-      <div className="offer-block__trailing">
-        <div className="offer-block__price-column">
-          {offer.priceIsStatus && offer.statusKind === "pending" ? (
-            <span className="offer-block__status-icon"><RefreshIcon /></span>
-          ) : (
-            <strong className={`offer-block__price offer-block__price--${offer.tone}`}>{offer.priceLabel}</strong>
-          )}
-        </div>
-        {actionContent ? <div className="offer-block__actions">{actionContent}</div> : null}
+      <div className="offer-block__price-column">
+        {offer.priceIsStatus && offer.statusKind === "pending" ? (
+          <span className="offer-block__status-icon"><RefreshIcon /></span>
+        ) : (
+          <strong className={`offer-block__price offer-block__price--${offer.tone}`}>{offer.priceLabel}</strong>
+        )}
       </div>
     </>
   );
 
   return (
     <div className={`offer-block offer-block--${kind}`}>
-      <div className="offer-block__body">
+      <div className={`offer-block__body${actionContent ? " offer-block__body--with-action" : ""}`}>
         {offer.href ? (
           <a
             className="offer-block__content offer-block__content--link"
@@ -95,11 +92,12 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
             rel="noreferrer"
             aria-label={`Open ${offer.detail} in Google Flights`}
           >
-            {offerContent}
+            {offerMain}
           </a>
         ) : (
-          <div className="offer-block__content">{offerContent}</div>
+          <div className="offer-block__content">{offerMain}</div>
         )}
+        {actionContent ? <div className="offer-block__actions">{actionContent}</div> : null}
       </div>
     </div>
   );
