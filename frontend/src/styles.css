@@ -1430,6 +1430,14 @@ textarea {
   height: 2rem;
   display: flex;
   align-items: center;
+  overflow: visible;
+}
+
+.time-range-field__rail {
+  position: relative;
+  width: calc(100% - 1.3rem);
+  height: 100%;
+  margin-inline: 0.65rem;
 }
 
 .time-range-field__track {
@@ -1453,7 +1461,7 @@ textarea {
 .time-range-field__input {
   position: absolute;
   inset: 0;
-  width: 100%;
+  width: auto;
   margin: 0;
   background: none;
   appearance: none;
@@ -1485,10 +1493,9 @@ textarea {
   width: 1.2rem;
   height: 1.2rem;
   margin-top: calc((0.34rem - 1.2rem) / 2);
-  border-radius: 50%;
-  border: 2px solid rgba(17, 142, 132, 0.22);
-  background: white;
-  box-shadow: 0 4px 12px rgba(29, 43, 57, 0.12);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: auto;
   cursor: pointer;
 }
@@ -1496,10 +1503,9 @@ textarea {
 .time-range-field__input::-moz-range-thumb {
   width: 1.2rem;
   height: 1.2rem;
-  border-radius: 50%;
-  border: 2px solid rgba(17, 142, 132, 0.22);
-  background: white;
-  box-shadow: 0 4px 12px rgba(29, 43, 57, 0.12);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: auto;
   cursor: pointer;
 }
@@ -1509,10 +1515,32 @@ textarea {
   cursor: progress;
 }
 
+.time-range-field__handle {
+  position: absolute;
+  top: 50%;
+  width: 1.2rem;
+  height: 1.2rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(17, 142, 132, 0.22);
+  background: white;
+  box-shadow: 0 4px 12px rgba(29, 43, 57, 0.12);
+  pointer-events: none;
+}
+
+.time-range-field__handle--start {
+  left: var(--range-start);
+}
+
+.time-range-field__handle--end {
+  left: var(--range-end);
+}
+
 .time-range-field__labels {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
+  padding-inline: 0.65rem;
   font-size: 0.8rem;
   color: var(--copy-muted);
 }

@@ -92,29 +92,33 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
           <small>{isAnytime ? "No departure restriction." : "Departure window"}</small>
         </div>
         <div className="time-range-field__slider">
-          <div className="time-range-field__track" aria-hidden="true" />
-          <input
-            className="time-range-field__input time-range-field__input--start"
-            type="range"
-            min={0}
-            max={MAX_SLOT}
-            step={1}
-            value={safeStart}
-            onChange={(event) => updateRange(Number(event.target.value), safeEnd)}
-            disabled={disabled}
-            aria-label={`${label} start`}
-          />
-          <input
-            className="time-range-field__input time-range-field__input--end"
-            type="range"
-            min={0}
-            max={MAX_SLOT}
-            step={1}
-            value={safeEnd}
-            onChange={(event) => updateRange(safeStart, Number(event.target.value))}
-            disabled={disabled}
-            aria-label={`${label} end`}
-          />
+          <div className="time-range-field__rail">
+            <div className="time-range-field__track" aria-hidden="true" />
+            <input
+              className="time-range-field__input time-range-field__input--start"
+              type="range"
+              min={0}
+              max={MAX_SLOT}
+              step={1}
+              value={safeStart}
+              onChange={(event) => updateRange(Number(event.target.value), safeEnd)}
+              disabled={disabled}
+              aria-label={`${label} start`}
+            />
+            <input
+              className="time-range-field__input time-range-field__input--end"
+              type="range"
+              min={0}
+              max={MAX_SLOT}
+              step={1}
+              value={safeEnd}
+              onChange={(event) => updateRange(safeStart, Number(event.target.value))}
+              disabled={disabled}
+              aria-label={`${label} end`}
+            />
+            <div className="time-range-field__handle time-range-field__handle--start" aria-hidden="true" />
+            <div className="time-range-field__handle time-range-field__handle--end" aria-hidden="true" />
+          </div>
         </div>
         <div className="time-range-field__labels" aria-hidden="true">
           <span>12:00 AM</span>
