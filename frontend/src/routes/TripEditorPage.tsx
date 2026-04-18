@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api } from "../lib/api";
@@ -39,6 +39,7 @@ export function TripEditorPage() {
   const [values, setValues] = useState<TripEditorValues | null>(null);
   const [routeOptions, setRouteOptions] = useState<TripEditorRouteOption[]>([blankRouteOption()]);
   const [error, setError] = useState("");
+  const [savePhase, setSavePhase] = useState<"idle" | "saving" | "redirecting">("idle");
 
   const editorParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -82,6 +83,7 @@ export function TripEditorPage() {
     setValues(formQuery.data.values);
     setRouteOptions(formQuery.data.routeOptions.length ? formQuery.data.routeOptions : [blankRouteOption()]);
     setError("");
+    setSavePhase("idle");
   }, [formQuery.data]);
 
   const saveMutation = useMutation({
@@ -104,11 +106,15 @@ export function TripEditorPage() {
       );
     },
     onSuccess: (result) => {
-      navigate(result.redirectTo, {
-        state: { toast: { message: result.message, kind: "success" as const } },
+      setSavePhase("redirecting");
+      startTransition(() => {
+        navigate(result.redirectTo, {
+          state: { toast: { message: result.message, kind: "success" as const } },
+        });
       });
     },
     onError: (err) => {
+      setSavePhase("idle");
       setError(err instanceof Error ? err.message : "Unable to save trip.");
     },
   });
@@ -116,11 +122,13 @@ export function TripEditorPage() {
   const detachMutation = useMutation({
     mutationFn: (tripInstanceId: string) => api.detachTripInstance(tripInstanceId),
     onSuccess: (result) => {
+      setSavePhase("redirecting");
       navigate(result.redirectTo, {
         state: { toast: { message: result.message, kind: "success" as const } },
       });
     },
     onError: (err) => {
+      setSavePhase("idle");
       setError(err instanceof Error ? err.message : "Unable to detach trip.");
     },
   });
@@ -166,6 +174,7 @@ export function TripEditorPage() {
   const isEdit = mode === "edit";
   const weekly = values.tripKind === "weekly";
   const weekdays = payload.catalogs.weekdays;
+  const idleSubmitLabel = isEdit ? "Save trip" : "Create trip";
 
   return (
     <div className="app-shell app-shell--editor">
@@ -214,6 +223,8 @@ export function TripEditorPage() {
           className="trip-editor-form"
           onSubmit={(event) => {
             event.preventDefault();
+            setError("");
+            setSavePhase("saving");
             saveMutation.mutate();
           }}
         >
@@ -468,6 +479,7 @@ export function TripEditorPage() {
                             step={1}
                             value={route.savingsNeededVsPrevious}
                             onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
+                            disabled={saveMutation.isPending}
                           />
                         </label>
                       )
@@ -483,12 +495,12 @@ export function TripEditorPage() {
               type="button"
               className="secondary-button"
               onClick={() => navigate(cancelHref)}
-              disabled={saveMutation.isPending}
+              disabled={saveMutation.isPending || savePhase === "redirecting"}
             >
               Cancel
             </button>
-            <button type="submit" className="primary-button" disabled={saveMutation.isPending}>
-              Save trip
+            <button type="submit" className="primary-button" disabled={saveMutation.isPending || savePhase === "redirecting"}>
+              {savePhase === "saving" ? "Saving…" : savePhase === "redirecting" ? "Opening…" : idleSubmitLabel}
             </button>
           </div>
         </form>

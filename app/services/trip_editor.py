@@ -325,7 +325,6 @@ def save_trip_workflow(
             trip_group_ids=trip_group_ids,
             data_scope=trip.data_scope,
         )
-        snapshot = sync_and_persist(repository)
 
     linked_booking = None
     if data.source_unmatched_booking_id:
