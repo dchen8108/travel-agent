@@ -1300,8 +1300,7 @@ textarea {
 
 .trip-type-switch__pill,
 .trip-type-lock__pill,
-.weekday-switch__pill,
-.day-offset-switch__pill {
+.weekday-switch__pill {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -1318,7 +1317,6 @@ textarea {
 
 .trip-type-switch__pill input,
 .weekday-switch__pill input,
-.day-offset-switch__pill input,
 .choice-card-react input {
   position: absolute;
   inset: 0;
@@ -1328,15 +1326,13 @@ textarea {
 
 .trip-type-switch__pill.is-selected,
 .trip-type-lock__pill.is-selected,
-.weekday-switch__pill.is-selected,
-.day-offset-switch__pill.is-selected {
+.weekday-switch__pill.is-selected {
   background: var(--accent-soft);
   border-color: rgba(17, 142, 132, 0.35);
   color: var(--accent-strong);
 }
 
-.weekday-switch,
-.day-offset-switch {
+.weekday-switch {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;

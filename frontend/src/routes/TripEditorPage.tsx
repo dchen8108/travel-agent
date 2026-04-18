@@ -23,6 +23,12 @@ function blankRouteOption(): TripEditorRouteOption {
   };
 }
 
+const TRAVEL_DAY_OPTIONS = [
+  { value: "-1", label: "Day before" },
+  { value: "0", label: "Same day" },
+  { value: "1", label: "Day after" },
+];
+
 function fallbackCancelUrl(values: TripEditorValues, searchParams: URLSearchParams) {
   const explicitGroupId = searchParams.get("trip_group_id");
   if (explicitGroupId) {
@@ -427,23 +433,18 @@ export function TripEditorPage() {
                     </div>
                     <div className="field-block">
                       <span>Travel day</span>
-                      <div className="day-offset-switch">
-                        {[
-                          { value: -1, title: "Day before" },
-                          { value: 0, title: "Same day" },
-                          { value: 1, title: "Day after" },
-                        ].map((choice) => (
-                          <label key={choice.value} className={`day-offset-switch__pill ${route.dayOffset === choice.value ? "is-selected" : ""}`}>
-                            <input
-                              type="radio"
-                              name={`dayOffset-${index}`}
-                              checked={route.dayOffset === choice.value}
-                              onChange={() => updateRoute(index, { dayOffset: choice.value })}
-                            />
-                            <span>{choice.title}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <SearchSelectField
+                        options={TRAVEL_DAY_OPTIONS.map((item) => ({
+                          value: item.value,
+                          label: item.label,
+                          keywords: item.label,
+                          summary: item.label,
+                        }))}
+                        value={String(route.dayOffset)}
+                        onChange={(dayOffset) => updateRoute(index, { dayOffset: Number(dayOffset) })}
+                        placeholder="Choose day"
+                        disabled={saveMutation.isPending}
+                      />
                     </div>
                     {values.preferenceMode === "ranked_bias" && index > 0 ? (
                       <label>
