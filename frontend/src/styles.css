@@ -1075,15 +1075,6 @@ textarea {
   padding-left: 0;
 }
 
-.modal-list-row .offer-block__body,
-.modal-list-row .offer-block__content {
-  align-items: start;
-}
-
-.modal-list-row .offer-block__price-column {
-  padding-top: 0.08rem;
-}
-
 .offer-action-cluster,
 .modal-list-row__actions {
   display: inline-flex;
