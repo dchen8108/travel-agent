@@ -8,6 +8,8 @@ from app.services.bookings import (
     record_booking,
     resolve_unmatched_booking_to_trip,
     resolve_unmatched_booking_to_trip_instance,
+    update_booking,
+    update_unmatched_booking,
 )
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -432,3 +434,89 @@ def test_linked_booking_route_match_clears_when_trip_route_changes(repository: R
     refreshed = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
 
     assert refreshed.route_option_id == ""
+
+
+def test_update_booking_persists_flight_number(repository: Repository) -> None:
+    trip_instance_id = seed_trip(repository)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="FLIGHT1",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+
+    assert booking is not None
+    assert unmatched is None
+
+    updated = update_booking(
+        repository,
+        booking_id=booking.booking_id,
+        trip_instance_id=trip_instance_id,
+        candidate=BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            fare_class="basic_economy",
+            flight_number="AS 1105",
+            booked_price=121,
+            record_locator="FLIGHT1",
+        ),
+    )
+
+    assert updated.flight_number == "AS 1105"
+    stored = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
+    assert stored.flight_number == "AS 1105"
+
+
+def test_update_unmatched_booking_persists_flight_number(repository: Repository) -> None:
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="United",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 7),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=149,
+            record_locator="UNFLT1",
+        ),
+    )
+
+    assert booking is None
+    assert unmatched is not None
+
+    updated = update_unmatched_booking(
+        repository,
+        unmatched_booking_id=unmatched.unmatched_booking_id,
+        candidate=BookingCandidate(
+            airline="United",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 7),
+            departure_time="07:15",
+            arrival_time="08:40",
+            fare_class="basic_economy",
+            flight_number="UA 1234",
+            booked_price=149,
+            record_locator="UNFLT1",
+        ),
+    )
+
+    assert updated.flight_number == "UA 1234"
+    stored = next(
+        item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id
+    )
+    assert stored.flight_number == "UA 1234"
