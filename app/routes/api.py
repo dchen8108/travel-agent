@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from app.money import parse_money
@@ -287,19 +287,17 @@ def delete_collection_api(
 def update_trip_status_api(
     trip_id: str,
     body: TripStatusBody,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
+    background_tasks: BackgroundTasks,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
         set_trip_active(repository, trip_id, body.active)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    snapshot = load_live_snapshot(repository)
+    background_tasks.add_task(load_live_snapshot, repository)
     return {
         "tripId": trip_id,
         "active": body.active,
-        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
     }
 
 
@@ -403,8 +401,6 @@ def tracker_panel_api(
 @router.post("/bookings")
 def create_booking_api(
     body: BookingBody,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     candidate = _booking_candidate(body)
@@ -421,7 +417,6 @@ def create_booking_api(
         raise HTTPException(status_code=400, detail="Booking must be linked to a scheduled trip.")
     snapshot = load_live_snapshot(repository)
     return {
-        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
     }
 
@@ -430,8 +425,6 @@ def create_booking_api(
 def update_booking_api(
     booking_id: str,
     body: BookingBody,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     candidate = _booking_candidate(body)
@@ -446,7 +439,6 @@ def update_booking_api(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     snapshot = load_live_snapshot(repository)
     return {
-        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=body.tripInstanceId, mode="list"),
     }
 
@@ -455,8 +447,6 @@ def update_booking_api(
 def update_unmatched_booking_api(
     unmatched_booking_id: str,
     body: BookingBody,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     candidate = _booking_candidate(body)
@@ -468,17 +458,13 @@ def update_unmatched_booking_api(
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    snapshot = load_live_snapshot(repository)
-    return {
-        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
-    }
+    load_live_snapshot(repository)
+    return {"ok": True}
 
 
 @router.post("/bookings/{booking_id}/unlink")
 def unlink_booking_api(
     booking_id: str,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
@@ -491,7 +477,6 @@ def unlink_booking_api(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = load_live_snapshot(repository)
     return {
-        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": booking_panel_payload(snapshot, trip_instance_id=booking.trip_instance_id, mode="list"),
     }
 
@@ -500,8 +485,6 @@ def unlink_booking_api(
 def link_unmatched_booking_api(
     unmatched_booking_id: str,
     body: UnmatchedBookingLinkBody,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
@@ -512,15 +495,13 @@ def link_unmatched_booking_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = load_live_snapshot(repository)
-    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
+    load_live_snapshot(repository)
+    return {"ok": True}
 
 
 @router.delete("/bookings/{booking_id}")
 def delete_booking_api(
     booking_id: str,
-    trip_group_id: list[str] | None = Query(default=None),
-    include_booked: bool = True,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
@@ -531,7 +512,6 @@ def delete_booking_api(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = load_live_snapshot(repository)
     return {
-        "dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked),
         "panel": (
             booking_panel_payload(snapshot, trip_instance_id=booking.trip_instance_id, mode="list")
             if booking is not None and booking.trip_instance_id

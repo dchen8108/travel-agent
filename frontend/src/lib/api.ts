@@ -4,6 +4,7 @@ import type {
   BookingPanelPayload,
   DashboardMutationPayload,
   DashboardPayload,
+  MutationAckPayload,
   UnmatchedBookingFormPayload,
   TripEditorPayload,
   TripEditorRouteOption,
@@ -60,8 +61,8 @@ export const api = {
       body: JSON.stringify({ label }),
     });
   },
-  toggleRecurringTrip(tripId: string, active: boolean, filters?: URLSearchParams): Promise<{ tripId: string; active: boolean; dashboard: DashboardPayload }> {
-    return request<{ tripId: string; active: boolean; dashboard: DashboardPayload }>(withDashboardFilters(`/api/trips/${tripId}/status`, filters), {
+  toggleRecurringTrip(tripId: string, active: boolean, filters?: URLSearchParams): Promise<{ tripId: string; active: boolean }> {
+    return request<{ tripId: string; active: boolean }>(withDashboardFilters(`/api/trips/${tripId}/status`, filters), {
       method: "PATCH",
       body: JSON.stringify({ active }),
     });
@@ -100,14 +101,14 @@ export const api = {
   unlinkBooking(bookingId: string, filters?: URLSearchParams): Promise<BookingMutationPayload> {
     return request<BookingMutationPayload>(withDashboardFilters(`/api/bookings/${bookingId}/unlink`, filters), { method: "POST" });
   },
-  linkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
-    return request<DashboardMutationPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}/link`, filters), {
+  linkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string, filters?: URLSearchParams): Promise<MutationAckPayload> {
+    return request<MutationAckPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}/link`, filters), {
       method: "POST",
       body: JSON.stringify({ tripInstanceId }),
     });
   },
-  updateUnmatchedBooking(unmatchedBookingId: string, payload: Record<string, string>, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
-    return request<DashboardMutationPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}`, filters), {
+  updateUnmatchedBooking(unmatchedBookingId: string, payload: Record<string, string>, filters?: URLSearchParams): Promise<MutationAckPayload> {
+    return request<MutationAckPayload>(withDashboardFilters(`/api/unmatched-bookings/${unmatchedBookingId}`, filters), {
       method: "PATCH",
       body: JSON.stringify(payload),
     });

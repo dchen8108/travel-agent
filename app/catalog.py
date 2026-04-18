@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import cache
 
 WEEKDAYS = [
     "Monday",
@@ -153,6 +154,7 @@ def airline_display(code: str) -> str:
     return airline_label(code)
 
 
+@cache
 def catalogs_json() -> str:
     payload = {
         "airports": airport_options(),
@@ -164,3 +166,7 @@ def catalogs_json() -> str:
         ],
     }
     return json.dumps(payload)
+
+
+def catalogs_payload() -> dict[str, object]:
+    return json.loads(catalogs_json())

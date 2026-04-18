@@ -7,34 +7,37 @@ from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
+from app.services.snapshot_index import (
+    fetch_targets_by_tracker as fetch_targets_index,
+    group_ids_by_instance,
+    instances_by_rule as instances_by_rule_index,
+    instances_by_trip as instances_by_trip_index,
+    route_option_map,
+    rule_group_ids_by_rule,
+    trip_group_map,
+    trip_instance_map,
+    trip_map,
+)
 from app.services.snapshots import AppSnapshot
 
 
 def trip_by_id(snapshot: AppSnapshot, trip_id: str) -> Trip | None:
-    return next((trip for trip in snapshot.trips if trip.trip_id == trip_id), None)
+    return trip_map(snapshot).get(trip_id)
 
 
 def trip_group_by_id(snapshot: AppSnapshot, trip_group_id: str) -> TripGroup | None:
-    return next((group for group in snapshot.trip_groups if group.trip_group_id == trip_group_id), None)
+    return trip_group_map(snapshot).get(trip_group_id)
 
 
 def trip_instance_by_id(snapshot: AppSnapshot, trip_instance_id: str) -> TripInstance | None:
-    return next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
+    return trip_instance_map(snapshot).get(trip_instance_id)
 
 
 def groups_for_rule(snapshot: AppSnapshot, trip_or_trip_id: Trip | str | None) -> list[TripGroup]:
     trip = trip_or_trip_id if isinstance(trip_or_trip_id, Trip) else trip_by_id(snapshot, trip_or_trip_id or "")
     if trip is None:
         return []
-    group_ids = [
-        target.trip_group_id
-        for target in snapshot.rule_group_targets
-        if target.rule_trip_id == trip.trip_id
-    ]
-    groups = [
-        trip_group_by_id(snapshot, trip_group_id)
-        for trip_group_id in sorted(set(group_ids))
-    ]
+    groups = [trip_group_by_id(snapshot, trip_group_id) for trip_group_id in rule_group_ids_by_rule(snapshot).get(trip.trip_id, [])]
     return [group for group in groups if group is not None]
 
 
@@ -79,30 +82,17 @@ def route_options_for_trip(snapshot: AppSnapshot, trip_id: str) -> list[RouteOpt
 
 
 def route_option_by_id(snapshot: AppSnapshot, route_option_id: str) -> RouteOption | None:
-    return next((option for option in snapshot.route_options if option.route_option_id == route_option_id), None)
+    return route_option_map(snapshot).get(route_option_id)
 
 
 def instances_for_trip(snapshot: AppSnapshot, trip_id: str, *, include_deleted: bool = False) -> list[TripInstance]:
-    return sorted(
-        [
-            instance
-            for instance in snapshot.trip_instances
-            if instance.trip_id == trip_id and (include_deleted or not instance.deleted)
-        ],
-        key=lambda item: item.anchor_date,
-    )
+    items = instances_by_trip_index(snapshot).get(trip_id, [])
+    return items if include_deleted else [instance for instance in items if not instance.deleted]
 
 
 def instances_for_rule(snapshot: AppSnapshot, rule_trip_id: str, *, include_deleted: bool = False) -> list[TripInstance]:
-    return sorted(
-        [
-            instance
-            for instance in snapshot.trip_instances
-            if instance.recurring_rule_trip_id == rule_trip_id
-            and (include_deleted or not instance.deleted)
-        ],
-        key=lambda item: item.anchor_date,
-    )
+    items = instances_by_rule_index(snapshot).get(rule_trip_id, [])
+    return items if include_deleted else [instance for instance in items if not instance.deleted]
 
 
 def is_past_instance(instance: TripInstance, *, today: date | None = None) -> bool:
@@ -156,11 +146,7 @@ def past_instances_for_trip(
 
 
 def fetch_targets_for_tracker(snapshot: AppSnapshot, tracker_id: str) -> list[TrackerFetchTarget]:
-    tracker_fetch_targets = getattr(snapshot, "tracker_fetch_targets", [])
-    return sorted(
-        [target for target in tracker_fetch_targets if target.tracker_id == tracker_id],
-        key=lambda item: (item.origin_airport, item.destination_airport),
-    )
+    return fetch_targets_index(snapshot).get(tracker_id, [])
 
 
 def trip_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Trip | None:
@@ -181,11 +167,7 @@ def groups_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[Tr
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
         return []
-    group_ids = [
-        membership.trip_group_id
-        for membership in snapshot.trip_instance_group_memberships
-        if membership.trip_instance_id == trip_instance_id
-    ]
+    group_ids = group_ids_by_instance(snapshot).get(trip_instance_id, [])
     if not group_ids:
         recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
         if recurring_rule is not None:

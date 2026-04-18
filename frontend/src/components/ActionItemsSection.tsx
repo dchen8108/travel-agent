@@ -20,6 +20,7 @@ interface Props {
   onEditUnmatchedBooking: (unmatchedBookingId: string) => void;
   onDeleteUnmatchedBooking: (unmatchedBookingId: string) => Promise<void>;
   onPrefetchBookings?: (tripInstanceId: string) => void;
+  onPrefetchCreateBooking?: (tripInstanceId: string) => void;
   onPrefetchTrackers?: (tripInstanceId: string) => void;
 }
 
@@ -32,6 +33,7 @@ export function ActionItemsSection({
   onEditUnmatchedBooking,
   onDeleteUnmatchedBooking,
   onPrefetchBookings,
+  onPrefetchCreateBooking,
   onPrefetchTrackers,
 }: Props) {
   return (
@@ -72,6 +74,7 @@ export function ActionItemsSection({
                   onOpenTrackers={onOpenTrackers}
                   onDelete={onDeleteTrip}
                   onPrefetchBookings={onPrefetchBookings}
+                  onPrefetchCreateBooking={onPrefetchCreateBooking}
                   onPrefetchTrackers={onPrefetchTrackers}
                 />
               </article>

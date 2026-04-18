@@ -8,10 +8,19 @@ interface Props {
   onOpenTrackers: (tripInstanceId: string) => void;
   onDelete: (row: TripRowValue) => void;
   onPrefetchBookings?: (tripInstanceId: string) => void;
+  onPrefetchCreateBooking?: (tripInstanceId: string) => void;
   onPrefetchTrackers?: (tripInstanceId: string) => void;
 }
 
-export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete, onPrefetchBookings, onPrefetchTrackers }: Props) {
+export function TripRow({
+  row,
+  onOpenBookings,
+  onOpenTrackers,
+  onDelete,
+  onPrefetchBookings,
+  onPrefetchCreateBooking,
+  onPrefetchTrackers,
+}: Props) {
   const tripInstanceId = row.trip.tripInstanceId;
 
   return (
@@ -40,7 +49,7 @@ export function TripRow({ row, onOpenBookings, onOpenTrackers, onDelete, onPrefe
           }}
           emptyState
           onCreate={row.actions.canCreateBooking ? () => onOpenBookings(tripInstanceId, "create") : undefined}
-          onPrefetchAction={row.actions.canCreateBooking ? () => onPrefetchBookings?.(tripInstanceId) : undefined}
+          onPrefetchAction={row.actions.canCreateBooking ? () => onPrefetchCreateBooking?.(tripInstanceId) : undefined}
         />
       )}
       {row.currentOffer ? (

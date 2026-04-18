@@ -186,8 +186,12 @@ export interface DashboardMutationPayload {
   dashboard: DashboardPayload;
 }
 
-export interface BookingMutationPayload extends DashboardMutationPayload {
+export interface BookingMutationPayload {
   panel: BookingPanelPayload | null;
+}
+
+export interface MutationAckPayload {
+  ok: true;
 }
 
 export interface TrackerPanelPayload {

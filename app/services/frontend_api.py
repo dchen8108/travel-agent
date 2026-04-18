@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 from datetime import date
 
 from fastapi import HTTPException
 
-from app.catalog import catalogs_json
+from app.catalog import catalogs_payload
 from app.models.base import TripInstanceInheritanceMode, TripKind
 from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
@@ -365,7 +364,7 @@ def booking_panel_payload(
             if mode in {"create", "edit"}
             else None
         ),
-        "catalogs": json.loads(catalogs_json()) if mode in {"create", "edit"} else None,
+        "catalogs": catalogs_payload() if mode in {"create", "edit"} else None,
     }
 
 
@@ -389,7 +388,7 @@ def booking_form_payload(
             else booking_form_state_value(None, trip_instance_id=trip_instance_id),
             "submitLabel": "Save booking" if editing_booking is not None else "Create booking",
         },
-        "catalogs": json.loads(catalogs_json()),
+        "catalogs": catalogs_payload(),
     }
 
 
@@ -414,7 +413,7 @@ def unmatched_booking_form_payload(
             "values": booking_form_state_value(unmatched, trip_instance_id=""),
             "submitLabel": "Save booking",
         },
-        "catalogs": json.loads(catalogs_json()),
+        "catalogs": catalogs_payload(),
     }
 
 
@@ -476,7 +475,7 @@ def trip_editor_payload_for_new(
             {"value": group.trip_group_id, "label": group.label}
             for group in trip_groups(snapshot)
         ],
-        "catalogs": json.loads(catalogs_json()),
+        "catalogs": catalogs_payload(),
     }
 
 
@@ -493,5 +492,5 @@ def trip_editor_payload_for_edit(
             {"value": group.trip_group_id, "label": group.label}
             for group in trip_groups(snapshot)
         ],
-        "catalogs": json.loads(catalogs_json()),
+        "catalogs": catalogs_payload(),
     }

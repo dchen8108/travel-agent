@@ -7,6 +7,11 @@ from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.money import format_money, parse_money
 from app.services.recommendations import best_tracker_for_instance
+from app.services.snapshot_index import (
+    active_booking_count_by_instance,
+    bookings_by_instance,
+    trackers_by_instance as trackers_by_instance_index,
+)
 from app.services.tracker_refresh_state import tracker_has_fresh_price, tracker_target_display_state
 from app.services.snapshot_queries import (
     fetch_targets_for_tracker,
@@ -22,20 +27,10 @@ def bookings_for_instance(
     *,
     statuses: set[str] | None = None,
 ) -> list[Booking]:
-    relevant = [
-        booking
-        for booking in snapshot.bookings
-        if booking.trip_instance_id == trip_instance_id
-        and (statuses is None or booking.status in statuses)
-    ]
-    return sorted(
-        relevant,
-        key=lambda item: (
-            item.status != BookingStatus.ACTIVE,
-            -(item.booked_at.timestamp()),
-            item.booking_id,
-        ),
-    )
+    relevant = bookings_by_instance(snapshot).get(trip_instance_id, [])
+    if statuses is None:
+        return relevant
+    return [booking for booking in relevant if booking.status in statuses]
 
 
 def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Booking | None:
@@ -44,14 +39,11 @@ def booking_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> Bookin
 
 
 def active_booking_count_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> int:
-    return len(bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE}))
+    return active_booking_count_by_instance(snapshot).get(trip_instance_id, 0)
 
 
 def trackers_for_instance(snapshot: AppSnapshot, trip_instance_id: str) -> list[Tracker]:
-    return sorted(
-        [tracker for tracker in snapshot.trackers if tracker.trip_instance_id == trip_instance_id],
-        key=lambda item: (item.rank, item.travel_date),
-    )
+    return trackers_by_instance_index(snapshot).get(trip_instance_id, [])
 
 
 def _snapshot_app_state(snapshot: object) -> AppState:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from threading import Lock
@@ -38,17 +39,24 @@ def _load_snapshot_uncached(repository: Repository) -> AppSnapshot:
         bookings=repository.load_bookings(),
         unmatched_bookings=repository.load_unmatched_bookings(),
         booking_email_events=repository.load_booking_email_events(),
-        price_records=repository.load_price_records(),
+        price_records=[],
         app_state=app_state,
     )
     return filter_snapshot(snapshot, include_test_data=include_test_data_for_ui(app_state))
 
 
+def _ui_snapshot(snapshot: AppSnapshot) -> AppSnapshot:
+    if snapshot.price_records:
+        return replace(snapshot, price_records=[])
+    return snapshot
+
+
 def _store_snapshot_cache(repository: Repository, snapshot: AppSnapshot) -> AppSnapshot:
     global _snapshot_cache_entry
+    ui_snapshot = _ui_snapshot(snapshot)
     with _snapshot_cache_lock:
-        _snapshot_cache_entry = (*_snapshot_signature(repository), deepcopy(snapshot))
-    return snapshot
+        _snapshot_cache_entry = (*_snapshot_signature(repository), deepcopy(ui_snapshot))
+    return ui_snapshot
 
 
 def load_persisted_snapshot(repository: Repository) -> AppSnapshot:

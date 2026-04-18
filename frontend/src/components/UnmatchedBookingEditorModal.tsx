@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
-import type { DashboardPayload } from "../types";
 import { BookingForm } from "./BookingForm";
 import { DateTile } from "./DateTile";
 import { Modal } from "./Modal";
@@ -12,7 +11,7 @@ interface Props {
   unmatchedBookingId: string;
   dashboardFilters: URLSearchParams;
   onClose: () => void;
-  onReplaceDashboard: (payload: DashboardPayload) => void;
+  onRefreshDashboard: () => void;
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -23,7 +22,7 @@ export function UnmatchedBookingEditorModal({
   unmatchedBookingId,
   dashboardFilters,
   onClose,
-  onReplaceDashboard,
+  onRefreshDashboard,
 }: Props) {
   const { pushToast } = useToast();
   const formQuery = useQuery({
@@ -33,8 +32,8 @@ export function UnmatchedBookingEditorModal({
 
   const saveMutation = useMutation({
     mutationFn: (values: Record<string, string>) => api.updateUnmatchedBooking(unmatchedBookingId, values, dashboardFilters),
-    onSuccess: ({ dashboard }) => {
-      onReplaceDashboard(dashboard);
+    onSuccess: () => {
+      onRefreshDashboard();
       pushToast({ message: "Booking saved" });
       onClose();
     },

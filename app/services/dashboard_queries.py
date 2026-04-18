@@ -5,6 +5,7 @@ from datetime import date
 from app.models.trip import Trip
 from app.models.trip_group import TripGroup
 from app.models.trip_instance import TripInstance
+from app.services.snapshot_index import sorted_trip_groups, trip_map
 from app.services.scheduled_trip_state import active_booking_count_for_instance
 from app.services.snapshot_queries import (
     groups_for_instance,
@@ -25,7 +26,7 @@ def recurring_trips(snapshot: AppSnapshot) -> list[Trip]:
 
 
 def trip_groups(snapshot: AppSnapshot) -> list[TripGroup]:
-    return sorted(snapshot.trip_groups, key=lambda item: item.label.lower())
+    return sorted_trip_groups(snapshot)
 
 
 def _instance_matches_group_filter(
@@ -101,14 +102,14 @@ def scheduled_instances(
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
-    trip_map = {trip.trip_id: trip for trip in snapshot.trips}
+    trip_lookup = trip_map(snapshot)
     items = [
         item
         for item in snapshot.trip_instances
         if not item.deleted
         and not is_past_instance(item, today=today)
         and not (
-            (trip := trip_map.get(item.trip_id)) is not None
+            (trip := trip_lookup.get(item.trip_id)) is not None
             and trip.trip_kind == "one_time"
             and not trip.active
         )

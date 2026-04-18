@@ -189,14 +189,8 @@ def test_trip_status_mutation_dashboard_payload_hides_test_scoped_rows(client, r
     response = client.patch(f"/api/trips/{live_trip.trip_id}/status", json={"active": False})
 
     assert response.status_code == 200
-    payload = response.json()["dashboard"]
-    trip_titles = [item["trip"]["title"] for item in payload["trips"]]
-    action_titles = [item.get("row", {}).get("trip", {}).get("title", "") for item in payload["actionItems"] if item["kind"] == "tripAttention"]
-    collection_labels = [item["label"] for item in payload["collections"]]
-
-    assert "QA Hidden recurring" not in trip_titles
-    assert "QA Hidden recurring" not in action_titles
-    assert "QA Hidden recurring" not in collection_labels
+    payload = response.json()
+    assert payload == {"tripId": live_trip.trip_id, "active": False}
 
 
 def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository: Repository) -> None:
@@ -264,7 +258,8 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
     )
 
     assert update_response.status_code == 200
-    dashboard = update_response.json()["dashboard"]
+    assert update_response.json() == {"ok": True}
+    dashboard = client.get("/api/dashboard").json()
     unmatched_item = next(item for item in dashboard["actionItems"] if item["kind"] == "unmatchedBooking")
     assert unmatched_item["offer"]["detail"] == "JFK → LAX · Delta"
     assert unmatched_item["offer"]["metaLabel"].endswith("EDIT01")

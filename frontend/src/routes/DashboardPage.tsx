@@ -212,9 +212,39 @@ export function DashboardPage() {
     setBookingPanelState({ mode: "list", bookingId: "" });
   }, [panel, panelTripInstanceId, searchParams]);
 
+  useEffect(() => {
+    const tripRows = dashboardQuery.data?.trips.slice(0, 4) ?? [];
+    if (!tripRows.length) {
+      return;
+    }
+
+    const prefetchVisibleRows = () => {
+      for (const row of tripRows) {
+        if (row.actions.showBookingModal || row.actions.canCreateBooking) {
+          prefetchBookingPanel(row.trip.tripInstanceId);
+        }
+        if (row.actions.showTrackers) {
+          prefetchTrackerPanel(row.trip.tripInstanceId);
+        }
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(prefetchVisibleRows, { timeout: 600 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = globalThis.setTimeout(prefetchVisibleRows, 250);
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [dashboardQuery.data]);
+
   function replaceCurrentDashboard(next: DashboardPayload) {
     queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), next);
     void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+  }
+
+  function refreshCurrentDashboard() {
+    void queryClient.invalidateQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
   }
 
   const collectionMutation = useMutation({
@@ -248,8 +278,8 @@ export function DashboardPage() {
       }
       pushToast({ message: errorMessage(error, "Unable to update recurring trip."), kind: "error" });
     },
-    onSuccess: ({ dashboard }) => {
-      replaceCurrentDashboard(dashboard);
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
     },
   });
 
@@ -278,15 +308,20 @@ export function DashboardPage() {
     },
   });
 
-  const unmatchedMutation = useMutation({
+  const unmatchedMutation = useMutation<
+    unknown,
+    unknown,
+    {
+      unmatchedBookingId: string;
+      tripInstanceId?: string;
+      kind: "link" | "delete";
+    },
+    { previous?: DashboardPayload }
+  >({
     mutationFn: ({
       unmatchedBookingId,
       tripInstanceId,
       kind,
-    }: {
-      unmatchedBookingId: string;
-      tripInstanceId?: string;
-      kind: "link" | "delete";
     }) => {
       if (kind === "delete") {
         return api.deleteBooking(unmatchedBookingId, dashboardFilters);
@@ -313,8 +348,8 @@ export function DashboardPage() {
       }
       pushToast({ message: errorMessage(error, "Unable to update booking."), kind: "error" });
     },
-    onSuccess: ({ dashboard }) => {
-      replaceCurrentDashboard(dashboard);
+    onSuccess: () => {
+      refreshCurrentDashboard();
     },
   });
 
@@ -371,10 +406,18 @@ export function DashboardPage() {
       queryKey: bookingPanelQueryKey(tripInstanceId),
       queryFn: () => api.bookingPanel(tripInstanceId),
     });
+  }
+
+  function prefetchBookingForm(tripInstanceId: string, bookingId = "") {
     void prefetchOnce(queryClient, {
-      queryKey: bookingFormQueryKey(tripInstanceId),
-      queryFn: () => api.bookingForm(tripInstanceId),
+      queryKey: bookingFormQueryKey(tripInstanceId, bookingId),
+      queryFn: () => api.bookingForm(tripInstanceId, bookingId),
     });
+  }
+
+  function prefetchBookingCreateFlow(tripInstanceId: string) {
+    prefetchBookingPanel(tripInstanceId);
+    prefetchBookingForm(tripInstanceId);
   }
 
   function prefetchTrackerPanel(tripInstanceId: string) {
@@ -499,10 +542,11 @@ export function DashboardPage() {
             onDeleteTrip={handleDeleteTrip}
             onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
             onEditUnmatchedBooking={handleEditUnmatchedBooking}
-            onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
-            onPrefetchBookings={prefetchBookingPanel}
-            onPrefetchTrackers={prefetchTrackerPanel}
-          />
+          onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
+          onPrefetchBookings={prefetchBookingPanel}
+          onPrefetchCreateBooking={prefetchBookingCreateFlow}
+          onPrefetchTrackers={prefetchTrackerPanel}
+        />
         ) : dashboardQuery.isError ? (
           <section className="surface">
             <article className="quiet-state-card">
@@ -578,6 +622,7 @@ export function DashboardPage() {
                     onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                     onDelete={handleDeleteTrip}
                     onPrefetchBookings={prefetchBookingPanel}
+                    onPrefetchCreateBooking={prefetchBookingCreateFlow}
                     onPrefetchTrackers={prefetchTrackerPanel}
                   />
                 ))}
@@ -607,7 +652,7 @@ export function DashboardPage() {
           initialPanel={initialBookingPanel}
           dashboardFilters={dashboardFilters}
           onClose={closePanel}
-          onReplaceDashboard={replaceCurrentDashboard}
+          onRefreshDashboard={refreshCurrentDashboard}
           onChangeMode={changeBookingMode}
         />
       ) : null}
@@ -619,7 +664,7 @@ export function DashboardPage() {
           unmatchedBookingId={editingUnmatchedBookingId}
           dashboardFilters={dashboardFilters}
           onClose={() => setEditingUnmatchedBookingId("")}
-          onReplaceDashboard={replaceCurrentDashboard}
+          onRefreshDashboard={refreshCurrentDashboard}
         />
       ) : null}
     </div>
