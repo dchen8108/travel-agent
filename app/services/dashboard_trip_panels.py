@@ -9,9 +9,9 @@ from app.money import format_money
 from app.models.base import fare_class_label
 from app.services.itinerary_display import (
     fetch_target_route_label,
-    format_departure_time_label,
     format_departure_window_label,
     format_refresh_timestamp_label,
+    format_time_range_label,
     route_option_display_label,
     tracker_best_fetch_target,
 )
@@ -65,7 +65,10 @@ def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_bes
                 travel_date=tracker.travel_date,
                 detail=fetch_target_route_label(target, fallback_tracker=tracker),
                 primary_meta_label=(
-                    format_departure_time_label(target.latest_departure_label)
+                    format_time_range_label(
+                        target.latest_departure_label,
+                        target.latest_arrival_label,
+                    )
                     if target.latest_departure_label
                     else format_departure_window_label(tracker.start_time, tracker.end_time)
                 ),

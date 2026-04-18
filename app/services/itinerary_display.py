@@ -47,6 +47,14 @@ def format_departure_window_label(start_time: str, end_time: str) -> str:
     return "Time window"
 
 
+def format_time_range_label(departure_value: str, arrival_value: str) -> str:
+    departure_label = format_departure_time_label(departure_value)
+    arrival_label = format_departure_time_label(arrival_value)
+    if departure_label and arrival_label:
+        return f"{departure_label} \u2192 {arrival_label}"
+    return departure_label or arrival_label
+
+
 def format_refresh_timestamp_label(value: datetime, *, now: datetime | None = None) -> str:
     local_value = value.astimezone()
     current = now.astimezone() if now is not None else utcnow()

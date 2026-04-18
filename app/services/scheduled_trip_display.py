@@ -6,6 +6,7 @@ from app.models.tracker import Tracker
 from app.services.itinerary_display import (
     booking_route_label,
     format_departure_time_label,
+    format_time_range_label,
     tracker_best_fetch_target,
     tracker_display_label,
     travel_day_delta_label,
@@ -71,14 +72,15 @@ def _row_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None
 
 
 def booking_offer_summary(booking_like: object, *, anchor_date: date | None = None) -> dict[str, object]:
-    departure_time = format_departure_time_label(getattr(booking_like, "departure_time", ""))
+    departure_time = getattr(booking_like, "departure_time", "")
+    arrival_time = getattr(booking_like, "arrival_time", "")
     record_locator = getattr(booking_like, "record_locator", "") or ""
     meta_badges: list[str] = []
     fare_class = getattr(booking_like, "fare_class", "")
     if fare_class:
         meta_badges.append(fare_class_label(fare_class))
     flight_number = getattr(booking_like, "flight_number", "") or ""
-    primary_meta_parts = [departure_time]
+    primary_meta_parts = [format_time_range_label(departure_time, arrival_time)]
     if flight_number:
         airline_code = airline_marketing_code(getattr(booking_like, "airline", "") or "")
         primary_meta_parts.append(f"{airline_code} {flight_number}".strip())
@@ -172,7 +174,10 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     current_offer_detail = tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
     if current_offer_detail or current_offer_price:
         current_offer_primary_meta = (
-            format_departure_time_label(current_target.latest_departure_label)
+            format_time_range_label(
+                current_target.latest_departure_label,
+                current_target.latest_arrival_label,
+            )
             if current_target is not None and current_price is not None
             else ""
         )
