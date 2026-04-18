@@ -17,8 +17,8 @@ function blankRouteOption(): TripEditorRouteOption {
     destinationAirports: [],
     airlines: [],
     dayOffset: 0,
-    startTime: "",
-    endTime: "",
+    startTime: "00:00",
+    endTime: "23:59",
     fareClass: "basic_economy",
   };
 }

@@ -14,7 +14,7 @@ from app.models.base import (
 )
 from app.models.booking import Booking
 from app.models.tracker import Tracker
-from app.route_options import time_in_window
+from app.route_options import time_in_window_exclusive_end
 from app.route_options import join_pipe, split_pipe
 from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.ids import new_id
@@ -125,7 +125,7 @@ def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[T
             continue
         if tracker.fare_class != candidate.fare_class:
             continue
-        if not time_in_window(tracker.start_time, tracker.end_time, candidate.departure_time):
+        if not time_in_window_exclusive_end(tracker.start_time, tracker.end_time, candidate.departure_time):
             continue
         matches.append(tracker)
     return matches

@@ -89,6 +89,20 @@ def time_windows_overlap(start_a: str, end_a: str, start_b: str, end_b: str) -> 
     return max(start_a, start_b) <= min(end_a, end_b)
 
 
+def time_in_window_exclusive_end(start_time: str, end_time: str, candidate: str | None) -> bool:
+    if candidate is None:
+        return False
+    return start_time <= candidate < end_time
+
+
+def time_windows_overlap_exclusive_end(start_a: str, end_a: str, start_b: str, end_b: str) -> bool:
+    start_a = parse_time(start_a)
+    end_a = parse_time(end_a)
+    start_b = parse_time(start_b)
+    end_b = parse_time(end_b)
+    return max(start_a, start_b) < min(end_a, end_b)
+
+
 def route_option_summary(
     origin_airports: list[str],
     destination_airports: list[str],

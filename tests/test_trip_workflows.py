@@ -468,6 +468,39 @@ def test_route_options_for_a_trip_cannot_overlap(repository: Repository) -> None
         raise AssertionError("Expected overlapping route options to raise.")
 
 
+def test_route_options_for_a_trip_can_touch_at_the_boundary(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Work Commute",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 5, 10),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR|LAX",
+                "destination_airports": "SFO",
+                "airlines": "Alaska|United",
+                "day_offset": 0,
+                "start_time": "11:00",
+                "end_time": "12:00",
+            },
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO|OAK",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "12:00",
+                "end_time": "13:00",
+            },
+        ],
+    )
+
+    route_options = [item for item in repository.load_route_options() if item.trip_id == trip.trip_id]
+    assert len(route_options) == 2
+
+
 def test_one_time_trip_cannot_reuse_recurring_trip_label(repository: Repository) -> None:
     save_trip(
         repository,

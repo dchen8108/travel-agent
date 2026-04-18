@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
 
-const MINUTES_PER_DAY = 24 * 60;
-const DEFAULT_START_MINUTES = 6 * 60;
-const DEFAULT_END_MINUTES = 10 * 60;
+const SLOT_MINUTES = 30;
+const MAX_SLOT = 48;
+const DEFAULT_START_SLOT = 0;
+const DEFAULT_END_SLOT = MAX_SLOT;
 
 interface Props {
   label: string;
@@ -12,7 +13,7 @@ interface Props {
   disabled?: boolean;
 }
 
-function parseMinutes(value: string): number | null {
+function parseSlot(value: string): number | null {
   if (!value || !/^\d{2}:\d{2}$/.test(value)) {
     return null;
   }
@@ -20,11 +21,15 @@ function parseMinutes(value: string): number | null {
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
     return null;
   }
-  return (hours * 60) + minutes;
+  const totalMinutes = (hours * 60) + minutes;
+  if (totalMinutes >= ((23 * 60) + 45)) {
+    return MAX_SLOT;
+  }
+  return Math.round(totalMinutes / SLOT_MINUTES);
 }
 
 function formatTime(minutes: number): string {
-  const clamped = Math.max(0, Math.min((MINUTES_PER_DAY - 1), minutes));
+  const clamped = Math.max(0, Math.min(((23 * 60) + 59), minutes));
   const hours = Math.floor(clamped / 60);
   const mins = clamped % 60;
   const meridiem = hours >= 12 ? "PM" : "AM";
@@ -32,27 +37,38 @@ function formatTime(minutes: number): string {
   return `${hour12}:${mins.toString().padStart(2, "0")} ${meridiem}`;
 }
 
-function toTimeValue(minutes: number): string {
-  const clamped = Math.max(0, Math.min((MINUTES_PER_DAY - 1), minutes));
-  const hours = Math.floor(clamped / 60);
-  const mins = clamped % 60;
+function slotToMinutes(slot: number): number {
+  if (slot >= MAX_SLOT) {
+    return (23 * 60) + 59;
+  }
+  return slot * SLOT_MINUTES;
+}
+
+function formatSlot(slot: number): string {
+  return formatTime(slotToMinutes(slot));
+}
+
+function toTimeValue(slot: number): string {
+  const minutes = slotToMinutes(slot);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
   return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
 }
 
 export function TimeRangeField({ label, startTime, endTime, onChange, disabled = false }: Props) {
-  const parsedStart = parseMinutes(startTime);
-  const parsedEnd = parseMinutes(endTime);
-  const isUnset = parsedStart === null || parsedEnd === null;
-  const startMinutes = parsedStart ?? DEFAULT_START_MINUTES;
-  const endMinutes = parsedEnd ?? DEFAULT_END_MINUTES;
-  const safeStart = Math.min(startMinutes, Math.max(0, endMinutes - 1));
-  const safeEnd = Math.max(endMinutes, safeStart + 1);
-  const startPercent = (safeStart / (MINUTES_PER_DAY - 1)) * 100;
-  const endPercent = (safeEnd / (MINUTES_PER_DAY - 1)) * 100;
+  const parsedStart = parseSlot(startTime);
+  const parsedEnd = parseSlot(endTime);
+  const startSlot = parsedStart ?? DEFAULT_START_SLOT;
+  const endSlot = parsedEnd ?? DEFAULT_END_SLOT;
+  const safeStart = Math.min(startSlot, Math.max(0, endSlot - 1));
+  const safeEnd = Math.max(endSlot, safeStart + 1);
+  const startPercent = (safeStart / MAX_SLOT) * 100;
+  const endPercent = (safeEnd / MAX_SLOT) * 100;
+  const isAnytime = safeStart === DEFAULT_START_SLOT && safeEnd === DEFAULT_END_SLOT;
 
   function updateRange(nextStart: number, nextEnd: number) {
     const clampedStart = Math.max(0, Math.min(nextStart, nextEnd - 1));
-    const clampedEnd = Math.min((MINUTES_PER_DAY - 1), Math.max(nextEnd, clampedStart + 1));
+    const clampedEnd = Math.min(MAX_SLOT, Math.max(nextEnd, clampedStart + 1));
     onChange({
       startTime: toTimeValue(clampedStart),
       endTime: toTimeValue(clampedEnd),
@@ -63,7 +79,7 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
     <div className="field-block field-block--full">
       <span>{label}</span>
       <div
-        className={`time-range-field${isUnset ? " is-unset" : ""}${disabled ? " is-disabled" : ""}`}
+        className={`time-range-field${disabled ? " is-disabled" : ""}`}
         style={
           {
             "--range-start": `${startPercent}%`,
@@ -72,8 +88,8 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
         }
       >
         <div className="time-range-field__summary">
-          <strong>{`${formatTime(safeStart)} – ${formatTime(safeEnd)}`}</strong>
-          <small>{isUnset ? "Choose a departure window." : "Departure window"}</small>
+          <strong>{isAnytime ? "Anytime" : `${formatSlot(safeStart)} – ${formatSlot(safeEnd)}`}</strong>
+          <small>{isAnytime ? "No departure restriction." : "Departure window"}</small>
         </div>
         <div className="time-range-field__slider">
           <div className="time-range-field__track" aria-hidden="true" />
@@ -81,7 +97,7 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
             className="time-range-field__input time-range-field__input--start"
             type="range"
             min={0}
-            max={MINUTES_PER_DAY - 1}
+            max={MAX_SLOT}
             step={1}
             value={safeStart}
             onChange={(event) => updateRange(Number(event.target.value), safeEnd)}
@@ -92,7 +108,7 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
             className="time-range-field__input time-range-field__input--end"
             type="range"
             min={0}
-            max={MINUTES_PER_DAY - 1}
+            max={MAX_SLOT}
             step={1}
             value={safeEnd}
             onChange={(event) => updateRange(safeStart, Number(event.target.value))}
@@ -103,7 +119,7 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
         <div className="time-range-field__labels" aria-hidden="true">
           <span>12:00 AM</span>
           <span>12:00 PM</span>
-          <span>11:45 PM</span>
+          <span>11:59 PM</span>
         </div>
       </div>
     </div>

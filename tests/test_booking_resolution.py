@@ -86,6 +86,61 @@ def test_record_booking_auto_matches_unique_trip_instance(repository: Repository
     assert booking.route_option_id == route_option_id
 
 
+def test_boundary_departure_matches_later_adjacent_route_option(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Boundary Match Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "11:00",
+                "end_time": "12:00",
+            },
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "12:00",
+                "end_time": "13:00",
+            },
+        ],
+    )
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    route_options = sorted(
+        [item for item in repository.load_route_options() if item.trip_id == trip.trip_id],
+        key=lambda item: item.rank,
+    )
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="12:00",
+            arrival_time="13:15",
+            booked_price=121,
+            record_locator="BOUND1",
+        ),
+    )
+
+    assert unmatched is None
+    assert booking is not None
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.route_option_id == route_options[1].route_option_id
+
+
 def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: Repository) -> None:
     trip_instance_id = seed_trip(repository)
 
