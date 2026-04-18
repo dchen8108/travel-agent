@@ -12,6 +12,7 @@ export interface DateTile {
 export interface Offer {
   label: string;
   detail: string;
+  airlineKey: string;
   primaryMetaLabel: string;
   metaBadges: string[];
   metaLabel: string;

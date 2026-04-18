@@ -850,6 +850,14 @@ textarea {
   min-width: 0;
 }
 
+.offer-block__main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .offer-block__content--link {
   border-radius: 1rem;
 }
@@ -870,6 +878,85 @@ textarea {
   min-width: 0;
   display: grid;
   gap: 0.35rem;
+}
+
+.airline-mark {
+  --airline-mark-bg: #eef2f6;
+  --airline-mark-accent: #bfcddb;
+  --airline-mark-stripe: rgba(255, 255, 255, 0.92);
+  position: relative;
+  display: inline-flex;
+  width: 2.3rem;
+  height: 2.3rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.airline-mark__shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.airline-mark__code {
+  position: relative;
+  z-index: 1;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+
+.airline-mark--alaska {
+  --airline-mark-bg: #0b3f77;
+  --airline-mark-accent: #2bb5a8;
+}
+
+.airline-mark--american {
+  --airline-mark-bg: #22303f;
+  --airline-mark-accent: #d94f58;
+}
+
+.airline-mark--delta {
+  --airline-mark-bg: #74253a;
+  --airline-mark-accent: #c23a57;
+}
+
+.airline-mark--jetblue {
+  --airline-mark-bg: #0f5ea8;
+  --airline-mark-accent: #34a6d8;
+}
+
+.airline-mark--southwest {
+  --airline-mark-bg: #184b8f;
+  --airline-mark-accent: #d63e3a;
+}
+
+.airline-mark--united {
+  --airline-mark-bg: #123d63;
+  --airline-mark-accent: #4f8ac8;
+}
+
+.airline-mark--hawaiian {
+  --airline-mark-bg: #5f275d;
+  --airline-mark-accent: #e06b94;
+}
+
+.airline-mark--frontier {
+  --airline-mark-bg: #2a5b3d;
+  --airline-mark-accent: #72ad5d;
+}
+
+.airline-mark--spirit {
+  --airline-mark-bg: #37323a;
+  --airline-mark-accent: #e0b53a;
+}
+
+.airline-mark--sun-country {
+  --airline-mark-bg: #7f3c18;
+  --airline-mark-accent: #f09f2a;
 }
 
 .offer-block__label-row {

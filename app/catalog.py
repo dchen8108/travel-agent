@@ -163,6 +163,14 @@ def normalize_airline_code(value: str) -> str:
     return alias
 
 
+def known_airline_code(value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        return ""
+    alias = AIRLINE_ALIASES.get(normalized.lower(), normalized)
+    return alias if alias in AIRLINE_CODES else ""
+
+
 def airport_label(code: str) -> str:
     normalized = normalize_airport_code(code)
     return AIRPORT_LABELS[normalized]

@@ -39,6 +39,7 @@ export function TripRow({
           offer={{
             label: "",
             detail: "",
+            airlineKey: "",
             primaryMetaLabel: "",
             metaBadges: [],
             metaLabel: "",

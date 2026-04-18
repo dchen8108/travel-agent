@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.catalog import known_airline_code
 from app.models.tracker import Tracker
 from app.services.itinerary_display import (
     booking_route_label,
@@ -89,6 +90,7 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     return {
         "label": f"Booking {record_locator}" if record_locator else "Booking",
         "detail": booking_route_label(booking_like),
+        "airline_key": known_airline_code(str(getattr(booking_like, "airline", "") or "")),
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
         "meta_label": booking_meta,
@@ -106,6 +108,7 @@ def live_fare_offer_summary(
     detail: str,
     primary_meta_label: str,
     meta_badges: list[str] | None,
+    airline_key: str = "",
     price_label: str,
     href: str,
     tone: str,
@@ -116,6 +119,7 @@ def live_fare_offer_summary(
     offer = {
         "label": "Live fare",
         "detail": detail,
+        "airline_key": known_airline_code(airline_key),
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
         "meta_label": primary_meta_label,
@@ -181,6 +185,11 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             detail=current_offer_detail,
             primary_meta_label=current_offer_primary_meta,
             meta_badges=[],
+            airline_key=(
+                current_target.latest_airline
+                if current_target is not None and current_target.latest_airline
+                else (display_tracker.airline_codes[0] if display_tracker is not None and len(display_tracker.airline_codes) == 1 else "")
+            ),
             price_label=current_offer_price,
             href=current_offer_href,
             tone=current_offer_tone,

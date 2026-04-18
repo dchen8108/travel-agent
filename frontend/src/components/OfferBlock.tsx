@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { Offer } from "../types";
+import { AirlineMark } from "./AirlineMark";
 import { AddIcon, RefreshIcon, ViewIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 
@@ -52,23 +53,26 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
 
   const offerMain = (
     <>
-      <div className="offer-block__copy">
-        <div className="offer-block__label-row">
-          <span className="offer-block__label">{offer.label}</span>
+      <div className="offer-block__main">
+        <AirlineMark airlineKey={offer.airlineKey} />
+        <div className="offer-block__copy">
+          <div className="offer-block__label-row">
+            <span className="offer-block__label">{offer.label}</span>
+          </div>
+          <strong className="offer-block__detail">{offer.detail}</strong>
+          {offer.primaryMetaLabel ? (
+            <div className="offer-block__primary-meta-row">
+              <span className="offer-block__primary-meta">{offer.primaryMetaLabel}</span>
+            </div>
+          ) : null}
+          {offer.metaBadges.length ? (
+            <div className="offer-block__badge-row">
+              {offer.metaBadges.map((badge) => (
+                <span key={badge} className="offer-block__badge">{badge}</span>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <strong className="offer-block__detail">{offer.detail}</strong>
-        {offer.primaryMetaLabel ? (
-          <div className="offer-block__primary-meta-row">
-            <span className="offer-block__primary-meta">{offer.primaryMetaLabel}</span>
-          </div>
-        ) : null}
-        {offer.metaBadges.length ? (
-          <div className="offer-block__badge-row">
-            {offer.metaBadges.map((badge) => (
-              <span key={badge} className="offer-block__badge">{badge}</span>
-            ))}
-          </div>
-        ) : null}
       </div>
       <div className="offer-block__price-column">
         {offer.priceIsStatus && offer.statusKind === "pending" ? (

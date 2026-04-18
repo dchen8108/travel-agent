@@ -74,6 +74,11 @@ def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_bes
                     else format_departure_window_label(tracker.start_time, tracker.end_time)
                 ),
                 meta_badges=[],
+                airline_key=(
+                    target.latest_airline
+                    if target.latest_airline
+                    else (tracker.airline_codes[0] if len(tracker.airline_codes) == 1 else "")
+                ),
                 price_label=headline,
                 href=target.google_flights_url if target.google_flights_url else "",
                 tone=signal_tone,
@@ -101,6 +106,7 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
                 ),
                 primary_meta_label=format_departure_window_label(tracker.start_time, tracker.end_time),
                 meta_badges=[],
+                airline_key=tracker.airline_codes[0] if len(tracker.airline_codes) == 1 else "",
                 price_label="Checking",
                 href="",
                 tone="neutral",
