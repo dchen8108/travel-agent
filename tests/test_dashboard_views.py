@@ -316,7 +316,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     row = trip_row_summary(snapshot, "inst_1")
 
     assert row["booked_offer"] == {
-        "label": "Booked",
+        "label": "Booking",
         "detail": "LAX → SFO · Delta",
         "primary_meta_label": "8:15 AM",
         "meta_badges": ["Basic Economy"],
@@ -421,7 +421,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
     row = trip_row_summary(snapshot, "inst_1")
 
     assert row["booked_offer"] == {
-        "label": "Booked",
+        "label": "Booking",
         "detail": "LAX → SFO · Delta",
         "primary_meta_label": "11:30 PM",
         "meta_badges": ["Basic Economy"],

@@ -79,11 +79,11 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     flight_number = getattr(booking_like, "flight_number", "") or ""
     if flight_number:
         meta_badges.append(flight_number)
-    if record_locator:
-        meta_badges.append(record_locator)
     primary_meta_label, badges, booking_meta = _offer_meta_value(departure_time, meta_badges)
+    if record_locator:
+        booking_meta = " · ".join(part for part in [booking_meta, record_locator] if part)
     return {
-        "label": "Booked",
+        "label": f"Booking #{record_locator}" if record_locator else "Booking",
         "detail": booking_route_label(booking_like),
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
