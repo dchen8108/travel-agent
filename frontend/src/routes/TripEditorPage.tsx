@@ -7,6 +7,7 @@ import { tripEditorQueryKey } from "../lib/queryKeys";
 import type { TripEditorPayload, TripEditorRouteOption, TripEditorValues } from "../types";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { SearchSelectField } from "../components/SearchSelectField";
+import { TimeRangeField } from "../components/TimeRangeField";
 
 function blankRouteOption(): TripEditorRouteOption {
   return {
@@ -419,24 +420,13 @@ export function TripEditorPage() {
                         ))}
                       </div>
                     </div>
-                    <label>
-                      <span>Window start</span>
-                      <input
-                        type="time"
-                        step={900}
-                        value={route.startTime}
-                        onChange={(event) => updateRoute(index, { startTime: event.target.value })}
-                      />
-                    </label>
-                    <label>
-                      <span>Window end</span>
-                      <input
-                        type="time"
-                        step={900}
-                        value={route.endTime}
-                        onChange={(event) => updateRoute(index, { endTime: event.target.value })}
-                      />
-                    </label>
+                    <TimeRangeField
+                      label="Departure window"
+                      startTime={route.startTime}
+                      endTime={route.endTime}
+                      onChange={(next) => updateRoute(index, next)}
+                      disabled={saveMutation.isPending}
+                    />
                     <div className="field-block">
                       <span>Fare</span>
                       <SearchSelectField
