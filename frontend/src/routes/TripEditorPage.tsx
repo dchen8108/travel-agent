@@ -185,6 +185,9 @@ export function TripEditorPage() {
   const weekly = values.tripKind === "weekly";
   const weekdays = payload.catalogs.weekdays;
   const idleSubmitLabel = isEdit ? "Save trip" : "Create trip";
+  const collectionsHelper = weekly
+    ? (!values.tripGroupIds.length ? "Leave blank to create a matching collection." : "")
+    : (!payload.tripGroups.length ? "No collections yet." : "");
 
   return (
     <div className="app-shell app-shell--editor">
@@ -286,11 +289,7 @@ export function TripEditorPage() {
                 placeholder="Search collections"
                 emptyText={weekly ? "Will create matching collection" : "No collections"}
               />
-              <small className="muted-copy">
-                {weekly
-                  ? (!values.tripGroupIds.length ? "Leave blank to create a matching collection." : "")
-                  : (!payload.tripGroups.length ? "No collections yet." : "")}
-              </small>
+              {collectionsHelper ? <small className="muted-copy">{collectionsHelper}</small> : null}
             </div>
 
             {weekly ? (
