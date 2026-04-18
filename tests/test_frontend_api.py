@@ -314,6 +314,7 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
 
     assert bookings_response.status_code == 200
     assert bookings_response.json()["rows"][0]["offer"]["detail"] == "LAX → SFO · Southwest"
+    assert bookings_response.json()["rows"][0]["offer"]["metaBadges"] == []
     assert bookings_response.json()["form"] is None
     assert bookings_response.json()["catalogs"] is None
     assert booking_form_response.status_code == 200
@@ -321,6 +322,7 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert trackers_response.status_code == 200
     assert trackers_response.json()["trip"]["title"] == "Commute"
     assert trackers_response.json()["rows"]
+    assert trackers_response.json()["rows"][0]["offer"]["metaBadges"] == []
     assert create_response.status_code == 200
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
 

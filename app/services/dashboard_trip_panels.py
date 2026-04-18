@@ -6,7 +6,6 @@ from datetime import date
 from fastapi import HTTPException
 
 from app.money import format_money
-from app.models.base import fare_class_label
 from app.services.itinerary_display import (
     fetch_target_route_label,
     format_departure_window_label,
@@ -72,7 +71,7 @@ def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_bes
                     if target.latest_departure_label
                     else format_departure_window_label(tracker.start_time, tracker.end_time)
                 ),
-                meta_badges=[] if not tracker.fare_class else [fare_class_label(tracker.fare_class)],
+                meta_badges=[],
                 price_label=headline,
                 href=target.google_flights_url if target.google_flights_url else "",
                 tone=signal_tone,
@@ -99,7 +98,7 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
                     tracker.airline_codes,
                 ),
                 primary_meta_label=format_departure_window_label(tracker.start_time, tracker.end_time),
-                meta_badges=[] if not tracker.fare_class else [fare_class_label(tracker.fare_class)],
+                meta_badges=[],
                 price_label="Checking",
                 href="",
                 tone="neutral",
