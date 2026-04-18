@@ -1,7 +1,7 @@
-import alaskaLogo from "../assets/airlines/AS.png";
+import { useState } from "react";
 
-const AIRLINE_MARKS: Record<string, { code: string; label: string; src?: string }> = {
-  Alaska: { code: "AS", label: "Alaska Airlines", src: alaskaLogo },
+const AIRLINE_MARKS: Record<string, { code: string; label: string }> = {
+  Alaska: { code: "AS", label: "Alaska Airlines" },
   American: { code: "AA", label: "American Airlines" },
   Delta: { code: "DL", label: "Delta Air Lines" },
   JetBlue: { code: "B6", label: "JetBlue" },
@@ -15,14 +15,16 @@ const AIRLINE_MARKS: Record<string, { code: string; label: string; src?: string 
 
 export function AirlineMark({ airlineKey }: { airlineKey: string }) {
   const mark = AIRLINE_MARKS[airlineKey];
+  const [logoFailed, setLogoFailed] = useState(false);
   if (!mark) {
     return null;
   }
 
-  if (mark.src) {
+  if (!logoFailed) {
+    const src = `https://www.gstatic.com/flights/airline_logos/70px/${mark.code}.png`;
     return (
       <span className="airline-mark airline-mark--logo" aria-hidden="true" title={mark.label}>
-        <img className="airline-mark__image" src={mark.src} alt="" />
+        <img className="airline-mark__image" src={src} alt="" loading="lazy" onError={() => setLogoFailed(true)} />
       </span>
     );
   }
