@@ -600,18 +600,20 @@ export function DashboardPage() {
       </header>
       <main className="dashboard-layout">
         {dashboardQuery.data ? (
-          <ActionItemsSection
-            items={dashboardQuery.data.actionItems}
-            onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
-            onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
-            onDeleteTrip={handleDeleteTrip}
-            onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
-            onEditUnmatchedBooking={handleEditUnmatchedBooking}
-          onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
-          onPrefetchBookings={prefetchBookingPanel}
-          onPrefetchCreateBooking={prefetchBookingCreateFlow}
-          onPrefetchTrackers={prefetchTrackerPanel}
-        />
+          dashboardQuery.data.actionItems.length ? (
+            <ActionItemsSection
+              items={dashboardQuery.data.actionItems}
+              onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
+              onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
+              onDeleteTrip={handleDeleteTrip}
+              onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
+              onEditUnmatchedBooking={handleEditUnmatchedBooking}
+              onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
+              onPrefetchBookings={prefetchBookingPanel}
+              onPrefetchCreateBooking={prefetchBookingCreateFlow}
+              onPrefetchTrackers={prefetchTrackerPanel}
+            />
+          ) : null
         ) : dashboardQuery.isError ? (
           <section className="surface">
             <article className="quiet-state-card">

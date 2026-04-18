@@ -36,52 +36,49 @@ export function ActionItemsSection({
   onPrefetchCreateBooking,
   onPrefetchTrackers,
 }: Props) {
+  if (items.length === 0) {
+    return null;
+  }
+
   return (
     <section className="surface" id="needs-attention">
       <div className="surface__header">
         <h2>Action Items</h2>
       </div>
-      {items.length === 0 ? (
-        <article className="quiet-state-card">
-          <strong>No travel decisions are waiting.</strong>
-          <p>Upcoming trips are covered, bookings are attached, and there are no fare changes to review.</p>
-        </article>
-      ) : (
-        <div className="attention-stack-react">
-          {items.map((item) => (
-            item.kind === "unmatchedBooking" ? (
-              <UnmatchedBookingCard
-                key={item.unmatchedBookingId}
-                item={item}
-                onLink={onLinkUnmatchedBooking}
-                onEdit={onEditUnmatchedBooking}
-                onDelete={onDeleteUnmatchedBooking}
-              />
-            ) : (
-              <article
-                key={`${item.attentionKind}-${item.row.trip.tripInstanceId}`}
-                className={`attention-card attention-card--${item.attentionKind}`}
-              >
-                <div className="attention-card__header">
-                  <div>
-                    <p className="attention-card__eyebrow">{item.title}</p>
-                  </div>
-                  {item.badge ? <span className="attention-card__badge">{item.badge}</span> : null}
+      <div className="attention-stack-react">
+        {items.map((item) => (
+          item.kind === "unmatchedBooking" ? (
+            <UnmatchedBookingCard
+              key={item.unmatchedBookingId}
+              item={item}
+              onLink={onLinkUnmatchedBooking}
+              onEdit={onEditUnmatchedBooking}
+              onDelete={onDeleteUnmatchedBooking}
+            />
+          ) : (
+            <article
+              key={`${item.attentionKind}-${item.row.trip.tripInstanceId}`}
+              className={`attention-card attention-card--${item.attentionKind}`}
+            >
+              <div className="attention-card__header">
+                <div>
+                  <p className="attention-card__eyebrow">{item.title}</p>
                 </div>
-                <TripRow
-                  row={item.row}
-                  onOpenBookings={onOpenBookings}
-                  onOpenTrackers={onOpenTrackers}
-                  onDelete={onDeleteTrip}
-                  onPrefetchBookings={onPrefetchBookings}
-                  onPrefetchCreateBooking={onPrefetchCreateBooking}
-                  onPrefetchTrackers={onPrefetchTrackers}
-                />
-              </article>
-            )
-          ))}
-        </div>
-      )}
+                {item.badge ? <span className="attention-card__badge">{item.badge}</span> : null}
+              </div>
+              <TripRow
+                row={item.row}
+                onOpenBookings={onOpenBookings}
+                onOpenTrackers={onOpenTrackers}
+                onDelete={onDeleteTrip}
+                onPrefetchBookings={onPrefetchBookings}
+                onPrefetchCreateBooking={onPrefetchCreateBooking}
+                onPrefetchTrackers={onPrefetchTrackers}
+              />
+            </article>
+          )
+        ))}
+      </div>
     </section>
   );
 }
