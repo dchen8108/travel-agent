@@ -17,6 +17,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
   const [values, setValues] = useState<Record<string, string>>(initialValues);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const busyLabel = submitLabel.toLowerCase().includes("create") ? "Creating…" : "Saving…";
 
   useEffect(() => {
     setValues(initialValues);
@@ -56,6 +57,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
             placeholder="Search airlines"
             allowEmpty
             emptySelectionLabel="Choose"
+            disabled={submitting}
           />
         </div>
         <div className="field-block">
@@ -72,6 +74,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
             placeholder="Search origins"
             allowEmpty
             emptySelectionLabel="Choose"
+            disabled={submitting}
           />
         </div>
         <div className="field-block">
@@ -88,6 +91,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
             placeholder="Search destinations"
             allowEmpty
             emptySelectionLabel="Choose"
+            disabled={submitting}
           />
         </div>
         <label>
@@ -117,7 +121,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
       </label>
       {error ? <p className="inline-error">{error}</p> : null}
       <div className="booking-form-actions">
-        <button type="submit" className="primary-button" disabled={submitting}>{submitLabel}</button>
+        <button type="submit" className="primary-button" disabled={submitting}>{submitting ? busyLabel : submitLabel}</button>
         <button type="button" className="secondary-button" onClick={onCancel} disabled={submitting}>Cancel</button>
       </div>
     </form>

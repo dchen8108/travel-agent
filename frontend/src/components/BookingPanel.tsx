@@ -157,6 +157,8 @@ export function BookingPanel({
   const formPayload = mode === "list" ? null : formQuery.data;
   const loading = !panelPayload;
   const loadingForm = mode !== "list" && (formQuery.isLoading || !formPayload?.form || !formPayload?.catalogs);
+  const pendingRowBookingId = rowMutation.isPending ? rowMutation.variables?.bookingId ?? "" : "";
+  const pendingRowKind = rowMutation.isPending ? rowMutation.variables?.kind ?? "" : "";
   const error =
     (listQuery.isError && (listQuery.error instanceof Error ? listQuery.error.message : "Unable to load bookings."))
     || (mode !== "list" && formQuery.isError && (formQuery.error instanceof Error ? formQuery.error.message : "Unable to load booking."));
@@ -172,10 +174,13 @@ export function BookingPanel({
           payload={panelPayload}
           previewRows={listQuery.isPlaceholderData}
           mode={mode}
+          mutationPending={saveMutation.isPending || rowMutation.isPending}
           formValues={formPayload?.form?.values ?? blankBookingForm(tripInstanceId)}
           formSubmitLabel={formPayload?.form?.submitLabel ?? "Create booking"}
           formCatalogs={formPayload?.catalogs}
           formLoading={loadingForm}
+          pendingRowBookingId={pendingRowBookingId}
+          pendingRowKind={pendingRowKind}
           onChangeMode={onChangeMode}
           onSave={async (values) => saveMutation.mutateAsync(values)}
           onDelete={handleDelete}
@@ -192,10 +197,13 @@ function BookingPanelContent({
   payload,
   previewRows,
   mode,
+  mutationPending,
   formValues,
   formSubmitLabel,
   formCatalogs,
   formLoading,
+  pendingRowBookingId,
+  pendingRowKind,
   onChangeMode,
   onSave,
   onDelete,
@@ -206,10 +214,13 @@ function BookingPanelContent({
   payload: BookingPanelPayload;
   previewRows: boolean;
   mode: "list" | "create" | "edit";
+  mutationPending: boolean;
   formValues: Record<string, string>;
   formSubmitLabel: string;
   formCatalogs: BookingFormPayload["catalogs"] | undefined;
   formLoading: boolean;
+  pendingRowBookingId: string;
+  pendingRowKind: string;
   onChangeMode: (mode: "list" | "create" | "edit", bookingId?: string) => void;
   onSave: (values: Record<string, string>) => Promise<unknown>;
   onDelete: (bookingId: string) => Promise<void>;
@@ -231,6 +242,7 @@ function BookingPanelContent({
             onMouseEnter={onPrefetchCreate}
             onFocus={onPrefetchCreate}
             onPointerDown={onPrefetchCreate}
+            disabled={mutationPending}
           >
             Create booking
           </button>
@@ -259,6 +271,7 @@ function BookingPanelContent({
                     <IconButton
                       label="Edit booking"
                       variant="inline"
+                      disabled={!!pendingRowBookingId}
                       onClick={() => onChangeMode("edit", row.bookingId)}
                       onMouseEnter={() => onPrefetchEdit(row.bookingId)}
                       onFocus={() => onPrefetchEdit(row.bookingId)}
@@ -266,10 +279,23 @@ function BookingPanelContent({
                     >
                       <EditIcon />
                     </IconButton>
-                    <IconButton label="Detach booking" variant="inline" onClick={() => onDetach(row.bookingId)}>
+                    <IconButton
+                      label="Detach booking"
+                      variant="inline"
+                      onClick={() => onDetach(row.bookingId)}
+                      loading={pendingRowBookingId === row.bookingId && pendingRowKind === "unlink"}
+                      disabled={!!pendingRowBookingId}
+                    >
                       <DetachIcon />
                     </IconButton>
-                    <IconButton label="Delete booking" tone="danger" variant="inline" onClick={() => onDelete(row.bookingId)}>
+                    <IconButton
+                      label="Delete booking"
+                      tone="danger"
+                      variant="inline"
+                      onClick={() => onDelete(row.bookingId)}
+                      loading={pendingRowBookingId === row.bookingId && pendingRowKind === "delete"}
+                      disabled={!!pendingRowBookingId}
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </div>

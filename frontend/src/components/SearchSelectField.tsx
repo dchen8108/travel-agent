@@ -15,6 +15,7 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
+  disabled?: boolean;
   ariaLabel?: string;
   emptyText?: string;
   allowEmpty?: boolean;
@@ -34,6 +35,7 @@ export function SearchSelectField({
   value,
   onChange,
   placeholder,
+  disabled = false,
   ariaLabel,
   emptyText = "No matches",
   allowEmpty = false,
@@ -79,6 +81,12 @@ export function SearchSelectField({
   }, [allowEmpty, filtered, value]);
 
   useEffect(() => {
+    if (disabled) {
+      closePicker();
+    }
+  }, [closePicker, disabled]);
+
+  useEffect(() => {
     if (!open) {
       setQuery("");
       setActiveIndex(-1);
@@ -97,6 +105,9 @@ export function SearchSelectField({
   }, [activeIndex, open, optionIdPrefix, rootRef]);
 
   function selectValue(nextValue: string) {
+    if (disabled) {
+      return;
+    }
     onChange(nextValue);
     closePicker();
   }
@@ -114,6 +125,9 @@ export function SearchSelectField({
   }
 
   function handleSummaryKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (disabled) {
+      return;
+    }
     if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openPicker();
@@ -153,7 +167,7 @@ export function SearchSelectField({
   }
 
   return (
-    <div ref={rootRef} className={`picker-react${open ? " is-open" : ""}`}>
+    <div ref={rootRef} className={`picker-react${open ? " is-open" : ""}${disabled ? " is-disabled" : ""}`}>
       <button
         ref={summaryRef}
         type="button"
@@ -162,6 +176,7 @@ export function SearchSelectField({
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
+        disabled={disabled}
         onClick={toggleOpen}
         onKeyDown={handleSummaryKeyDown}
       >
@@ -183,6 +198,7 @@ export function SearchSelectField({
             aria-activedescendant={activeIndex >= 0 ? `${optionIdPrefix}-${activeIndex}` : undefined}
             aria-autocomplete="list"
             aria-label={ariaLabel ?? placeholder}
+            disabled={disabled}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleSearchKeyDown}

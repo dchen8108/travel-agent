@@ -13,6 +13,7 @@ interface Props {
   values: string[];
   onChange: (values: string[]) => void;
   placeholder: string;
+  disabled?: boolean;
   emptyText?: string;
   maxSelections?: number;
 }
@@ -22,6 +23,7 @@ export function MultiSelectField({
   values,
   onChange,
   placeholder,
+  disabled = false,
   emptyText = "No selections",
   maxSelections,
 }: Props) {
@@ -46,6 +48,12 @@ export function MultiSelectField({
   }, [options, query]);
 
   useEffect(() => {
+    if (disabled) {
+      closePicker();
+    }
+  }, [closePicker, disabled]);
+
+  useEffect(() => {
     if (!open) {
       setQuery("");
       setActiveIndex(-1);
@@ -65,6 +73,9 @@ export function MultiSelectField({
 
   function toggle(value: string) {
     const exists = values.includes(value);
+    if (disabled) {
+      return;
+    }
     if (exists) {
       onChange(values.filter((item) => item !== value));
       return;
@@ -88,6 +99,9 @@ export function MultiSelectField({
   }
 
   function handleSummaryKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (disabled) {
+      return;
+    }
     if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       openPicker();
@@ -127,7 +141,7 @@ export function MultiSelectField({
   }
 
   return (
-    <div ref={rootRef} className={`picker-react${open ? " is-open" : ""}`}>
+    <div ref={rootRef} className={`picker-react${open ? " is-open" : ""}${disabled ? " is-disabled" : ""}`}>
       <button
         ref={summaryRef}
         type="button"
@@ -135,6 +149,7 @@ export function MultiSelectField({
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listboxId}
+        disabled={disabled}
         onClick={toggleOpen}
         onKeyDown={handleSummaryKeyDown}
       >
@@ -161,6 +176,7 @@ export function MultiSelectField({
             aria-controls={listboxId}
             aria-activedescendant={activeIndex >= 0 ? `${optionIdPrefix}-${activeIndex}` : undefined}
             aria-autocomplete="list"
+            disabled={disabled}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleSearchKeyDown}

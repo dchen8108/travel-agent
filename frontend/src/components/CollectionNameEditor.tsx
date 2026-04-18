@@ -65,7 +65,7 @@ export function CollectionNameEditor({
             autoFocus
           />
           <div className="collection-card__header-actions collection-card__header-actions--inline">
-            <IconButton label="Save collection" variant="inline" onClick={() => void handleSave()} disabled={saving}>
+            <IconButton label="Save collection" variant="inline" onClick={() => void handleSave()} disabled={saving} loading={saving}>
               <CheckIcon />
             </IconButton>
             <IconButton label="Cancel" variant="inline" onClick={onCancel} disabled={saving}>
@@ -101,7 +101,12 @@ export function CollectionNameEditor({
             />
           </div>
           <div className="collection-card__header-actions">
-            <IconButton label={mode === "create" ? "Create collection" : "Save collection"} onClick={() => void handleSave()} disabled={saving}>
+            <IconButton
+              label={mode === "create" ? "Create collection" : "Save collection"}
+              onClick={() => void handleSave()}
+              disabled={saving}
+              loading={saving}
+            >
               <CheckIcon />
             </IconButton>
             <IconButton label="Cancel" onClick={onCancel} disabled={saving}>

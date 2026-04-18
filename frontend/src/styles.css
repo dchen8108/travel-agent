@@ -232,6 +232,15 @@ textarea {
   background: var(--accent-strong);
 }
 
+.primary-button:disabled,
+.secondary-button:disabled,
+.primary-button.is-disabled {
+  opacity: 0.62;
+  cursor: progress;
+  transform: none;
+  pointer-events: none;
+}
+
 .secondary-button {
   background: transparent;
   border-color: var(--surface-border);
@@ -770,6 +779,14 @@ textarea {
 .offer-block__status-icon svg {
   width: 1.15rem;
   height: 1.15rem;
+}
+
+.icon-spin {
+  display: inline-flex;
+}
+
+.icon-spin svg {
+  animation: spin 0.9s linear infinite;
 }
 
 .icon-button--inline,
@@ -1314,6 +1331,10 @@ textarea {
   z-index: 2;
 }
 
+.picker-react.is-disabled {
+  pointer-events: none;
+}
+
 .picker-react__summary {
   display: block;
   width: 100%;
@@ -1325,6 +1346,11 @@ textarea {
   cursor: pointer;
   text-align: left;
   appearance: none;
+}
+
+.picker-react__summary:disabled {
+  opacity: 0.62;
+  cursor: progress;
 }
 
 .picker-react__chips {
@@ -1369,6 +1395,10 @@ textarea {
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--surface-border);
   border-radius: 0.9rem;
+}
+
+.picker-react__search:disabled {
+  cursor: progress;
 }
 
 .picker-react__options {

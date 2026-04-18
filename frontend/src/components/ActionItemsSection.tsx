@@ -115,10 +115,28 @@ function UnmatchedBookingCard({
     [item.tripOptions],
   );
   const [selectedTripInstanceId, setSelectedTripInstanceId] = useState(firstOptionValue);
+  const [pendingAction, setPendingAction] = useState<"" | "link">("");
 
   useEffect(() => {
     setSelectedTripInstanceId(firstOptionValue || "");
+    setPendingAction("");
   }, [firstOptionValue, item.unmatchedBookingId]);
+
+  async function handleLink() {
+    if (!selectedTripInstanceId) {
+      return;
+    }
+    setPendingAction("link");
+    try {
+      await onLink(item.unmatchedBookingId, selectedTripInstanceId);
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  async function handleDelete() {
+    await onDelete(item.unmatchedBookingId);
+  }
 
   return (
     <article className="attention-card attention-card--unmatched">
@@ -139,7 +157,13 @@ function UnmatchedBookingCard({
                   <IconButton label="Edit booking" variant="inline" onClick={() => onEdit(item.unmatchedBookingId)}>
                     <EditIcon />
                   </IconButton>
-                  <IconButton label="Delete booking" tone="danger" variant="inline" onClick={() => onDelete(item.unmatchedBookingId)}>
+                  <IconButton
+                    label="Delete booking"
+                    tone="danger"
+                    variant="inline"
+                    onClick={() => void handleDelete()}
+                    disabled={pendingAction !== ""}
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </div>
@@ -157,25 +181,33 @@ function UnmatchedBookingCard({
             allowEmpty
             emptySelectionLabel="Choose one"
             renderOptionMeta={(option) => <small>{option.meta}</small>}
+            disabled={pendingAction !== ""}
           />
         </div>
         <div className="attention-card__control-actions attention-card__control-actions--inline">
           <IconButton
             label="Link booking"
-            disabled={!selectedTripInstanceId}
+            disabled={!selectedTripInstanceId || pendingAction !== ""}
             variant="inline"
-            onClick={() => onLink(item.unmatchedBookingId, selectedTripInstanceId)}
+            onClick={() => void handleLink()}
+            loading={pendingAction === "link"}
           >
             <LinkIcon />
           </IconButton>
           <div className="attention-card__alternate-action">
-            <PrefetchLink
-              className="primary-button"
-              to={item.createTripHref}
-              onPrefetch={() => void prefetchTripEditorFromHref(queryClient, item.createTripHref)}
-            >
-              Create trip
-            </PrefetchLink>
+            {pendingAction ? (
+              <span className="primary-button is-disabled" aria-disabled="true">
+                Create trip
+              </span>
+            ) : (
+              <PrefetchLink
+                className="primary-button"
+                to={item.createTripHref}
+                onPrefetch={() => void prefetchTripEditorFromHref(queryClient, item.createTripHref)}
+              >
+                Create trip
+              </PrefetchLink>
+            )}
           </div>
         </div>
       </div>
