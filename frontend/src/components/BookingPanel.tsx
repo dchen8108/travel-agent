@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import { prefetchOnce } from "../lib/prefetch";
 import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
 import type { BookingFormPayload, BookingPanelPayload, DashboardPayload } from "../types";
 import { useConfirm } from "./ConfirmProvider";
@@ -16,6 +17,7 @@ interface Props {
   tripInstanceId: string;
   mode: "list" | "create" | "edit";
   bookingId: string;
+  initialPanel: BookingPanelPayload | null;
   dashboardFilters: URLSearchParams;
   onClose: () => void;
   onReplaceDashboard: (payload: DashboardPayload) => void;
@@ -46,6 +48,7 @@ export function BookingPanel({
   tripInstanceId,
   mode,
   bookingId,
+  initialPanel,
   dashboardFilters,
   onClose,
   onReplaceDashboard,
@@ -57,6 +60,7 @@ export function BookingPanel({
   const listQuery = useQuery({
     queryKey: bookingPanelQueryKey(tripInstanceId),
     queryFn: () => api.bookingPanel(tripInstanceId),
+    placeholderData: initialPanel ?? undefined,
   });
   const formQuery = useQuery({
     queryKey: bookingFormQueryKey(tripInstanceId, mode === "edit" ? bookingId : ""),
@@ -101,14 +105,14 @@ export function BookingPanel({
   });
 
   function prefetchCreateForm() {
-    queryClient.prefetchQuery({
+    void prefetchOnce(queryClient, {
       queryKey: bookingFormQueryKey(tripInstanceId),
       queryFn: () => api.bookingForm(tripInstanceId),
     });
   }
 
   function prefetchEditForm(rowBookingId: string) {
-    queryClient.prefetchQuery({
+    void prefetchOnce(queryClient, {
       queryKey: bookingFormQueryKey(tripInstanceId, rowBookingId),
       queryFn: () => api.bookingForm(tripInstanceId, rowBookingId),
     });
@@ -151,7 +155,8 @@ export function BookingPanel({
 
   const panelPayload = listQuery.data;
   const formPayload = mode === "list" ? null : formQuery.data;
-  const loading = listQuery.isLoading || !panelPayload || (mode !== "list" && (formQuery.isLoading || !formPayload?.form));
+  const loading = !panelPayload;
+  const loadingForm = mode !== "list" && (formQuery.isLoading || !formPayload?.form || !formPayload?.catalogs);
   const error =
     (listQuery.isError && (listQuery.error instanceof Error ? listQuery.error.message : "Unable to load bookings."))
     || (mode !== "list" && formQuery.isError && (formQuery.error instanceof Error ? formQuery.error.message : "Unable to load booking."));
@@ -165,10 +170,12 @@ export function BookingPanel({
       ) : (
         <BookingPanelContent
           payload={panelPayload}
+          previewRows={listQuery.isPlaceholderData}
           mode={mode}
           formValues={formPayload?.form?.values ?? blankBookingForm(tripInstanceId)}
           formSubmitLabel={formPayload?.form?.submitLabel ?? "Create booking"}
           formCatalogs={formPayload?.catalogs}
+          formLoading={loadingForm}
           onChangeMode={onChangeMode}
           onSave={async (values) => saveMutation.mutateAsync(values)}
           onDelete={handleDelete}
@@ -183,10 +190,12 @@ export function BookingPanel({
 
 function BookingPanelContent({
   payload,
+  previewRows,
   mode,
   formValues,
   formSubmitLabel,
   formCatalogs,
+  formLoading,
   onChangeMode,
   onSave,
   onDelete,
@@ -195,10 +204,12 @@ function BookingPanelContent({
   onPrefetchEdit,
 }: {
   payload: BookingPanelPayload;
+  previewRows: boolean;
   mode: "list" | "create" | "edit";
   formValues: Record<string, string>;
   formSubmitLabel: string;
   formCatalogs: BookingFormPayload["catalogs"] | undefined;
+  formLoading: boolean;
   onChangeMode: (mode: "list" | "create" | "edit", bookingId?: string) => void;
   onSave: (values: Record<string, string>) => Promise<unknown>;
   onDelete: (bookingId: string) => Promise<void>;
@@ -226,37 +237,45 @@ function BookingPanelContent({
         ) : null}
       </div>
       {showingForm ? (
-        <BookingForm
-          initialValues={formValues}
-          catalogs={formCatalogs!}
-          submitLabel={formSubmitLabel}
-          onSubmit={onSave}
-          onCancel={() => onChangeMode("list")}
-        />
+        formLoading ? (
+          <div className="modal-loading">Loading booking form…</div>
+        ) : (
+          <BookingForm
+            initialValues={formValues}
+            catalogs={formCatalogs!}
+            submitLabel={formSubmitLabel}
+            onSubmit={onSave}
+            onCancel={() => onChangeMode("list")}
+          />
+        )
       ) : (
         <div className="modal-list">
           {payload.rows.map((row) => (
             <article key={row.bookingId} className="modal-list-row">
               <OfferBlock kind="booked" offer={row.offer} />
-              <div className="offer-action-cluster modal-list-row__actions">
-                <IconButton
-                  label="Edit booking"
-                  variant="inline"
-                  onClick={() => onChangeMode("edit", row.bookingId)}
-                  onMouseEnter={() => onPrefetchEdit(row.bookingId)}
-                  onFocus={() => onPrefetchEdit(row.bookingId)}
-                  onPointerDown={() => onPrefetchEdit(row.bookingId)}
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton label="Detach booking" variant="inline" onClick={() => onDetach(row.bookingId)}>
-                  <DetachIcon />
-                </IconButton>
-                <IconButton label="Delete booking" tone="danger" variant="inline" onClick={() => onDelete(row.bookingId)}>
-                  <DeleteIcon />
-                </IconButton>
-              </div>
-              {row.warning ? <p className="modal-row-warning">{row.warning}</p> : null}
+              {previewRows ? null : (
+                <>
+                  <div className="offer-action-cluster modal-list-row__actions">
+                    <IconButton
+                      label="Edit booking"
+                      variant="inline"
+                      onClick={() => onChangeMode("edit", row.bookingId)}
+                      onMouseEnter={() => onPrefetchEdit(row.bookingId)}
+                      onFocus={() => onPrefetchEdit(row.bookingId)}
+                      onPointerDown={() => onPrefetchEdit(row.bookingId)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton label="Detach booking" variant="inline" onClick={() => onDetach(row.bookingId)}>
+                      <DetachIcon />
+                    </IconButton>
+                    <IconButton label="Delete booking" tone="danger" variant="inline" onClick={() => onDelete(row.bookingId)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </div>
+                  {row.warning ? <p className="modal-row-warning">{row.warning}</p> : null}
+                </>
+              )}
             </article>
           ))}
         </div>

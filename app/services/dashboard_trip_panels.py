@@ -104,8 +104,8 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
     )
 
 
-def tracker_search_rows(snapshot, trip_instance, tracker) -> list[TrackerSearchRowView]:
-    fetch_targets = fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+def tracker_search_rows(snapshot, trip_instance, tracker, *, fetch_targets=None) -> list[TrackerSearchRowView]:
+    fetch_targets = list(fetch_targets) if fetch_targets is not None else fetch_targets_for_tracker(snapshot, tracker.tracker_id)
     if not fetch_targets:
         return [_tracker_fallback_row_view(trip_instance, tracker)]
     best_target = tracker_best_fetch_target(tracker, fetch_targets)
@@ -125,7 +125,7 @@ def tracker_search_rows(snapshot, trip_instance, tracker) -> list[TrackerSearchR
     ]
 
 
-def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str, object]:
+def tracker_context(snapshot, trip_instance_id: str) -> tuple[object, object, list[object], dict[str, list[object]]]:
     trip_instance = next((item for item in snapshot.trip_instances if item.trip_instance_id == trip_instance_id), None)
     if trip_instance is None or trip_instance.deleted:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
@@ -134,14 +134,22 @@ def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str
         raise HTTPException(status_code=404, detail="Parent trip not found")
     if parent_trip.trip_kind == "one_time" and not parent_trip.active:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
-
     trackers = trackers_for_instance(snapshot, trip_instance_id)
-    total_fetch_targets = sum(len(fetch_targets_for_tracker(snapshot, tracker.tracker_id)) for tracker in trackers)
+    tracker_targets = {
+        tracker.tracker_id: fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+        for tracker in trackers
+    }
+    return trip_instance, parent_trip, trackers, tracker_targets
+
+
+def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str, object]:
+    trip_instance, parent_trip, trackers, tracker_targets = tracker_context(snapshot, trip_instance_id)
+    total_fetch_targets = sum(len(targets) for targets in tracker_targets.values())
     oldest_tracker_refresh_at = min(
         (
             target.last_fetch_finished_at
-            for tracker in trackers
-            for target in fetch_targets_for_tracker(snapshot, tracker.tracker_id)
+            for targets in tracker_targets.values()
+            for target in targets
             if target.last_fetch_finished_at is not None
         ),
         default=None,
@@ -149,7 +157,12 @@ def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str
     tracker_rows = [
         row
         for tracker in trackers
-        for row in tracker_search_rows(snapshot, trip_instance, tracker)
+        for row in tracker_search_rows(
+            snapshot,
+            trip_instance,
+            tracker,
+            fetch_targets=tracker_targets.get(tracker.tracker_id, []),
+        )
     ]
     recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
     trip_groups = groups_for_instance(snapshot, trip_instance_id)

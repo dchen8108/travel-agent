@@ -14,9 +14,16 @@ import { TripRow } from "../components/TripRow";
 import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEditorModal";
 import { useToast } from "../components/ToastProvider";
 import { api } from "../lib/api";
+import { prefetchOnce } from "../lib/prefetch";
 import { bookingFormQueryKey, bookingPanelQueryKey, dashboardQueryKey, trackerPanelQueryKey } from "../lib/queryKeys";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
-import type { CollectionCard as CollectionCardValue, DashboardPayload, TripRow as TripRowValue } from "../types";
+import type {
+  BookingPanelPayload,
+  CollectionCard as CollectionCardValue,
+  DashboardPayload,
+  TrackerPanelPayload,
+  TripRow as TripRowValue,
+} from "../types";
 
 function initialCollectionEditor(searchParams: URLSearchParams) {
   if (searchParams.get("create_group") === "1") {
@@ -78,6 +85,52 @@ function optimisticRemoveUnmatchedBooking(dashboard: DashboardPayload, unmatched
   };
 }
 
+function tripRowLookup(dashboard: DashboardPayload | undefined) {
+  const lookup = new Map<string, TripRowValue>();
+  if (!dashboard) {
+    return lookup;
+  }
+  for (const row of dashboard.trips) {
+    lookup.set(row.trip.tripInstanceId, row);
+  }
+  for (const item of dashboard.actionItems) {
+    if (item.kind === "tripAttention") {
+      lookup.set(item.row.trip.tripInstanceId, item.row);
+    }
+  }
+  return lookup;
+}
+
+function bookingPanelPreview(row: TripRowValue | undefined): BookingPanelPayload | null {
+  if (!row) {
+    return null;
+  }
+  return {
+    trip: row.trip,
+    rows: row.bookedOffer ? [{ bookingId: "", offer: row.bookedOffer, warning: "" }] : [],
+  };
+}
+
+function trackerPanelPreview(row: TripRowValue | undefined): TrackerPanelPayload | null {
+  if (!row) {
+    return null;
+  }
+  return {
+    trip: row.trip,
+    rows: row.currentOffer
+      ? [
+          {
+            rowId: "",
+            travelDate: row.trip.anchorDate,
+            offer: row.currentOffer,
+          },
+        ]
+      : [],
+    lastRefreshLabel: "",
+    tripAnchorDate: row.trip.anchorDate,
+  };
+}
+
 export function DashboardPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -115,6 +168,7 @@ export function DashboardPage() {
     queryFn: () => api.dashboard(dashboardFilters),
     placeholderData: (previous) => previous,
   });
+  const visibleTripRows = useMemo(() => tripRowLookup(dashboardQuery.data), [dashboardQuery.data]);
 
   useEffect(() => {
     const nextEditor = initialCollectionEditor(searchParams);
@@ -313,18 +367,18 @@ export function DashboardPage() {
   }
 
   function prefetchBookingPanel(tripInstanceId: string) {
-    queryClient.prefetchQuery({
+    void prefetchOnce(queryClient, {
       queryKey: bookingPanelQueryKey(tripInstanceId),
       queryFn: () => api.bookingPanel(tripInstanceId),
     });
-    queryClient.prefetchQuery({
+    void prefetchOnce(queryClient, {
       queryKey: bookingFormQueryKey(tripInstanceId),
       queryFn: () => api.bookingForm(tripInstanceId),
     });
   }
 
   function prefetchTrackerPanel(tripInstanceId: string) {
-    queryClient.prefetchQuery({
+    void prefetchOnce(queryClient, {
       queryKey: trackerPanelQueryKey(tripInstanceId),
       queryFn: () => api.trackerPanel(tripInstanceId),
     });
@@ -359,6 +413,10 @@ export function DashboardPage() {
   function changeBookingMode(mode: "list" | "create" | "edit", bookingId = "") {
     setBookingPanelState({ mode, bookingId });
   }
+
+  const currentTripRow = panelTripInstanceId ? visibleTripRows.get(panelTripInstanceId) : undefined;
+  const initialBookingPanel = panel === "bookings" ? bookingPanelPreview(currentTripRow) : null;
+  const initialTrackerPanel = panel === "trackers" ? trackerPanelPreview(currentTripRow) : null;
 
   async function handleDeleteTrip(row: TripRowValue) {
     const confirmation = row.trip.delete?.confirmation;
@@ -546,6 +604,7 @@ export function DashboardPage() {
           tripInstanceId={panelTripInstanceId}
           mode={bookingPanelState.mode}
           bookingId={bookingPanelState.bookingId}
+          initialPanel={initialBookingPanel}
           dashboardFilters={dashboardFilters}
           onClose={closePanel}
           onReplaceDashboard={replaceCurrentDashboard}
@@ -553,7 +612,7 @@ export function DashboardPage() {
         />
       ) : null}
       {panel === "trackers" && panelTripInstanceId ? (
-        <TrackerPanel tripInstanceId={panelTripInstanceId} onClose={closePanel} />
+        <TrackerPanel tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} onClose={closePanel} />
       ) : null}
       {editingUnmatchedBookingId ? (
         <UnmatchedBookingEditorModal

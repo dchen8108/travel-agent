@@ -1,14 +1,16 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { api } from "./api";
+import { prefetchOnce } from "./prefetch";
+import { tripEditorQueryKey } from "./queryKeys";
 
 export function prefetchTripEditorFromHref(queryClient: QueryClient, href: string): Promise<void | unknown> {
   const url = new URL(href, window.location.origin);
   const params = new URLSearchParams(url.search);
 
   if (url.pathname === "/trips/new" || url.pathname === "/app/trips/new") {
-    return queryClient.prefetchQuery({
-      queryKey: ["trip-editor", "create", "", params.toString()],
+    return prefetchOnce(queryClient, {
+      queryKey: tripEditorQueryKey("create", "", params.toString()),
       queryFn: () => api.tripEditorNew(params),
     });
   }
@@ -18,8 +20,8 @@ export function prefetchTripEditorFromHref(queryClient: QueryClient, href: strin
     return Promise.resolve();
   }
   const tripId = match[1];
-  return queryClient.prefetchQuery({
-    queryKey: ["trip-editor", "edit", tripId, params.toString()],
+  return prefetchOnce(queryClient, {
+    queryKey: tripEditorQueryKey("edit", tripId, params.toString()),
     queryFn: () => api.tripEditorEdit(tripId, params),
   });
 }

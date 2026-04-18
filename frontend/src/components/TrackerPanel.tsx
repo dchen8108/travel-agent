@@ -1,26 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
+import type { TrackerPanelPayload } from "../types";
 import { Modal } from "./Modal";
 import { OfferBlock } from "./OfferBlock";
 import { TripIdentityRow } from "./TripIdentityRow";
 
 interface Props {
   tripInstanceId: string;
+  initialPanel: TrackerPanelPayload | null;
   onClose: () => void;
 }
 
-export function TrackerPanel({ tripInstanceId, onClose }: Props) {
+export function TrackerPanel({ tripInstanceId, initialPanel, onClose }: Props) {
   const panelQuery = useQuery({
     queryKey: ["tracker-panel", tripInstanceId],
     queryFn: () => api.trackerPanel(tripInstanceId),
+    placeholderData: initialPanel ?? undefined,
   });
 
   return (
     <Modal title="Trackers" onClose={onClose}>
       {panelQuery.isError ? (
         <div className="modal-loading">{panelQuery.error instanceof Error ? panelQuery.error.message : "Unable to load trackers."}</div>
-      ) : panelQuery.isLoading || !panelQuery.data ? (
+      ) : !panelQuery.data ? (
         <div className="modal-loading">Loading trackers…</div>
       ) : (
         <div className="modal-panel-stack">

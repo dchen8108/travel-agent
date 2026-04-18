@@ -11,7 +11,8 @@ from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
 from app.services.dashboard_page import dashboard_attention_views
 from app.services.dashboard_queries import scheduled_ledger_view, trip_groups
-from app.services.dashboard_trip_panels import tracker_search_rows, trip_instance_dashboard_context
+from app.services.dashboard_trip_panels import tracker_context, tracker_search_rows
+from app.services.itinerary_display import format_refresh_timestamp_label
 from app.services.scheduled_trip_display import (
     booking_offer_summary,
     trip_row_actions_view,
@@ -329,10 +330,13 @@ def booking_panel_payload(
     mode: str = "list",
     booking_id: str = "",
 ) -> dict[str, object]:
-    trip_instance_dashboard_context(snapshot, trip_instance_id)
+    trip = trip_identity_value(snapshot, trip_instance_id)
+    trip_instance = trip_instance_by_id(snapshot, trip_instance_id)
+    if trip_instance is None:
+        raise HTTPException(status_code=404, detail="Scheduled trip not found")
     bookings = bookings_for_instance(snapshot, trip_instance_id)
-    editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if booking_id else None
-    if booking_id and editing_booking is None:
+    editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if mode == "edit" and booking_id else None
+    if booking_id and mode == "edit" and editing_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     rows = [
         {
@@ -340,7 +344,7 @@ def booking_panel_payload(
             "offer": _offer_value(
                 booking_offer_summary(
                     booking,
-                    anchor_date=trip_instance_by_id(snapshot, trip_instance_id).anchor_date,
+                    anchor_date=trip_instance.anchor_date,
                 )
             ),
             "warning": booking_route_tracking_state(snapshot, booking).get("warning", ""),
@@ -348,7 +352,7 @@ def booking_panel_payload(
         for booking in bookings
     ]
     return {
-        "trip": trip_identity_value(snapshot, trip_instance_id),
+        "trip": trip,
         "mode": mode,
         "rows": rows,
         "form": (
@@ -371,13 +375,13 @@ def booking_form_payload(
     trip_instance_id: str,
     booking_id: str = "",
 ) -> dict[str, object]:
-    trip_instance_dashboard_context(snapshot, trip_instance_id)
+    trip = trip_identity_value(snapshot, trip_instance_id)
     bookings = bookings_for_instance(snapshot, trip_instance_id)
     editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if booking_id else None
     if booking_id and editing_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     return {
-        "trip": trip_identity_value(snapshot, trip_instance_id),
+        "trip": trip,
         "mode": "edit" if editing_booking is not None else "create",
         "form": {
             "values": booking_form_state_value(editing_booking, trip_instance_id=trip_instance_id)
@@ -415,20 +419,38 @@ def unmatched_booking_form_payload(
 
 
 def tracker_panel_payload(snapshot, *, trip_instance_id: str) -> dict[str, object]:
-    detail = trip_instance_dashboard_context(snapshot, trip_instance_id)
-    trip_instance = detail["trip_instance"]
+    trip = trip_identity_value(snapshot, trip_instance_id)
+    trip_instance, _parent_trip, trackers, tracker_targets = tracker_context(snapshot, trip_instance_id)
+    oldest_tracker_refresh_at = min(
+        (
+            target.last_fetch_finished_at
+            for targets in tracker_targets.values()
+            for target in targets
+            if target.last_fetch_finished_at is not None
+        ),
+        default=None,
+    )
     return {
-        "trip": trip_identity_value(snapshot, trip_instance_id),
+        "trip": trip,
         "rows": [
             {
                 "rowId": row.row_id,
                 "travelDate": row.travel_date.isoformat(),
                 "offer": _offer_value(row.row.get("current_offer")),
             }
-            for tracker in detail["tracker_rows"]
-            for row in [tracker]
+            for tracker in trackers
+            for row in tracker_search_rows(
+                snapshot,
+                trip_instance,
+                tracker,
+                fetch_targets=tracker_targets.get(tracker.tracker_id, []),
+            )
         ],
-        "lastRefreshLabel": detail["tracker_refresh_footer_label"],
+        "lastRefreshLabel": (
+            f"Last refresh · {format_refresh_timestamp_label(oldest_tracker_refresh_at)}"
+            if oldest_tracker_refresh_at is not None
+            else ""
+        ),
         "tripAnchorDate": trip_instance.anchor_date.isoformat(),
     }
 
