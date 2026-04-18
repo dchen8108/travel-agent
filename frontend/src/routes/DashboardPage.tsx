@@ -85,6 +85,18 @@ function optimisticRemoveUnmatchedBooking(dashboard: DashboardPayload, unmatched
   };
 }
 
+function optimisticRemoveCollection(dashboard: DashboardPayload, groupId: string): DashboardPayload {
+  return {
+    ...dashboard,
+    filters: {
+      ...dashboard.filters,
+      selectedTripGroupIds: dashboard.filters.selectedTripGroupIds.filter((value) => value !== groupId),
+      groupOptions: dashboard.filters.groupOptions.filter((option) => option.value !== groupId),
+    },
+    collections: dashboard.collections.filter((collection) => collection.groupId !== groupId),
+  };
+}
+
 function tripRowLookup(dashboard: DashboardPayload | undefined) {
   const lookup = new Map<string, TripRowValue>();
   if (!dashboard) {
@@ -259,6 +271,41 @@ export function DashboardPage() {
     },
   });
 
+  const deleteCollectionMutation = useMutation({
+    mutationFn: (groupId: string) => api.deleteCollection(groupId),
+    onMutate: async (groupId) => {
+      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      if (previous) {
+        queryClient.setQueryData(
+          dashboardQueryKey(dashboardQueryString),
+          optimisticRemoveCollection(previous, groupId),
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _groupId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+      }
+      pushToast({ message: errorMessage(error, "Unable to delete collection."), kind: "error" });
+    },
+    onSuccess: (_result, groupId) => {
+      if (selectedTripGroupIds.includes(groupId)) {
+        const next = new URLSearchParams(searchParams);
+        const remaining = next.getAll("trip_group_id").filter((value) => value !== groupId);
+        next.delete("trip_group_id");
+        remaining.forEach((value) => next.append("trip_group_id", value));
+        setSearchParams(next, { replace: true });
+      }
+      setCollectionEditor((current) => (
+        current?.mode === "edit" && current.groupId === groupId ? null : current
+      ));
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "inactive" });
+      pushToast({ message: "Collection deleted" });
+    },
+  });
+
   const toggleTripMutation = useMutation({
     mutationFn: ({ tripId, active }: { tripId: string; active: boolean }) => api.toggleRecurringTrip(tripId, active, dashboardFilters),
     onMutate: async ({ tripId, active }) => {
@@ -389,6 +436,24 @@ export function DashboardPage() {
   function startEditCollection(groupId: string) {
     setCollectionEditor({ mode: "edit", groupId });
     clearCollectionEditorParams();
+  }
+
+  async function handleDeleteCollection(groupId: string, label: string) {
+    const approved = await confirm({
+      title: `Delete ${label}?`,
+      description: "Trips will remain, but this collection will be removed from them.",
+      actionLabel: "Delete collection",
+      cancelLabel: "Keep collection",
+      tone: "danger",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      await deleteCollectionMutation.mutateAsync(groupId);
+    } catch {
+      // rollback + error toast handled in mutation lifecycle
+    }
   }
 
   function toggleBookedFilter() {
@@ -588,6 +653,7 @@ export function DashboardPage() {
                 collection={collection}
                 editing={collectionEditor?.mode === "edit" && collectionEditor.groupId === collection.groupId}
                 onEdit={() => startEditCollection(collection.groupId)}
+                onDelete={() => void handleDeleteCollection(collection.groupId, collection.label)}
                 onCancelEdit={stopCollectionEditing}
                 onSaveEdit={(label) => collectionMutation.mutateAsync({ label, groupId: collection.groupId })}
                 onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}

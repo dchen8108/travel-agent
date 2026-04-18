@@ -31,3 +31,10 @@ class GroupsRepositoryMixin:
                 upsert_rows(connection, "rule_group_targets", rows, conflict_columns=("rule_trip_id", "trip_group_id"))
             if own_connection:
                 connection.commit()
+
+    def delete_rule_group_targets_by_group_id(self, trip_group_id: str) -> None:
+        self._delete_from_table(
+            "rule_group_targets",
+            where_sql="trip_group_id = ?",
+            where_params=(trip_group_id,),
+        )

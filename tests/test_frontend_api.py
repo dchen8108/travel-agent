@@ -193,6 +193,70 @@ def test_trip_status_mutation_dashboard_payload_hides_test_scoped_rows(client, r
     assert payload == {"tripId": live_trip.trip_id, "active": False}
 
 
+def test_delete_collection_api_detaches_trips_without_deleting_them(client, repository: Repository) -> None:
+    group = save_trip_group(repository, trip_group_id=None, label="Commute")
+    recurring_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Recurring commute",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        trip_group_ids=[group.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    one_time_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="One-off commute",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        trip_group_ids=[group.trip_group_id],
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "18:00",
+                "end_time": "21:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_groups())
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_rule_group_targets())
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_instance_group_memberships())
+
+    response = client.delete(f"/api/collections/{group.trip_group_id}")
+
+    assert response.status_code == 204
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_groups())
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_rule_group_targets())
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_instance_group_memberships())
+    assert any(item.trip_id == recurring_trip.trip_id for item in repository.load_trips())
+    assert any(item.trip_id == one_time_trip.trip_id for item in repository.load_trips())
+
+
 def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository: Repository) -> None:
     trip_instance_id = _seed_dashboard_trip(repository)
 

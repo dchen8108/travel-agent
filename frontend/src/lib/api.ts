@@ -61,6 +61,11 @@ export const api = {
       body: JSON.stringify({ label }),
     });
   },
+  deleteCollection(groupId: string): Promise<void> {
+    return request<void>(`/api/collections/${groupId}`, {
+      method: "DELETE",
+    });
+  },
   toggleRecurringTrip(tripId: string, active: boolean, filters?: URLSearchParams): Promise<{ tripId: string; active: boolean }> {
     return request<{ tripId: string; active: boolean }>(withDashboardFilters(`/api/trips/${tripId}/status`, filters), {
       method: "PATCH",

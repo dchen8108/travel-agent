@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type { CollectionCard as CollectionCardValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
-import { EditIcon } from "./Icons";
+import { DeleteIcon, EditIcon } from "./Icons";
 import { CollectionNameEditor } from "./CollectionNameEditor";
 import { IconButton } from "./IconButton";
 import { PrefetchLink } from "./PrefetchLink";
@@ -12,6 +12,7 @@ import { PrefetchLink } from "./PrefetchLink";
 interface Props {
   collection: CollectionCardValue;
   onEdit: () => void;
+  onDelete?: () => void;
   onCancelEdit?: () => void;
   onSaveEdit?: (label: string) => Promise<unknown>;
   onToggleRecurringTrip: (tripId: string, active: boolean) => void;
@@ -22,6 +23,7 @@ interface Props {
 export function CollectionCard({
   collection,
   onEdit,
+  onDelete,
   onCancelEdit,
   onSaveEdit,
   onToggleRecurringTrip,
@@ -91,6 +93,11 @@ export function CollectionCard({
               <IconButton label="Edit collection" variant="inline" onClick={onEdit}>
                 <EditIcon />
               </IconButton>
+              {onDelete ? (
+                <IconButton label="Delete collection" tone="danger" variant="inline" onClick={onDelete}>
+                  <DeleteIcon />
+                </IconButton>
+              ) : null}
             </div>
           )}
         </div>

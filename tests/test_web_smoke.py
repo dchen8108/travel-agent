@@ -1794,7 +1794,7 @@ def test_editing_trip_surfaces_warning_when_linked_bookings_stop_matching_routes
     assert booking.route_option_id == ""
 
 
-def test_group_delete_requires_rules_to_be_removed_first(tmp_path: Path) -> None:
+def test_group_delete_removes_rule_targets_and_preserves_trips(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1805,7 +1805,7 @@ def test_group_delete_requires_rules_to_be_removed_first(tmp_path: Path) -> None
     repository = Repository(settings)
     group = save_trip_group(repository, trip_group_id=None, label="Delete Protected Group")
 
-    client.post(
+    create = client.post(
         "/trips",
         data={
             "label": "Protected Rule",
@@ -1817,6 +1817,11 @@ def test_group_delete_requires_rules_to_be_removed_first(tmp_path: Path) -> None
         },
         follow_redirects=False,
     )
+    assert create.status_code == 303
+    rule = _trip_by_label(repository, "Protected Rule")
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_rule_group_targets())
+    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_instance_group_memberships())
 
     delete = client.post(
         f"/groups/{group.trip_group_id}/delete",
@@ -1824,8 +1829,11 @@ def test_group_delete_requires_rules_to_be_removed_first(tmp_path: Path) -> None
         follow_redirects=False,
     )
     assert delete.status_code == 303
-    assert "Remove+or+retarget+recurring+rules+before+deleting+this+group." in delete.headers["location"]
-    assert any(item.trip_group_id == group.trip_group_id for item in repository.load_trip_groups())
+    assert delete.headers["location"] == "/?message=Collection+deleted#dashboard-groups"
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_groups())
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_rule_group_targets())
+    assert all(item.trip_group_id != group.trip_group_id for item in repository.load_trip_instance_group_memberships())
+    assert any(item.trip_id == rule.trip_id for item in repository.load_trips())
 
 
 def test_group_delete_removes_manual_memberships(tmp_path: Path) -> None:
