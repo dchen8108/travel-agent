@@ -12,6 +12,8 @@ export interface DateTile {
 export interface Offer {
   label: string;
   detail: string;
+  primaryMetaLabel: string;
+  metaBadges: string[];
   metaLabel: string;
   dayDeltaLabel: string;
   priceLabel: string;

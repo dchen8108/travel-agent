@@ -43,6 +43,8 @@ def _offer_value(offer: dict[str, object] | None) -> dict[str, object] | None:
     return {
         "label": str(offer.get("label", "")),
         "detail": str(offer.get("detail", "")),
+        "primaryMetaLabel": str(offer.get("primary_meta_label", "")),
+        "metaBadges": [str(item) for item in offer.get("meta_badges", [])],
         "metaLabel": str(offer.get("meta_label", "")),
         "dayDeltaLabel": str(offer.get("day_delta_label", "")),
         "priceLabel": str(offer.get("price_label", "")),

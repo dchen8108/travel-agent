@@ -31,6 +31,12 @@ from app.money import format_money
 from app.models.base import fare_class_label
 
 
+def _offer_meta_value(primary_meta_label: str = "", meta_badges: list[str] | None = None) -> tuple[str, list[str], str]:
+    badges = [item for item in (meta_badges or []) if item]
+    meta_label = " · ".join(part for part in [primary_meta_label, *badges] if part)
+    return primary_meta_label, badges, meta_label
+
+
 def trip_ui_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
     group = group_for_instance(snapshot, trip_instance_id)
     if group is not None:
@@ -66,19 +72,21 @@ def _row_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None
 def booking_offer_summary(booking_like: object, *, anchor_date: date | None = None) -> dict[str, object]:
     departure_time = format_departure_time_label(getattr(booking_like, "departure_time", ""))
     record_locator = getattr(booking_like, "record_locator", "") or ""
-    meta_parts = [departure_time]
+    meta_badges: list[str] = []
     fare_class = getattr(booking_like, "fare_class", "")
     if fare_class:
-        meta_parts.append(fare_class_label(fare_class))
+        meta_badges.append(fare_class_label(fare_class))
     flight_number = getattr(booking_like, "flight_number", "") or ""
     if flight_number:
-        meta_parts.append(flight_number)
+        meta_badges.append(flight_number)
     if record_locator:
-        meta_parts.append(record_locator)
-    booking_meta = " · ".join(part for part in meta_parts if part)
+        meta_badges.append(record_locator)
+    primary_meta_label, badges, booking_meta = _offer_meta_value(departure_time, meta_badges)
     return {
         "label": "Booked",
         "detail": booking_route_label(booking_like),
+        "primary_meta_label": primary_meta_label,
+        "meta_badges": badges,
         "meta_label": booking_meta,
         "day_delta_label": (
             travel_day_delta_label(
@@ -100,17 +108,21 @@ def live_fare_offer_summary(
     anchor_date: date | None,
     travel_date: date | None,
     detail: str,
-    meta_label: str,
+    primary_meta_label: str,
+    meta_badges: list[str] | None,
     price_label: str,
     href: str,
     tone: str,
     price_is_status: bool,
     status_kind: str = "",
 ) -> dict[str, object]:
+    badges = [item for item in (meta_badges or []) if item]
     offer = {
         "label": "Live fare",
         "detail": detail,
-        "meta_label": meta_label,
+        "primary_meta_label": primary_meta_label,
+        "meta_badges": badges,
+        "meta_label": primary_meta_label,
         "day_delta_label": travel_day_delta_label(anchor_date, travel_date) if anchor_date is not None else "",
         "price_label": price_label,
         "href": href,
@@ -155,20 +167,18 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
 
     current_offer_detail = tracker_display_label(display_tracker, current_target=current_target if current_price is not None else None)
     if current_offer_detail or current_offer_price:
-        current_offer_meta_label = (
+        current_offer_primary_meta = (
             format_departure_time_label(current_target.latest_departure_label)
             if current_target is not None and current_price is not None
             else ""
         )
-        if display_tracker is not None and display_tracker.fare_class:
-            current_offer_meta_label = " · ".join(
-                part for part in [current_offer_meta_label, fare_class_label(display_tracker.fare_class)] if part
-            )
+        current_offer_badges = [fare_class_label(display_tracker.fare_class)] if display_tracker is not None and display_tracker.fare_class else []
         current_offer = live_fare_offer_summary(
             anchor_date=instance.anchor_date if instance is not None else date.today(),
             travel_date=display_tracker.travel_date if display_tracker is not None else None,
             detail=current_offer_detail,
-            meta_label=current_offer_meta_label,
+            primary_meta_label=current_offer_primary_meta,
+            meta_badges=current_offer_badges,
             price_label=current_offer_price,
             href=current_offer_href,
             tone=current_offer_tone,

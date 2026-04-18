@@ -40,12 +40,23 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
   const offerContent = (
     <>
       <div className="offer-block__copy">
-        <span className="offer-block__label">{offer.label}</span>
-        <strong className="offer-block__detail">{offer.detail}</strong>
-        <div className="offer-block__meta-row">
-          <span className="offer-block__meta">{offer.metaLabel}</span>
+        <div className="offer-block__label-row">
+          <span className="offer-block__label">{offer.label}</span>
           {offer.dayDeltaLabel ? <span className="offer-block__delta">{offer.dayDeltaLabel}</span> : null}
         </div>
+        <strong className="offer-block__detail">{offer.detail}</strong>
+        {offer.primaryMetaLabel ? (
+          <div className="offer-block__primary-meta-row">
+            <span className="offer-block__primary-meta">{offer.primaryMetaLabel}</span>
+          </div>
+        ) : null}
+        {offer.metaBadges.length ? (
+          <div className="offer-block__badge-row">
+            {offer.metaBadges.map((badge) => (
+              <span key={badge} className="offer-block__badge">{badge}</span>
+            ))}
+          </div>
+        ) : null}
       </div>
       <div className="offer-block__price-column">
         {offer.priceIsStatus && offer.statusKind === "pending" ? (

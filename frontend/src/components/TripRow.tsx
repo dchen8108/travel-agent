@@ -39,6 +39,8 @@ export function TripRow({
           offer={{
             label: "",
             detail: "",
+            primaryMetaLabel: "",
+            metaBadges: [],
             metaLabel: "",
             dayDeltaLabel: "",
             priceLabel: "",
