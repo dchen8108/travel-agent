@@ -87,7 +87,7 @@ export function CollectionNameEditor({
           void handleSave();
         }}
       >
-        <div className="collection-card__header">
+        <div className="collection-card__header collection-card__header--editor">
           <div className="collection-card__titleline collection-card__titleline--editing">
             <span className="collection-card__eyebrow">{mode === "create" ? "New collection" : "Edit collection"}</span>
             <input

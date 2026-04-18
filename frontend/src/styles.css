@@ -473,6 +473,10 @@ textarea {
   gap: 1rem;
 }
 
+.collection-card__header--editor {
+  align-items: flex-end;
+}
+
 .collection-card__titleblock {
   display: grid;
   gap: 0.45rem;
@@ -1488,7 +1492,8 @@ textarea {
     align-items: stretch;
   }
 
-  .collection-card__header {
+  .collection-card__header,
+  .collection-card__header--editor {
     flex-direction: column;
     align-items: stretch;
   }
