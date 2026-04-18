@@ -55,7 +55,6 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
       <div className="offer-block__copy">
         <div className="offer-block__label-row">
           <span className="offer-block__label">{offer.label}</span>
-          {offer.dayDeltaLabel ? <span className="offer-block__delta">{offer.dayDeltaLabel}</span> : null}
         </div>
         <strong className="offer-block__detail">{offer.detail}</strong>
         {offer.primaryMetaLabel ? (

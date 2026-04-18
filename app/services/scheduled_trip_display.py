@@ -9,7 +9,7 @@ from app.services.itinerary_display import (
     format_time_range_label,
     tracker_best_fetch_target,
     tracker_display_label,
-    travel_day_delta_label,
+    travel_day_delta,
 )
 from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
@@ -73,7 +73,16 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     departure_time = getattr(booking_like, "departure_time", "")
     arrival_time = getattr(booking_like, "arrival_time", "")
     record_locator = getattr(booking_like, "record_locator", "") or ""
-    primary_meta_label = format_time_range_label(departure_time, arrival_time)
+    booking_day_delta = (
+        travel_day_delta(anchor_date, getattr(booking_like, "departure_date", None))
+        if anchor_date is not None
+        else 0
+    )
+    primary_meta_label = format_time_range_label(
+        departure_time,
+        arrival_time,
+        fallback_day_delta=booking_day_delta,
+    )
     _, badges, booking_meta = _offer_meta_value(primary_meta_label, [])
     if record_locator:
         booking_meta = " · ".join(part for part in [booking_meta, record_locator] if part)
@@ -83,14 +92,6 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
         "meta_label": booking_meta,
-        "day_delta_label": (
-            travel_day_delta_label(
-                anchor_date,
-                getattr(booking_like, "departure_date", None),
-            )
-            if anchor_date is not None
-            else ""
-        ),
         "price_label": format_money(getattr(booking_like, "booked_price", 0)),
         "href": "",
         "tone": "neutral",
@@ -118,7 +119,6 @@ def live_fare_offer_summary(
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
         "meta_label": primary_meta_label,
-        "day_delta_label": travel_day_delta_label(anchor_date, travel_date) if anchor_date is not None else "",
         "price_label": price_label,
         "href": href,
         "tone": tone,
@@ -166,6 +166,11 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             format_time_range_label(
                 current_target.latest_departure_label,
                 current_target.latest_arrival_label,
+                fallback_day_delta=(
+                    travel_day_delta(instance.anchor_date, display_tracker.travel_date)
+                    if instance is not None and display_tracker is not None
+                    else 0
+                ),
             )
             if current_target is not None and current_price is not None
             else ""

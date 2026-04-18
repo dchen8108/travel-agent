@@ -912,15 +912,6 @@ textarea {
   flex-wrap: wrap;
 }
 
-.offer-block__delta {
-  padding: 0.16rem 0.48rem;
-  border-radius: 999px;
-  border: 1px solid var(--surface-border);
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--copy-muted);
-}
-
 .offer-block__badge {
   display: inline-flex;
   align-items: center;

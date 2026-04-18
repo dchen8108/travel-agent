@@ -9,6 +9,21 @@ from app.models.base import utcnow
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 
+_SUPERSCRIPT_TRANSLATION = str.maketrans({
+    "+": "⁺",
+    "-": "⁻",
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹",
+})
+
 
 def booking_route_label(booking: Booking) -> str:
     route = f"{booking.origin_airport} \u2192 {booking.destination_airport}"
@@ -30,8 +45,26 @@ def booking_airline_label(booking: Booking) -> str:
     return f"{compact_prefix} {flight_number}".strip()
 
 
-def format_departure_time_label(value: str) -> str:
+def _split_time_day_suffix(value: str) -> tuple[str, int | None]:
     raw = value.strip()
+    if not raw:
+        return "", None
+    match = re.match(r"^(.*?)(?:\s*([+-]\d+))?$", raw)
+    if not match:
+        return raw, None
+    base = (match.group(1) or "").strip()
+    suffix = match.group(2)
+    return base, (int(suffix) if suffix else None)
+
+
+def format_day_delta_superscript(delta: int) -> str:
+    if delta == 0:
+        return ""
+    return f"{delta:+d}".translate(_SUPERSCRIPT_TRANSLATION)
+
+
+def format_departure_time_label(value: str, *, fallback_day_delta: int = 0) -> str:
+    raw, explicit_day_delta = _split_time_day_suffix(value)
     if not raw:
         return ""
     meridiem_match = re.match(r"^\s*(\d{1,2}:\d{2})\s*([APap][Mm])", raw)
@@ -45,8 +78,11 @@ def format_departure_time_label(value: str) -> str:
     try:
         parsed = datetime.strptime(raw, "%H:%M")
     except ValueError:
-        return raw
-    return parsed.strftime("%I:%M %p").lstrip("0")
+        label = raw
+    else:
+        label = parsed.strftime("%I:%M %p").lstrip("0")
+    day_delta = explicit_day_delta if explicit_day_delta is not None else fallback_day_delta
+    return f"{label}{format_day_delta_superscript(day_delta)}" if day_delta else label
 
 
 def format_departure_window_label(start_time: str, end_time: str) -> str:
@@ -61,9 +97,9 @@ def format_departure_window_label(start_time: str, end_time: str) -> str:
     return "Time window"
 
 
-def format_time_range_label(departure_value: str, arrival_value: str) -> str:
-    departure_label = format_departure_time_label(departure_value)
-    arrival_label = format_departure_time_label(arrival_value)
+def format_time_range_label(departure_value: str, arrival_value: str, *, fallback_day_delta: int = 0) -> str:
+    departure_label = format_departure_time_label(departure_value, fallback_day_delta=fallback_day_delta)
+    arrival_label = format_departure_time_label(arrival_value, fallback_day_delta=fallback_day_delta)
     if departure_label and arrival_label:
         return f"{departure_label} \u2192 {arrival_label}"
     return departure_label or arrival_label
@@ -80,14 +116,10 @@ def format_refresh_timestamp_label(value: datetime, *, now: datetime | None = No
     return f"{local_value.strftime('%b')} {local_value.day}, {local_value.year} · {time_label}"
 
 
-def travel_day_delta_label(anchor_date: date, travel_date: date | None) -> str:
+def travel_day_delta(anchor_date: date, travel_date: date | None) -> int:
     if travel_date is None:
-        return ""
-    delta = (travel_date - anchor_date).days
-    if delta == 0:
-        return ""
-    unit = "day" if abs(delta) == 1 else "days"
-    return f"{delta:+d} {unit}"
+        return 0
+    return (travel_date - anchor_date).days
 
 
 def tracker_route_label(tracker: Tracker) -> str:

@@ -15,7 +15,6 @@ export interface Offer {
   primaryMetaLabel: string;
   metaBadges: string[];
   metaLabel: string;
-  dayDeltaLabel: string;
   priceLabel: string;
   href: string;
   tone: OfferTone;

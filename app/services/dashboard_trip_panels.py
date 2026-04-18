@@ -13,6 +13,7 @@ from app.services.itinerary_display import (
     format_time_range_label,
     route_option_display_label,
     tracker_best_fetch_target,
+    travel_day_delta,
 )
 from app.services.scheduled_trip_display import live_fare_offer_summary
 from app.services.scheduled_trip_state import (
@@ -67,6 +68,7 @@ def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_bes
                     format_time_range_label(
                         target.latest_departure_label,
                         target.latest_arrival_label,
+                        fallback_day_delta=travel_day_delta(trip_instance.anchor_date, tracker.travel_date),
                     )
                     if target.latest_departure_label
                     else format_departure_window_label(tracker.start_time, tracker.end_time)

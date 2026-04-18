@@ -42,7 +42,6 @@ export function TripRow({
             primaryMetaLabel: "",
             metaBadges: [],
             metaLabel: "",
-            dayDeltaLabel: "",
             priceLabel: "",
             href: "",
             tone: "neutral",
