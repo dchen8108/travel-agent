@@ -19,7 +19,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
     return (
       <div className="offer-block offer-block--empty">
         <div className="offer-block__body">
-          <span className="offer-block__placeholder">No bookings attached</span>
+          <span className="offer-block__placeholder">Not booked</span>
           {onCreate ? (
             <IconButton
               label="Create booking"
