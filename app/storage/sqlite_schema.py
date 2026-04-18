@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 24
+SCHEMA_VERSION = 25
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     departure_time TEXT NOT NULL,
     arrival_time TEXT NOT NULL DEFAULT '',
     fare_class TEXT NOT NULL DEFAULT 'basic_economy',
+    flight_number TEXT NOT NULL DEFAULT '',
     booked_price REAL NOT NULL,
     record_locator TEXT NOT NULL DEFAULT '',
     booked_at TEXT NOT NULL,

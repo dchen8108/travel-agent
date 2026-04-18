@@ -416,6 +416,7 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
                 departure_date=departure_date,
                 departure_time=leg.departure_time,
                 arrival_time=leg.arrival_time,
+                flight_number=leg.flight_number,
                 fare_class=_fare_class_from_extracted_leg(leg.fare_class),
                 booked_price=price,
                 record_locator=extraction.record_locator,

@@ -123,6 +123,10 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
           <input type="time" value={values.arrivalTime} onChange={(event) => update("arrivalTime", event.target.value)} disabled={submitting} />
         </label>
         <label>
+          <span>Flight number</span>
+          <input type="text" value={values.flightNumber} onChange={(event) => update("flightNumber", event.target.value)} disabled={submitting} placeholder="AS 1105" />
+        </label>
+        <label>
           <span>Booked price</span>
           <input type="text" value={values.bookedPrice} onChange={(event) => update("bookedPrice", event.target.value)} disabled={submitting} placeholder="$198" />
         </label>

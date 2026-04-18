@@ -497,6 +497,122 @@ def test_repository_does_not_repair_gmail_booking_price_again_after_manual_edit(
     assert reloaded.booked_price == Decimal("95.40")
 
 
+def test_repository_backfills_booking_flight_number_from_email_event_when_airline_is_normalized(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(settings.data_dir / "travel_agent.sqlite3")
+    try:
+        connection.execute("PRAGMA user_version = 24")
+        connection.execute(
+            """
+            CREATE TABLE bookings (
+                booking_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL DEFAULT 'manual',
+                trip_instance_id TEXT NOT NULL DEFAULT '',
+                route_option_id TEXT NOT NULL DEFAULT '',
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                airline TEXT NOT NULL,
+                origin_airport TEXT NOT NULL,
+                destination_airport TEXT NOT NULL,
+                departure_date TEXT NOT NULL,
+                departure_time TEXT NOT NULL,
+                arrival_time TEXT NOT NULL DEFAULT '',
+                fare_class TEXT NOT NULL DEFAULT 'basic_economy',
+                booked_price REAL NOT NULL,
+                record_locator TEXT NOT NULL DEFAULT '',
+                booked_at TEXT NOT NULL,
+                booking_status TEXT NOT NULL DEFAULT 'active',
+                match_status TEXT NOT NULL DEFAULT 'matched',
+                raw_summary TEXT NOT NULL DEFAULT '',
+                candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
+                auto_link_enabled INTEGER NOT NULL DEFAULT 1,
+                resolution_status TEXT NOT NULL DEFAULT 'resolved',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE booking_email_events (
+                email_event_id TEXT PRIMARY KEY,
+                gmail_message_id TEXT NOT NULL UNIQUE,
+                gmail_thread_id TEXT NOT NULL DEFAULT '',
+                gmail_history_id TEXT NOT NULL DEFAULT '',
+                from_address TEXT NOT NULL DEFAULT '',
+                subject TEXT NOT NULL DEFAULT '',
+                received_at TEXT NOT NULL,
+                processing_status TEXT NOT NULL,
+                email_kind TEXT NOT NULL DEFAULT 'unknown',
+                extraction_confidence REAL NOT NULL DEFAULT 0,
+                extracted_payload_json TEXT NOT NULL DEFAULT '',
+                result_booking_ids TEXT NOT NULL DEFAULT '',
+                result_unmatched_booking_ids TEXT NOT NULL DEFAULT '',
+                notes TEXT NOT NULL DEFAULT '',
+                extraction_attempt_count INTEGER NOT NULL DEFAULT 0,
+                retryable INTEGER NOT NULL DEFAULT 1,
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO bookings (
+                booking_id, source, trip_instance_id, route_option_id, data_scope, airline, origin_airport, destination_airport,
+                departure_date, departure_time, arrival_time, fare_class, booked_price, record_locator, booked_at, booking_status,
+                match_status, raw_summary, candidate_trip_instance_ids, auto_link_enabled, resolution_status, notes, created_at, updated_at
+            ) VALUES (
+                'book_as', 'gmail', 'inst_1', '', 'live', 'Alaska', 'LAX', 'SFO',
+                '2026-05-11', '06:13', '07:44', 'economy', 108.4, 'GZHMZS', '2026-04-01T12:00:00+00:00', 'active',
+                'matched', '', '', 1, 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO booking_email_events (
+                email_event_id, gmail_message_id, gmail_thread_id, gmail_history_id, from_address, subject, received_at,
+                processing_status, email_kind, extraction_confidence, extracted_payload_json, result_booking_ids,
+                result_unmatched_booking_ids, notes, extraction_attempt_count, retryable, data_scope, created_at, updated_at
+            ) VALUES (
+                'mail_as', 'gmail_as', 'thread_as', '123', 'test@example.com', 'Booking', '2026-04-01T12:00:00+00:00',
+                'resolved_auto', 'booking_confirmation', 0.95,
+                '{"email_kind":"booking_confirmation","confidence":0.95,"record_locator":"GZHMZS","currency":"USD","total_price":10840,"passenger_names":["Test"],"summary":"Paid $108.40.","notes":"","legs":[{"airline":"AS","origin_airport":"LAX","destination_airport":"SFO","departure_date":"2026-05-11","departure_time":"06:13","arrival_time":"07:44","flight_number":"2285","leg_status":"booked","fare_class":"economy","evidence":"AS 2285"}]}',
+                'book_as', '', '', 1, 1, 'live', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    saved_booking = next(item for item in repository.load_bookings() if item.booking_id == "book_as")
+    assert saved_booking.flight_number == "2285"
+
+    connection = sqlite3.connect(repository.db_path)
+    try:
+        flight_number = connection.execute(
+            "SELECT flight_number FROM bookings WHERE booking_id = 'book_as'"
+        ).fetchone()[0]
+        booking_columns = {row[1] for row in connection.execute("PRAGMA table_info(bookings)").fetchall()}
+    finally:
+        connection.close()
+
+    assert flight_number == "2285"
+    assert "flight_number" in booking_columns
+
+
 def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",

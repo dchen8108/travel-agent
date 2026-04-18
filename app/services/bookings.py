@@ -31,6 +31,7 @@ class BookingCandidate:
     arrival_time: str
     booked_price: Decimal
     record_locator: str
+    flight_number: str = ""
     notes: str = ""
     fare_class: FareClass = FareClass.BASIC_ECONOMY
 
@@ -57,6 +58,7 @@ def _build_booking(
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
         fare_class=candidate.fare_class,
+        flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         notes=candidate.notes if notes is None else notes,
@@ -82,6 +84,7 @@ def _booking_to_unmatched(booking: Booking) -> Booking:
         departure_time=booking.departure_time,
         arrival_time=booking.arrival_time,
         fare_class=booking.fare_class,
+        flight_number=booking.flight_number,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
         raw_summary="",
@@ -180,6 +183,7 @@ def _candidate_from_unmatched(unmatched: Booking) -> BookingCandidate:
         departure_time=unmatched.departure_time,
         arrival_time=unmatched.arrival_time,
         fare_class=unmatched.fare_class,
+        flight_number=unmatched.flight_number,
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
     )
@@ -194,6 +198,7 @@ def _candidate_from_booking(booking: Booking) -> BookingCandidate:
         departure_time=booking.departure_time,
         arrival_time=booking.arrival_time,
         fare_class=booking.fare_class,
+        flight_number=booking.flight_number,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
         notes=booking.notes,

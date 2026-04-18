@@ -146,6 +146,7 @@ export interface BookingFormPayload {
       departureTime: string;
       arrivalTime: string;
       fareClass: FareClass;
+      flightNumber: string;
       bookedPrice: string;
       recordLocator: string;
       notes: string;
@@ -174,6 +175,7 @@ export interface UnmatchedBookingFormPayload {
       departureTime: string;
       arrivalTime: string;
       fareClass: FareClass;
+      flightNumber: string;
       bookedPrice: string;
       recordLocator: string;
       notes: string;

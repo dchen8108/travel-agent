@@ -70,6 +70,9 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     fare_class = getattr(booking_like, "fare_class", "")
     if fare_class:
         meta_parts.append(fare_class_label(fare_class))
+    flight_number = getattr(booking_like, "flight_number", "") or ""
+    if flight_number:
+        meta_parts.append(flight_number)
     if record_locator:
         meta_parts.append(record_locator)
     booking_meta = " · ".join(part for part in meta_parts if part)

@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
+from app.catalog import normalize_airline_code
 from app.money import normalize_extracted_total_price
 from app.storage.sqlite_schema import CREATE_BOOKINGS_TABLE, CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
 
@@ -64,6 +65,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_trip_groups_to_v23(connection)
     if current_version < 24:
         _migrate_bookings_fare_class_to_v24(connection)
+    if current_version < 25:
+        _migrate_bookings_flight_number_to_v25(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -77,6 +80,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     # can report the latest schema version while still missing the bookings
     # fare_class column after an interrupted or partially applied migration.
     _migrate_bookings_fare_class_to_v24(connection)
+    # Apply the same shape-repair policy for booking flight numbers.
+    _migrate_bookings_flight_number_to_v25(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -470,6 +475,90 @@ def _migrate_bookings_fare_class_to_v24(connection: sqlite3.Connection) -> None:
             END
             WHERE COALESCE(route_option_id, '') != ''
             """
+        )
+
+
+def _migrate_bookings_flight_number_to_v25(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "flight_number" not in columns:
+        connection.execute(
+            "ALTER TABLE bookings ADD COLUMN flight_number TEXT NOT NULL DEFAULT ''"
+        )
+    if not _table_exists(connection, "booking_email_events"):
+        return
+    rows = connection.execute(
+        """
+        SELECT booking_id, airline, origin_airport, destination_airport, departure_date, departure_time, record_locator
+        FROM bookings
+        WHERE COALESCE(flight_number, '') = ''
+          AND COALESCE(record_locator, '') != ''
+        """
+    ).fetchall()
+    if not rows:
+        return
+
+    event_rows = connection.execute(
+        """
+        SELECT extracted_payload_json
+        FROM booking_email_events
+        WHERE COALESCE(extracted_payload_json, '') != ''
+        """
+    ).fetchall()
+    if not event_rows:
+        return
+
+    flight_number_by_key: dict[tuple[str, str, str, str, str, str], set[str]] = {}
+    for event_row in event_rows:
+        try:
+            payload = json.loads(event_row["extracted_payload_json"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        record_locator = str(payload.get("record_locator", "")).strip().upper()
+        if not record_locator:
+            continue
+        for leg in payload.get("legs", []):
+            flight_number = " ".join(str(leg.get("flight_number", "")).strip().upper().split())
+            if not flight_number:
+                continue
+            try:
+                airline = normalize_airline_code(str(leg.get("airline", "")).strip())
+            except ValueError:
+                continue
+            key = (
+                record_locator,
+                airline,
+                str(leg.get("origin_airport", "")).strip().upper(),
+                str(leg.get("destination_airport", "")).strip().upper(),
+                str(leg.get("departure_date", "")).strip(),
+                str(leg.get("departure_time", "")).strip(),
+            )
+            if not all(key):
+                continue
+            flight_number_by_key.setdefault(key, set()).add(flight_number)
+
+    updates: list[tuple[str, str]] = []
+    for row in rows:
+        try:
+            airline = normalize_airline_code(str(row["airline"]).strip())
+        except ValueError:
+            continue
+        key = (
+            str(row["record_locator"]).strip().upper(),
+            airline,
+            str(row["origin_airport"]).strip().upper(),
+            str(row["destination_airport"]).strip().upper(),
+            str(row["departure_date"]).strip(),
+            str(row["departure_time"]).strip(),
+        )
+        matches = flight_number_by_key.get(key, set())
+        if len(matches) == 1:
+            updates.append((next(iter(matches)), row["booking_id"]))
+    if updates:
+        connection.executemany(
+            "UPDATE bookings SET flight_number = ? WHERE booking_id = ?",
+            updates,
         )
 
 

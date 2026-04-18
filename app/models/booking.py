@@ -33,6 +33,7 @@ class Booking(CsvModel):
     departure_time: str
     arrival_time: str = ""
     fare_class: FareClass = FareClass.BASIC_ECONOMY
+    flight_number: str = ""
     booked_price: Decimal
     record_locator: str = ""
     booked_at: datetime = Field(default_factory=utcnow)
@@ -70,6 +71,11 @@ class Booking(CsvModel):
     @classmethod
     def validate_fare_class(cls, value: object) -> FareClass:
         return parse_fare_class(value)
+
+    @field_validator("flight_number")
+    @classmethod
+    def normalize_flight_number(cls, value: str) -> str:
+        return " ".join(value.strip().upper().split())
 
     @field_validator("record_locator")
     @classmethod
