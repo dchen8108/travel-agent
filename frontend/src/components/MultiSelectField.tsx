@@ -40,7 +40,7 @@ export function MultiSelectField({
       return options;
     }
     return options.filter((option) => {
-      const haystack = `${option.value} ${option.label} ${option.keywords ?? ""}`.toLowerCase();
+      const haystack = `${option.label} ${option.keywords ?? ""}`.toLowerCase();
       return haystack.includes(needle);
     });
   }, [options, query]);
@@ -142,7 +142,7 @@ export function MultiSelectField({
           <span className="picker-react__chips">
             {selected.map((option) => (
               <span key={option.value} className="picker-react__chip">
-                {option.value}
+                {option.label}
               </span>
             ))}
           </span>
@@ -184,8 +184,7 @@ export function MultiSelectField({
                   >
                     <span className="picker-react__option-check">{checked ? "✓" : ""}</span>
                     <span className="picker-react__option-copy">
-                      <strong>{option.value}</strong>
-                      <small>{option.label}</small>
+                      <strong>{option.label}</strong>
                     </span>
                   </button>
                 );
