@@ -416,6 +416,7 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
                 departure_date=departure_date,
                 departure_time=leg.departure_time,
                 arrival_time=leg.arrival_time,
+                arrival_day_offset=_arrival_day_offset_for_leg(leg.departure_time, leg.arrival_time),
                 flight_number=leg.flight_number,
                 fare_class=_fare_class_from_extracted_leg(leg.fare_class),
                 booked_price=price,
@@ -428,6 +429,12 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
 
 def _normalize_airline_code(value: str) -> str:
     return normalize_airline_code(value)
+
+
+def _arrival_day_offset_for_leg(departure_time: str, arrival_time: str) -> int:
+    if not departure_time or not arrival_time:
+        return 0
+    return 1 if arrival_time < departure_time else 0
 
 
 def _booking_candidate_exists(repository: Repository, candidate: BookingCandidate) -> bool:

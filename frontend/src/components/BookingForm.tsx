@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 
 import { SearchSelectField } from "./SearchSelectField";
 
+const ARRIVAL_DAY_OPTIONS = [
+  { value: "0", label: "Same day" },
+  { value: "1", label: "Next day" },
+  { value: "2", label: "2 days later" },
+];
+
 interface Props {
   initialValues: Record<string, string>;
   catalogs: {
@@ -122,6 +128,21 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
           <span>Arrival time</span>
           <input type="time" value={values.arrivalTime} onChange={(event) => update("arrivalTime", event.target.value)} disabled={submitting} />
         </label>
+        <div className="field-block">
+          <span>Arrival day</span>
+          <SearchSelectField
+            options={ARRIVAL_DAY_OPTIONS.map((item) => ({
+              value: item.value,
+              label: item.label,
+              keywords: item.label,
+              summary: item.label,
+            }))}
+            value={values.arrivalDayOffset || "0"}
+            onChange={(value) => update("arrivalDayOffset", value)}
+            placeholder="Choose arrival day"
+            disabled={submitting}
+          />
+        </div>
         <label>
           <span>Flight number</span>
           <input type="text" value={values.flightNumber} onChange={(event) => update("flightNumber", event.target.value)} disabled={submitting} placeholder="AS 1105" />

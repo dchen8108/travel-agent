@@ -386,6 +386,7 @@ def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Pa
     assert booked_price == 78.4
     assert booking_columns["booked_price"] == "REAL"
     assert booking_columns["route_option_id"] == "TEXT"
+    assert booking_columns["arrival_day_offset"] == "INTEGER"
     assert user_version == SCHEMA_VERSION
     assert "extraction_attempt_count" in booking_email_event_columns
     assert "retryable" in booking_email_event_columns
@@ -611,6 +612,85 @@ def test_repository_backfills_booking_flight_number_from_email_event_when_airlin
 
     assert flight_number == "2285"
     assert "flight_number" in booking_columns
+
+
+def test_repository_backfills_obvious_overnight_booking_arrival_day_offset(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(settings.data_dir / "travel_agent.sqlite3")
+    try:
+        connection.execute("PRAGMA user_version = 25")
+        connection.execute(
+            """
+            CREATE TABLE bookings (
+                booking_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL DEFAULT 'manual',
+                trip_instance_id TEXT NOT NULL DEFAULT '',
+                route_option_id TEXT NOT NULL DEFAULT '',
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                airline TEXT NOT NULL,
+                origin_airport TEXT NOT NULL,
+                destination_airport TEXT NOT NULL,
+                departure_date TEXT NOT NULL,
+                departure_time TEXT NOT NULL,
+                arrival_time TEXT NOT NULL DEFAULT '',
+                fare_class TEXT NOT NULL DEFAULT 'basic_economy',
+                flight_number TEXT NOT NULL DEFAULT '',
+                booked_price REAL NOT NULL,
+                record_locator TEXT NOT NULL DEFAULT '',
+                booked_at TEXT NOT NULL,
+                booking_status TEXT NOT NULL DEFAULT 'active',
+                match_status TEXT NOT NULL DEFAULT 'matched',
+                raw_summary TEXT NOT NULL DEFAULT '',
+                candidate_trip_instance_ids TEXT NOT NULL DEFAULT '',
+                auto_link_enabled INTEGER NOT NULL DEFAULT 1,
+                resolution_status TEXT NOT NULL DEFAULT 'resolved',
+                notes TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO bookings (
+                booking_id, source, trip_instance_id, route_option_id, data_scope, airline, origin_airport, destination_airport,
+                departure_date, departure_time, arrival_time, fare_class, flight_number, booked_price, record_locator, booked_at,
+                booking_status, match_status, raw_summary, candidate_trip_instance_ids, auto_link_enabled, resolution_status, notes,
+                created_at, updated_at
+            ) VALUES (
+                'book_overnight', 'manual', 'inst_1', '', 'live', 'Southwest', 'LAX', 'SFO',
+                '2026-05-11', '23:30', '01:10', 'basic_economy', 'WN 2285', 108.4, 'OVERN1', '2026-04-01T12:00:00+00:00',
+                'active', 'matched', '', '', 1, 'resolved', '', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    saved_booking = next(item for item in repository.load_bookings() if item.booking_id == "book_overnight")
+    assert saved_booking.arrival_day_offset == 1
+
+    connection = sqlite3.connect(repository.db_path)
+    try:
+        arrival_day_offset = connection.execute(
+            "SELECT arrival_day_offset FROM bookings WHERE booking_id = 'book_overnight'"
+        ).fetchone()[0]
+        booking_columns = {row[1] for row in connection.execute("PRAGMA table_info(bookings)").fetchall()}
+    finally:
+        connection.close()
+
+    assert arrival_day_offset == 1
+    assert "arrival_day_offset" in booking_columns
 
 
 def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> None:

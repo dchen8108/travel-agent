@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.money import parse_money
 from app.models.base import DataScope, FareClass, parse_fare_class
@@ -57,6 +57,7 @@ class BookingBody(BaseModel):
     departureDate: str
     departureTime: str
     arrivalTime: str
+    arrivalDayOffset: int = Field(default=0, ge=0, le=7)
     fareClass: str = FareClass.BASIC_ECONOMY
     flightNumber: str = ""
     bookedPrice: str
@@ -107,6 +108,7 @@ def _booking_candidate(body: BookingBody) -> BookingCandidate:
         departure_date=departure_date,
         departure_time=body.departureTime.strip(),
         arrival_time=body.arrivalTime.strip(),
+        arrival_day_offset=body.arrivalDayOffset,
         fare_class=fare_class,
         flight_number=body.flightNumber.strip(),
         booked_price=booked_price,

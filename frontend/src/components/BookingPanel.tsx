@@ -34,6 +34,7 @@ function blankBookingForm(tripInstanceId: string): Record<string, string> {
     departureDate: "",
     departureTime: "",
     arrivalTime: "",
+    arrivalDayOffset: "0",
     fareClass: "basic_economy",
     flightNumber: "",
     bookedPrice: "",

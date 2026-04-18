@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from app.services.bookings import (
     BookingCandidate,
     unlink_booking,
@@ -38,6 +40,26 @@ def seed_trip(repository: Repository) -> str:
     )
     snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
     return next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+
+
+def test_record_booking_requires_arrival_day_offset_for_overnight_arrivals(repository: Repository) -> None:
+    trip_instance_id = seed_trip(repository)
+
+    with pytest.raises(ValueError, match="Arrival must be after departure"):
+        record_booking(
+            repository,
+            BookingCandidate(
+                airline="Alaska",
+                origin_airport="BUR",
+                destination_airport="SFO",
+                departure_date=date(2026, 4, 6),
+                departure_time="23:30",
+                arrival_time="01:10",
+                booked_price=121,
+                record_locator="OVERN1",
+            ),
+            trip_instance_id=trip_instance_id,
+        )
 
 
 def test_record_booking_auto_matches_unique_trip_instance(repository: Repository) -> None:

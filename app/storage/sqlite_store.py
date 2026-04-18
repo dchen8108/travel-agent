@@ -67,6 +67,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_bookings_fare_class_to_v24(connection)
     if current_version < 25:
         _migrate_bookings_flight_number_to_v25(connection)
+    if current_version < 26:
+        _migrate_bookings_arrival_day_offset_to_v26(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -82,6 +84,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_fare_class_to_v24(connection)
     # Apply the same shape-repair policy for booking flight numbers.
     _migrate_bookings_flight_number_to_v25(connection)
+    # Apply the same shape-repair policy for booking arrival day offsets.
+    _migrate_bookings_arrival_day_offset_to_v26(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -560,6 +564,26 @@ def _migrate_bookings_flight_number_to_v25(connection: sqlite3.Connection) -> No
             "UPDATE bookings SET flight_number = ? WHERE booking_id = ?",
             updates,
         )
+
+
+def _migrate_bookings_arrival_day_offset_to_v26(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "arrival_day_offset" not in columns:
+        connection.execute(
+            "ALTER TABLE bookings ADD COLUMN arrival_day_offset INTEGER NOT NULL DEFAULT 0"
+        )
+    connection.execute(
+        """
+        UPDATE bookings
+        SET arrival_day_offset = 1
+        WHERE COALESCE(arrival_time, '') != ''
+          AND COALESCE(arrival_day_offset, 0) = 0
+          AND COALESCE(departure_time, '') != ''
+          AND arrival_time < departure_time
+        """
+    )
 
 
 def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:

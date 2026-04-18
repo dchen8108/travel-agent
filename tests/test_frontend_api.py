@@ -455,6 +455,7 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
             departure_date=date(2026, 6, 10),
             departure_time="21:30",
             arrival_time="00:45",
+            arrival_day_offset=1,
             booked_price="36.20",
             record_locator="SKLOAK",
         ),
@@ -470,6 +471,7 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
     assert form_payload["dateTile"] == {"weekday": "WED", "monthDay": "Jun 10"}
     assert form_payload["form"]["values"]["recordLocator"] == "SKLOAK"
     assert form_payload["form"]["values"]["tripInstanceId"] == ""
+    assert form_payload["form"]["values"]["arrivalDayOffset"] == "1"
 
     update_response = client.patch(
         f"/api/unmatched-bookings/{unmatched.unmatched_booking_id}",
@@ -481,6 +483,7 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
             "departureDate": "2026-06-10",
             "departureTime": "21:45",
             "arrivalTime": "01:00",
+            "arrivalDayOffset": 1,
             "bookedPrice": "41.20",
             "recordLocator": "EDIT01",
             "notes": "Updated from modal",

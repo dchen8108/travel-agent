@@ -156,16 +156,20 @@ def format_time_range_label(
     arrival_value: str,
     *,
     fallback_day_delta: int = 0,
+    fallback_departure_day_delta: int | None = None,
+    fallback_arrival_day_delta: int | None = None,
     anchor_date: date | None = None,
 ) -> str:
+    departure_day_delta = fallback_day_delta if fallback_departure_day_delta is None else fallback_departure_day_delta
+    arrival_day_delta = departure_day_delta if fallback_arrival_day_delta is None else fallback_arrival_day_delta
     departure_label = format_departure_time_label(
         departure_value,
-        fallback_day_delta=fallback_day_delta,
+        fallback_day_delta=departure_day_delta,
         anchor_date=anchor_date,
     )
     arrival_label = format_departure_time_label(
         arrival_value,
-        fallback_day_delta=fallback_day_delta,
+        fallback_day_delta=arrival_day_delta,
         anchor_date=anchor_date,
     )
     if departure_label and arrival_label:

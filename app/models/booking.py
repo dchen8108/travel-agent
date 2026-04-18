@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from datetime import date, datetime
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
 from app.money import parse_money
@@ -32,6 +32,7 @@ class Booking(CsvModel):
     departure_date: date
     departure_time: str
     arrival_time: str = ""
+    arrival_day_offset: int = 0
     fare_class: FareClass = FareClass.BASIC_ECONOMY
     flight_number: str = ""
     booked_price: Decimal
@@ -66,6 +67,15 @@ class Booking(CsvModel):
     @classmethod
     def validate_arrival_time(cls, value: str) -> str:
         return parse_time(value) if value else ""
+
+    @field_validator("arrival_day_offset")
+    @classmethod
+    def validate_arrival_day_offset(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("Arrival day offset cannot be negative.")
+        if value > 7:
+            raise ValueError("Arrival day offset is too large.")
+        return value
 
     @field_validator("fare_class", mode="before")
     @classmethod
@@ -105,6 +115,16 @@ class Booking(CsvModel):
             raise ValueError("Booked price must be positive.")
         return amount
 
+    @model_validator(mode="after")
+    def validate_chronology(self) -> Booking:
+        if not self.arrival_time:
+            return self
+        departure_minutes = _minutes_since_midnight(self.departure_time)
+        arrival_minutes = _minutes_since_midnight(self.arrival_time) + (self.arrival_day_offset * 24 * 60)
+        if arrival_minutes <= departure_minutes:
+            raise ValueError("Arrival must be after departure. Adjust the arrival day if needed.")
+        return self
+
     @property
     def unmatched_booking_id(self) -> str:
         return self.booking_id
@@ -120,3 +140,8 @@ class Booking(CsvModel):
     @property
     def needs_linking(self) -> bool:
         return self.is_unlinked and self.resolution_status == BookingResolutionStatus.OPEN
+
+
+def _minutes_since_midnight(value: str) -> int:
+    parsed = datetime.strptime(value, "%H:%M")
+    return parsed.hour * 60 + parsed.minute

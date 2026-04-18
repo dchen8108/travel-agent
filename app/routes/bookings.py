@@ -158,6 +158,7 @@ async def save_booking(
         "departure_date": str(form.get("departure_date", "")).strip(),
         "departure_time": str(form.get("departure_time", "")).strip(),
         "arrival_time": str(form.get("arrival_time", "")).strip(),
+        "arrival_day_offset": str(form.get("arrival_day_offset", "0")).strip() or "0",
         "fare_class": str(form.get("fare_class", FareClass.BASIC_ECONOMY)).strip() or FareClass.BASIC_ECONOMY,
         "flight_number": str(form.get("flight_number", "")).strip(),
         "booked_price": str(form.get("booked_price", "")).strip(),
@@ -173,6 +174,10 @@ async def save_booking(
             raise ValueError("Choose a destination airport.")
         if not booking_state["departure_time"]:
             raise ValueError("Departure time is required.")
+        try:
+            arrival_day_offset = int(booking_state["arrival_day_offset"])
+        except ValueError as exc:
+            raise ValueError("Choose a valid arrival day.") from exc
         fare_class = parse_fare_class(booking_state["fare_class"], default=FareClass.BASIC_ECONOMY)
 
         booked_price = parse_money(booking_state["booked_price"])
@@ -195,6 +200,7 @@ async def save_booking(
             departure_date=date.fromisoformat(booking_state["departure_date"]),
             departure_time=booking_state["departure_time"],
             arrival_time=booking_state["arrival_time"],
+            arrival_day_offset=arrival_day_offset,
             fare_class=fare_class,
             flight_number=booking_state["flight_number"],
             booked_price=booked_price,

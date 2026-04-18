@@ -31,6 +31,7 @@ class BookingCandidate:
     arrival_time: str
     booked_price: Decimal
     record_locator: str
+    arrival_day_offset: int = 0
     flight_number: str = ""
     notes: str = ""
     fare_class: FareClass = FareClass.BASIC_ECONOMY
@@ -57,6 +58,7 @@ def _build_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
@@ -83,6 +85,7 @@ def _booking_to_unmatched(booking: Booking) -> Booking:
         departure_date=booking.departure_date,
         departure_time=booking.departure_time,
         arrival_time=booking.arrival_time,
+        arrival_day_offset=booking.arrival_day_offset,
         fare_class=booking.fare_class,
         flight_number=booking.flight_number,
         booked_price=booking.booked_price,
@@ -182,6 +185,7 @@ def _candidate_from_unmatched(unmatched: Booking) -> BookingCandidate:
         departure_date=unmatched.departure_date,
         departure_time=unmatched.departure_time,
         arrival_time=unmatched.arrival_time,
+        arrival_day_offset=unmatched.arrival_day_offset,
         fare_class=unmatched.fare_class,
         flight_number=unmatched.flight_number,
         booked_price=unmatched.booked_price,
@@ -197,6 +201,7 @@ def _candidate_from_booking(booking: Booking) -> BookingCandidate:
         departure_date=booking.departure_date,
         departure_time=booking.departure_time,
         arrival_time=booking.arrival_time,
+        arrival_day_offset=booking.arrival_day_offset,
         fare_class=booking.fare_class,
         flight_number=booking.flight_number,
         booked_price=booking.booked_price,
@@ -314,7 +319,9 @@ def reconcile_unmatched_bookings(
                 departure_date=candidate.departure_date,
                 departure_time=candidate.departure_time,
                 arrival_time=candidate.arrival_time,
+                arrival_day_offset=candidate.arrival_day_offset,
                 fare_class=candidate.fare_class,
+                flight_number=candidate.flight_number,
                 booked_price=candidate.booked_price,
                 record_locator=candidate.record_locator,
                 booked_at=unmatched.booked_at,
@@ -393,7 +400,9 @@ def record_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=utcnow(),
@@ -405,6 +414,7 @@ def record_booking(
         ),
         auto_link_enabled=auto_link,
         resolution_status=BookingResolutionStatus.OPEN,
+        notes=candidate.notes,
     )
     repository.upsert_unmatched_bookings([unmatched])
     return None, unmatched
@@ -447,7 +457,9 @@ def resolve_unmatched_booking_to_trip_instance(
         departure_date=unmatched.departure_date,
         departure_time=unmatched.departure_time,
         arrival_time=unmatched.arrival_time,
+        arrival_day_offset=unmatched.arrival_day_offset,
         fare_class=unmatched.fare_class,
+        flight_number=unmatched.flight_number,
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
     )
@@ -468,7 +480,9 @@ def resolve_unmatched_booking_to_trip_instance(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=unmatched.booked_at,
@@ -478,7 +492,7 @@ def resolve_unmatched_booking_to_trip_instance(
         candidate_trip_instance_ids=unmatched.candidate_trip_instance_ids,
         auto_link_enabled=unmatched.auto_link_enabled,
         resolution_status=BookingResolutionStatus.RESOLVED,
-        notes="Resolved from unmatched booking",
+        notes=unmatched.notes or "Resolved from unmatched booking",
         created_at=unmatched.created_at,
         updated_at=utcnow(),
     )
@@ -625,6 +639,7 @@ def update_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
@@ -662,6 +677,7 @@ def update_unmatched_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,

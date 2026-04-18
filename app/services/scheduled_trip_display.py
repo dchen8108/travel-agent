@@ -82,7 +82,8 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
     primary_meta_label = format_time_range_label(
         departure_time,
         arrival_time,
-        fallback_day_delta=booking_day_delta,
+        fallback_departure_day_delta=booking_day_delta,
+        fallback_arrival_day_delta=booking_day_delta + int(getattr(booking_like, "arrival_day_offset", 0) or 0),
         anchor_date=anchor_date,
     )
     _, badges, booking_meta = _offer_meta_value(primary_meta_label, [])
