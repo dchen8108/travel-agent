@@ -71,7 +71,11 @@ def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_bes
                         fallback_day_delta=travel_day_delta(trip_instance.anchor_date, tracker.travel_date),
                     )
                     if target.latest_departure_label
-                    else format_departure_window_label(tracker.start_time, tracker.end_time)
+                    else format_departure_window_label(
+                        tracker.start_time,
+                        tracker.end_time,
+                        fallback_day_delta=travel_day_delta(trip_instance.anchor_date, tracker.travel_date),
+                    )
                 ),
                 meta_badges=[],
                 airline_key=(
@@ -104,7 +108,11 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
                     tracker.destination_codes,
                     tracker.airline_codes,
                 ),
-                primary_meta_label=format_departure_window_label(tracker.start_time, tracker.end_time),
+                primary_meta_label=format_departure_window_label(
+                    tracker.start_time,
+                    tracker.end_time,
+                    fallback_day_delta=travel_day_delta(trip_instance.anchor_date, tracker.travel_date),
+                ),
                 meta_badges=[],
                 airline_key=tracker.airline_codes[0] if len(tracker.airline_codes) == 1 else "",
                 price_label="Checking",

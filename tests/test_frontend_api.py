@@ -327,6 +327,38 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
 
 
+def test_tracker_panel_inlines_day_offset_into_fallback_window_times(client, repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Offset tracker trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "LAX",
+                "airlines": "Southwest",
+                "day_offset": 1,
+                "start_time": "16:00",
+                "end_time": "22:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
+
+    assert trackers_response.status_code == 200
+    assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "4:00 PM⁺¹ – 10:00 PM⁺¹"
+
+
 def test_booking_delete_and_unlink_api_mutations_return_updated_panel(client, repository: Repository) -> None:
     trip_instance_id = _seed_dashboard_trip(repository)
     extra_booking, unmatched = record_booking(

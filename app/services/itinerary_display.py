@@ -85,9 +85,9 @@ def format_departure_time_label(value: str, *, fallback_day_delta: int = 0) -> s
     return f"{label}{format_day_delta_superscript(day_delta)}" if day_delta else label
 
 
-def format_departure_window_label(start_time: str, end_time: str) -> str:
-    start_label = format_departure_time_label(start_time)
-    end_label = format_departure_time_label(end_time)
+def format_departure_window_label(start_time: str, end_time: str, *, fallback_day_delta: int = 0) -> str:
+    start_label = format_departure_time_label(start_time, fallback_day_delta=fallback_day_delta)
+    end_label = format_departure_time_label(end_time, fallback_day_delta=fallback_day_delta)
     if start_label and end_label:
         return f"{start_label} \u2013 {end_label}"
     if start_label:
