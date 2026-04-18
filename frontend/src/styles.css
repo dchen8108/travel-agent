@@ -1090,6 +1090,10 @@ textarea {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.modal-list-row--offer {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .modal-list-row--tracker .offer-block__detail {
   font-size: 0.98rem;
 }

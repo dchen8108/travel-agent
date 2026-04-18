@@ -265,11 +265,12 @@ function BookingPanelContent({
       ) : (
         <div className="modal-list">
           {payload.rows.map((row) => (
-            <article key={row.bookingId} className="modal-list-row">
-              <OfferBlock kind="booked" offer={row.offer} />
-              {previewRows ? null : (
-                <>
-                  <div className="offer-action-cluster modal-list-row__actions">
+            <article key={row.bookingId} className="modal-list-row modal-list-row--offer">
+              <OfferBlock
+                kind="booked"
+                offer={row.offer}
+                actions={previewRows ? undefined : (
+                  <div className="offer-action-cluster">
                     <IconButton
                       label="Edit booking"
                       variant="inline"
@@ -301,6 +302,10 @@ function BookingPanelContent({
                       <DeleteIcon />
                     </IconButton>
                   </div>
+                )}
+              />
+              {previewRows ? null : (
+                <>
                   {row.warning ? <p className="modal-row-warning">{row.warning}</p> : null}
                 </>
               )}
