@@ -165,7 +165,7 @@ export function BookingPanel({
     || (mode !== "list" && formQuery.isError && (formQuery.error instanceof Error ? formQuery.error.message : "Unable to load booking."));
 
   return (
-    <Modal title="Bookings" onClose={onClose}>
+    <Modal title="Bookings" onClose={onClose} size="panel">
       {error ? (
         <div className="modal-loading">{error}</div>
       ) : loading ? (

@@ -7,6 +7,7 @@ interface Props {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  size?: "default" | "panel" | "compact";
 }
 
 function focusableElements(node: HTMLElement | null) {
@@ -20,7 +21,7 @@ function focusableElements(node: HTMLElement | null) {
   ).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
 }
 
-export function Modal({ title, onClose, children }: Props) {
+export function Modal({ title, onClose, children, size = "default" }: Props) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -71,7 +72,7 @@ export function Modal({ title, onClose, children }: Props) {
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div
         ref={shellRef}
-        className="modal-shell"
+        className={`modal-shell modal-shell--${size}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

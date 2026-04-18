@@ -954,6 +954,16 @@ textarea {
   padding: 1.5rem;
 }
 
+.modal-shell--panel {
+  width: min(1000px, 100%);
+  padding: 1.35rem;
+}
+
+.modal-shell--compact {
+  width: min(920px, 100%);
+  padding: 1.25rem;
+}
+
 .modal-close-row {
   display: flex;
   align-items: center;

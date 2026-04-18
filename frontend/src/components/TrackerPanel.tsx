@@ -20,7 +20,7 @@ export function TrackerPanel({ tripInstanceId, initialPanel, onClose }: Props) {
   });
 
   return (
-    <Modal title="Trackers" onClose={onClose}>
+    <Modal title="Trackers" onClose={onClose} size="compact">
       {panelQuery.isError ? (
         <div className="modal-loading">{panelQuery.error instanceof Error ? panelQuery.error.message : "Unable to load trackers."}</div>
       ) : !panelQuery.data ? (
