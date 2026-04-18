@@ -73,6 +73,10 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     # partially migrated database can report the latest schema version while
     # still carrying the legacy trip_groups.description column.
     _migrate_trip_groups_to_v23(connection)
+    # Keep this shape repair outside the version gate as well. Live databases
+    # can report the latest schema version while still missing the bookings
+    # fare_class column after an interrupted or partially applied migration.
+    _migrate_bookings_fare_class_to_v24(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
