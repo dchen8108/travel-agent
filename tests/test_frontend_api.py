@@ -327,6 +327,46 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
 
 
+def test_booking_delete_and_unlink_api_mutations_return_updated_panel(client, repository: Repository) -> None:
+    trip_instance_id = _seed_dashboard_trip(repository)
+    extra_booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 20),
+            departure_time="06:35",
+            arrival_time="07:55",
+            booked_price="82.00",
+            record_locator="MULTI02",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    assert extra_booking is not None
+    assert unmatched is None
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    bookings = repository.load_bookings()
+    original_booking = next(item for item in bookings if item.record_locator == "BDJ594")
+    extra_booking = next(item for item in bookings if item.record_locator == "MULTI02")
+
+    unlink_response = client.post(f"/api/bookings/{extra_booking.booking_id}/unlink")
+
+    assert unlink_response.status_code == 200
+    unlink_payload = unlink_response.json()
+    assert unlink_payload["panel"] is not None
+    assert len(unlink_payload["panel"]["rows"]) == 1
+    assert unlink_payload["panel"]["rows"][0]["bookingId"] == original_booking.booking_id
+
+    delete_response = client.delete(f"/api/bookings/{original_booking.booking_id}")
+
+    assert delete_response.status_code == 200
+    delete_payload = delete_response.json()
+    assert delete_payload["panel"] is not None
+    assert delete_payload["panel"]["rows"] == []
+
+
 def test_unmatched_booking_form_and_update_api(client, repository: Repository) -> None:
     _seed_dashboard_trip(repository)
     booking, unmatched = record_booking(

@@ -480,7 +480,7 @@ def unlink_booking_api(
     if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     try:
-        unlink_booking(repository, booking_id)
+        unlink_booking(repository, booking_id=booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = load_live_snapshot(repository)
@@ -515,7 +515,7 @@ def delete_booking_api(
     snapshot = load_persisted_snapshot(repository)
     booking = next((item for item in snapshot.bookings if item.booking_id == booking_id), None)
     try:
-        delete_booking_record(repository, booking_id)
+        delete_booking_record(repository, booking_id=booking_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     snapshot = load_live_snapshot(repository)
