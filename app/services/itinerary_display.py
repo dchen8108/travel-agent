@@ -69,18 +69,20 @@ def format_departure_time_label(value: str, *, fallback_day_delta: int = 0) -> s
         return ""
     meridiem_match = re.match(r"^\s*(\d{1,2}:\d{2})\s*([APap][Mm])", raw)
     if meridiem_match:
-        return f"{meridiem_match.group(1)} {meridiem_match.group(2).upper()}"
-    time_match = re.match(r"^\s*(\d{1,2}:\d{2})", raw)
-    if time_match:
-        raw = time_match.group(1)
-    if "am" in raw.lower() or "pm" in raw.lower():
-        return raw
-    try:
-        parsed = datetime.strptime(raw, "%H:%M")
-    except ValueError:
-        label = raw
+        label = f"{meridiem_match.group(1)} {meridiem_match.group(2).upper()}"
     else:
-        label = parsed.strftime("%I:%M %p").lstrip("0")
+        time_match = re.match(r"^\s*(\d{1,2}:\d{2})", raw)
+        if time_match:
+            raw = time_match.group(1)
+        if "am" in raw.lower() or "pm" in raw.lower():
+            label = raw
+        else:
+            try:
+                parsed = datetime.strptime(raw, "%H:%M")
+            except ValueError:
+                label = raw
+            else:
+                label = parsed.strftime("%I:%M %p").lstrip("0")
     day_delta = explicit_day_delta if explicit_day_delta is not None else fallback_day_delta
     return f"{label}{format_day_delta_superscript(day_delta)}" if day_delta else label
 
