@@ -971,7 +971,7 @@ def test_editing_detached_trip_anchor_date_reuses_existing_instance(repository: 
                 "day_offset": option.day_offset,
                 "start_time": option.start_time,
                 "end_time": option.end_time,
-                "fare_class_policy": option.fare_class_policy,
+                "fare_class": option.fare_class,
                 "savings_needed_vs_previous": option.savings_needed_vs_previous,
             }
             for option in detached_route_options
@@ -1228,7 +1228,7 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
     assert any(field == 11 and value == 23 for field, wire, value in nested_fields if wire == 0)
 
 
-def test_route_option_fare_class_policy_persists_to_trackers(repository: Repository) -> None:
+def test_route_option_fare_class_persists_to_trackers(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -1255,8 +1255,8 @@ def test_route_option_fare_class_policy_persists_to_trackers(repository: Reposit
     trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
     tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
 
-    assert route_option.fare_class_policy == "exclude_basic"
-    assert tracker.fare_class_policy == "exclude_basic"
+    assert route_option.fare_class == "economy"
+    assert tracker.fare_class == "economy"
 
 
 def test_generated_google_flights_url_can_exclude_basic_economy(repository: Repository) -> None:

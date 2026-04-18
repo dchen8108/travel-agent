@@ -8,7 +8,7 @@ import json
 
 from app.catalog import normalize_airline_code
 from app.money import format_money
-from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, utcnow
+from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, FareClass, parse_fare_class, utcnow
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
@@ -263,6 +263,7 @@ def process_gmail_booking_message(
                 "departure_date": candidate.departure_date.isoformat(),
                 "departure_time": candidate.departure_time,
                 "arrival_time": candidate.arrival_time,
+                "fare_class": candidate.fare_class,
                 "record_locator": candidate.record_locator,
                 "matching_trip_instance_ids": matching_trip_instance_ids,
             }
@@ -415,6 +416,7 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
                 departure_date=departure_date,
                 departure_time=leg.departure_time,
                 arrival_time=leg.arrival_time,
+                fare_class=_fare_class_from_extracted_leg(leg.fare_class),
                 booked_price=price,
                 record_locator=extraction.record_locator,
                 notes=notes,
@@ -439,6 +441,7 @@ def _booking_candidate_exists(repository: Repository, candidate: BookingCandidat
             and unmatched.destination_airport == candidate.destination_airport
             and unmatched.departure_date == candidate.departure_date
             and unmatched.departure_time == candidate.departure_time
+            and unmatched.fare_class == candidate.fare_class
             and unmatched.record_locator == candidate.record_locator
             and unmatched.resolution_status == "open"
         ):
@@ -453,8 +456,16 @@ def _same_booking(booking: Booking, candidate: BookingCandidate) -> bool:
         and booking.destination_airport == candidate.destination_airport
         and booking.departure_date == candidate.departure_date
         and booking.departure_time == candidate.departure_time
+        and booking.fare_class == candidate.fare_class
         and booking.record_locator == candidate.record_locator
     )
+
+
+def _fare_class_from_extracted_leg(raw: str) -> FareClass:
+    normalized = (raw or "").strip().lower()
+    if normalized in {"", "unknown"}:
+        return FareClass.BASIC_ECONOMY
+    return parse_fare_class(normalized, default=FareClass.BASIC_ECONOMY)
 
 
 def _upsert_booking_email_event(repository: Repository, event: BookingEmailEvent) -> None:

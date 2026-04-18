@@ -119,6 +119,21 @@ def airline_options() -> list[dict[str, str]]:
     ]
 
 
+def fare_class_options() -> list[dict[str, str]]:
+    return [
+        {
+            "value": "basic_economy",
+            "label": "Basic Economy",
+            "keywords": "basic basic economy saver",
+        },
+        {
+            "value": "economy",
+            "label": "Economy",
+            "keywords": "economy main standard coach",
+        },
+    ]
+
+
 def normalize_airport_code(value: str) -> str:
     airport = value.strip().upper()
     if airport not in AIRPORT_CODES:
@@ -159,6 +174,7 @@ def catalogs_json() -> str:
     payload = {
         "airports": airport_options(),
         "airlines": airline_options(),
+        "fareClasses": fare_class_options(),
         "weekdays": WEEKDAYS,
         "tripKinds": [
             {"value": "one_time", "label": "One-time"},

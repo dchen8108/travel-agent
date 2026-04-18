@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.catalog import airline_label
-from app.models.base import BookingStatus, DataScope, FareClassPolicy
+from app.models.base import BookingStatus, DataScope, FareClass
 from app.models.trip import Trip
 from app.services.bookings import (
     BookingCandidate,
@@ -66,7 +66,7 @@ def route_option_state(route_options) -> list[dict[str, object]]:
             "dayOffset": option.day_offset,
             "startTime": option.start_time,
             "endTime": option.end_time,
-            "fareClassPolicy": option.fare_class_policy,
+            "fareClass": option.fare_class,
         }
         for option in route_options
     ]
@@ -83,8 +83,8 @@ def route_option_payloads(route_options: list[dict[str, object]]) -> list[dict[s
             "day_offset": int(item.get("dayOffset", 0) or 0),
             "start_time": str(item.get("startTime", "") or ""),
             "end_time": str(item.get("endTime", "") or ""),
-            "fare_class_policy": str(
-                item.get("fareClassPolicy", FareClassPolicy.INCLUDE_BASIC) or FareClassPolicy.INCLUDE_BASIC
+            "fare_class": str(
+                item.get("fareClass", item.get("fareClassPolicy", FareClass.BASIC_ECONOMY)) or FareClass.BASIC_ECONOMY
             ),
         }
         for item in route_options
@@ -153,6 +153,7 @@ def new_trip_form_payload(
             departure_date=source_unmatched_booking.departure_date,
             departure_time=source_unmatched_booking.departure_time,
             arrival_time=source_unmatched_booking.arrival_time,
+            fare_class=source_unmatched_booking.fare_class,
             booked_price=source_unmatched_booking.booked_price,
             record_locator=source_unmatched_booking.record_locator,
         )
@@ -176,7 +177,7 @@ def new_trip_form_payload(
                 "dayOffset": suggested_route["day_offset"],
                 "startTime": suggested_route["start_time"],
                 "endTime": suggested_route["end_time"],
-                "fareClassPolicy": FareClassPolicy.INCLUDE_BASIC,
+                "fareClass": suggested_route["fare_class"],
             }
         ]
         source_booking = {

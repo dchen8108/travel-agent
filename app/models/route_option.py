@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import CsvModel, DataScope, FareClassPolicy, utcnow
+from app.models.base import CsvModel, DataScope, FareClass, parse_fare_class, utcnow
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
@@ -21,7 +21,11 @@ class RouteOption(CsvModel):
     day_offset: int
     start_time: str
     end_time: str
-    fare_class_policy: FareClassPolicy = FareClassPolicy.INCLUDE_BASIC
+    fare_class: FareClass = Field(
+        default=FareClass.BASIC_ECONOMY,
+        validation_alias=AliasChoices("fare_class", "fare_class_policy"),
+        serialization_alias="fare_class_policy",
+    )
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -64,10 +68,10 @@ class RouteOption(CsvModel):
             raise ValueError("Choose a supported relative day.")
         return value
 
-    @field_validator("fare_class_policy")
+    @field_validator("fare_class", mode="before")
     @classmethod
-    def validate_fare_class_policy(cls, value: FareClassPolicy) -> FareClassPolicy:
-        return value
+    def validate_fare_class(cls, value: object) -> FareClass:
+        return parse_fare_class(value)
 
     @model_validator(mode="after")
     def validate_times(self) -> "RouteOption":

@@ -1544,4 +1544,4 @@ def test_successful_fetch_builds_price_records_for_all_offers(repository: Reposi
     assert saved_records[0].fetch_event_id == saved_records[1].fetch_event_id
     assert saved_records[0].offer_rank == 1
     assert saved_records[1].offer_rank == 2
-    assert all(item.search_fare_class_policy == "include_basic" for item in saved_records)
+    assert all(item.search_fare_class == "basic_economy" for item in saved_records)

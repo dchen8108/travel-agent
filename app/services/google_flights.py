@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import urlencode
 
-from app.models.base import FareClassPolicy
+from app.models.base import FareClass, fare_class_label
 from app.models.tracker import Tracker
 
 GOOGLE_FLIGHTS_LANGUAGE = "en-US"
@@ -34,7 +34,7 @@ class GoogleFlightsSearchSpec:
     airline_codes: list[str]
     start_time: str
     end_time: str
-    fare_class_policy: FareClassPolicy = FareClassPolicy.INCLUDE_BASIC
+    fare_class: FareClass = FareClass.BASIC_ECONOMY
 
 
 def _encode_varint(value: int) -> bytes:
@@ -84,7 +84,7 @@ def _encode_info_message(tracker: Tracker) -> bytes:
         airline_codes=tracker.airline_codes,
         start_time=tracker.start_time,
         end_time=tracker.end_time,
-        fare_class_policy=tracker.fare_class_policy,
+        fare_class=tracker.fare_class,
     )
     return _encode_info_message_from_search(search)
 
@@ -103,7 +103,7 @@ def _encode_info_message_from_search(search: GoogleFlightsSearchSpec) -> bytes:
         payload.extend(_encode_enum_field(14, 1))
         payload.extend(_encode_message_field(16, GOOGLE_FLIGHTS_FILTER_FLAGS))
     payload.extend(_encode_enum_field(19, 2))  # one-way
-    if search.fare_class_policy == FareClassPolicy.EXCLUDE_BASIC:
+    if search.fare_class == FareClass.ECONOMY:
         payload.extend(GOOGLE_FLIGHTS_EXCLUDE_BASIC_FLAG)
     return bytes(payload)
 
@@ -116,7 +116,7 @@ def build_google_flights_query_url(tracker: Tracker) -> str:
         airline_codes=tracker.airline_codes,
         start_time=tracker.start_time,
         end_time=tracker.end_time,
-        fare_class_policy=tracker.fare_class_policy,
+        fare_class=tracker.fare_class,
     )
 
 
@@ -128,7 +128,7 @@ def build_google_flights_query_url_for_search(
     airline_codes: list[str],
     start_time: str,
     end_time: str,
-    fare_class_policy: FareClassPolicy = FareClassPolicy.INCLUDE_BASIC,
+    fare_class: FareClass = FareClass.BASIC_ECONOMY,
 ) -> str:
     search = GoogleFlightsSearchSpec(
         travel_date=travel_date,
@@ -137,7 +137,7 @@ def build_google_flights_query_url_for_search(
         airline_codes=airline_codes,
         start_time=start_time,
         end_time=end_time,
-        fare_class_policy=fare_class_policy,
+        fare_class=fare_class,
     )
     tfs = urlsafe_b64encode(_encode_info_message_from_search(search)).decode("utf-8").rstrip("=")
     params: dict[str, str] = {"tfs": tfs, "hl": GOOGLE_FLIGHTS_LANGUAGE}
@@ -158,7 +158,7 @@ def generated_tracker_seed_summary(tracker: Tracker) -> str:
             f" and an hour-bucketed departure filter around {tracker.start_time}-{tracker.end_time} "
             f"({departure_start}:00-{departure_end + 1}:00)"
         )
-    fare_text = " including Basic fares" if tracker.fare_class_policy == FareClassPolicy.INCLUDE_BASIC else " excluding Basic fares"
+    fare_text = f" for {fare_class_label(tracker.fare_class)}"
     if len(tracker.origin_codes) == 1 and len(tracker.destination_codes) == 1:
         return f"Generated search opens {route}{airline_text}{departure_text}{fare_text}."
     return (

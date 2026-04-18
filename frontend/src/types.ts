@@ -2,6 +2,7 @@ export type OfferTone = "neutral" | "success" | "accent" | "warning";
 export type OfferStatusKind = "" | "pending" | "unavailable";
 export type TripAttentionKind = "overbooked" | "priceDrop" | "betterOption" | "needsBooking";
 export type TripLifecycle = "planned" | "booked";
+export type FareClass = "basic_economy" | "economy";
 
 export interface DateTile {
   weekday: string;
@@ -144,6 +145,7 @@ export interface BookingFormPayload {
       departureDate: string;
       departureTime: string;
       arrivalTime: string;
+      fareClass: FareClass;
       bookedPrice: string;
       recordLocator: string;
       notes: string;
@@ -153,6 +155,7 @@ export interface BookingFormPayload {
   catalogs: {
     airports: Array<{ value: string; label: string; keywords: string }>;
     airlines: Array<{ value: string; label: string; keywords: string }>;
+    fareClasses: Array<{ value: FareClass; label: string; keywords: string }>;
   };
 }
 
@@ -170,6 +173,7 @@ export interface UnmatchedBookingFormPayload {
       departureDate: string;
       departureTime: string;
       arrivalTime: string;
+      fareClass: FareClass;
       bookedPrice: string;
       recordLocator: string;
       notes: string;
@@ -179,6 +183,7 @@ export interface UnmatchedBookingFormPayload {
   catalogs: {
     airports: Array<{ value: string; label: string; keywords: string }>;
     airlines: Array<{ value: string; label: string; keywords: string }>;
+    fareClasses: Array<{ value: FareClass; label: string; keywords: string }>;
   };
 }
 
@@ -252,7 +257,7 @@ export interface TripEditorRouteOption {
   dayOffset: number;
   startTime: string;
   endTime: string;
-  fareClassPolicy: "include_basic" | "exclude_basic";
+  fareClass: FareClass;
 }
 
 export interface TripEditorPayload {
@@ -277,6 +282,7 @@ export interface TripEditorPayload {
   catalogs: {
     airports: Array<{ value: string; label: string; keywords: string }>;
     airlines: Array<{ value: string; label: string; keywords: string }>;
+    fareClasses: Array<{ value: FareClass; label: string; keywords: string }>;
     weekdays: string[];
     tripKinds: Array<{ value: string; label: string }>;
   };

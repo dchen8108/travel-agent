@@ -7,6 +7,7 @@ interface Props {
   catalogs: {
     airports: Array<{ value: string; label: string }>;
     airlines: Array<{ value: string; label: string }>;
+    fareClasses: Array<{ value: string; label: string }>;
   };
   submitLabel: string;
   onSubmit: (values: Record<string, string>) => Promise<unknown>;
@@ -91,6 +92,21 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
             placeholder="Search destinations"
             allowEmpty
             emptySelectionLabel="Choose"
+            disabled={submitting}
+          />
+        </div>
+        <div className="field-block">
+          <span>Fare</span>
+          <SearchSelectField
+            options={catalogs.fareClasses.map((item) => ({
+              value: item.value,
+              label: item.label,
+              keywords: item.label,
+              summary: item.label,
+            }))}
+            value={values.fareClass}
+            onChange={(value) => update("fareClass", value)}
+            placeholder="Choose fare"
             disabled={submitting}
           />
         </div>

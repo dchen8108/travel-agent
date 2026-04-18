@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 
 from app.money import parse_money
-from app.models.base import DataScope
+from app.models.base import DataScope, FareClass, parse_fare_class
 from app.services.dashboard_navigation import trip_panel_url
 from app.services.bookings import (
     BookingCandidate,
@@ -158,6 +158,7 @@ async def save_booking(
         "departure_date": str(form.get("departure_date", "")).strip(),
         "departure_time": str(form.get("departure_time", "")).strip(),
         "arrival_time": str(form.get("arrival_time", "")).strip(),
+        "fare_class": str(form.get("fare_class", FareClass.BASIC_ECONOMY)).strip() or FareClass.BASIC_ECONOMY,
         "booked_price": str(form.get("booked_price", "")).strip(),
         "record_locator": str(form.get("record_locator", "")).strip(),
         "notes": str(form.get("notes", "")).strip(),
@@ -171,6 +172,7 @@ async def save_booking(
             raise ValueError("Choose a destination airport.")
         if not booking_state["departure_time"]:
             raise ValueError("Departure time is required.")
+        fare_class = parse_fare_class(booking_state["fare_class"], default=FareClass.BASIC_ECONOMY)
 
         booked_price = parse_money(booking_state["booked_price"])
         if booked_price is None:
@@ -192,6 +194,7 @@ async def save_booking(
             departure_date=date.fromisoformat(booking_state["departure_date"]),
             departure_time=booking_state["departure_time"],
             arrival_time=booking_state["arrival_time"],
+            fare_class=fare_class,
             booked_price=booked_price,
             record_locator=booking_state["record_locator"],
             notes=booking_state["notes"],

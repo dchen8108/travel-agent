@@ -520,6 +520,7 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
             departure_date=date(2026, 4, 20),
             departure_time="18:01",
             arrival_time="19:33",
+            fare_class="economy",
             booked_price="78.40",
             record_locator="ORBKFC",
         ),

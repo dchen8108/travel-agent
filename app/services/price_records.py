@@ -70,7 +70,7 @@ def build_price_records(
                     search_travel_date=tracker.travel_date,
                     search_start_time=tracker.start_time,
                     search_end_time=tracker.end_time,
-                    search_fare_class_policy=tracker.fare_class_policy,
+                    search_fare_class=tracker.fare_class,
                     query_origin_airport=target.origin_airport,
                     query_destination_airport=target.destination_airport,
                     airline=offer.airline,

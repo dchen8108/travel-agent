@@ -4,7 +4,7 @@ from datetime import date
 
 from app.models.route_option import RouteOption
 from app.models.trip import Trip
-from app.models.base import DataScope, FareClassPolicy, RoutePreferenceMode, TripKind, utcnow
+from app.models.base import DataScope, FareClass, RoutePreferenceMode, TripKind, parse_fare_class, utcnow
 from app.route_options import time_windows_overlap
 from app.services.group_memberships import build_rule_group_targets
 from app.services.ids import new_id
@@ -77,6 +77,8 @@ def build_trip(
 
 
 def _route_options_overlap(left: RouteOption, right: RouteOption) -> bool:
+    if left.fare_class != right.fare_class:
+        return False
     if left.day_offset != right.day_offset:
         return False
     if not set(left.origin_codes) & set(right.origin_codes):
@@ -113,7 +115,10 @@ def build_route_options(
             day_offset=int(payload.get("day_offset", 0)),
             start_time=str(payload.get("start_time", "")),
             end_time=str(payload.get("end_time", "")),
-            fare_class_policy=FareClassPolicy(str(payload.get("fare_class_policy", FareClassPolicy.INCLUDE_BASIC))),
+            fare_class=parse_fare_class(
+                payload.get("fare_class", payload.get("fare_class_policy", FareClass.BASIC_ECONOMY)),
+                default=FareClass.BASIC_ECONOMY,
+            ),
             created_at=original.created_at if original else utcnow(),
             updated_at=utcnow(),
         )
@@ -124,7 +129,7 @@ def build_route_options(
             option.day_offset,
             option.start_time,
             option.end_time,
-            option.fare_class_policy,
+            option.fare_class,
         )
         if signature in seen_signatures:
             raise ValueError("Duplicate route options are not allowed.")

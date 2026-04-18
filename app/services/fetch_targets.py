@@ -47,7 +47,7 @@ def reconcile_fetch_targets(
                 airline_codes=tracker.airline_codes,
                 start_time=tracker.start_time,
                 end_time=tracker.end_time,
-                fare_class_policy=tracker.fare_class_policy,
+                fare_class=tracker.fare_class,
             )
             existing = existing_by_id.get(fetch_target_id)
             if existing:

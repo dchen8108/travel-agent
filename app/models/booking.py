@@ -7,7 +7,16 @@ from pydantic import Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
 from app.money import parse_money
-from app.models.base import BookingMatchStatus, BookingResolutionStatus, BookingStatus, CsvModel, DataScope, utcnow
+from app.models.base import (
+    BookingMatchStatus,
+    BookingResolutionStatus,
+    BookingStatus,
+    CsvModel,
+    DataScope,
+    FareClass,
+    parse_fare_class,
+    utcnow,
+)
 from app.route_options import join_pipe, parse_time, split_pipe
 
 
@@ -23,6 +32,7 @@ class Booking(CsvModel):
     departure_date: date
     departure_time: str
     arrival_time: str = ""
+    fare_class: FareClass = FareClass.BASIC_ECONOMY
     booked_price: Decimal
     record_locator: str = ""
     booked_at: datetime = Field(default_factory=utcnow)
@@ -55,6 +65,11 @@ class Booking(CsvModel):
     @classmethod
     def validate_arrival_time(cls, value: str) -> str:
         return parse_time(value) if value else ""
+
+    @field_validator("fare_class", mode="before")
+    @classmethod
+    def validate_fare_class(cls, value: object) -> FareClass:
+        return parse_fare_class(value)
 
     @field_validator("record_locator")
     @classmethod

@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import type { TripEditorPayload, TripEditorRouteOption, TripEditorValues } from "../types";
 import { MultiSelectField } from "../components/MultiSelectField";
+import { SearchSelectField } from "../components/SearchSelectField";
 
 function blankRouteOption(): TripEditorRouteOption {
   return {
@@ -16,7 +17,7 @@ function blankRouteOption(): TripEditorRouteOption {
     dayOffset: 0,
     startTime: "",
     endTime: "",
-    fareClassPolicy: "include_basic",
+    fareClass: "basic_economy",
   };
 }
 
@@ -435,34 +436,20 @@ export function TripEditorPage() {
                         onChange={(event) => updateRoute(index, { endTime: event.target.value })}
                       />
                     </label>
-                    <div className="field-block field-block--full">
-                      <span>Fare policy</span>
-                      <div className="choice-card-grid">
-                        <label className={`choice-card-react choice-card-react--compact ${route.fareClassPolicy === "include_basic" ? "is-selected" : ""}`}>
-                          <input
-                            type="radio"
-                            name={`farePolicy-${index}`}
-                            checked={route.fareClassPolicy === "include_basic"}
-                            onChange={() => updateRoute(index, { fareClassPolicy: "include_basic" })}
-                          />
-                          <span>
-                            <strong>Include Basic</strong>
-                            <small>Track the cheapest economy result.</small>
-                          </span>
-                        </label>
-                        <label className={`choice-card-react choice-card-react--compact ${route.fareClassPolicy === "exclude_basic" ? "is-selected" : ""}`}>
-                          <input
-                            type="radio"
-                            name={`farePolicy-${index}`}
-                            checked={route.fareClassPolicy === "exclude_basic"}
-                            onChange={() => updateRoute(index, { fareClassPolicy: "exclude_basic" })}
-                          />
-                          <span>
-                            <strong>Exclude Basic</strong>
-                            <small>Only standard-or-better economy.</small>
-                          </span>
-                        </label>
-                      </div>
+                    <div className="field-block">
+                      <span>Fare</span>
+                      <SearchSelectField
+                        options={payload.catalogs.fareClasses.map((item) => ({
+                          value: item.value,
+                          label: item.label,
+                          keywords: item.keywords,
+                          summary: item.label,
+                        }))}
+                        value={route.fareClass}
+                        onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
+                        placeholder="Choose fare"
+                        disabled={saveMutation.isPending}
+                      />
                     </div>
                     {values.preferenceMode === "ranked_bias" ? (
                       index === 0 ? (

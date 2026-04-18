@@ -62,6 +62,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_tracker_fetch_targets_to_v22(connection)
     if current_version < 23:
         _migrate_trip_groups_to_v23(connection)
+    if current_version < 24:
+        _migrate_bookings_fare_class_to_v24(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -433,6 +435,38 @@ def _migrate_unmatched_bookings_to_v9(connection: sqlite3.Connection) -> None:
     connection.execute(
         "ALTER TABLE bookings ADD COLUMN auto_link_enabled INTEGER NOT NULL DEFAULT 1"
     )
+
+
+def _migrate_bookings_fare_class_to_v24(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "fare_class" not in columns:
+        connection.execute(
+            "ALTER TABLE bookings ADD COLUMN fare_class TEXT NOT NULL DEFAULT 'basic_economy'"
+        )
+    if _table_exists(connection, "route_options") and "route_option_id" in columns:
+        connection.execute(
+            """
+            UPDATE bookings
+            SET fare_class = CASE COALESCE(
+                (
+                    SELECT route_options.fare_class_policy
+                    FROM route_options
+                    WHERE route_options.route_option_id = bookings.route_option_id
+                    LIMIT 1
+                ),
+                ''
+            )
+                WHEN 'include_basic' THEN 'basic_economy'
+                WHEN 'basic_economy' THEN 'basic_economy'
+                WHEN 'exclude_basic' THEN 'economy'
+                WHEN 'economy' THEN 'economy'
+                ELSE fare_class
+            END
+            WHERE COALESCE(route_option_id, '') != ''
+            """
+        )
 
 
 def _migrate_booking_email_events_to_v6(connection: sqlite3.Connection) -> None:

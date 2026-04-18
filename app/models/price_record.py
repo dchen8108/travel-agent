@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import field_validator
+from pydantic import AliasChoices, Field, field_validator
 
 from app.catalog import normalize_airline_code, normalize_airport_code
-from app.models.base import CsvModel, DataScope, FareClassPolicy
+from app.models.base import CsvModel, DataScope, FareClass, parse_fare_class
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
 
@@ -28,7 +28,11 @@ class PriceRecord(CsvModel):
     search_travel_date: date
     search_start_time: str
     search_end_time: str
-    search_fare_class_policy: FareClassPolicy = FareClassPolicy.INCLUDE_BASIC
+    search_fare_class: FareClass = Field(
+        default=FareClass.BASIC_ECONOMY,
+        validation_alias=AliasChoices("search_fare_class", "search_fare_class_policy"),
+        serialization_alias="search_fare_class_policy",
+    )
     query_origin_airport: str
     query_destination_airport: str
     airline: str
@@ -80,10 +84,10 @@ class PriceRecord(CsvModel):
             raise ValueError("Choose a supported relative day.")
         return value
 
-    @field_validator("search_fare_class_policy")
+    @field_validator("search_fare_class", mode="before")
     @classmethod
-    def validate_search_fare_class_policy(cls, value: FareClassPolicy) -> FareClassPolicy:
-        return value
+    def validate_search_fare_class(cls, value: object) -> FareClass:
+        return parse_fare_class(value)
 
     @field_validator("search_end_time")
     @classmethod

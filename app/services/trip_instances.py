@@ -260,7 +260,7 @@ def _route_option_payloads(route_options: list[RouteOption]) -> list[dict[str, o
             "day_offset": option.day_offset,
             "start_time": option.start_time,
             "end_time": option.end_time,
-            "fare_class_policy": option.fare_class_policy,
+            "fare_class": option.fare_class,
             "savings_needed_vs_previous": option.savings_needed_vs_previous,
         }
         for option in sorted(route_options, key=lambda item: item.rank)

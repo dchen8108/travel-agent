@@ -38,9 +38,36 @@ class RoutePreferenceMode(StrEnum):
     RANKED_BIAS = "ranked_bias"
 
 
+class FareClass(StrEnum):
+    BASIC_ECONOMY = "basic_economy"
+    ECONOMY = "economy"
+
+
 class FareClassPolicy(StrEnum):
     INCLUDE_BASIC = "include_basic"
     EXCLUDE_BASIC = "exclude_basic"
+
+
+def parse_fare_class(value: object, *, default: FareClass = FareClass.ECONOMY) -> FareClass:
+    if isinstance(value, FareClass):
+        return value
+    if isinstance(value, FareClassPolicy):
+        return FareClass.BASIC_ECONOMY if value == FareClassPolicy.INCLUDE_BASIC else FareClass.ECONOMY
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return default
+    if raw in {FareClass.BASIC_ECONOMY, "basic", FareClassPolicy.INCLUDE_BASIC}:
+        return FareClass.BASIC_ECONOMY
+    if raw in {FareClass.ECONOMY, "main", "unknown", FareClassPolicy.EXCLUDE_BASIC}:
+        return FareClass.ECONOMY
+    raise ValueError("Choose a supported fare.")
+
+
+def fare_class_label(value: object) -> str:
+    fare_class = parse_fare_class(value)
+    if fare_class == FareClass.BASIC_ECONOMY:
+        return "Basic Economy"
+    return "Economy"
 
 
 class TripInstanceKind(StrEnum):

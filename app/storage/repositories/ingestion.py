@@ -71,7 +71,7 @@ class IngestionRepositoryMixin:
         if not records:
             return
         self.ensure_data_dir()
-        rows = [item.model_dump(mode="json") for item in records]
+        rows = [item.model_dump(mode="json", by_alias=True) for item in records]
         with self._borrow_connection() as (connection, own_connection):
             append_rows(connection, "price_records", rows)
             if own_connection:

@@ -28,6 +28,7 @@ from app.services.snapshot_queries import (
 )
 from app.services.snapshots import AppSnapshot
 from app.money import format_money
+from app.models.base import fare_class_label
 
 
 def trip_ui_label(snapshot: AppSnapshot, trip_instance_id: str) -> str:
@@ -65,9 +66,13 @@ def _row_tracker(snapshot: AppSnapshot, trip_instance_id: str) -> Tracker | None
 def booking_offer_summary(booking_like: object, *, anchor_date: date | None = None) -> dict[str, object]:
     departure_time = format_departure_time_label(getattr(booking_like, "departure_time", ""))
     record_locator = getattr(booking_like, "record_locator", "") or ""
-    booking_meta = departure_time
+    meta_parts = [departure_time]
+    fare_class = getattr(booking_like, "fare_class", "")
+    if fare_class:
+        meta_parts.append(fare_class_label(fare_class))
     if record_locator:
-        booking_meta = f"{departure_time} · {record_locator}" if departure_time else record_locator
+        meta_parts.append(record_locator)
+    booking_meta = " · ".join(part for part in meta_parts if part)
     return {
         "label": "Booked",
         "detail": booking_route_label(booking_like),
@@ -152,6 +157,10 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             if current_target is not None and current_price is not None
             else ""
         )
+        if display_tracker is not None and display_tracker.fare_class:
+            current_offer_meta_label = " · ".join(
+                part for part in [current_offer_meta_label, fare_class_label(display_tracker.fare_class)] if part
+            )
         current_offer = live_fare_offer_summary(
             anchor_date=instance.anchor_date if instance is not None else date.today(),
             travel_date=display_tracker.travel_date if display_tracker is not None else None,

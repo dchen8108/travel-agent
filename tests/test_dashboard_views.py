@@ -84,7 +84,7 @@ def test_unbooked_trip_row_uses_exact_winning_fetch_target_route_and_airline() -
     assert row["current_offer"] == {
         "label": "Live fare",
         "detail": "BUR → SFO · Southwest",
-        "meta_label": "6:35 AM",
+        "meta_label": "6:35 AM · Basic Economy",
         "day_delta_label": "",
         "price_label": "$88",
         "href": "https://example.com/gf",
@@ -145,7 +145,7 @@ def test_unbooked_trip_row_fallback_route_spaces_multi_airport_options() -> None
     assert row["current_offer"] == {
         "label": "Live fare",
         "detail": "LAX | BUR → SFO | OAK · Southwest",
-        "meta_label": "",
+        "meta_label": "Basic Economy",
         "day_delta_label": "",
         "price_label": "Checking",
         "href": "",
@@ -221,7 +221,7 @@ def test_unbooked_trip_row_hides_stale_tracker_price() -> None:
     assert row["current_offer"] == {
         "label": "Live fare",
         "detail": "LAX | BUR → SFO | OAK · Southwest",
-        "meta_label": "",
+        "meta_label": "Basic Economy",
         "day_delta_label": "",
         "price_label": "Checking",
         "href": "",
@@ -312,7 +312,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     assert row["booked_offer"] == {
         "label": "Booked",
         "detail": "LAX → SFO · Delta",
-        "meta_label": "8:15 AM",
+        "meta_label": "8:15 AM · Basic Economy",
         "day_delta_label": "",
         "price_label": "$124",
         "href": "",
@@ -322,7 +322,7 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     assert row["current_offer"] == {
         "label": "Live fare",
         "detail": "BUR → SFO · Southwest",
-        "meta_label": "",
+        "meta_label": "Basic Economy",
         "day_delta_label": "",
         "price_label": "$88",
         "href": "https://example.com/gf",
@@ -413,7 +413,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
     assert row["booked_offer"] == {
         "label": "Booked",
         "detail": "LAX → SFO · Delta",
-        "meta_label": "11:30 PM",
+        "meta_label": "11:30 PM · Basic Economy",
         "day_delta_label": "-1 day",
         "price_label": "$124",
         "href": "",
@@ -423,7 +423,7 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
     assert row["current_offer"] == {
         "label": "Live fare",
         "detail": "BUR → SFO · Southwest",
-        "meta_label": "6:10 AM",
+        "meta_label": "6:10 AM · Basic Economy",
         "day_delta_label": "+1 day",
         "price_label": "$88",
         "href": "https://example.com/gf",

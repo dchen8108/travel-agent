@@ -105,12 +105,12 @@ class RuntimeRepositoryMixin:
         return self._load_models("SELECT * FROM trackers ORDER BY rowid", Tracker)
 
     def replace_trackers(self, trackers: list[Tracker]) -> None:
-        self._replace_table("trackers", [item.model_dump(mode="json") for item in trackers])
+        self._replace_table("trackers", [item.model_dump(mode="json", by_alias=True) for item in trackers])
 
     def upsert_trackers(self, trackers: list[Tracker]) -> None:
         self._upsert_table(
             "trackers",
-            [item.model_dump(mode="json") for item in trackers],
+            [item.model_dump(mode="json", by_alias=True) for item in trackers],
             conflict_columns=("tracker_id",),
         )
 

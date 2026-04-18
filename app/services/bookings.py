@@ -4,7 +4,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import date, datetime
 
-from app.models.base import BookingMatchStatus, BookingResolutionStatus, BookingStatus, DataScope, utcnow
+from app.models.base import (
+    BookingMatchStatus,
+    BookingResolutionStatus,
+    BookingStatus,
+    DataScope,
+    FareClass,
+    utcnow,
+)
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.route_options import time_in_window
@@ -25,6 +32,7 @@ class BookingCandidate:
     booked_price: Decimal
     record_locator: str
     notes: str = ""
+    fare_class: FareClass = FareClass.BASIC_ECONOMY
 
 
 def _build_booking(
@@ -48,6 +56,7 @@ def _build_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        fare_class=candidate.fare_class,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         notes=candidate.notes if notes is None else notes,
@@ -72,6 +81,7 @@ def _booking_to_unmatched(booking: Booking) -> Booking:
         departure_date=booking.departure_date,
         departure_time=booking.departure_time,
         arrival_time=booking.arrival_time,
+        fare_class=booking.fare_class,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
         raw_summary="",
@@ -106,6 +116,8 @@ def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[T
         if candidate.destination_airport not in tracker.destination_codes:
             continue
         if candidate.airline not in tracker.airline_codes:
+            continue
+        if tracker.fare_class != candidate.fare_class:
             continue
         if not time_in_window(tracker.start_time, tracker.end_time, candidate.departure_time):
             continue
@@ -167,6 +179,7 @@ def _candidate_from_unmatched(unmatched: Booking) -> BookingCandidate:
         departure_date=unmatched.departure_date,
         departure_time=unmatched.departure_time,
         arrival_time=unmatched.arrival_time,
+        fare_class=unmatched.fare_class,
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
     )
@@ -180,6 +193,7 @@ def _candidate_from_booking(booking: Booking) -> BookingCandidate:
         departure_date=booking.departure_date,
         departure_time=booking.departure_time,
         arrival_time=booking.arrival_time,
+        fare_class=booking.fare_class,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
         notes=booking.notes,
@@ -200,6 +214,7 @@ def suggested_route_option_payload_for_booking(candidate: BookingCandidate) -> d
         "day_offset": 0,
         "start_time": start_time,
         "end_time": end_time,
+        "fare_class": candidate.fare_class,
     }
 
 
@@ -262,6 +277,7 @@ def reconcile_unmatched_bookings(
             and booking.destination_airport == candidate.destination_airport
             and booking.departure_date == candidate.departure_date
             and booking.departure_time == candidate.departure_time
+            and booking.fare_class == candidate.fare_class
             and booking.record_locator == candidate.record_locator
             for booking in bookings
         ):
@@ -293,6 +309,7 @@ def reconcile_unmatched_bookings(
                 departure_date=candidate.departure_date,
                 departure_time=candidate.departure_time,
                 arrival_time=candidate.arrival_time,
+                fare_class=candidate.fare_class,
                 booked_price=candidate.booked_price,
                 record_locator=candidate.record_locator,
                 booked_at=unmatched.booked_at,
@@ -371,6 +388,7 @@ def record_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        fare_class=candidate.fare_class,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=utcnow(),
@@ -424,6 +442,7 @@ def resolve_unmatched_booking_to_trip_instance(
         departure_date=unmatched.departure_date,
         departure_time=unmatched.departure_time,
         arrival_time=unmatched.arrival_time,
+        fare_class=unmatched.fare_class,
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
     )
@@ -444,6 +463,7 @@ def resolve_unmatched_booking_to_trip_instance(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        fare_class=candidate.fare_class,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=unmatched.booked_at,
@@ -499,6 +519,7 @@ def resolve_unmatched_booking_to_trip(
             and item.destination_airport == candidate.destination_airport
             and item.departure_date == candidate.departure_date
             and item.departure_time == candidate.departure_time
+            and item.fare_class == candidate.fare_class
             and item.record_locator == candidate.record_locator
         ]
         if len(existing_bookings) == 1:
@@ -599,6 +620,7 @@ def update_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        fare_class=candidate.fare_class,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=existing.booked_at,
@@ -634,6 +656,7 @@ def update_unmatched_booking(
         departure_date=candidate.departure_date,
         departure_time=candidate.departure_time,
         arrival_time=candidate.arrival_time,
+        fare_class=candidate.fare_class,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
         booked_at=existing.booked_at,

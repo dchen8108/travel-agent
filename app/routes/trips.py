@@ -7,7 +7,7 @@ from urllib.parse import parse_qsl, urlencode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 
-from app.models.base import DataScope, FareClassPolicy
+from app.models.base import DataScope, FareClass
 from app.services.bookings import unlink_bookings_for_trip, unlink_bookings_for_trip_instance
 from app.services.data_scope import include_test_data_for_processing
 from app.services.dashboard_navigation import trip_focus_url, trip_panel_url
@@ -49,7 +49,7 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
                 "day_offset": int(item.get("day_offset", 0)),
                 "start_time": str(item.get("start_time", "") or ""),
                 "end_time": str(item.get("end_time", "") or ""),
-                "fare_class_policy": str(item.get("fare_class_policy", FareClassPolicy.INCLUDE_BASIC) or FareClassPolicy.INCLUDE_BASIC),
+                "fare_class": str(item.get("fare_class", item.get("fare_class_policy", FareClass.BASIC_ECONOMY)) or FareClass.BASIC_ECONOMY),
             }
         )
     return route_options

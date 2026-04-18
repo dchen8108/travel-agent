@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Qu
 from pydantic import BaseModel
 
 from app.money import parse_money
-from app.models.base import DataScope
+from app.models.base import DataScope, FareClass, parse_fare_class
 from app.services.bookings import (
     BookingCandidate,
     delete_booking_record,
@@ -57,6 +57,7 @@ class BookingBody(BaseModel):
     departureDate: str
     departureTime: str
     arrivalTime: str
+    fareClass: str = FareClass.BASIC_ECONOMY
     bookedPrice: str
     recordLocator: str = ""
     notes: str = ""
@@ -87,6 +88,10 @@ def _booking_candidate(body: BookingBody) -> BookingCandidate:
         raise HTTPException(status_code=400, detail="Choose a destination airport.")
     if not body.departureTime.strip():
         raise HTTPException(status_code=400, detail="Departure time is required.")
+    try:
+        fare_class = parse_fare_class(body.fareClass, default=FareClass.BASIC_ECONOMY)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Choose a fare.") from exc
     booked_price = parse_money(body.bookedPrice)
     if booked_price is None:
         raise HTTPException(status_code=400, detail="Booked price is required.")
@@ -101,6 +106,7 @@ def _booking_candidate(body: BookingBody) -> BookingCandidate:
         departure_date=departure_date,
         departure_time=body.departureTime.strip(),
         arrival_time=body.arrivalTime.strip(),
+        fare_class=fare_class,
         booked_price=booked_price,
         record_locator=body.recordLocator.strip(),
         notes=body.notes.strip(),

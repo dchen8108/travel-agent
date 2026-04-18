@@ -1300,7 +1300,7 @@ def test_trip_creation_persists_preference_mode_and_thresholds(tmp_path: Path) -
     assert form_payload["routeOptions"][1]["savingsNeededVsPrevious"] == 50
 
 
-def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
+def test_trip_creation_persists_economy_fare_class(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
         config_dir=tmp_path / "config",
@@ -1330,8 +1330,8 @@ def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
     route_option = repository.load_route_options()[0]
     tracker = repository.load_trackers()[0]
 
-    assert route_option.fare_class_policy == "exclude_basic"
-    assert tracker.fare_class_policy == "exclude_basic"
+    assert route_option.fare_class == "economy"
+    assert tracker.fare_class == "economy"
 
     trip = repository.load_trips()[0]
     edit_page = client.get(f"/trips/{trip.trip_id}/edit")
@@ -1339,7 +1339,7 @@ def test_trip_creation_persists_exclude_basic_policy(tmp_path: Path) -> None:
     assert '<div id="root"></div>' in edit_page.text
 
     form_payload = client.get(f"/api/trips/{trip.trip_id}/edit-form").json()
-    assert form_payload["routeOptions"][0]["fareClassPolicy"] == "exclude_basic"
+    assert form_payload["routeOptions"][0]["fareClass"] == "economy"
 
 
 def test_edit_trip_validation_error_returns_plain_error_and_preserves_trip(tmp_path: Path) -> None:
@@ -1456,7 +1456,7 @@ def test_editing_detached_trip_anchor_date_updates_same_instance(tmp_path: Path)
                 "day_offset": option.day_offset,
                 "start_time": option.start_time,
                 "end_time": option.end_time,
-                "fare_class_policy": option.fare_class_policy,
+                "fare_class": option.fare_class,
                 "savings_needed_vs_previous": option.savings_needed_vs_previous,
             }
             for option in repository.load_route_options()
