@@ -83,6 +83,7 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
         departure_time,
         arrival_time,
         fallback_day_delta=booking_day_delta,
+        anchor_date=anchor_date,
     )
     _, badges, booking_meta = _offer_meta_value(primary_meta_label, [])
     if record_locator:
@@ -175,6 +176,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
                     if instance is not None and display_tracker is not None
                     else 0
                 ),
+                anchor_date=instance.anchor_date if instance is not None else None,
             )
             if current_target is not None and current_price is not None
             else ""

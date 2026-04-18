@@ -389,7 +389,7 @@ def test_tracker_panel_inlines_day_offset_into_fetched_times_with_explicit_date_
     target.latest_price = 109
     target.latest_airline = "Southwest"
     target.latest_departure_label = "8:10 PM on Thu, Apr 21"
-    target.latest_arrival_label = "9:40 PM on Thu, Apr 21"
+    target.latest_arrival_label = "9:40 PM on Fri, Apr 22"
     target.google_flights_url = "https://example.com/gf"
     repository.upsert_tracker_fetch_targets([target])
     tracker.latest_observed_price = 109
@@ -401,7 +401,7 @@ def test_tracker_panel_inlines_day_offset_into_fetched_times_with_explicit_date_
     trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
 
     assert trackers_response.status_code == 200
-    assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "8:10 PM⁺¹ → 9:40 PM⁺¹"
+    assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "8:10 PM⁺¹ → 9:40 PM⁺²"
 
 
 def test_booking_delete_and_unlink_api_mutations_return_updated_panel(client, repository: Repository) -> None:

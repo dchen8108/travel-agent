@@ -446,3 +446,84 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
         "tone": "accent",
         "price_is_status": False,
     }
+
+
+def test_trip_row_stacks_explicit_arrival_day_shift_on_top_of_travel_day_offset() -> None:
+    fresh_at = utcnow() - timedelta(hours=1)
+    snapshot = AppSnapshot(
+        trip_groups=[],
+        trips=[
+            Trip(
+                trip_id="trip_1",
+                label="Overnight hop",
+                trip_kind="one_time",
+                anchor_date="2026-04-20",
+            )
+        ],
+        rule_group_targets=[],
+        route_options=[],
+        trip_instances=[
+            TripInstance(
+                trip_instance_id="inst_1",
+                trip_id="trip_1",
+                display_label="Overnight hop (2026-04-20)",
+                anchor_date="2026-04-20",
+            )
+        ],
+        trip_instance_group_memberships=[],
+        trackers=[
+            Tracker(
+                tracker_id="tracker_1",
+                trip_instance_id="inst_1",
+                route_option_id="opt_1",
+                rank=1,
+                preference_bias_dollars=0,
+                origin_airports="SFO",
+                destination_airports="LAX",
+                airlines="Southwest",
+                day_offset=1,
+                travel_date="2026-04-21",
+                start_time="16:00",
+                end_time="22:00",
+                latest_observed_price=109,
+                latest_fetched_at=fresh_at,
+                latest_winning_origin_airport="SFO",
+                latest_winning_destination_airport="LAX",
+            )
+        ],
+        tracker_fetch_targets=[
+            TrackerFetchTarget(
+                fetch_target_id="fetch_1",
+                tracker_id="tracker_1",
+                trip_instance_id="inst_1",
+                origin_airport="SFO",
+                destination_airport="LAX",
+                google_flights_url="https://example.com/gf",
+                latest_price=109,
+                latest_airline="Southwest",
+                latest_departure_label="8:10 PM on Thu, Apr 21",
+                latest_arrival_label="9:40 PM on Fri, Apr 22",
+                latest_fetched_at=fresh_at,
+            )
+        ],
+        bookings=[],
+        unmatched_bookings=[],
+        booking_email_events=[],
+        price_records=[],
+        app_state=AppState(),
+    )
+
+    row = trip_row_summary(snapshot, "inst_1")
+
+    assert row["current_offer"] == {
+        "label": "Live fare",
+        "detail": "SFO → LAX",
+        "airline_key": "Southwest",
+        "primary_meta_label": "8:10 PM⁺¹ → 9:40 PM⁺²",
+        "meta_badges": [],
+        "meta_label": "8:10 PM⁺¹ → 9:40 PM⁺²",
+        "price_label": "$109",
+        "href": "https://example.com/gf",
+        "tone": "success",
+        "price_is_status": False,
+    }

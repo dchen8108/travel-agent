@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import re
 
 from app.catalog import airline_marketing_code
@@ -57,13 +57,44 @@ def _split_time_day_suffix(value: str) -> tuple[str, int | None]:
     return base, (int(suffix) if suffix else None)
 
 
+def _label_calendar_day_delta(
+    value: str,
+    *,
+    anchor_date: date | None,
+    fallback_day_delta: int,
+) -> int | None:
+    if anchor_date is None:
+        return None
+    match = re.search(r"\bon\s+(?:[A-Za-z]{3},\s+)?([A-Za-z]{3})\s+(\d{1,2})\b", value.strip())
+    if not match:
+        return None
+    reference_date = anchor_date + timedelta(days=fallback_day_delta)
+    month_label = match.group(1)
+    day_label = match.group(2)
+    candidates: list[date] = []
+    for year in (reference_date.year - 1, reference_date.year, reference_date.year + 1):
+        try:
+            candidates.append(datetime.strptime(f"{month_label} {day_label} {year}", "%b %d %Y").date())
+        except ValueError:
+            continue
+    if not candidates:
+        return None
+    best = min(candidates, key=lambda candidate: abs((candidate - reference_date).days))
+    return (best - anchor_date).days
+
+
 def format_day_delta_superscript(delta: int) -> str:
     if delta == 0:
         return ""
     return f"{delta:+d}".translate(_SUPERSCRIPT_TRANSLATION)
 
 
-def format_departure_time_label(value: str, *, fallback_day_delta: int = 0) -> str:
+def format_departure_time_label(
+    value: str,
+    *,
+    fallback_day_delta: int = 0,
+    anchor_date: date | None = None,
+) -> str:
     raw, explicit_day_delta = _split_time_day_suffix(value)
     if not raw:
         return ""
@@ -83,13 +114,34 @@ def format_departure_time_label(value: str, *, fallback_day_delta: int = 0) -> s
                 label = raw
             else:
                 label = parsed.strftime("%I:%M %p").lstrip("0")
-    day_delta = explicit_day_delta if explicit_day_delta is not None else fallback_day_delta
+    parsed_day_delta = _label_calendar_day_delta(
+        value,
+        anchor_date=anchor_date,
+        fallback_day_delta=fallback_day_delta,
+    )
+    day_delta = explicit_day_delta if explicit_day_delta is not None else (
+        parsed_day_delta if parsed_day_delta is not None else fallback_day_delta
+    )
     return f"{label}{format_day_delta_superscript(day_delta)}" if day_delta else label
 
 
-def format_departure_window_label(start_time: str, end_time: str, *, fallback_day_delta: int = 0) -> str:
-    start_label = format_departure_time_label(start_time, fallback_day_delta=fallback_day_delta)
-    end_label = format_departure_time_label(end_time, fallback_day_delta=fallback_day_delta)
+def format_departure_window_label(
+    start_time: str,
+    end_time: str,
+    *,
+    fallback_day_delta: int = 0,
+    anchor_date: date | None = None,
+) -> str:
+    start_label = format_departure_time_label(
+        start_time,
+        fallback_day_delta=fallback_day_delta,
+        anchor_date=anchor_date,
+    )
+    end_label = format_departure_time_label(
+        end_time,
+        fallback_day_delta=fallback_day_delta,
+        anchor_date=anchor_date,
+    )
     if start_label and end_label:
         return f"{start_label} \u2013 {end_label}"
     if start_label:
@@ -99,9 +151,23 @@ def format_departure_window_label(start_time: str, end_time: str, *, fallback_da
     return "Time window"
 
 
-def format_time_range_label(departure_value: str, arrival_value: str, *, fallback_day_delta: int = 0) -> str:
-    departure_label = format_departure_time_label(departure_value, fallback_day_delta=fallback_day_delta)
-    arrival_label = format_departure_time_label(arrival_value, fallback_day_delta=fallback_day_delta)
+def format_time_range_label(
+    departure_value: str,
+    arrival_value: str,
+    *,
+    fallback_day_delta: int = 0,
+    anchor_date: date | None = None,
+) -> str:
+    departure_label = format_departure_time_label(
+        departure_value,
+        fallback_day_delta=fallback_day_delta,
+        anchor_date=anchor_date,
+    )
+    arrival_label = format_departure_time_label(
+        arrival_value,
+        fallback_day_delta=fallback_day_delta,
+        anchor_date=anchor_date,
+    )
     if departure_label and arrival_label:
         return f"{departure_label} \u2192 {arrival_label}"
     return departure_label or arrival_label
