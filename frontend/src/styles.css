@@ -1533,6 +1533,9 @@ textarea {
 
 .route-card-react--overlay {
   margin: 0;
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(216, 221, 211, 0.96);
+  box-shadow: 0 24px 48px rgba(29, 43, 57, 0.2);
 }
 
 .route-card-react__placeholder {

@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Fragment, startTransition, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { IconButton } from "../components/IconButton";
@@ -242,6 +243,16 @@ export function TripEditorPage() {
     setDragState(null);
   }
 
+  function applyDragOverlayTransform(
+    activeDragState: NonNullable<typeof dragState>,
+    pointer: { x: number; y: number },
+  ) {
+    if (!dragOverlayRef.current) {
+      return;
+    }
+    dragOverlayRef.current.style.transform = `translate3d(${pointer.x - activeDragState.pointerStartX}px, ${pointer.y - activeDragState.pointerStartY}px, 0)`;
+  }
+
   function handleRouteDragStart(routeId: string, event: ReactPointerEvent<HTMLButtonElement>) {
     if (saveMutation.isPending || routeOptions.length < 2) {
       return;
@@ -306,9 +317,6 @@ export function TripEditorPage() {
       if (!activeDragState || !pointer) {
         return;
       }
-      if (dragOverlayRef.current) {
-        dragOverlayRef.current.style.transform = `translate3d(${pointer.x - activeDragState.pointerStartX}px, ${pointer.y - activeDragState.pointerStartY}px, 0)`;
-      }
       const current = routeOptionsRef.current;
       const draggedIndex = current.findIndex((route) => route.clientId === activeDragState.routeId);
       if (draggedIndex === -1) {
@@ -349,7 +357,9 @@ export function TripEditorPage() {
       if (!activeDragState || event.pointerId !== activeDragState.pointerId) {
         return;
       }
-      dragPointerRef.current = { x: event.clientX, y: event.clientY };
+      const pointer = { x: event.clientX, y: event.clientY };
+      dragPointerRef.current = pointer;
+      applyDragOverlayTransform(activeDragState, pointer);
       scheduleDragFrame();
     }
 
@@ -409,7 +419,7 @@ export function TripEditorPage() {
       left: dragState.cardLeft,
       top: dragState.cardTop,
       width: dragState.cardWidth,
-      zIndex: 12,
+      zIndex: 80,
       pointerEvents: "none",
     };
   }
@@ -418,7 +428,14 @@ export function TripEditorPage() {
     const overlay = options?.overlay ?? false;
     return (
       <article
-        ref={overlay ? undefined : (node) => {
+        ref={(node) => {
+          if (overlay) {
+            dragOverlayRef.current = node;
+            if (node && dragStateRef.current && dragPointerRef.current) {
+              applyDragOverlayTransform(dragStateRef.current, dragPointerRef.current);
+            }
+            return;
+          }
           routeCardRefs.current[route.clientId] = node;
         }}
         className={`route-card-react${overlay ? " is-dragging route-card-react--overlay" : ""}`}
@@ -723,8 +740,17 @@ export function TripEditorPage() {
                   {dragState?.routeId === route.clientId ? null : renderRouteCard(route, index)}
                 </Fragment>
               ))}
-              {dragState ? renderRouteCard(routeOptions.find((route) => route.clientId === dragState.routeId)!, routeOptions.findIndex((route) => route.clientId === dragState.routeId), { overlay: true }) : null}
             </div>
+            {dragState
+              ? createPortal(
+                renderRouteCard(
+                  routeOptions.find((route) => route.clientId === dragState.routeId)!,
+                  routeOptions.findIndex((route) => route.clientId === dragState.routeId),
+                  { overlay: true },
+                ),
+                document.body,
+              )
+              : null}
           </section>
 
           <div className="editor-actions">
