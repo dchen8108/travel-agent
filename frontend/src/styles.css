@@ -1228,6 +1228,13 @@ textarea {
   gap: 1rem;
 }
 
+.route-drop-indicator {
+  height: 0.3rem;
+  margin: -0.35rem 0 0.15rem;
+  border-radius: 999px;
+  background: rgba(17, 142, 132, 0.55);
+}
+
 .trip-editor-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1559,14 +1566,33 @@ textarea {
   gap: 0.6rem;
 }
 
+.route-card-react.is-dragging {
+  opacity: 0.56;
+}
+
 .route-card-react__header {
   justify-content: space-between;
   margin-bottom: 0.85rem;
 }
 
+.route-card-react__header-main {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .route-card-react__title {
   display: grid;
   gap: 0.12rem;
+}
+
+.route-card-react__drag-handle {
+  cursor: grab;
+}
+
+.route-card-react__drag-handle:active {
+  cursor: grabbing;
 }
 
 .route-card-react__grid {
@@ -1888,6 +1914,10 @@ textarea {
   .route-card-react__header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .route-card-react__header-main {
+    width: 100%;
   }
 
   .section-header-react__controls {

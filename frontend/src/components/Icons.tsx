@@ -63,6 +63,19 @@ export function AddIcon() {
   return svg(<path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" fill="currentColor" />);
 }
 
+export function DragHandleIcon() {
+  return svg(
+    <>
+      <circle cx="9" cy="7" r="1.35" fill="currentColor" />
+      <circle cx="15" cy="7" r="1.35" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.35" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.35" fill="currentColor" />
+      <circle cx="9" cy="17" r="1.35" fill="currentColor" />
+      <circle cx="15" cy="17" r="1.35" fill="currentColor" />
+    </>,
+  );
+}
+
 export function LinkIcon() {
   return svg(
     <>

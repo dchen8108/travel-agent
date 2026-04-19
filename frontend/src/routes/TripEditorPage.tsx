@@ -1,7 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { Fragment, startTransition, useEffect, useMemo, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { IconButton } from "../components/IconButton";
+import { DragHandleIcon } from "../components/Icons";
 import { api } from "../lib/api";
 import { tripEditorQueryKey } from "../lib/queryKeys";
 import type { TripEditorPayload, TripEditorRouteOption, TripEditorValues } from "../types";
@@ -9,8 +11,24 @@ import { MultiSelectField } from "../components/MultiSelectField";
 import { SearchSelectField } from "../components/SearchSelectField";
 import { TimeRangeField } from "../components/TimeRangeField";
 
-function blankRouteOption(): TripEditorRouteOption {
+type LocalTripEditorRouteOption = TripEditorRouteOption & {
+  clientId: string;
+};
+
+function withClientId(routeOption: TripEditorRouteOption): LocalTripEditorRouteOption {
   return {
+    ...routeOption,
+    clientId: crypto.randomUUID(),
+  };
+}
+
+function toRoutePayload(routeOptions: LocalTripEditorRouteOption[]): TripEditorRouteOption[] {
+  return routeOptions.map(({ clientId: _clientId, ...routeOption }) => routeOption);
+}
+
+function blankRouteOption(): LocalTripEditorRouteOption {
+  return {
+    clientId: crypto.randomUUID(),
     routeOptionId: "",
     savingsNeededVsPrevious: 0,
     originAirports: [],
@@ -46,9 +64,11 @@ export function TripEditorPage() {
   const [searchParams] = useSearchParams();
   const mode = tripId ? "edit" : "create";
   const [values, setValues] = useState<TripEditorValues | null>(null);
-  const [routeOptions, setRouteOptions] = useState<TripEditorRouteOption[]>([blankRouteOption()]);
+  const [routeOptions, setRouteOptions] = useState<LocalTripEditorRouteOption[]>([blankRouteOption()]);
   const [error, setError] = useState("");
   const [savePhase, setSavePhase] = useState<"idle" | "saving" | "redirecting">("idle");
+  const [draggedRouteIndex, setDraggedRouteIndex] = useState<number | null>(null);
+  const [dragInsertIndex, setDragInsertIndex] = useState<number | null>(null);
 
   const editorParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -90,9 +110,11 @@ export function TripEditorPage() {
       return;
     }
     setValues(formQuery.data.values);
-    setRouteOptions(formQuery.data.routeOptions.length ? formQuery.data.routeOptions : [blankRouteOption()]);
+    setRouteOptions(formQuery.data.routeOptions.length ? formQuery.data.routeOptions.map(withClientId) : [blankRouteOption()]);
     setError("");
     setSavePhase("idle");
+    setDraggedRouteIndex(null);
+    setDragInsertIndex(null);
   }, [formQuery.data]);
 
   useEffect(() => {
@@ -111,13 +133,13 @@ export function TripEditorPage() {
         return api.updateTrip(
           tripId,
           values,
-          routeOptions,
+          toRoutePayload(routeOptions),
           formQuery.data?.sourceBooking?.unmatchedBookingId ?? "",
         );
       }
       return api.createTrip(
         values,
-        routeOptions,
+        toRoutePayload(routeOptions),
         formQuery.data?.sourceBooking?.unmatchedBookingId ?? "",
       );
     },
@@ -161,17 +183,124 @@ export function TripEditorPage() {
     setRouteOptions((current) => (current.length === 1 ? current : current.filter((_, itemIndex) => itemIndex !== index)));
   }
 
-  function moveRoute(index: number, direction: -1 | 1) {
+  function reorderRoute(fromIndex: number, insertIndex: number) {
     setRouteOptions((current) => {
-      const next = [...current];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) {
+      if (fromIndex < 0 || fromIndex >= current.length || insertIndex < 0 || insertIndex > current.length) {
         return current;
       }
-      [next[index], next[target]] = [next[target], next[index]];
+      const normalizedInsertIndex = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
+      if (normalizedInsertIndex === fromIndex) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(normalizedInsertIndex, 0, moved);
       return next;
     });
   }
+
+  function moveRoute(index: number, direction: -1 | 1) {
+    setRouteOptions((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.length) {
+        return current;
+      }
+      const next = [...current];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  }
+
+  function clearDragState() {
+    setDraggedRouteIndex(null);
+    setDragInsertIndex(null);
+  }
+
+  function handleRouteDragStart(index: number, event: ReactDragEvent<HTMLButtonElement>) {
+    if (saveMutation.isPending || routeOptions.length < 2) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+    setDraggedRouteIndex(index);
+    setDragInsertIndex(index);
+  }
+
+  function handleRouteDragOver(index: number, event: ReactDragEvent<HTMLElement>) {
+    if (draggedRouteIndex == null) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const insertIndex = event.clientY < bounds.top + bounds.height / 2 ? index : index + 1;
+    if (dragInsertIndex !== insertIndex) {
+      setDragInsertIndex(insertIndex);
+    }
+  }
+
+  function handleRouteDrop(event: ReactDragEvent<HTMLElement>) {
+    if (draggedRouteIndex == null || dragInsertIndex == null) {
+      return;
+    }
+    event.preventDefault();
+    reorderRoute(draggedRouteIndex, dragInsertIndex);
+    clearDragState();
+  }
+
+  function handleRouteStackDragOver(event: ReactDragEvent<HTMLDivElement>) {
+    if (draggedRouteIndex == null || event.target !== event.currentTarget) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dragInsertIndex !== routeOptions.length) {
+      setDragInsertIndex(routeOptions.length);
+    }
+  }
+
+  function handleRouteReorderKeyDown(index: number, event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (saveMutation.isPending || routeOptions.length < 2) {
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveRoute(index, -1);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveRoute(index, 1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      reorderRoute(index, 0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      reorderRoute(index, routeOptions.length);
+      return;
+    }
+  }
+
+  useEffect(() => {
+    if (draggedRouteIndex == null) {
+      return;
+    }
+    function handleWindowDrop() {
+      clearDragState();
+    }
+    window.addEventListener("dragend", handleWindowDrop);
+    window.addEventListener("drop", handleWindowDrop);
+    return () => {
+      window.removeEventListener("dragend", handleWindowDrop);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, [draggedRouteIndex]);
 
   if (formQuery.isError) {
     return (
@@ -370,105 +499,131 @@ export function TripEditorPage() {
                 Option 1 is preferred. Lower options only win when they beat the option above by the amount you set.
               </div>
             ) : null}
-            <div className="route-editor-stack">
+            <div
+              className="route-editor-stack"
+              onDragOver={handleRouteStackDragOver}
+              onDrop={handleRouteDrop}
+            >
               {routeOptions.map((route, index) => (
-                <article key={`${route.routeOptionId || "new"}-${index}`} className="route-card-react">
-                  <div className="route-card-react__header">
-                    <div className="route-card-react__title">
-                      <strong>Option {index + 1}</strong>
-                      {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" && index === 0 ? (
-                        <small className="muted-copy">Preferred option</small>
-                      ) : null}
+                <Fragment key={route.routeOptionId || route.clientId}>
+                  {draggedRouteIndex != null && dragInsertIndex === index ? <div className="route-drop-indicator" aria-hidden="true" /> : null}
+                  <article
+                    className={`route-card-react${draggedRouteIndex === index ? " is-dragging" : ""}`}
+                    onDragOver={(event) => handleRouteDragOver(index, event)}
+                    onDrop={handleRouteDrop}
+                  >
+                    <div className="route-card-react__header">
+                      <div className="route-card-react__header-main">
+                        {routeOptions.length > 1 ? (
+                          <IconButton
+                            label={`Reorder option ${index + 1}`}
+                            variant="inline"
+                            className="route-card-react__drag-handle"
+                            draggable={!saveMutation.isPending}
+                            onDragStart={(event) => handleRouteDragStart(index, event)}
+                            onDragEnd={clearDragState}
+                            onKeyDown={(event) => handleRouteReorderKeyDown(index, event)}
+                            disabled={saveMutation.isPending}
+                          >
+                            <DragHandleIcon />
+                          </IconButton>
+                        ) : null}
+                        <div className="route-card-react__title">
+                          <strong>Option {index + 1}</strong>
+                          {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" && index === 0 ? (
+                            <small className="muted-copy">Preferred option</small>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="route-card-react__actions">
+                        <button type="button" className="danger-button" onClick={() => removeRoute(index)} disabled={routeOptions.length === 1}>Remove</button>
+                      </div>
                     </div>
-                    <div className="route-card-react__actions">
-                      <button type="button" className="ghost-button" onClick={() => moveRoute(index, -1)} disabled={index === 0}>Up</button>
-                      <button type="button" className="ghost-button" onClick={() => moveRoute(index, 1)} disabled={index === routeOptions.length - 1}>Down</button>
-                      <button type="button" className="danger-button" onClick={() => removeRoute(index)} disabled={routeOptions.length === 1}>Remove</button>
-                    </div>
-                  </div>
-                  <div className="trip-editor-grid route-card-react__grid">
-                    <div className="field-block">
-                      <span>Origin airports</span>
-                      <MultiSelectField
-                        options={payload.catalogs.airports}
-                        values={route.originAirports}
-                        onChange={(originAirports) => updateRoute(index, { originAirports })}
-                        placeholder="Search origins"
-                        maxSelections={3}
-                      />
-                    </div>
-                    <div className="field-block">
-                      <span>Destination airports</span>
-                      <MultiSelectField
-                        options={payload.catalogs.airports}
-                        values={route.destinationAirports}
-                        onChange={(destinationAirports) => updateRoute(index, { destinationAirports })}
-                        placeholder="Search destinations"
-                        maxSelections={3}
-                      />
-                    </div>
-                    <div className="field-block">
-                      <span>Airlines</span>
-                      <MultiSelectField
-                        options={payload.catalogs.airlines}
-                        values={route.airlines}
-                        onChange={(airlines) => updateRoute(index, { airlines })}
-                        placeholder="Search airlines"
-                      />
-                    </div>
-                    <div className="field-block">
-                      <span>Travel day</span>
-                      <SearchSelectField
-                        options={TRAVEL_DAY_OPTIONS.map((item) => ({
-                          value: item.value,
-                          label: item.label,
-                          keywords: item.label,
-                          summary: item.label,
-                        }))}
-                        value={String(route.dayOffset)}
-                        onChange={(dayOffset) => updateRoute(index, { dayOffset: Number(dayOffset) })}
-                        placeholder="Choose day"
-                        disabled={saveMutation.isPending}
-                      />
-                    </div>
-                    <div className="field-block">
-                      <span>Fare</span>
-                      <SearchSelectField
-                        options={payload.catalogs.fareClasses.map((item) => ({
-                          value: item.value,
-                          label: item.label,
-                          keywords: item.keywords,
-                          summary: item.label,
-                        }))}
-                        value={route.fareClass}
-                        onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
-                        placeholder="Choose fare"
-                        disabled={saveMutation.isPending}
-                      />
-                    </div>
-                    <TimeRangeField
-                      label="Departure window"
-                      startTime={route.startTime}
-                      endTime={route.endTime}
-                      onChange={(next) => updateRoute(index, next)}
-                      disabled={saveMutation.isPending}
-                    />
-                    {values.preferenceMode === "ranked_bias" && index > 0 ? (
-                      <label className="field-block field-block--full">
-                        <span>Savings to beat option {index}</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={route.savingsNeededVsPrevious}
-                          onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
+                    <div className="trip-editor-grid route-card-react__grid">
+                      <div className="field-block">
+                        <span>Origin airports</span>
+                        <MultiSelectField
+                          options={payload.catalogs.airports}
+                          values={route.originAirports}
+                          onChange={(originAirports) => updateRoute(index, { originAirports })}
+                          placeholder="Search origins"
+                          maxSelections={3}
+                        />
+                      </div>
+                      <div className="field-block">
+                        <span>Destination airports</span>
+                        <MultiSelectField
+                          options={payload.catalogs.airports}
+                          values={route.destinationAirports}
+                          onChange={(destinationAirports) => updateRoute(index, { destinationAirports })}
+                          placeholder="Search destinations"
+                          maxSelections={3}
+                        />
+                      </div>
+                      <div className="field-block">
+                        <span>Airlines</span>
+                        <MultiSelectField
+                          options={payload.catalogs.airlines}
+                          values={route.airlines}
+                          onChange={(airlines) => updateRoute(index, { airlines })}
+                          placeholder="Search airlines"
+                        />
+                      </div>
+                      <div className="field-block">
+                        <span>Travel day</span>
+                        <SearchSelectField
+                          options={TRAVEL_DAY_OPTIONS.map((item) => ({
+                            value: item.value,
+                            label: item.label,
+                            keywords: item.label,
+                            summary: item.label,
+                          }))}
+                          value={String(route.dayOffset)}
+                          onChange={(dayOffset) => updateRoute(index, { dayOffset: Number(dayOffset) })}
+                          placeholder="Choose day"
                           disabled={saveMutation.isPending}
                         />
-                      </label>
-                    ) : null}
-                  </div>
-                </article>
+                      </div>
+                      <div className="field-block">
+                        <span>Fare</span>
+                        <SearchSelectField
+                          options={payload.catalogs.fareClasses.map((item) => ({
+                            value: item.value,
+                            label: item.label,
+                            keywords: item.keywords,
+                            summary: item.label,
+                          }))}
+                          value={route.fareClass}
+                          onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
+                          placeholder="Choose fare"
+                          disabled={saveMutation.isPending}
+                        />
+                      </div>
+                      <TimeRangeField
+                        label="Departure window"
+                        startTime={route.startTime}
+                        endTime={route.endTime}
+                        onChange={(next) => updateRoute(index, next)}
+                        disabled={saveMutation.isPending}
+                      />
+                      {values.preferenceMode === "ranked_bias" && index > 0 ? (
+                        <label className="field-block field-block--full">
+                          <span>Savings to beat option {index}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={route.savingsNeededVsPrevious}
+                            onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
+                            disabled={saveMutation.isPending}
+                          />
+                        </label>
+                      ) : null}
+                    </div>
+                  </article>
+                </Fragment>
               ))}
+              {draggedRouteIndex != null && dragInsertIndex === routeOptions.length ? <div className="route-drop-indicator" aria-hidden="true" /> : null}
             </div>
           </section>
 
