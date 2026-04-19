@@ -1343,15 +1343,20 @@ textarea {
   background: rgba(250, 237, 208, 0.6);
 }
 
+.warning-card-react__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.warning-card-react__top strong {
+  min-width: 0;
+}
+
 .info-card-react p,
 .warning-card-react p {
   margin: 0.35rem 0 0;
-}
-
-.warning-card-react__actions {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 0.85rem;
 }
 
 .muted-copy {
@@ -1957,7 +1962,8 @@ body.route-drag-active {
   }
 
   .editor-actions,
-  .route-card-react__header {
+  .route-card-react__header,
+  .warning-card-react__top {
     flex-direction: column;
     align-items: stretch;
   }

@@ -583,12 +583,11 @@ export function TripEditorPage() {
 
         {payload.recurringEditWarning ? (
           <section className="warning-card-react">
-            <strong>
-              Editing this recurring trip will affect {payload.recurringEditWarning.linkedTripCount} {payload.recurringEditWarning.linkedTripLabel}.
-            </strong>
-            <p>If you only want to edit one specific trip instance, detach that trip first and then edit it separately.</p>
-            {payload.recurringEditWarning.detachableTripInstanceId ? (
-              <div className="warning-card-react__actions">
+            <div className="warning-card-react__top">
+              <strong>
+                Editing this recurring trip will affect {payload.recurringEditWarning.linkedTripCount} {payload.recurringEditWarning.linkedTripLabel}.
+              </strong>
+              {payload.recurringEditWarning.detachableTripInstanceId ? (
                 <button
                   type="button"
                   className="secondary-button"
@@ -596,8 +595,9 @@ export function TripEditorPage() {
                 >
                   Detach this trip instead
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
+            <p>If you only want to edit one specific trip instance, detach that trip first and then edit it separately.</p>
           </section>
         ) : null}
 
