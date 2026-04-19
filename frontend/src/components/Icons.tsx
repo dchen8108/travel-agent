@@ -111,6 +111,29 @@ export function CheckIcon() {
   return svg(<path d="m9.2 16.6-4.1-4.1 1.4-1.4 2.7 2.7 8.3-8.3 1.4 1.4-9.7 9.7Z" fill="currentColor" />);
 }
 
+export function AlertIcon() {
+  return svg(
+    <>
+      <path
+        d="M12 3.75 3.5 18.5a1 1 0 0 0 .87 1.5h15.26a1 1 0 0 0 .87-1.5L12 3.75Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M12 9v4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
+      <circle cx="12" cy="16.6" r="1.1" fill="currentColor" />
+    </>,
+  );
+}
+
 export function CloseIcon() {
   return svg(<path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4 6.4 5Z" fill="currentColor" />);
 }

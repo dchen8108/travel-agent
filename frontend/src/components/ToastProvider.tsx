@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { CloseIcon } from "./Icons";
+import { AlertIcon, CheckIcon, CloseIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 
 type ToastKind = "success" | "error";
@@ -28,6 +28,10 @@ interface ToastContextValue {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+
+function toastToneLabel(kind: ToastKind) {
+  return kind === "error" ? "Action failed" : "Saved";
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
@@ -65,8 +69,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toast-viewport" aria-live="polite" aria-atomic="true">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast toast--${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}>
-            <span>{toast.message}</span>
-            <IconButton label="Dismiss notification" onClick={() => removeToast(toast.id)}>
+            <div className={`toast__icon toast__icon--${toast.kind}`} aria-hidden="true">
+              {toast.kind === "error" ? <AlertIcon /> : <CheckIcon />}
+            </div>
+            <div className="toast__content">
+              <strong>{toastToneLabel(toast.kind)}</strong>
+              <span>{toast.message}</span>
+            </div>
+            <IconButton label="Dismiss notification" variant="inline" className="toast__dismiss" onClick={() => removeToast(toast.id)}>
               <CloseIcon />
             </IconButton>
           </div>
