@@ -4,6 +4,7 @@ const SLOT_MINUTES = 30;
 const MAX_SLOT = 48;
 const DEFAULT_START_SLOT = 0;
 const DEFAULT_END_SLOT = MAX_SLOT;
+const VALUE_SIZER_LABEL = "11:30 PM – 12:00 AM";
 
 interface Props {
   label: string;
@@ -54,6 +55,9 @@ function formatTime(minutes: number): string {
 }
 
 function formatSlot(slot: number): string {
+  if (slot >= MAX_SLOT) {
+    return "12:00 AM";
+  }
   return formatTime(slotToMinutes(slot));
 }
 
@@ -210,7 +214,10 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
           } as CSSProperties
         }
       >
-        <strong className="time-range-field__value">{isAnytime ? "Anytime" : `${formatSlot(safeStart)} – ${formatSlot(safeEnd)}`}</strong>
+        <div className="time-range-field__value-wrap">
+          <span className="time-range-field__value-sizer" aria-hidden="true">{VALUE_SIZER_LABEL}</span>
+          <strong className="time-range-field__value">{isAnytime ? "Anytime" : `${formatSlot(safeStart)} – ${formatSlot(safeEnd)}`}</strong>
+        </div>
         <div className="time-range-field__slider">
           <div
             ref={railRef}
