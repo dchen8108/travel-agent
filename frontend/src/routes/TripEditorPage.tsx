@@ -258,7 +258,7 @@ export function TripEditorPage() {
               />
             </label>
 
-            <div className="field-block">
+            <div className="field-block field-block--trip-type">
               <span>Trip type</span>
               {isEdit ? (
                 <>

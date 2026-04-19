@@ -1299,6 +1299,17 @@ textarea {
   flex-wrap: wrap;
 }
 
+.field-block--trip-type .trip-type-switch,
+.field-block--trip-type .trip-type-lock {
+  display: flex;
+  width: 100%;
+}
+
+.field-block--trip-type .trip-type-switch__pill,
+.field-block--trip-type .trip-type-lock__pill {
+  flex: 1 1 0;
+}
+
 .trip-type-switch__pill,
 .trip-type-lock__pill,
 .weekday-switch__pill {
