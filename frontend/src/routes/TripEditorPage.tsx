@@ -74,6 +74,7 @@ export function TripEditorPage() {
     pointerOffsetY: number;
   } | null>(null);
   const routeCardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const dragStateRef = useRef<typeof dragState>(null);
 
   const editorParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -120,6 +121,10 @@ export function TripEditorPage() {
     setSavePhase("idle");
     setDragState(null);
   }, [formQuery.data]);
+
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
 
   useEffect(() => {
     if (!values || routeOptions.length > 1 || values.preferenceMode === "equal") {
@@ -230,12 +235,14 @@ export function TripEditorPage() {
     }
     event.preventDefault();
     const bounds = card.getBoundingClientRect();
-    setDragState({
+    const nextDragState = {
       routeId,
       pointerId: event.pointerId,
       pointerY: event.clientY,
       pointerOffsetY: event.clientY - bounds.top,
-    });
+    };
+    dragStateRef.current = nextDragState;
+    setDragState(nextDragState);
   }
 
   function handleRouteReorderKeyDown(index: number, event: ReactKeyboardEvent<HTMLButtonElement>) {
@@ -268,12 +275,13 @@ export function TripEditorPage() {
     if (!dragState) {
       return;
     }
-    const activeDragState = dragState;
 
     function handlePointerMove(event: PointerEvent) {
-      if (event.pointerId !== activeDragState.pointerId) {
+      const activeDragState = dragStateRef.current;
+      if (!activeDragState || event.pointerId !== activeDragState.pointerId) {
         return;
       }
+      dragStateRef.current = { ...activeDragState, pointerY: event.clientY };
       setDragState((current) => (current ? { ...current, pointerY: event.clientY } : current));
       setRouteOptions((current) => {
         const draggedIndex = current.findIndex((route) => route.clientId === activeDragState.routeId);
@@ -304,9 +312,14 @@ export function TripEditorPage() {
     }
 
     function stopDragging(event: PointerEvent) {
+      const activeDragState = dragStateRef.current;
+      if (!activeDragState) {
+        return;
+      }
       if (event.pointerId !== activeDragState.pointerId) {
         return;
       }
+      dragStateRef.current = null;
       clearDragState();
     }
 
@@ -320,7 +333,7 @@ export function TripEditorPage() {
       window.removeEventListener("pointerup", stopDragging);
       window.removeEventListener("pointercancel", stopDragging);
     };
-  }, [dragState]);
+  }, [dragState?.pointerId, dragState?.routeId]);
 
   if (formQuery.isError) {
     return (
@@ -352,9 +365,14 @@ export function TripEditorPage() {
     if (!card) {
       return undefined;
     }
-    const bounds = card.getBoundingClientRect();
+    const offsetParent = card.offsetParent;
+    if (!(offsetParent instanceof HTMLElement)) {
+      return undefined;
+    }
+    const parentBounds = offsetParent.getBoundingClientRect();
+    const layoutTop = parentBounds.top + card.offsetTop;
     return {
-      transform: `translateY(${dragState.pointerY - bounds.top - dragState.pointerOffsetY}px)`,
+      transform: `translateY(${dragState.pointerY - layoutTop - dragState.pointerOffsetY}px)`,
       zIndex: 4,
     };
   }
