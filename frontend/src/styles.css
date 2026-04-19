@@ -1083,11 +1083,12 @@ textarea {
   right: 0;
   z-index: 14;
   width: auto;
-  max-height: min(26rem, calc(100vh - 5rem));
+  max-height: min(32rem, calc(100vh - 4rem));
   display: grid;
   gap: 0.3rem;
   padding: 0.8rem;
   overflow: auto;
+  scrollbar-gutter: stable;
   border: 1px solid var(--surface-border);
   border-radius: 1.3rem;
   background: rgba(255, 255, 255, 0.96);
@@ -1152,6 +1153,14 @@ textarea {
 .tracker-popover__row .offer-block {
   border-left: 0;
   padding-left: 0;
+}
+
+.tracker-popover__action-spacer {
+  display: inline-flex;
+  width: 2.2rem;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  visibility: hidden;
 }
 
 .tracker-popover__empty {

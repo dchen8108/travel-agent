@@ -76,7 +76,11 @@ export function TrackerPreviewPopover({
         <div className="tracker-popover__list">
           {rows.map((row) => (
             <article key={row.rowId} className="tracker-popover__row">
-              <OfferBlock kind="live" offer={row.offer} />
+              <OfferBlock
+                kind="live"
+                offer={row.offer}
+                actions={<span className="tracker-popover__action-spacer" aria-hidden="true" />}
+              />
             </article>
           ))}
         </div>
