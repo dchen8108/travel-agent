@@ -30,7 +30,12 @@ export function TripRow({
 }: Props) {
   const tripInstanceId = row.trip.tripInstanceId;
   const trackerSlotRef = useRef<HTMLDivElement | null>(null);
+  const trackerReferenceRef = useRef<HTMLDivElement | null>(null);
+  const trackerPopoverRef = useRef<HTMLDivElement | null>(null);
   const hoverTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const hoverGuardRef = useRef<(() => void) | null>(null);
+  const pointerPositionRef = useRef<{ x: number; y: number } | null>(null);
   const [trackerPreviewOpen, setTrackerPreviewOpen] = useState(false);
   const [trackerPreviewPinned, setTrackerPreviewPinned] = useState(false);
   const [previewPlacement, setPreviewPlacement] = useState<"above" | "below">("below");
@@ -40,10 +45,17 @@ export function TripRow({
     if (hoverTimerRef.current !== null) {
       window.clearTimeout(hoverTimerRef.current);
     }
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    hoverGuardRef.current?.();
   }, []);
 
   useEffect(() => {
     if (!canPreviewTrackers) {
+      clearTrackerPreviewTimer();
+      clearTrackerPreviewCloseTimer();
+      clearTrackerPreviewHoverGuard();
       setTrackerPreviewOpen(false);
       setTrackerPreviewPinned(false);
     }
@@ -60,6 +72,8 @@ export function TripRow({
         return;
       }
       if (!trackerSlotRef.current?.contains(target)) {
+        clearTrackerPreviewCloseTimer();
+        clearTrackerPreviewHoverGuard();
         setTrackerPreviewOpen(false);
         setTrackerPreviewPinned(false);
       }
@@ -67,6 +81,8 @@ export function TripRow({
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        clearTrackerPreviewCloseTimer();
+        clearTrackerPreviewHoverGuard();
         setTrackerPreviewOpen(false);
         setTrackerPreviewPinned(false);
       }
@@ -87,6 +103,18 @@ export function TripRow({
     }
   }
 
+  function clearTrackerPreviewCloseTimer() {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function clearTrackerPreviewHoverGuard() {
+    hoverGuardRef.current?.();
+    hoverGuardRef.current = null;
+  }
+
   function updatePreviewPlacement() {
     const rect = trackerSlotRef.current?.getBoundingClientRect();
     if (!rect) {
@@ -101,6 +129,11 @@ export function TripRow({
       return;
     }
     clearTrackerPreviewTimer();
+    clearTrackerPreviewCloseTimer();
+    clearTrackerPreviewHoverGuard();
+    if (trackerPreviewOpen) {
+      return;
+    }
     onPrefetchTrackers?.(tripInstanceId);
     const open = () => {
       updatePreviewPlacement();
@@ -114,12 +147,56 @@ export function TripRow({
     hoverTimerRef.current = window.setTimeout(open, 280);
   }
 
-  function closeTrackerPreview() {
+  function pointerWithinTrackerTransit(clientX: number, clientY: number) {
+    const referenceRect = trackerReferenceRef.current?.getBoundingClientRect();
+    const popoverRect = trackerPopoverRef.current?.getBoundingClientRect();
+    if (!referenceRect || !popoverRect) {
+      return false;
+    }
+    const buffer = 12;
+    const left = Math.min(referenceRect.left, popoverRect.left) - buffer;
+    const right = Math.max(referenceRect.right, popoverRect.right) + buffer;
+    const top = Math.min(referenceRect.top, popoverRect.top) - buffer;
+    const bottom = Math.max(referenceRect.bottom, popoverRect.bottom) + buffer;
+    return clientX >= left && clientX <= right && clientY >= top && clientY <= bottom;
+  }
+
+  function closeTrackerPreview(event?: { clientX: number; clientY: number }) {
     clearTrackerPreviewTimer();
     if (trackerPreviewPinned) {
       return;
     }
-    setTrackerPreviewOpen(false);
+    clearTrackerPreviewCloseTimer();
+    clearTrackerPreviewHoverGuard();
+    if (event) {
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      if (pointerWithinTrackerTransit(event.clientX, event.clientY)) {
+        return;
+      }
+      clearTrackerPreviewHoverGuard();
+      clearTrackerPreviewCloseTimer();
+      setTrackerPreviewOpen(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    hoverGuardRef.current = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+    };
+
+    closeTimerRef.current = window.setTimeout(() => {
+      const pointerPosition = pointerPositionRef.current;
+      if (pointerPosition && pointerWithinTrackerTransit(pointerPosition.x, pointerPosition.y)) {
+        closeTimerRef.current = null;
+        return;
+      }
+      clearTrackerPreviewHoverGuard();
+      setTrackerPreviewOpen(false);
+      closeTimerRef.current = null;
+    }, 420);
   }
 
   function toggleTrackerPreview() {
@@ -128,6 +205,8 @@ export function TripRow({
       return;
     }
     clearTrackerPreviewTimer();
+    clearTrackerPreviewCloseTimer();
+    clearTrackerPreviewHoverGuard();
     if (trackerPreviewOpen) {
       if (!trackerPreviewPinned) {
         setTrackerPreviewPinned(true);
@@ -178,28 +257,37 @@ export function TripRow({
         <div
           ref={trackerSlotRef}
           className={`trip-row__tracker-slot${trackerPreviewOpen ? " is-open" : ""}`}
-          onPointerEnter={canPreviewTrackers && supportsTrackerHover ? () => openTrackerPreview(false) : undefined}
-          onPointerLeave={canPreviewTrackers && supportsTrackerHover ? closeTrackerPreview : undefined}
           onFocusCapture={canPreviewTrackers ? () => openTrackerPreview(true) : undefined}
           onBlurCapture={canPreviewTrackers ? (event) => {
             const relatedTarget = event.relatedTarget;
             if (!(relatedTarget instanceof Node) || !event.currentTarget.contains(relatedTarget)) {
+              clearTrackerPreviewHoverGuard();
+              clearTrackerPreviewCloseTimer();
               setTrackerPreviewOpen(false);
               setTrackerPreviewPinned(false);
             }
           } : undefined}
         >
-          <OfferBlock
-            kind="live"
-            offer={row.currentOffer}
-            onOpen={row.actions.showTrackers ? toggleTrackerPreview : undefined}
-            onPrefetchAction={row.actions.showTrackers ? () => onPrefetchTrackers?.(tripInstanceId) : undefined}
-          />
+          <div
+            ref={trackerReferenceRef}
+            onPointerEnter={canPreviewTrackers && supportsTrackerHover ? () => openTrackerPreview(false) : undefined}
+            onPointerLeave={canPreviewTrackers && supportsTrackerHover ? (event) => closeTrackerPreview(event) : undefined}
+          >
+            <OfferBlock
+              kind="live"
+              offer={row.currentOffer}
+              onOpen={row.actions.showTrackers ? toggleTrackerPreview : undefined}
+              onPrefetchAction={row.actions.showTrackers ? () => onPrefetchTrackers?.(tripInstanceId) : undefined}
+            />
+          </div>
           {trackerPreviewOpen ? (
             <TrackerPreviewPopover
               tripInstanceId={tripInstanceId}
               currentOffer={row.currentOffer}
               placement={previewPlacement}
+              popoverRef={trackerPopoverRef}
+              onPointerEnter={canPreviewTrackers && supportsTrackerHover ? () => openTrackerPreview(true) : undefined}
+              onPointerLeave={canPreviewTrackers && supportsTrackerHover ? (event) => closeTrackerPreview(event) : undefined}
             />
           ) : null}
         </div>

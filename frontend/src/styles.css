@@ -1079,9 +1079,10 @@ textarea {
 
 .tracker-popover {
   position: absolute;
+  left: 0;
   right: 0;
   z-index: 14;
-  width: min(34rem, calc(100vw - 4rem));
+  width: auto;
   max-height: min(26rem, calc(100vh - 5rem));
   display: grid;
   gap: 0.3rem;
@@ -1094,12 +1095,28 @@ textarea {
   box-shadow: 0 24px 48px rgba(41, 54, 67, 0.18);
 }
 
+.tracker-popover::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0.65rem;
+}
+
 .tracker-popover--below {
-  top: calc(100% + 0.6rem);
+  top: calc(100% + 0.18rem);
+}
+
+.tracker-popover--below::before {
+  top: -0.65rem;
 }
 
 .tracker-popover--above {
-  bottom: calc(100% + 0.6rem);
+  bottom: calc(100% + 0.18rem);
+}
+
+.tracker-popover--above::before {
+  bottom: -0.65rem;
 }
 
 .tracker-popover__header {

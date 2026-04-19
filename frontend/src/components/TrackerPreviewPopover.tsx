@@ -1,3 +1,4 @@
+import type { PointerEventHandler, RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -10,6 +11,9 @@ interface Props {
   tripInstanceId: string;
   currentOffer: Offer | null;
   placement: "above" | "below";
+  popoverRef?: RefObject<HTMLDivElement | null>;
+  onPointerEnter?: PointerEventHandler<HTMLDivElement>;
+  onPointerLeave?: PointerEventHandler<HTMLDivElement>;
 }
 
 function offersMatch(left: Offer | null, right: Offer | null) {
@@ -25,7 +29,14 @@ function offersMatch(left: Offer | null, right: Offer | null) {
   );
 }
 
-export function TrackerPreviewPopover({ tripInstanceId, currentOffer, placement }: Props) {
+export function TrackerPreviewPopover({
+  tripInstanceId,
+  currentOffer,
+  placement,
+  popoverRef,
+  onPointerEnter,
+  onPointerLeave,
+}: Props) {
   const panelQuery = useQuery({
     queryKey: trackerPanelQueryKey(tripInstanceId),
     queryFn: () => api.trackerPanel(tripInstanceId),
@@ -41,7 +52,14 @@ export function TrackerPreviewPopover({ tripInstanceId, currentOffer, placement 
   }, [currentOffer, panelQuery.data?.rows]);
 
   return (
-    <div className={`tracker-popover tracker-popover--${placement}`} role="group" aria-label="Other live fares">
+    <div
+      ref={popoverRef}
+      className={`tracker-popover tracker-popover--${placement}`}
+      role="group"
+      aria-label="Other live fares"
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+    >
       <div className="tracker-popover__header">
         <strong>{currentOffer ? "Other live fares" : "Live fares"}</strong>
         {panelQuery.data?.lastRefreshLabel ? (
