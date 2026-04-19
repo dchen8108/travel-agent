@@ -53,6 +53,7 @@ Compatibility note:
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Price Record`: one append-only fetched offer row captured for analytics history
 - `Booking`: a purchased itinerary that may be linked to a trip instance and, when uniquely matchable, to one tracked route option
+- `Unmatched Booking`: a purchased itinerary still waiting to be linked to a scheduled trip
 - `Booking Email Event`: one Gmail intake result, including ignored, auto-linked, duplicate, and needs-resolution outcomes
 
 ## Run

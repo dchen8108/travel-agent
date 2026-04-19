@@ -113,9 +113,16 @@ def _unlink_booking_record(repository: Repository, booking: Booking) -> Booking:
     return replacement
 
 
-def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[Tracker]) -> list[Tracker]:
+def _matching_trackers_for_booking(
+    candidate: BookingCandidate,
+    trackers: list[Tracker],
+    *,
+    data_scope: str | None = None,
+) -> list[Tracker]:
     matches: list[Tracker] = []
     for tracker in trackers:
+        if data_scope is not None and str(tracker.data_scope) != str(data_scope):
+            continue
         if tracker.travel_date != candidate.departure_date:
             continue
         if candidate.origin_airport not in tracker.origin_codes:
@@ -132,8 +139,13 @@ def _matching_trackers_for_booking(candidate: BookingCandidate, trackers: list[T
     return matches
 
 
-def _matching_trip_instance_ids_for_booking(candidate: BookingCandidate, trackers: list[Tracker]) -> list[str]:
-    matching_trackers = _matching_trackers_for_booking(candidate, trackers)
+def _matching_trip_instance_ids_for_booking(
+    candidate: BookingCandidate,
+    trackers: list[Tracker],
+    *,
+    data_scope: str | None = None,
+) -> list[str]:
+    matching_trackers = _matching_trackers_for_booking(candidate, trackers, data_scope=data_scope)
     return sorted({tracker.trip_instance_id for tracker in matching_trackers})
 
 
@@ -267,8 +279,15 @@ def reconcile_unmatched_bookings(
     trip_instances_by_id = {item.trip_instance_id: item for item in trip_instances}
     remaining_unmatched: list[Booking] = []
     for unmatched in unmatched_bookings:
+        scoped_trip_instance_ids = {
+            item.trip_instance_id
+            for item in trip_instances
+            if str(item.data_scope) == str(unmatched.data_scope)
+        }
         valid_candidate_ids = {
-            item for item in split_pipe(unmatched.candidate_trip_instance_ids) if item in trip_instances_by_id
+            item
+            for item in split_pipe(unmatched.candidate_trip_instance_ids)
+            if item in trip_instances_by_id and item in scoped_trip_instance_ids
         }
         if unmatched.resolution_status != BookingResolutionStatus.OPEN:
             unmatched.candidate_trip_instance_ids = join_pipe(sorted(valid_candidate_ids))
@@ -276,7 +295,11 @@ def reconcile_unmatched_bookings(
             continue
 
         candidate = _candidate_from_unmatched(unmatched)
-        matching_trip_instance_ids = _matching_trip_instance_ids_for_booking(candidate, trackers)
+        matching_trip_instance_ids = _matching_trip_instance_ids_for_booking(
+            candidate,
+            trackers,
+            data_scope=str(unmatched.data_scope),
+        )
         unmatched.candidate_trip_instance_ids = join_pipe(matching_trip_instance_ids)
         unmatched.updated_at = utcnow()
 

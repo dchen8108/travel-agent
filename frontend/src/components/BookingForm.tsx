@@ -8,6 +8,31 @@ const ARRIVAL_DAY_OPTIONS = [
   { value: "2", label: "2 days later" },
 ];
 
+function validateBooking(values: Record<string, string>) {
+  if (!values.originAirport.trim()) {
+    return "Choose an origin airport.";
+  }
+  if (!values.destinationAirport.trim()) {
+    return "Choose a destination airport.";
+  }
+  if (!values.airline.trim()) {
+    return "Choose an airline.";
+  }
+  if (!values.departureDate.trim()) {
+    return "Choose a departure date.";
+  }
+  if (!values.departureTime.trim()) {
+    return "Departure time is required.";
+  }
+  if (!values.bookedPrice.trim()) {
+    return "Booked price is required.";
+  }
+  if (!/^\$?\d+(?:\.\d{1,2})?$/.test(values.bookedPrice.trim())) {
+    return "Enter a valid booked price.";
+  }
+  return "";
+}
+
 interface Props {
   initialValues: Record<string, string>;
   catalogs: {
@@ -36,6 +61,11 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = validateBooking(values);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -48,7 +78,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
   }
 
   return (
-    <form className="booking-form-card trip-editor-form" onSubmit={handleSubmit}>
+    <form className="booking-form-card" onSubmit={handleSubmit}>
       <div className="booking-form-grid">
         <div className="field-block field-block--span-2">
           <span>Origin</span>

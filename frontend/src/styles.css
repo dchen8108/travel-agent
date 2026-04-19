@@ -1240,12 +1240,14 @@ textarea {
 }
 
 .trip-editor-form label,
+.booking-form-card label,
 .field-block {
   display: grid;
   gap: 0.4rem;
 }
 
 .trip-editor-form label span,
+.booking-form-card label span,
 .field-block > span {
   font-size: 0.82rem;
   font-weight: 800;
@@ -1255,7 +1257,9 @@ textarea {
 }
 
 .trip-editor-form input,
-.trip-editor-form textarea {
+.trip-editor-form textarea,
+.booking-form-card input,
+.booking-form-card textarea {
   min-height: 2.8rem;
   padding: 0.7rem 0.9rem;
   border-radius: 0.95rem;
@@ -1328,8 +1332,7 @@ textarea {
 }
 
 .trip-type-switch__pill input,
-.weekday-switch__pill input,
-.choice-card-react input {
+.weekday-switch__pill input {
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -1374,12 +1377,6 @@ textarea {
   font-size: 1.25rem;
 }
 
-.choice-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
 .section-header-react__copy {
   display: grid;
   gap: 0.25rem;
@@ -1398,38 +1395,6 @@ textarea {
   align-items: center;
   gap: 0.65rem;
   flex-wrap: wrap;
-}
-
-.choice-card-react {
-  position: relative;
-  display: block;
-  border: 1px solid var(--surface-border);
-  border-radius: 1.15rem;
-  background: white;
-  padding: 0.95rem 1rem;
-  cursor: pointer;
-}
-
-.choice-card-react span {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.choice-card-react strong {
-  font-size: 1rem;
-}
-
-.choice-card-react small {
-  color: var(--copy-muted);
-}
-
-.choice-card-react.is-selected {
-  border-color: rgba(17, 142, 132, 0.35);
-  background: rgba(214, 238, 233, 0.42);
-}
-
-.choice-card-react--compact strong {
-  font-size: 0.95rem;
 }
 
 .field-block--full {
@@ -1811,8 +1776,7 @@ body.route-drag-active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .trip-editor-grid,
-  .choice-card-grid {
+  .trip-editor-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1908,8 +1872,7 @@ body.route-drag-active {
     grid-template-columns: 1fr;
   }
 
-  .trip-editor-grid,
-  .choice-card-grid {
+  .trip-editor-grid {
     grid-template-columns: 1fr;
   }
 

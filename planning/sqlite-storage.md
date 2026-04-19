@@ -152,15 +152,7 @@ This table is the persisted stale-first worklist for the background fetcher. `re
 
 ### `bookings`
 
-Unified storage for both matched bookings and unresolved bookings.
-
-Matched rows use:
-
-- `match_status = 'matched'`
-
-Unresolved rows use:
-
-- `match_status = 'unmatched'`
+Linked or already-resolved bookings.
 
 Key columns:
 
@@ -187,9 +179,36 @@ Key columns:
 - `created_at`
 - `updated_at`
 
-The repository now treats both linked and unresolved booking rows as one `Booking` model. Row state is driven by `match_status`, nullable trip/route links, and the resolution metadata above.
-
 Bookings are trip-scoped. They can optionally link to a uniquely matched route option, but booked-vs-current comparison logic is still based on the trip's best current option after preferences are applied.
+
+### `unmatched_bookings`
+
+Unresolved bookings waiting to be linked to a scheduled trip.
+
+The repository still uses the same `Booking` model for these rows, but they live in a separate table and runtime collection until resolved.
+
+Key columns:
+
+- `booking_id`
+- `source`
+- `data_scope`
+- `airline`
+- `origin_airport`
+- `destination_airport`
+- `departure_date`
+- `departure_time`
+- `arrival_time`
+- `booked_price`
+- `record_locator`
+- `booked_at`
+- `booking_status`
+- `match_status`
+- `raw_summary`
+- `candidate_trip_instance_ids`
+- `resolution_status`
+- `notes`
+- `created_at`
+- `updated_at`
 
 ### `price_records`
 

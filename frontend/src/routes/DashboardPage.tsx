@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ActionItemsSection } from "../components/ActionItemsSection";
 import { BookingPanel } from "../components/BookingPanel";
 import { CollectionCard } from "../components/CollectionCard";
-import { CollectionEditorCard } from "../components/CollectionEditorCard";
+import { CollectionNameEditor } from "../components/CollectionNameEditor";
 import { useConfirm } from "../components/ConfirmProvider";
 import { FilterBar } from "../components/FilterBar";
 import { PrefetchLink } from "../components/PrefetchLink";
@@ -648,8 +648,9 @@ export function DashboardPage() {
           </div>
           <div className="collection-board-react">
             {collectionEditor?.mode === "create" ? (
-              <CollectionEditorCard
+              <CollectionNameEditor
                 mode="create"
+                variant="card"
                 onCancel={stopCollectionEditing}
                 onSave={(label) => collectionMutation.mutateAsync({ label })}
               />

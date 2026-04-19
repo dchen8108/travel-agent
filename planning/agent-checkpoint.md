@@ -19,7 +19,7 @@ Core product shape:
 - `Route Option` is a ranked itinerary definition under a trip
 - `Tracker` and `Tracker Fetch Target` are derived monitoring objects
 - `Booking` may be linked to a scheduled trip and can optionally link to a uniquely matched route option
-- unresolved bookings are still `Booking` rows, not a separate object type
+- unresolved bookings still use the `Booking` model, but they live in the separate `unmatched_bookings` runtime/storage surface until resolved
 
 There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with compatibility redirects and focused create/edit flows branching from it.
 

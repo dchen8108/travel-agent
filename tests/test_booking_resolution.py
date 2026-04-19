@@ -390,6 +390,56 @@ def test_unmatched_booking_auto_links_when_matching_trip_is_created_later(reposi
     assert repository.load_unmatched_bookings() == []
 
 
+def test_live_unmatched_booking_does_not_auto_link_to_test_trip_created_later(repository: Repository) -> None:
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 20),
+            departure_time="07:15",
+            arrival_time="08:40",
+            booked_price=121,
+            record_locator="LIVET1",
+        ),
+        data_scope="live",
+    )
+
+    assert booking is None
+    assert unmatched is not None
+
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Test Match Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="",
+        data_scope="test",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    assert repository.load_bookings() == []
+    updated_unmatched = next(
+        item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id
+    )
+    assert updated_unmatched.candidate_trip_instance_ids == ""
+    assert updated_unmatched.resolution_status == "open"
+
+
 def test_unmatched_booking_stays_open_when_multiple_matching_trips_exist(repository: Repository) -> None:
     booking, unmatched = record_booking(
         repository,

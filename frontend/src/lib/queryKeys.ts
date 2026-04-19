@@ -10,8 +10,12 @@ export function bookingPanelQueryKey(tripInstanceId: string) {
   return ["booking-panel", tripInstanceId] as const;
 }
 
+export function bookingFormQueryPrefix(tripInstanceId: string) {
+  return ["booking-form", tripInstanceId] as const;
+}
+
 export function bookingFormQueryKey(tripInstanceId: string, bookingId = "") {
-  return ["booking-form", tripInstanceId, bookingId || "__create__"] as const;
+  return [...bookingFormQueryPrefix(tripInstanceId), bookingId || "__create__"] as const;
 }
 
 export function trackerPanelQueryKey(tripInstanceId: string) {

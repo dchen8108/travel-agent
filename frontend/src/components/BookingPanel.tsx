@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { prefetchOnce } from "../lib/prefetch";
-import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
+import { bookingFormQueryKey, bookingFormQueryPrefix, bookingPanelQueryKey } from "../lib/queryKeys";
 import type { BookingFormPayload, BookingPanelPayload } from "../types";
 import { useConfirm } from "./ConfirmProvider";
 import { DeleteIcon, DetachIcon, EditIcon } from "./Icons";
@@ -83,7 +83,7 @@ export function BookingPanel({
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
       onRefreshDashboard();
-      queryClient.removeQueries({ queryKey: bookingFormQueryKey(tripInstanceId) });
+      queryClient.removeQueries({ queryKey: bookingFormQueryPrefix(tripInstanceId) });
       onChangeMode("list");
       pushToast({ message: mode === "edit" ? "Booking saved" : "Booking created" });
     },
@@ -101,7 +101,7 @@ export function BookingPanel({
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
       onRefreshDashboard();
-      queryClient.removeQueries({ queryKey: bookingFormQueryKey(tripInstanceId) });
+      queryClient.removeQueries({ queryKey: bookingFormQueryPrefix(tripInstanceId) });
       onChangeMode("list");
       pushToast({ message: variables.kind === "delete" ? "Booking deleted" : "Booking needs linking" });
     },

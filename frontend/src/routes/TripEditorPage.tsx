@@ -499,7 +499,7 @@ export function TripEditorPage() {
               </div>
               <div className="section-header-react__controls">
                 {routeOptions.length > 1 ? (
-                  <div className="trip-type-switch route-preference-bar__switch">
+                  <div className="trip-type-switch">
                     <label className={`trip-type-switch__pill ${values.preferenceMode === "equal" ? "is-selected" : ""}`}>
                       <input
                         type="radio"
