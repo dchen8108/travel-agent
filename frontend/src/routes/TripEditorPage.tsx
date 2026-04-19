@@ -299,7 +299,7 @@ export function TripEditorPage() {
             </div>
 
             {weekly ? (
-              <div className="field-block">
+              <div className="field-block field-block--full">
                 <span>Repeat on</span>
                 <div className="weekday-switch">
                   {weekdays.map((weekday) => (
