@@ -79,6 +79,10 @@ export function TripEditorPage() {
   } | null>(null);
   const routeCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const dragStateRef = useRef<typeof dragState>(null);
+  const routeOptionsRef = useRef<LocalTripEditorRouteOption[]>(routeOptions);
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const dragOverlayRef = useRef<HTMLElement | null>(null);
+  const dragFrameRef = useRef<number | null>(null);
 
   const editorParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -129,6 +133,10 @@ export function TripEditorPage() {
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
+
+  useEffect(() => {
+    routeOptionsRef.current = routeOptions;
+  }, [routeOptions]);
 
   useEffect(() => {
     if (!values || routeOptions.length > 1 || values.preferenceMode === "equal") {
@@ -226,6 +234,11 @@ export function TripEditorPage() {
   }
 
   function clearDragState() {
+    if (dragFrameRef.current !== null) {
+      cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
+    dragPointerRef.current = null;
     setDragState(null);
   }
 
@@ -251,6 +264,7 @@ export function TripEditorPage() {
       cardHeight: bounds.height,
     };
     dragStateRef.current = nextDragState;
+    dragPointerRef.current = { x: event.clientX, y: event.clientY };
     setDragState(nextDragState);
   }
 
@@ -285,41 +299,58 @@ export function TripEditorPage() {
       return;
     }
 
+    function runDragFrame() {
+      dragFrameRef.current = null;
+      const activeDragState = dragStateRef.current;
+      const pointer = dragPointerRef.current;
+      if (!activeDragState || !pointer) {
+        return;
+      }
+      if (dragOverlayRef.current) {
+        dragOverlayRef.current.style.transform = `translate3d(${pointer.x - activeDragState.pointerStartX}px, ${pointer.y - activeDragState.pointerStartY}px, 0)`;
+      }
+      const current = routeOptionsRef.current;
+      const draggedIndex = current.findIndex((route) => route.clientId === activeDragState.routeId);
+      if (draggedIndex === -1) {
+        return;
+      }
+      const draggedRoute = current[draggedIndex];
+      const remaining = current.filter((route) => route.clientId !== activeDragState.routeId);
+      let insertIndex = remaining.length;
+      for (let index = 0; index < remaining.length; index += 1) {
+        const card = routeCardRefs.current[remaining[index].clientId];
+        if (!card) {
+          continue;
+        }
+        const bounds = card.getBoundingClientRect();
+        if (pointer.y < bounds.top + (bounds.height / 2)) {
+          insertIndex = index;
+          break;
+        }
+      }
+      const next = [...remaining];
+      next.splice(insertIndex, 0, draggedRoute);
+      if (next.every((route, index) => route.clientId === current[index]?.clientId)) {
+        return;
+      }
+      routeOptionsRef.current = next;
+      setRouteOptions(next);
+    }
+
+    function scheduleDragFrame() {
+      if (dragFrameRef.current !== null) {
+        return;
+      }
+      dragFrameRef.current = requestAnimationFrame(runDragFrame);
+    }
+
     function handlePointerMove(event: PointerEvent) {
       const activeDragState = dragStateRef.current;
       if (!activeDragState || event.pointerId !== activeDragState.pointerId) {
         return;
       }
-      const draggedCard = routeCardRefs.current[activeDragState.routeId];
-      if (draggedCard) {
-        draggedCard.style.transform = `translate3d(${event.clientX - activeDragState.pointerStartX}px, ${event.clientY - activeDragState.pointerStartY}px, 0)`;
-      }
-      setRouteOptions((current) => {
-        const draggedIndex = current.findIndex((route) => route.clientId === activeDragState.routeId);
-        if (draggedIndex === -1) {
-          return current;
-        }
-        const draggedRoute = current[draggedIndex];
-        const remaining = current.filter((route) => route.clientId !== activeDragState.routeId);
-        let insertIndex = remaining.length;
-        for (let index = 0; index < remaining.length; index += 1) {
-          const card = routeCardRefs.current[remaining[index].clientId];
-          if (!card) {
-            continue;
-          }
-          const bounds = card.getBoundingClientRect();
-          if (event.clientY < bounds.top + (bounds.height / 2)) {
-            insertIndex = index;
-            break;
-          }
-        }
-        const next = [...remaining];
-        next.splice(insertIndex, 0, draggedRoute);
-        if (next.every((route, index) => route.clientId === current[index]?.clientId)) {
-          return current;
-        }
-        return next;
-      });
+      dragPointerRef.current = { x: event.clientX, y: event.clientY };
+      scheduleDragFrame();
     }
 
     function stopDragging(event: PointerEvent) {
@@ -329,10 +360,6 @@ export function TripEditorPage() {
       }
       if (event.pointerId !== activeDragState.pointerId) {
         return;
-      }
-      const draggedCard = routeCardRefs.current[activeDragState.routeId];
-      if (draggedCard) {
-        draggedCard.style.transform = "";
       }
       dragStateRef.current = null;
       clearDragState();
@@ -366,14 +393,15 @@ export function TripEditorPage() {
   const payload = formQuery.data;
   const isEdit = mode === "edit";
   const weekly = values.tripKind === "weekly";
+  const preferenceMode = values.preferenceMode;
   const weekdays = payload.catalogs.weekdays;
   const idleSubmitLabel = isEdit ? "Save trip" : "Create trip";
   const collectionsHelper = weekly
     ? (!values.tripGroupIds.length ? "Leave blank to create a matching collection." : "")
     : (!payload.tripGroups.length ? "No collections yet." : "");
 
-  function routeDragStyle(routeId: string): CSSProperties | undefined {
-    if (dragState?.routeId !== routeId) {
+  function routeOverlayStyle(): CSSProperties | undefined {
+    if (!dragState) {
       return undefined;
     }
     return {
@@ -384,6 +412,127 @@ export function TripEditorPage() {
       zIndex: 12,
       pointerEvents: "none",
     };
+  }
+
+  function renderRouteCard(route: LocalTripEditorRouteOption, index: number, options?: { overlay?: boolean }) {
+    const overlay = options?.overlay ?? false;
+    return (
+      <article
+        ref={overlay ? undefined : (node) => {
+          routeCardRefs.current[route.clientId] = node;
+        }}
+        className={`route-card-react${overlay ? " is-dragging route-card-react--overlay" : ""}`}
+        style={overlay ? routeOverlayStyle() : undefined}
+        aria-hidden={overlay || undefined}
+      >
+        <div className="route-card-react__header">
+          <div className="route-card-react__header-main">
+            {routeOptions.length > 1 ? (
+              <IconButton
+                label={`Reorder option ${index + 1}`}
+                variant="inline"
+                className="route-card-react__drag-handle"
+                onPointerDown={overlay ? undefined : (event) => handleRouteDragStart(route.clientId, event)}
+                onKeyDown={overlay ? undefined : (event) => handleRouteReorderKeyDown(index, event)}
+                disabled={overlay || saveMutation.isPending}
+              >
+                <DragHandleIcon />
+              </IconButton>
+            ) : null}
+            <div className="route-card-react__title">
+              <strong>Option {index + 1}</strong>
+              {routeOptions.length > 1 && preferenceMode === "ranked_bias" && index === 0 ? (
+                <small className="muted-copy">Preferred option</small>
+              ) : null}
+            </div>
+          </div>
+          <div className="route-card-react__actions">
+            <button type="button" className="danger-button" onClick={() => removeRoute(index)} disabled={overlay || routeOptions.length === 1}>Remove</button>
+          </div>
+        </div>
+        <div className="trip-editor-grid route-card-react__grid">
+          <div className="field-block">
+            <span>Origin airports</span>
+            <MultiSelectField
+              options={payload.catalogs.airports}
+              values={route.originAirports}
+              onChange={(originAirports) => updateRoute(index, { originAirports })}
+              placeholder="Search origins"
+              maxSelections={3}
+            />
+          </div>
+          <div className="field-block">
+            <span>Destination airports</span>
+            <MultiSelectField
+              options={payload.catalogs.airports}
+              values={route.destinationAirports}
+              onChange={(destinationAirports) => updateRoute(index, { destinationAirports })}
+              placeholder="Search destinations"
+              maxSelections={3}
+            />
+          </div>
+          <div className="field-block">
+            <span>Airlines</span>
+            <MultiSelectField
+              options={payload.catalogs.airlines}
+              values={route.airlines}
+              onChange={(airlines) => updateRoute(index, { airlines })}
+              placeholder="Search airlines"
+            />
+          </div>
+          <div className="field-block">
+            <span>Travel day</span>
+            <SearchSelectField
+              options={TRAVEL_DAY_OPTIONS.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: item.label,
+                summary: item.label,
+              }))}
+              value={String(route.dayOffset)}
+              onChange={(dayOffset) => updateRoute(index, { dayOffset: Number(dayOffset) })}
+              placeholder="Choose day"
+              disabled={saveMutation.isPending}
+            />
+          </div>
+          <div className="field-block">
+            <span>Fare</span>
+            <SearchSelectField
+              options={payload.catalogs.fareClasses.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: item.keywords,
+                summary: item.label,
+              }))}
+              value={route.fareClass}
+              onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
+              placeholder="Choose fare"
+              disabled={saveMutation.isPending}
+            />
+          </div>
+          <TimeRangeField
+            label="Departure window"
+            startTime={route.startTime}
+            endTime={route.endTime}
+            onChange={(next) => updateRoute(index, next)}
+            disabled={saveMutation.isPending}
+          />
+          {preferenceMode === "ranked_bias" && index > 0 ? (
+            <label className="field-block field-block--full">
+              <span>Savings to beat option {index}</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={route.savingsNeededVsPrevious}
+                onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
+                disabled={saveMutation.isPending}
+              />
+            </label>
+          ) : null}
+        </div>
+      </article>
+    );
   }
 
   return (
@@ -556,7 +705,7 @@ export function TripEditorPage() {
                 </button>
               </div>
             </div>
-            {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" ? (
+            {routeOptions.length > 1 && preferenceMode === "ranked_bias" ? (
               <div className="route-preference-note muted-copy">
                 Option 1 is preferred. Lower options only win when they beat the option above by the amount you set.
               </div>
@@ -571,122 +720,10 @@ export function TripEditorPage() {
                       aria-hidden="true"
                     />
                   ) : null}
-                  <article
-                    ref={(node) => {
-                      routeCardRefs.current[route.clientId] = node;
-                    }}
-                    className={`route-card-react${dragState?.routeId === route.clientId ? " is-dragging route-card-react--overlay" : ""}`}
-                    style={routeDragStyle(route.clientId)}
-                  >
-                    <div className="route-card-react__header">
-                      <div className="route-card-react__header-main">
-                        {routeOptions.length > 1 ? (
-                          <IconButton
-                            label={`Reorder option ${index + 1}`}
-                            variant="inline"
-                            className="route-card-react__drag-handle"
-                            onPointerDown={(event) => handleRouteDragStart(route.clientId, event)}
-                            onKeyDown={(event) => handleRouteReorderKeyDown(index, event)}
-                            disabled={saveMutation.isPending}
-                          >
-                            <DragHandleIcon />
-                          </IconButton>
-                        ) : null}
-                        <div className="route-card-react__title">
-                          <strong>Option {index + 1}</strong>
-                          {routeOptions.length > 1 && values.preferenceMode === "ranked_bias" && index === 0 ? (
-                            <small className="muted-copy">Preferred option</small>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="route-card-react__actions">
-                        <button type="button" className="danger-button" onClick={() => removeRoute(index)} disabled={routeOptions.length === 1}>Remove</button>
-                      </div>
-                    </div>
-                    <div className="trip-editor-grid route-card-react__grid">
-                      <div className="field-block">
-                        <span>Origin airports</span>
-                        <MultiSelectField
-                          options={payload.catalogs.airports}
-                          values={route.originAirports}
-                          onChange={(originAirports) => updateRoute(index, { originAirports })}
-                          placeholder="Search origins"
-                          maxSelections={3}
-                        />
-                      </div>
-                      <div className="field-block">
-                        <span>Destination airports</span>
-                        <MultiSelectField
-                          options={payload.catalogs.airports}
-                          values={route.destinationAirports}
-                          onChange={(destinationAirports) => updateRoute(index, { destinationAirports })}
-                          placeholder="Search destinations"
-                          maxSelections={3}
-                        />
-                      </div>
-                      <div className="field-block">
-                        <span>Airlines</span>
-                        <MultiSelectField
-                          options={payload.catalogs.airlines}
-                          values={route.airlines}
-                          onChange={(airlines) => updateRoute(index, { airlines })}
-                          placeholder="Search airlines"
-                        />
-                      </div>
-                      <div className="field-block">
-                        <span>Travel day</span>
-                        <SearchSelectField
-                          options={TRAVEL_DAY_OPTIONS.map((item) => ({
-                            value: item.value,
-                            label: item.label,
-                            keywords: item.label,
-                            summary: item.label,
-                          }))}
-                          value={String(route.dayOffset)}
-                          onChange={(dayOffset) => updateRoute(index, { dayOffset: Number(dayOffset) })}
-                          placeholder="Choose day"
-                          disabled={saveMutation.isPending}
-                        />
-                      </div>
-                      <div className="field-block">
-                        <span>Fare</span>
-                        <SearchSelectField
-                          options={payload.catalogs.fareClasses.map((item) => ({
-                            value: item.value,
-                            label: item.label,
-                            keywords: item.keywords,
-                            summary: item.label,
-                          }))}
-                          value={route.fareClass}
-                          onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
-                          placeholder="Choose fare"
-                          disabled={saveMutation.isPending}
-                        />
-                      </div>
-                      <TimeRangeField
-                        label="Departure window"
-                        startTime={route.startTime}
-                        endTime={route.endTime}
-                        onChange={(next) => updateRoute(index, next)}
-                        disabled={saveMutation.isPending}
-                      />
-                      {values.preferenceMode === "ranked_bias" && index > 0 ? (
-                        <label className="field-block field-block--full">
-                          <span>Savings to beat option {index}</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step={1}
-                            value={route.savingsNeededVsPrevious}
-                            onChange={(event) => updateRoute(index, { savingsNeededVsPrevious: Math.max(0, Number(event.target.value || 0)) })}
-                            disabled={saveMutation.isPending}
-                          />
-                        </label>
-                      ) : null}
-                    </div>
-                  </article>
+                  {dragState?.routeId === route.clientId ? null : renderRouteCard(route, index)}
                 </Fragment>
               ))}
+              {dragState ? renderRouteCard(routeOptions.find((route) => route.clientId === dragState.routeId)!, routeOptions.findIndex((route) => route.clientId === dragState.routeId), { overlay: true }) : null}
             </div>
           </section>
 
