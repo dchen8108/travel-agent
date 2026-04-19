@@ -210,10 +210,7 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
           } as CSSProperties
         }
       >
-        <div className="time-range-field__summary">
-          <strong>{isAnytime ? "Anytime" : `${formatSlot(safeStart)} – ${formatSlot(safeEnd)}`}</strong>
-          <small>{isAnytime ? "No departure restriction." : "Departure window"}</small>
-        </div>
+        <strong className="time-range-field__value">{isAnytime ? "Anytime" : `${formatSlot(safeStart)} – ${formatSlot(safeEnd)}`}</strong>
         <div className="time-range-field__slider">
           <div
             ref={railRef}

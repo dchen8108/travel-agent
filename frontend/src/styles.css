@@ -1419,8 +1419,10 @@ textarea {
 
 .time-range-field {
   display: grid;
-  gap: 0.7rem;
-  padding: 0.9rem 1rem 0.95rem;
+  grid-template-columns: minmax(8rem, 10.5rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--surface-border);
   border-radius: 1.15rem;
   background: rgba(255, 252, 246, 0.92);
@@ -1431,24 +1433,13 @@ textarea {
   opacity: 0.68;
 }
 
-.time-range-field__summary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.time-range-field__summary strong {
+.time-range-field__value {
   font-size: 1.1rem;
+  line-height: 1.15;
 }
 
-.time-range-field.is-unset .time-range-field__summary strong {
+.time-range-field.is-unset .time-range-field__value {
   color: var(--copy);
-}
-
-.time-range-field__summary small {
-  color: var(--copy-muted);
 }
 
 .time-range-field__slider {
@@ -1865,6 +1856,10 @@ textarea {
     padding-top: 0.85rem;
     padding-bottom: 0.1rem;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96) 38%);
+  }
+
+  .time-range-field {
+    grid-template-columns: 1fr;
   }
 }
 
