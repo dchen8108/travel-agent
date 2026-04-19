@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from google.auth.transport.requests import Request
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -196,7 +197,13 @@ def _load_gmail_credentials(settings: Settings) -> Credentials | None:
     if creds and creds.valid:
         return creds
     if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+        except RefreshError as exc:
+            raise GmailAuthorizationRequired(
+                "Gmail authorization has expired or been revoked. "
+                "Run `uv run python -m app.jobs.authorize_gmail_bookings` to reconnect Gmail."
+            ) from exc
         token_path.write_text(creds.to_json(), encoding="utf-8")
         return creds
     return None
