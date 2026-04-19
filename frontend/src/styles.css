@@ -1419,12 +1419,13 @@ textarea {
 
 .time-range-field {
   display: grid;
-  grid-template-columns: minmax(8rem, 10.5rem) minmax(0, 1fr);
+  grid-template-columns: minmax(11.5rem, 13rem) minmax(0, 1fr);
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
+  gap: 0.7rem;
+  min-height: 2.85rem;
+  padding: 0.55rem 0.85rem;
   border: 1px solid var(--surface-border);
-  border-radius: 1.15rem;
+  border-radius: 0.95rem;
   background: rgba(255, 252, 246, 0.92);
   width: 100%;
 }
@@ -1434,8 +1435,9 @@ textarea {
 }
 
 .time-range-field__value {
-  font-size: 1.1rem;
-  line-height: 1.15;
+  font-size: 1rem;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .time-range-field.is-unset .time-range-field__value {
@@ -1444,7 +1446,7 @@ textarea {
 
 .time-range-field__slider {
   position: relative;
-  height: 2.1rem;
+  height: 1.5rem;
   display: flex;
   align-items: center;
 }
@@ -1459,7 +1461,7 @@ textarea {
 .time-range-field__track {
   position: absolute;
   inset: 50% 0 auto;
-  height: 0.34rem;
+  height: 0.28rem;
   transform: translateY(-50%);
   border-radius: 999px;
   background: var(--line);
@@ -1469,7 +1471,7 @@ textarea {
   position: absolute;
   inset: 50% auto auto var(--range-start);
   width: calc(var(--range-end) - var(--range-start));
-  height: 0.34rem;
+  height: 0.28rem;
   transform: translateY(-50%);
   border-radius: 999px;
   background: rgba(17, 142, 132, 0.5);
@@ -1478,8 +1480,8 @@ textarea {
 .time-range-field__handle {
   position: absolute;
   top: 50%;
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1rem;
+  height: 1rem;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid rgba(17, 142, 132, 0.22);
