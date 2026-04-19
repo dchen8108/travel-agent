@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { Fragment, startTransition, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { IconButton } from "../components/IconButton";
@@ -70,8 +70,12 @@ export function TripEditorPage() {
   const [dragState, setDragState] = useState<{
     routeId: string;
     pointerId: number;
-    pointerY: number;
-    pointerOffsetY: number;
+    pointerStartX: number;
+    pointerStartY: number;
+    cardLeft: number;
+    cardTop: number;
+    cardWidth: number;
+    cardHeight: number;
   } | null>(null);
   const routeCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const dragStateRef = useRef<typeof dragState>(null);
@@ -234,12 +238,17 @@ export function TripEditorPage() {
       return;
     }
     event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
     const bounds = card.getBoundingClientRect();
     const nextDragState = {
       routeId,
       pointerId: event.pointerId,
-      pointerY: event.clientY,
-      pointerOffsetY: event.clientY - bounds.top,
+      pointerStartX: event.clientX,
+      pointerStartY: event.clientY,
+      cardLeft: bounds.left,
+      cardTop: bounds.top,
+      cardWidth: bounds.width,
+      cardHeight: bounds.height,
     };
     dragStateRef.current = nextDragState;
     setDragState(nextDragState);
@@ -281,8 +290,10 @@ export function TripEditorPage() {
       if (!activeDragState || event.pointerId !== activeDragState.pointerId) {
         return;
       }
-      dragStateRef.current = { ...activeDragState, pointerY: event.clientY };
-      setDragState((current) => (current ? { ...current, pointerY: event.clientY } : current));
+      const draggedCard = routeCardRefs.current[activeDragState.routeId];
+      if (draggedCard) {
+        draggedCard.style.transform = `translate3d(${event.clientX - activeDragState.pointerStartX}px, ${event.clientY - activeDragState.pointerStartY}px, 0)`;
+      }
       setRouteOptions((current) => {
         const draggedIndex = current.findIndex((route) => route.clientId === activeDragState.routeId);
         if (draggedIndex === -1) {
@@ -318,6 +329,10 @@ export function TripEditorPage() {
       }
       if (event.pointerId !== activeDragState.pointerId) {
         return;
+      }
+      const draggedCard = routeCardRefs.current[activeDragState.routeId];
+      if (draggedCard) {
+        draggedCard.style.transform = "";
       }
       dragStateRef.current = null;
       clearDragState();
@@ -361,19 +376,13 @@ export function TripEditorPage() {
     if (dragState?.routeId !== routeId) {
       return undefined;
     }
-    const card = routeCardRefs.current[routeId];
-    if (!card) {
-      return undefined;
-    }
-    const offsetParent = card.offsetParent;
-    if (!(offsetParent instanceof HTMLElement)) {
-      return undefined;
-    }
-    const parentBounds = offsetParent.getBoundingClientRect();
-    const layoutTop = parentBounds.top + card.offsetTop;
     return {
-      transform: `translateY(${dragState.pointerY - layoutTop - dragState.pointerOffsetY}px)`,
-      zIndex: 4,
+      position: "fixed",
+      left: dragState.cardLeft,
+      top: dragState.cardTop,
+      width: dragState.cardWidth,
+      zIndex: 12,
+      pointerEvents: "none",
     };
   }
 
@@ -554,14 +563,21 @@ export function TripEditorPage() {
             ) : null}
             <div className="route-editor-stack">
               {routeOptions.map((route, index) => (
-                <article
-                  key={route.routeOptionId || route.clientId}
-                  ref={(node) => {
-                    routeCardRefs.current[route.clientId] = node;
-                  }}
-                  className={`route-card-react${dragState?.routeId === route.clientId ? " is-dragging" : ""}`}
-                  style={routeDragStyle(route.clientId)}
-                >
+                <Fragment key={route.routeOptionId || route.clientId}>
+                  {dragState?.routeId === route.clientId ? (
+                    <div
+                      className="route-card-react__placeholder"
+                      style={{ height: dragState.cardHeight }}
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  <article
+                    ref={(node) => {
+                      routeCardRefs.current[route.clientId] = node;
+                    }}
+                    className={`route-card-react${dragState?.routeId === route.clientId ? " is-dragging route-card-react--overlay" : ""}`}
+                    style={routeDragStyle(route.clientId)}
+                  >
                     <div className="route-card-react__header">
                       <div className="route-card-react__header-main">
                         {routeOptions.length > 1 ? (
@@ -669,6 +685,7 @@ export function TripEditorPage() {
                       ) : null}
                     </div>
                   </article>
+                </Fragment>
               ))}
             </div>
           </section>
