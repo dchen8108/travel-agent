@@ -417,21 +417,6 @@ export function TripEditorPage() {
                       />
                     </div>
                     <div className="field-block">
-                      <span>Fare</span>
-                      <SearchSelectField
-                        options={payload.catalogs.fareClasses.map((item) => ({
-                          value: item.value,
-                          label: item.label,
-                          keywords: item.keywords,
-                          summary: item.label,
-                        }))}
-                        value={route.fareClass}
-                        onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
-                        placeholder="Choose fare"
-                        disabled={saveMutation.isPending}
-                      />
-                    </div>
-                    <div className="field-block">
                       <span>Travel day</span>
                       <SearchSelectField
                         options={TRAVEL_DAY_OPTIONS.map((item) => ({
@@ -446,8 +431,30 @@ export function TripEditorPage() {
                         disabled={saveMutation.isPending}
                       />
                     </div>
+                    <div className="field-block">
+                      <span>Fare</span>
+                      <SearchSelectField
+                        options={payload.catalogs.fareClasses.map((item) => ({
+                          value: item.value,
+                          label: item.label,
+                          keywords: item.keywords,
+                          summary: item.label,
+                        }))}
+                        value={route.fareClass}
+                        onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
+                        placeholder="Choose fare"
+                        disabled={saveMutation.isPending}
+                      />
+                    </div>
+                    <TimeRangeField
+                      label="Departure window"
+                      startTime={route.startTime}
+                      endTime={route.endTime}
+                      onChange={(next) => updateRoute(index, next)}
+                      disabled={saveMutation.isPending}
+                    />
                     {values.preferenceMode === "ranked_bias" && index > 0 ? (
-                      <label>
+                      <label className="field-block field-block--full">
                         <span>Savings to beat option {index}</span>
                         <input
                           type="number"
@@ -459,13 +466,6 @@ export function TripEditorPage() {
                         />
                       </label>
                     ) : null}
-                    <TimeRangeField
-                      label="Departure window"
-                      startTime={route.startTime}
-                      endTime={route.endTime}
-                      onChange={(next) => updateRoute(index, next)}
-                      disabled={saveMutation.isPending}
-                    />
                   </div>
                 </article>
               ))}

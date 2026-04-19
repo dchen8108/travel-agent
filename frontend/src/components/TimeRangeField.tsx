@@ -199,7 +199,7 @@ export function TimeRangeField({ label, startTime, endTime, onChange, disabled =
   }, [disabled, draggingHandle, safeEnd, safeStart]);
 
   return (
-    <div className="field-block field-block--full">
+    <div className="field-block">
       <span>{label}</span>
       <div
         className={`time-range-field${disabled ? " is-disabled" : ""}`}

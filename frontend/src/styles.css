@@ -1424,8 +1424,7 @@ textarea {
   border: 1px solid var(--surface-border);
   border-radius: 1.15rem;
   background: rgba(255, 252, 246, 0.92);
-  width: min(36rem, 100%);
-  justify-self: start;
+  width: 100%;
 }
 
 .time-range-field.is-disabled {
