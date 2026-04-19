@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Fragment, startTransition, useEffect, useMemo, useState, type DragEvent as ReactDragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { IconButton } from "../components/IconButton";
@@ -67,8 +67,13 @@ export function TripEditorPage() {
   const [routeOptions, setRouteOptions] = useState<LocalTripEditorRouteOption[]>([blankRouteOption()]);
   const [error, setError] = useState("");
   const [savePhase, setSavePhase] = useState<"idle" | "saving" | "redirecting">("idle");
-  const [draggedRouteIndex, setDraggedRouteIndex] = useState<number | null>(null);
-  const [dragInsertIndex, setDragInsertIndex] = useState<number | null>(null);
+  const [dragState, setDragState] = useState<{
+    routeId: string;
+    pointerId: number;
+    pointerY: number;
+    pointerOffsetY: number;
+  } | null>(null);
+  const routeCardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const editorParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -113,8 +118,7 @@ export function TripEditorPage() {
     setRouteOptions(formQuery.data.routeOptions.length ? formQuery.data.routeOptions.map(withClientId) : [blankRouteOption()]);
     setError("");
     setSavePhase("idle");
-    setDraggedRouteIndex(null);
-    setDragInsertIndex(null);
+    setDragState(null);
   }, [formQuery.data]);
 
   useEffect(() => {
@@ -213,52 +217,25 @@ export function TripEditorPage() {
   }
 
   function clearDragState() {
-    setDraggedRouteIndex(null);
-    setDragInsertIndex(null);
+    setDragState(null);
   }
 
-  function handleRouteDragStart(index: number, event: ReactDragEvent<HTMLButtonElement>) {
+  function handleRouteDragStart(routeId: string, event: ReactPointerEvent<HTMLButtonElement>) {
     if (saveMutation.isPending || routeOptions.length < 2) {
-      event.preventDefault();
       return;
     }
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(index));
-    setDraggedRouteIndex(index);
-    setDragInsertIndex(index);
-  }
-
-  function handleRouteDragOver(index: number, event: ReactDragEvent<HTMLElement>) {
-    if (draggedRouteIndex == null) {
+    const card = routeCardRefs.current[routeId];
+    if (!card) {
       return;
     }
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const insertIndex = event.clientY < bounds.top + bounds.height / 2 ? index : index + 1;
-    if (dragInsertIndex !== insertIndex) {
-      setDragInsertIndex(insertIndex);
-    }
-  }
-
-  function handleRouteDrop(event: ReactDragEvent<HTMLElement>) {
-    if (draggedRouteIndex == null || dragInsertIndex == null) {
-      return;
-    }
-    event.preventDefault();
-    reorderRoute(draggedRouteIndex, dragInsertIndex);
-    clearDragState();
-  }
-
-  function handleRouteStackDragOver(event: ReactDragEvent<HTMLDivElement>) {
-    if (draggedRouteIndex == null || event.target !== event.currentTarget) {
-      return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    if (dragInsertIndex !== routeOptions.length) {
-      setDragInsertIndex(routeOptions.length);
-    }
+    const bounds = card.getBoundingClientRect();
+    setDragState({
+      routeId,
+      pointerId: event.pointerId,
+      pointerY: event.clientY,
+      pointerOffsetY: event.clientY - bounds.top,
+    });
   }
 
   function handleRouteReorderKeyDown(index: number, event: ReactKeyboardEvent<HTMLButtonElement>) {
@@ -288,19 +265,62 @@ export function TripEditorPage() {
   }
 
   useEffect(() => {
-    if (draggedRouteIndex == null) {
+    if (!dragState) {
       return;
     }
-    function handleWindowDrop() {
+    const activeDragState = dragState;
+
+    function handlePointerMove(event: PointerEvent) {
+      if (event.pointerId !== activeDragState.pointerId) {
+        return;
+      }
+      setDragState((current) => (current ? { ...current, pointerY: event.clientY } : current));
+      setRouteOptions((current) => {
+        const draggedIndex = current.findIndex((route) => route.clientId === activeDragState.routeId);
+        if (draggedIndex === -1) {
+          return current;
+        }
+        const draggedRoute = current[draggedIndex];
+        const remaining = current.filter((route) => route.clientId !== activeDragState.routeId);
+        let insertIndex = remaining.length;
+        for (let index = 0; index < remaining.length; index += 1) {
+          const card = routeCardRefs.current[remaining[index].clientId];
+          if (!card) {
+            continue;
+          }
+          const bounds = card.getBoundingClientRect();
+          if (event.clientY < bounds.top + (bounds.height / 2)) {
+            insertIndex = index;
+            break;
+          }
+        }
+        const next = [...remaining];
+        next.splice(insertIndex, 0, draggedRoute);
+        if (next.every((route, index) => route.clientId === current[index]?.clientId)) {
+          return current;
+        }
+        return next;
+      });
+    }
+
+    function stopDragging(event: PointerEvent) {
+      if (event.pointerId !== activeDragState.pointerId) {
+        return;
+      }
       clearDragState();
     }
-    window.addEventListener("dragend", handleWindowDrop);
-    window.addEventListener("drop", handleWindowDrop);
+
+    document.body.classList.add("route-drag-active");
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopDragging);
+    window.addEventListener("pointercancel", stopDragging);
     return () => {
-      window.removeEventListener("dragend", handleWindowDrop);
-      window.removeEventListener("drop", handleWindowDrop);
+      document.body.classList.remove("route-drag-active");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
     };
-  }, [draggedRouteIndex]);
+  }, [dragState]);
 
   if (formQuery.isError) {
     return (
@@ -323,6 +343,21 @@ export function TripEditorPage() {
   const collectionsHelper = weekly
     ? (!values.tripGroupIds.length ? "Leave blank to create a matching collection." : "")
     : (!payload.tripGroups.length ? "No collections yet." : "");
+
+  function routeDragStyle(routeId: string): CSSProperties | undefined {
+    if (dragState?.routeId !== routeId) {
+      return undefined;
+    }
+    const card = routeCardRefs.current[routeId];
+    if (!card) {
+      return undefined;
+    }
+    const bounds = card.getBoundingClientRect();
+    return {
+      transform: `translateY(${dragState.pointerY - bounds.top - dragState.pointerOffsetY}px)`,
+      zIndex: 4,
+    };
+  }
 
   return (
     <div className="app-shell app-shell--editor">
@@ -499,19 +534,16 @@ export function TripEditorPage() {
                 Option 1 is preferred. Lower options only win when they beat the option above by the amount you set.
               </div>
             ) : null}
-            <div
-              className="route-editor-stack"
-              onDragOver={handleRouteStackDragOver}
-              onDrop={handleRouteDrop}
-            >
+            <div className="route-editor-stack">
               {routeOptions.map((route, index) => (
-                <Fragment key={route.routeOptionId || route.clientId}>
-                  {draggedRouteIndex != null && dragInsertIndex === index ? <div className="route-drop-indicator" aria-hidden="true" /> : null}
-                  <article
-                    className={`route-card-react${draggedRouteIndex === index ? " is-dragging" : ""}`}
-                    onDragOver={(event) => handleRouteDragOver(index, event)}
-                    onDrop={handleRouteDrop}
-                  >
+                <article
+                  key={route.routeOptionId || route.clientId}
+                  ref={(node) => {
+                    routeCardRefs.current[route.clientId] = node;
+                  }}
+                  className={`route-card-react${dragState?.routeId === route.clientId ? " is-dragging" : ""}`}
+                  style={routeDragStyle(route.clientId)}
+                >
                     <div className="route-card-react__header">
                       <div className="route-card-react__header-main">
                         {routeOptions.length > 1 ? (
@@ -519,9 +551,7 @@ export function TripEditorPage() {
                             label={`Reorder option ${index + 1}`}
                             variant="inline"
                             className="route-card-react__drag-handle"
-                            draggable={!saveMutation.isPending}
-                            onDragStart={(event) => handleRouteDragStart(index, event)}
-                            onDragEnd={clearDragState}
+                            onPointerDown={(event) => handleRouteDragStart(route.clientId, event)}
                             onKeyDown={(event) => handleRouteReorderKeyDown(index, event)}
                             disabled={saveMutation.isPending}
                           >
@@ -621,9 +651,7 @@ export function TripEditorPage() {
                       ) : null}
                     </div>
                   </article>
-                </Fragment>
               ))}
-              {draggedRouteIndex != null && dragInsertIndex === routeOptions.length ? <div className="route-drop-indicator" aria-hidden="true" /> : null}
             </div>
           </section>
 
