@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { IconButton } from "../components/IconButton";
-import { DragHandleIcon } from "../components/Icons";
+import { DeleteIcon, DragHandleIcon } from "../components/Icons";
 import { api } from "../lib/api";
 import { tripEditorQueryKey } from "../lib/queryKeys";
 import type { TripEditorPayload, TripEditorRouteOption, TripEditorValues } from "../types";
@@ -464,7 +464,15 @@ export function TripEditorPage() {
             </div>
           </div>
           <div className="route-card-react__actions">
-            <button type="button" className="danger-button" onClick={() => removeRoute(index)} disabled={overlay || routeOptions.length === 1}>Remove</button>
+            <IconButton
+              label={`Remove option ${index + 1}`}
+              tone="danger"
+              variant="inline"
+              onClick={() => removeRoute(index)}
+              disabled={overlay || routeOptions.length === 1}
+            >
+              <DeleteIcon />
+            </IconButton>
           </div>
         </div>
         <div className="trip-editor-grid route-card-react__grid">
