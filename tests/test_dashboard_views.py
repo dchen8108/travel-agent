@@ -318,11 +318,11 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
 
     assert row["booked_offer"] == {
         "label": "Booking",
-        "detail": "LAX → SFO · DL 2285",
+        "detail": "LAX → SFO",
         "airline_key": "Delta",
-        "primary_meta_label": "8:15 AM → 9:45 AM",
+        "primary_meta_label": "8:15 AM → 9:45 AM · DL 2285",
         "meta_badges": [],
-        "meta_label": "8:15 AM → 9:45 AM",
+        "meta_label": "8:15 AM → 9:45 AM · DL 2285",
         "price_label": "$124",
         "href": "",
         "tone": "neutral",
@@ -425,11 +425,11 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
 
     assert row["booked_offer"] == {
         "label": "Booking",
-        "detail": "LAX → SFO · DL 2285",
+        "detail": "LAX → SFO",
         "airline_key": "Delta",
-        "primary_meta_label": "11:30 PM⁻¹ → 1:10 AM",
+        "primary_meta_label": "11:30 PM⁻¹ → 1:10 AM · DL 2285",
         "meta_badges": [],
-        "meta_label": "11:30 PM⁻¹ → 1:10 AM",
+        "meta_label": "11:30 PM⁻¹ → 1:10 AM · DL 2285",
         "price_label": "$124",
         "href": "",
         "tone": "neutral",

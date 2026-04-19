@@ -5,6 +5,7 @@ from datetime import date
 from app.catalog import known_airline_code
 from app.models.tracker import Tracker
 from app.services.itinerary_display import (
+    booking_airline_label,
     booking_route_label,
     format_departure_time_label,
     format_time_range_label,
@@ -86,6 +87,9 @@ def booking_offer_summary(booking_like: object, *, anchor_date: date | None = No
         fallback_arrival_day_delta=booking_day_delta + int(getattr(booking_like, "arrival_day_offset", 0) or 0),
         anchor_date=anchor_date,
     )
+    flight_designator = booking_airline_label(booking_like)
+    if flight_designator:
+        primary_meta_label = " · ".join(part for part in [primary_meta_label, flight_designator] if part)
     _, badges, booking_meta = _offer_meta_value(primary_meta_label, [])
     if record_locator:
         booking_meta = " · ".join(part for part in [booking_meta, record_locator] if part)

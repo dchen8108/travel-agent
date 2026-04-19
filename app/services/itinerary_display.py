@@ -26,9 +26,7 @@ _SUPERSCRIPT_TRANSLATION = str.maketrans({
 
 
 def booking_route_label(booking: Booking) -> str:
-    route = f"{booking.origin_airport} \u2192 {booking.destination_airport}"
-    flight_designator = booking_airline_label(booking)
-    return f"{route} \u00b7 {flight_designator}" if flight_designator else route
+    return f"{booking.origin_airport} \u2192 {booking.destination_airport}"
 
 
 def booking_airline_label(booking: Booking) -> str:
