@@ -367,7 +367,7 @@ def booking_panel_payload(
                 "values": booking_form_state_value(editing_booking, trip_instance_id=trip_instance_id)
                 if mode == "edit"
                 else booking_form_state_value(None, trip_instance_id=trip_instance_id),
-                "submitLabel": "Save booking" if mode == "edit" else "Create booking",
+                "submitLabel": "Save" if mode == "edit" else "Create",
             }
             if mode in {"create", "edit"}
             else None
@@ -394,7 +394,7 @@ def booking_form_payload(
             "values": booking_form_state_value(editing_booking, trip_instance_id=trip_instance_id)
             if editing_booking is not None
             else booking_form_state_value(None, trip_instance_id=trip_instance_id),
-            "submitLabel": "Save booking" if editing_booking is not None else "Create booking",
+            "submitLabel": "Save" if editing_booking is not None else "Create",
         },
         "catalogs": catalogs_payload(),
     }
@@ -419,7 +419,7 @@ def unmatched_booking_form_payload(
         "mode": "edit",
         "form": {
             "values": booking_form_state_value(unmatched, trip_instance_id=""),
-            "submitLabel": "Save booking",
+            "submitLabel": "Save",
         },
         "catalogs": catalogs_payload(),
     }

@@ -179,7 +179,7 @@ export function BookingPanel({
           mode={mode}
           mutationPending={saveMutation.isPending || rowMutation.isPending}
           formValues={formPayload?.form?.values ?? blankBookingForm(tripInstanceId)}
-          formSubmitLabel={formPayload?.form?.submitLabel ?? "Create booking"}
+          formSubmitLabel={formPayload?.form?.submitLabel ?? "Create"}
           formCatalogs={formPayload?.catalogs}
           formLoading={loadingForm}
           pendingRowBookingId={pendingRowBookingId}

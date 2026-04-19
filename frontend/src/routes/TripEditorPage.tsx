@@ -405,7 +405,7 @@ export function TripEditorPage() {
   const weekly = values.tripKind === "weekly";
   const preferenceMode = values.preferenceMode;
   const weekdays = payload.catalogs.weekdays;
-  const idleSubmitLabel = isEdit ? "Save trip" : "Create trip";
+  const idleSubmitLabel = isEdit ? "Save" : "Create";
   const collectionsHelper = weekly
     ? (!values.tripGroupIds.length ? "Leave blank to create a matching collection." : "")
     : (!payload.tripGroups.length ? "No collections yet." : "");
