@@ -16,6 +16,8 @@ interface Props {
   onOpenBookings: (tripInstanceId: string, mode: "list" | "create", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDeleteTrip: (row: TripRowValue) => void;
+  supportsTrackerPreview?: boolean;
+  supportsTrackerHover?: boolean;
   onLinkUnmatchedBooking: (unmatchedBookingId: string, tripInstanceId: string) => Promise<void>;
   onEditUnmatchedBooking: (unmatchedBookingId: string) => void;
   onDeleteUnmatchedBooking: (unmatchedBookingId: string) => Promise<void>;
@@ -29,6 +31,8 @@ export function ActionItemsSection({
   onOpenBookings,
   onOpenTrackers,
   onDeleteTrip,
+  supportsTrackerPreview = false,
+  supportsTrackerHover = false,
   onLinkUnmatchedBooking,
   onEditUnmatchedBooking,
   onDeleteUnmatchedBooking,
@@ -71,6 +75,8 @@ export function ActionItemsSection({
                 onOpenBookings={onOpenBookings}
                 onOpenTrackers={onOpenTrackers}
                 onDelete={onDeleteTrip}
+                supportsTrackerPreview={supportsTrackerPreview}
+                supportsTrackerHover={supportsTrackerHover}
                 onPrefetchBookings={onPrefetchBookings}
                 onPrefetchCreateBooking={onPrefetchCreateBooking}
                 onPrefetchTrackers={onPrefetchTrackers}

@@ -163,6 +163,8 @@ export function DashboardPage() {
     initialBookingPanelState(searchParams)
   ));
   const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
+  const [supportsTrackerPreview, setSupportsTrackerPreview] = useState(false);
+  const [supportsTrackerHover, setSupportsTrackerHover] = useState(false);
 
   const panel = searchParams.get("panel");
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
@@ -218,6 +220,25 @@ export function DashboardPage() {
     next.delete("message_kind");
     setSearchParams(next, { replace: true });
   }, [pushToast, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const previewMediaQuery = window.matchMedia("(min-width: 960px)");
+    const hoverMediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => {
+      setSupportsTrackerPreview(previewMediaQuery.matches);
+      setSupportsTrackerHover(hoverMediaQuery.matches);
+    };
+    update();
+    previewMediaQuery.addEventListener("change", update);
+    hoverMediaQuery.addEventListener("change", update);
+    return () => {
+      previewMediaQuery.removeEventListener("change", update);
+      hoverMediaQuery.removeEventListener("change", update);
+    };
+  }, []);
 
   useEffect(() => {
     if (panel === "bookings" && panelTripInstanceId) {
@@ -611,6 +632,8 @@ export function DashboardPage() {
               onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
               onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
               onDeleteTrip={handleDeleteTrip}
+              supportsTrackerPreview={supportsTrackerPreview}
+              supportsTrackerHover={supportsTrackerHover}
               onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
               onEditUnmatchedBooking={handleEditUnmatchedBooking}
               onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
@@ -699,6 +722,8 @@ export function DashboardPage() {
                     onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
                     onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                     onDelete={handleDeleteTrip}
+                    supportsTrackerPreview={supportsTrackerPreview}
+                    supportsTrackerHover={supportsTrackerHover}
                     onPrefetchBookings={prefetchBookingPanel}
                     onPrefetchCreateBooking={prefetchBookingCreateFlow}
                     onPrefetchTrackers={prefetchTrackerPanel}

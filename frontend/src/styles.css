@@ -763,6 +763,15 @@ textarea {
   padding: 1rem;
 }
 
+.trip-row__tracker-slot {
+  position: relative;
+  min-width: 0;
+}
+
+.trip-row__tracker-slot.is-open {
+  z-index: 12;
+}
+
 .trip-identity-row__copy {
   flex: 1;
   min-width: 0;
@@ -1066,6 +1075,70 @@ textarea {
 
 .offer-block__placeholder {
   font-style: italic;
+}
+
+.tracker-popover {
+  position: absolute;
+  right: 0;
+  z-index: 14;
+  width: min(34rem, calc(100vw - 4rem));
+  max-height: min(26rem, calc(100vh - 5rem));
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem;
+  overflow: auto;
+  border: 1px solid var(--surface-border);
+  border-radius: 1.3rem;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 48px rgba(41, 54, 67, 0.18);
+}
+
+.tracker-popover--below {
+  top: calc(100% + 0.6rem);
+}
+
+.tracker-popover--above {
+  bottom: calc(100% + 0.6rem);
+}
+
+.tracker-popover__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1rem 0.15rem 0.45rem;
+}
+
+.tracker-popover__header strong {
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tracker-popover__header span,
+.tracker-popover__empty {
+  font-size: 0.9rem;
+  color: var(--copy-muted);
+}
+
+.tracker-popover__list {
+  display: grid;
+}
+
+.tracker-popover__row + .tracker-popover__row {
+  border-top: 1px solid var(--line);
+  margin-top: 0.2rem;
+  padding-top: 0.45rem;
+}
+
+.tracker-popover__row .offer-block {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.tracker-popover__empty {
+  padding: 0.35rem 0.15rem 0.1rem;
 }
 
 .modal-backdrop {
