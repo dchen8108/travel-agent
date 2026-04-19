@@ -248,7 +248,7 @@ export function TripEditorPage() {
           }}
         >
           <div className="trip-editor-grid trip-editor-grid--overview">
-            <label className="field-block--span-2">
+            <label>
               <span>Trip label</span>
               <input
                 type="text"
@@ -286,7 +286,7 @@ export function TripEditorPage() {
               )}
             </div>
 
-            <div className="field-block field-block--span-2">
+            <div className="field-block">
               <span>{weekly ? "Target collections" : "Collections"}</span>
               <MultiSelectField
                 options={payload.tripGroups}
@@ -299,7 +299,7 @@ export function TripEditorPage() {
             </div>
 
             {weekly ? (
-              <div className="field-block field-block--full">
+              <div className="field-block">
                 <span>Repeat on</span>
                 <div className="weekday-switch">
                   {weekdays.map((weekday) => (

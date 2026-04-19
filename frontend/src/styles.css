@@ -1235,6 +1235,7 @@ textarea {
 }
 
 .trip-editor-grid--overview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -1333,17 +1334,20 @@ textarea {
 }
 
 .weekday-switch {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.4rem;
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
   width: 100%;
 }
 
 .weekday-switch__pill {
-  min-height: 2.55rem;
-  padding: 0 0.35rem;
+  flex: 1 1 0;
+  min-height: 2.45rem;
+  padding: 0 0.2rem;
   min-width: 0;
-  width: 100%;
+  width: auto;
+  font-size: 0.86rem;
+  letter-spacing: 0.03em;
 }
 
 .section-header-react {
@@ -1747,16 +1751,12 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .field-block--span-2 {
-    grid-column: 1 / -1;
-  }
-
   .route-card-react__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .weekday-switch {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.3rem;
   }
 }
 
@@ -1863,10 +1863,6 @@ textarea {
     display: grid;
   }
 
-  .field-block--span-2 {
-    grid-column: auto;
-  }
-
   .booking-form-actions {
     position: sticky;
     bottom: -1rem;
@@ -1880,7 +1876,9 @@ textarea {
   }
 
   .weekday-switch {
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
   }
 }
 
