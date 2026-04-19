@@ -1442,9 +1442,9 @@ textarea {
 
 .time-range-field {
   display: grid;
-  grid-template-columns: 12.75rem minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   min-height: 2.8rem;
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--surface-border);
@@ -1461,9 +1461,8 @@ textarea {
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .time-range-field.is-unset .time-range-field__value {
