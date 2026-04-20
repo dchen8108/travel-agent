@@ -1121,10 +1121,11 @@ textarea {
 }
 
 .dashboard-inspector {
-  --dashboard-inspector-width: clamp(15rem, calc((100vw - 1480px) / 2 - 1rem), 18rem);
+  --dashboard-gutter-width: calc((100vw - 1480px) / 2);
+  --dashboard-inspector-width: min(calc(var(--dashboard-gutter-width) - 1.5rem), 30rem);
   position: fixed;
   top: 2rem;
-  right: max(0.75rem, calc((100vw - 1480px) / 2 - var(--dashboard-inspector-width) - 0.5rem));
+  right: 0.75rem;
   width: var(--dashboard-inspector-width);
   max-height: calc(100vh - 4rem);
   overflow: auto;
