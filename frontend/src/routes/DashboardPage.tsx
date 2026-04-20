@@ -3,12 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ActionItemsSection } from "../components/ActionItemsSection";
+import { BookingFormModal } from "../components/BookingFormModal";
+import { BookingInspector } from "../components/BookingInspector";
 import { BookingPanel } from "../components/BookingPanel";
 import { CollectionCard } from "../components/CollectionCard";
 import { CollectionNameEditor } from "../components/CollectionNameEditor";
 import { useConfirm } from "../components/ConfirmProvider";
 import { FilterBar } from "../components/FilterBar";
+import { InspectorShell } from "../components/InspectorShell";
 import { PrefetchLink } from "../components/PrefetchLink";
+import { TrackerInspector } from "../components/TrackerInspector";
 import { TrackerPanel } from "../components/TrackerPanel";
 import { TripRow } from "../components/TripRow";
 import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEditorModal";
@@ -163,8 +167,7 @@ export function DashboardPage() {
     initialBookingPanelState(searchParams)
   ));
   const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
-  const [supportsTrackerPreview, setSupportsTrackerPreview] = useState(false);
-  const [supportsTrackerHover, setSupportsTrackerHover] = useState(false);
+  const [useDesktopInspector, setUseDesktopInspector] = useState(false);
 
   const panel = searchParams.get("panel");
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
@@ -225,18 +228,14 @@ export function DashboardPage() {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return;
     }
-    const previewMediaQuery = window.matchMedia("(min-width: 960px)");
-    const hoverMediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const inspectorMediaQuery = window.matchMedia("(min-width: 1180px)");
     const update = () => {
-      setSupportsTrackerPreview(previewMediaQuery.matches);
-      setSupportsTrackerHover(hoverMediaQuery.matches);
+      setUseDesktopInspector(inspectorMediaQuery.matches);
     };
     update();
-    previewMediaQuery.addEventListener("change", update);
-    hoverMediaQuery.addEventListener("change", update);
+    inspectorMediaQuery.addEventListener("change", update);
     return () => {
-      previewMediaQuery.removeEventListener("change", update);
-      hoverMediaQuery.removeEventListener("change", update);
+      inspectorMediaQuery.removeEventListener("change", update);
     };
   }, []);
 
@@ -375,8 +374,11 @@ export function DashboardPage() {
       }
       pushToast({ message: errorMessage(error, "Unable to delete trip."), kind: "error" });
     },
-    onSuccess: ({ dashboard }) => {
+    onSuccess: ({ dashboard }, tripInstanceId) => {
       replaceCurrentDashboard(dashboard);
+      if (panelTripInstanceId === tripInstanceId) {
+        closePanel();
+      }
       pushToast({ message: "Trip deleted" });
     },
   });
@@ -551,6 +553,7 @@ export function DashboardPage() {
   const currentTripRow = panelTripInstanceId ? visibleTripRows.get(panelTripInstanceId) : undefined;
   const initialBookingPanel = panel === "bookings" ? bookingPanelPreview(currentTripRow) : null;
   const initialTrackerPanel = panel === "trackers" ? trackerPanelPreview(currentTripRow) : null;
+  const showingDesktopInspector = useDesktopInspector && !!panelTripInstanceId && (panel === "bookings" || panel === "trackers");
 
   async function handleDeleteTrip(row: TripRowValue) {
     const confirmation = row.trip.delete?.confirmation;
@@ -607,147 +610,164 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="page-header">
-        <div>
-          <p className="page-header__eyebrow">Milemark</p>
-          <h1>Travel dashboard</h1>
-        </div>
-        <div className="page-header__stats">
-          <div>
-            <span>Upcoming</span>
-            <strong>{dashboardQuery.data?.counts.totalUpcoming ?? "—"}</strong>
-          </div>
-          <div>
-            <span>Booked</span>
-            <strong>{dashboardQuery.data?.counts.totalBooked ?? "—"}</strong>
-          </div>
-        </div>
-      </header>
-      <main className="dashboard-layout">
-        {dashboardQuery.data ? (
-          dashboardQuery.data.actionItems.length ? (
-            <ActionItemsSection
-              items={dashboardQuery.data.actionItems}
-              onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
-              onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
-              onDeleteTrip={handleDeleteTrip}
-              supportsTrackerPreview={supportsTrackerPreview}
-              supportsTrackerHover={supportsTrackerHover}
-              onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
-              onEditUnmatchedBooking={handleEditUnmatchedBooking}
-              onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
-              onPrefetchBookings={prefetchBookingPanel}
-              onPrefetchCreateBooking={prefetchBookingCreateFlow}
-              onPrefetchTrackers={prefetchTrackerPanel}
-            />
-          ) : null
-        ) : dashboardQuery.isError ? (
-          <section className="surface">
-            <article className="quiet-state-card">
-              <strong>Unable to load dashboard.</strong>
-              <p>{dashboardQuery.error instanceof Error ? dashboardQuery.error.message : "Try again in a moment."}</p>
-              <div className="quiet-state-card__actions">
-                <button type="button" className="secondary-button" onClick={() => void dashboardQuery.refetch()}>
-                  Retry
-                </button>
+    <div className={`app-shell${showingDesktopInspector ? " app-shell--with-inspector" : ""}`}>
+      <div className={`dashboard-workbench${showingDesktopInspector ? " dashboard-workbench--with-inspector" : ""}`}>
+        <div className="dashboard-workbench__main">
+          <header className="page-header">
+            <div>
+              <p className="page-header__eyebrow">Milemark</p>
+              <h1>Travel dashboard</h1>
+            </div>
+            <div className="page-header__stats">
+              <div>
+                <span>Upcoming</span>
+                <strong>{dashboardQuery.data?.counts.totalUpcoming ?? "—"}</strong>
               </div>
-            </article>
-          </section>
-        ) : null}
-
-        <section className="surface" id="dashboard-groups">
-          <div className="surface__header">
-            <h2>Collections</h2>
-            {collectionEditor?.mode !== "create" ? (
-              <button type="button" className="primary-button" onClick={startCreateCollection}>
-                Create collection
-              </button>
-            ) : (
-              <span className="primary-button surface__header-action-placeholder" aria-hidden="true">
-                Create collection
-              </span>
-            )}
-          </div>
-          <div className="collection-board-react">
-            {collectionEditor?.mode === "create" ? (
-              <CollectionNameEditor
-                mode="create"
-                variant="card"
-                onCancel={stopCollectionEditing}
-                onSave={(label) => collectionMutation.mutateAsync({ label })}
-              />
+              <div>
+                <span>Booked</span>
+                <strong>{dashboardQuery.data?.counts.totalBooked ?? "—"}</strong>
+              </div>
+            </div>
+          </header>
+          <main className="dashboard-layout">
+            {dashboardQuery.data ? (
+              dashboardQuery.data.actionItems.length ? (
+                <ActionItemsSection
+                  items={dashboardQuery.data.actionItems}
+                  onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
+                  onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
+                  onDeleteTrip={handleDeleteTrip}
+                  activeTripInstanceId={panelTripInstanceId}
+                  onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
+                  onEditUnmatchedBooking={handleEditUnmatchedBooking}
+                  onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
+                  onPrefetchBookings={prefetchBookingPanel}
+                  onPrefetchCreateBooking={prefetchBookingCreateFlow}
+                  onPrefetchTrackers={prefetchTrackerPanel}
+                />
+              ) : null
+            ) : dashboardQuery.isError ? (
+              <section className="surface">
+                <article className="quiet-state-card">
+                  <strong>Unable to load dashboard.</strong>
+                  <p>{dashboardQuery.error instanceof Error ? dashboardQuery.error.message : "Try again in a moment."}</p>
+                  <div className="quiet-state-card__actions">
+                    <button type="button" className="secondary-button" onClick={() => void dashboardQuery.refetch()}>
+                      Retry
+                    </button>
+                  </div>
+                </article>
+              </section>
             ) : null}
-            {dashboardQuery.data?.collections.map((collection: CollectionCardValue) => (
-              <CollectionCard
-                key={collection.groupId}
-                collection={collection}
-                editing={collectionEditor?.mode === "edit" && collectionEditor.groupId === collection.groupId}
-                onEdit={() => startEditCollection(collection.groupId)}
-                onDelete={() => void handleDeleteCollection(collection.groupId, collection.label)}
-                onCancelEdit={stopCollectionEditing}
-                onSaveEdit={(label) => collectionMutation.mutateAsync({ label, groupId: collection.groupId })}
-                onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}
-                pendingRecurringTripId={toggleTripMutation.isPending ? (toggleTripMutation.variables?.tripId ?? "") : ""}
-              />
-            ))}
-          </div>
-        </section>
 
-        <section className="surface" id="all-travel">
-          <div className="surface__header">
-            <h2>Trips</h2>
-            <PrefetchLink
-              className="primary-button"
-              to="/trips/new"
-              onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
-            >
-              Create trip
-            </PrefetchLink>
-          </div>
-          {dashboardQuery.data ? (
-            <>
-              <FilterBar
-                options={dashboardQuery.data.filters.groupOptions}
-                selected={dashboardQuery.data.filters.selectedTripGroupIds}
-                includeBooked={dashboardQuery.data.filters.includeBooked}
-                onToggleOption={toggleGroupFilter}
-                onToggleBooked={toggleBookedFilter}
-              />
-              <div className="trip-list">
-                {dashboardQuery.data.trips.map((row) => (
-                  <TripRow
-                    key={row.trip.tripInstanceId}
-                    row={row}
-                    onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
-                    onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
-                    onDelete={handleDeleteTrip}
-                    supportsTrackerPreview={supportsTrackerPreview}
-                    supportsTrackerHover={supportsTrackerHover}
-                    onPrefetchBookings={prefetchBookingPanel}
-                    onPrefetchCreateBooking={prefetchBookingCreateFlow}
-                    onPrefetchTrackers={prefetchTrackerPanel}
+            <section className="surface" id="dashboard-groups">
+              <div className="surface__header">
+                <h2>Collections</h2>
+                {collectionEditor?.mode !== "create" ? (
+                  <button type="button" className="primary-button" onClick={startCreateCollection}>
+                    Create collection
+                  </button>
+                ) : (
+                  <span className="primary-button surface__header-action-placeholder" aria-hidden="true">
+                    Create collection
+                  </span>
+                )}
+              </div>
+              <div className="collection-board-react">
+                {collectionEditor?.mode === "create" ? (
+                  <CollectionNameEditor
+                    mode="create"
+                    variant="card"
+                    onCancel={stopCollectionEditing}
+                    onSave={(label) => collectionMutation.mutateAsync({ label })}
+                  />
+                ) : null}
+                {dashboardQuery.data?.collections.map((collection: CollectionCardValue) => (
+                  <CollectionCard
+                    key={collection.groupId}
+                    collection={collection}
+                    editing={collectionEditor?.mode === "edit" && collectionEditor.groupId === collection.groupId}
+                    onEdit={() => startEditCollection(collection.groupId)}
+                    onDelete={() => void handleDeleteCollection(collection.groupId, collection.label)}
+                    onCancelEdit={stopCollectionEditing}
+                    onSaveEdit={(label) => collectionMutation.mutateAsync({ label, groupId: collection.groupId })}
+                    onToggleRecurringTrip={(tripId, active) => toggleTripMutation.mutate({ tripId, active })}
+                    pendingRecurringTripId={toggleTripMutation.isPending ? (toggleTripMutation.variables?.tripId ?? "") : ""}
                   />
                 ))}
               </div>
-            </>
-          ) : dashboardQuery.isError ? (
-            <article className="quiet-state-card">
-              <strong>Unable to load trips.</strong>
-              <p>{dashboardQuery.error instanceof Error ? dashboardQuery.error.message : "Try again in a moment."}</p>
-              <div className="quiet-state-card__actions">
-                <button type="button" className="secondary-button" onClick={() => void dashboardQuery.refetch()}>
-                  Retry
-                </button>
-              </div>
-            </article>
-          ) : (
-            <div className="surface-loading">Loading trips…</div>
-          )}
-        </section>
-      </main>
+            </section>
 
-      {panel === "bookings" && panelTripInstanceId ? (
+            <section className="surface" id="all-travel">
+              <div className="surface__header">
+                <h2>Trips</h2>
+                <PrefetchLink
+                  className="primary-button"
+                  to="/trips/new"
+                  onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
+                >
+                  Create trip
+                </PrefetchLink>
+              </div>
+              {dashboardQuery.data ? (
+                <>
+                  <FilterBar
+                    options={dashboardQuery.data.filters.groupOptions}
+                    selected={dashboardQuery.data.filters.selectedTripGroupIds}
+                    includeBooked={dashboardQuery.data.filters.includeBooked}
+                    onToggleOption={toggleGroupFilter}
+                    onToggleBooked={toggleBookedFilter}
+                  />
+                  <div className="trip-list">
+                    {dashboardQuery.data.trips.map((row) => (
+                      <TripRow
+                        key={row.trip.tripInstanceId}
+                        row={row}
+                        onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
+                        onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
+                        onDelete={handleDeleteTrip}
+                        isActive={panelTripInstanceId === row.trip.tripInstanceId}
+                        onPrefetchBookings={prefetchBookingPanel}
+                        onPrefetchCreateBooking={prefetchBookingCreateFlow}
+                        onPrefetchTrackers={prefetchTrackerPanel}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : dashboardQuery.isError ? (
+                <article className="quiet-state-card">
+                  <strong>Unable to load trips.</strong>
+                  <p>{dashboardQuery.error instanceof Error ? dashboardQuery.error.message : "Try again in a moment."}</p>
+                  <div className="quiet-state-card__actions">
+                    <button type="button" className="secondary-button" onClick={() => void dashboardQuery.refetch()}>
+                      Retry
+                    </button>
+                  </div>
+                </article>
+              ) : (
+                <div className="surface-loading">Loading trips…</div>
+              )}
+            </section>
+          </main>
+        </div>
+        {showingDesktopInspector ? (
+          <InspectorShell title={panel === "bookings" ? "Bookings" : "Trackers"} onClose={closePanel}>
+            {panel === "bookings" ? (
+              <BookingInspector
+                tripInstanceId={panelTripInstanceId}
+                initialPanel={initialBookingPanel}
+                dashboardFilters={dashboardFilters}
+                onRefreshDashboard={refreshCurrentDashboard}
+                onChangeMode={changeBookingMode}
+              />
+            ) : (
+              <TrackerInspector tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} />
+            )}
+          </InspectorShell>
+        ) : null}
+      </div>
+
+      {!showingDesktopInspector && panel === "bookings" && panelTripInstanceId ? (
         <BookingPanel
           tripInstanceId={panelTripInstanceId}
           mode={bookingPanelState.mode}
@@ -759,8 +779,18 @@ export function DashboardPage() {
           onChangeMode={changeBookingMode}
         />
       ) : null}
-      {panel === "trackers" && panelTripInstanceId ? (
+      {!showingDesktopInspector && panel === "trackers" && panelTripInstanceId ? (
         <TrackerPanel tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} onClose={closePanel} />
+      ) : null}
+      {showingDesktopInspector && panel === "bookings" && panelTripInstanceId && bookingPanelState.mode !== "list" ? (
+        <BookingFormModal
+          tripInstanceId={panelTripInstanceId}
+          mode={bookingPanelState.mode}
+          bookingId={bookingPanelState.bookingId}
+          dashboardFilters={dashboardFilters}
+          onClose={() => changeBookingMode("list")}
+          onRefreshDashboard={refreshCurrentDashboard}
+        />
       ) : null}
       {editingUnmatchedBookingId ? (
         <UnmatchedBookingEditorModal
