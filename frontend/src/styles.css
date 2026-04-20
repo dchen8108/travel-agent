@@ -772,6 +772,22 @@ textarea {
   z-index: 12;
 }
 
+.trip-row__tracker-slot.is-open::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0.65rem;
+}
+
+.trip-row__tracker-slot--below.is-open::after {
+  top: 100%;
+}
+
+.trip-row__tracker-slot--above.is-open::after {
+  bottom: 100%;
+}
+
 .trip-identity-row__copy {
   flex: 1;
   min-width: 0;
@@ -1096,28 +1112,12 @@ textarea {
   box-shadow: 0 24px 48px rgba(41, 54, 67, 0.18);
 }
 
-.tracker-popover::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 0.65rem;
-}
-
 .tracker-popover--below {
   top: calc(100% + 0.18rem);
 }
 
-.tracker-popover--below::before {
-  top: -0.65rem;
-}
-
 .tracker-popover--above {
   bottom: calc(100% + 0.18rem);
-}
-
-.tracker-popover--above::before {
-  bottom: -0.65rem;
 }
 
 .tracker-popover__header {

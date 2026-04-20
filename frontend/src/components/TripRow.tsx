@@ -304,7 +304,7 @@ export function TripRow({
       {row.currentOffer ? (
         <div
           ref={trackerSlotRef}
-          className={`trip-row__tracker-slot${trackerPreviewOpen ? " is-open" : ""}`}
+          className={`trip-row__tracker-slot${trackerPreviewOpen ? " is-open" : ""}${trackerPreviewOpen ? ` trip-row__tracker-slot--${previewPlacement}` : ""}`}
           onFocusCapture={canPreviewTrackers ? () => openTrackerPreview(true) : undefined}
           onBlurCapture={canPreviewTrackers ? (event) => {
             const relatedTarget = event.relatedTarget;
