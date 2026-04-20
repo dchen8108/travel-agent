@@ -55,18 +55,13 @@ textarea {
   padding: 2rem;
 }
 
-.app-shell--with-inspector {
-  max-width: 1780px;
-}
-
 .dashboard-workbench {
   display: grid;
   gap: 1.5rem;
 }
 
 .dashboard-workbench--with-inspector {
-  grid-template-columns: minmax(0, 1fr) minmax(32rem, 36rem);
-  align-items: start;
+  grid-template-columns: 1fr;
 }
 
 .dashboard-workbench__main {
@@ -1126,11 +1121,13 @@ textarea {
 }
 
 .dashboard-inspector {
-  position: sticky;
+  position: fixed;
   top: 2rem;
-  align-self: start;
+  right: max(1rem, calc((100vw - 1480px) / 2 + 2rem));
+  width: min(36rem, calc(100vw - 2rem));
   max-height: calc(100vh - 4rem);
   overflow: auto;
+  z-index: 40;
   border-radius: 2rem;
   border: 1px solid var(--surface-border);
   background: rgba(255, 251, 246, 0.98);
