@@ -5,6 +5,8 @@ import { OfferBlock } from "./OfferBlock";
 import { TrackerPreviewPopover } from "./TrackerPreviewPopover";
 import { TripIdentityRow } from "./TripIdentityRow";
 
+const TRACKER_PREVIEW_OPEN_EVENT = "tracker-preview:open";
+
 interface Props {
   row: TripRowValue;
   onOpenBookings: (tripInstanceId: string, mode: "list" | "create", bookingId?: string) => void;
@@ -97,6 +99,29 @@ export function TripRow({
     };
   }, [trackerPreviewOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    function handleOtherTrackerPreviewOpen(event: Event) {
+      const otherTripInstanceId = (event as CustomEvent<{ tripInstanceId?: string }>).detail?.tripInstanceId;
+      if (!otherTripInstanceId || otherTripInstanceId === tripInstanceId) {
+        return;
+      }
+      clearTrackerPreviewTimer();
+      clearTrackerPreviewCloseTimer();
+      clearTrackerPreviewHoverGuard();
+      setTrackerPreviewOpen(false);
+      setTrackerPreviewPinned(false);
+    }
+
+    window.addEventListener(TRACKER_PREVIEW_OPEN_EVENT, handleOtherTrackerPreviewOpen);
+    return () => {
+      window.removeEventListener(TRACKER_PREVIEW_OPEN_EVENT, handleOtherTrackerPreviewOpen);
+    };
+  }, [tripInstanceId]);
+
   function clearTrackerPreviewTimer() {
     if (hoverTimerRef.current !== null) {
       window.clearTimeout(hoverTimerRef.current);
@@ -184,6 +209,7 @@ export function TripRow({
     }
     onPrefetchTrackers?.(tripInstanceId);
     const open = () => {
+      window.dispatchEvent(new CustomEvent(TRACKER_PREVIEW_OPEN_EVENT, { detail: { tripInstanceId } }));
       updatePreviewPlacement();
       setTrackerPreviewPinned(false);
       setTrackerPreviewOpen(true);
@@ -265,6 +291,7 @@ export function TripRow({
       return;
     }
     onPrefetchTrackers?.(tripInstanceId);
+    window.dispatchEvent(new CustomEvent(TRACKER_PREVIEW_OPEN_EVENT, { detail: { tripInstanceId } }));
     updatePreviewPlacement();
     setTrackerPreviewPinned(true);
     setTrackerPreviewOpen(true);
