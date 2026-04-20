@@ -228,7 +228,7 @@ export function DashboardPage() {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return;
     }
-    const inspectorMediaQuery = window.matchMedia("(min-width: 1180px)");
+    const inspectorMediaQuery = window.matchMedia("(min-width: 2000px)");
     const update = () => {
       setUseDesktopInspector(inspectorMediaQuery.matches);
     };
