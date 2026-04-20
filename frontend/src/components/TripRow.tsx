@@ -39,6 +39,7 @@ export function TripRow({
   const [trackerPreviewOpen, setTrackerPreviewOpen] = useState(false);
   const [trackerPreviewPinned, setTrackerPreviewPinned] = useState(false);
   const [previewPlacement, setPreviewPlacement] = useState<"above" | "below">("below");
+  const [previewMaxHeight, setPreviewMaxHeight] = useState(0);
   const canPreviewTrackers = supportsTrackerPreview && row.actions.showTrackers;
 
   useEffect(() => () => {
@@ -120,8 +121,23 @@ export function TripRow({
     if (!rect) {
       return;
     }
-    const prefersAbove = window.innerHeight - rect.bottom < 320 && rect.top > 320;
-    setPreviewPlacement(prefersAbove ? "above" : "below");
+    const viewportMargin = 16;
+    const hoverBridge = 12;
+    const availableBelow = Math.max(0, window.innerHeight - rect.bottom - viewportMargin - hoverBridge);
+    const availableAbove = Math.max(0, rect.top - viewportMargin - hoverBridge);
+    const preferredHeight = 512;
+    const canFitBelow = availableBelow >= preferredHeight;
+    const canFitAbove = availableAbove >= preferredHeight;
+    const placement = canFitBelow
+      ? "below"
+      : canFitAbove
+        ? "above"
+        : availableBelow >= availableAbove
+          ? "below"
+          : "above";
+    const availableHeight = placement === "below" ? availableBelow : availableAbove;
+    setPreviewPlacement(placement);
+    setPreviewMaxHeight(Math.max(220, Math.floor(availableHeight)));
   }
 
   function openTrackerPreview(immediate = false) {
@@ -285,6 +301,7 @@ export function TripRow({
               tripInstanceId={tripInstanceId}
               currentOffer={row.currentOffer}
               placement={previewPlacement}
+              maxHeight={previewMaxHeight}
               popoverRef={trackerPopoverRef}
               onPointerEnter={canPreviewTrackers && supportsTrackerHover ? () => openTrackerPreview(true) : undefined}
               onPointerLeave={canPreviewTrackers && supportsTrackerHover ? (event) => closeTrackerPreview(event) : undefined}

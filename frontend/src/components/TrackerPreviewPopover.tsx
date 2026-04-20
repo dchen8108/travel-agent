@@ -11,6 +11,7 @@ interface Props {
   tripInstanceId: string;
   currentOffer: Offer | null;
   placement: "above" | "below";
+  maxHeight?: number;
   popoverRef?: RefObject<HTMLDivElement | null>;
   onPointerEnter?: PointerEventHandler<HTMLDivElement>;
   onPointerLeave?: PointerEventHandler<HTMLDivElement>;
@@ -33,6 +34,7 @@ export function TrackerPreviewPopover({
   tripInstanceId,
   currentOffer,
   placement,
+  maxHeight,
   popoverRef,
   onPointerEnter,
   onPointerLeave,
@@ -59,6 +61,7 @@ export function TrackerPreviewPopover({
       aria-label="Other live fares"
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
+      style={maxHeight ? { maxHeight: `${maxHeight}px` } : undefined}
     >
       <div className="tracker-popover__header">
         <strong>{currentOffer ? "Other live fares" : "Live fares"}</strong>
