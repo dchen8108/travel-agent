@@ -1171,14 +1171,14 @@ textarea {
 
 .dashboard-inspector .trip-identity-row {
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
+  align-items: center;
   gap: 0.55rem;
 }
 
 .dashboard-inspector .trip-identity-row__actions {
   grid-column: auto;
   justify-self: end;
-  align-self: start;
+  align-self: center;
 }
 
 .dashboard-inspector .trip-identity-row h3 {
@@ -2041,7 +2041,7 @@ body.route-drag-active {
 
   .modal-panel-head .trip-identity-row {
     grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: start;
+    align-items: center;
   }
 
   .dashboard-workbench--with-inspector {
@@ -2055,7 +2055,7 @@ body.route-drag-active {
   .modal-panel-head .trip-identity-row__actions {
     grid-column: auto;
     justify-self: end;
-    align-self: start;
+    align-self: center;
   }
 
   .filter-bar {
