@@ -1102,9 +1102,8 @@ textarea {
   max-height: min(32rem, calc(100vh - 4rem));
   display: grid;
   gap: 0.3rem;
-  padding: 0.8rem;
+  padding: 0.8rem 0;
   overflow: auto;
-  scrollbar-gutter: stable;
   border: 1px solid var(--surface-border);
   border-radius: 1.3rem;
   background: rgba(255, 255, 255, 0.96);
@@ -1125,7 +1124,7 @@ textarea {
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.1rem 0.15rem 0.45rem;
+  padding: 0.1rem 0.8rem 0.45rem;
 }
 
 .tracker-popover__header strong {
