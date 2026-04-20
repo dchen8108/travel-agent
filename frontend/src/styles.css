@@ -1150,8 +1150,8 @@ textarea {
 }
 
 .tracker-popover__row .offer-block {
-  border-left: 0;
-  padding-left: 0;
+  border-left: 1px solid transparent;
+  padding-left: 1rem;
 }
 
 .tracker-popover__action-spacer {
