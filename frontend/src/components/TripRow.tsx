@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { TripRow as TripRowValue } from "../types";
 import { OfferBlock } from "./OfferBlock";
@@ -116,7 +116,7 @@ export function TripRow({
     hoverGuardRef.current = null;
   }
 
-  function updatePreviewPlacement() {
+  function updatePreviewPlacement(preferredHeight = 512) {
     const rect = trackerSlotRef.current?.getBoundingClientRect();
     if (!rect) {
       return;
@@ -125,7 +125,6 @@ export function TripRow({
     const hoverBridge = 12;
     const availableBelow = Math.max(0, window.innerHeight - rect.bottom - viewportMargin - hoverBridge);
     const availableAbove = Math.max(0, rect.top - viewportMargin - hoverBridge);
-    const preferredHeight = 512;
     const canFitBelow = availableBelow >= preferredHeight;
     const canFitAbove = availableAbove >= preferredHeight;
     const placement = canFitBelow
@@ -139,6 +138,39 @@ export function TripRow({
     setPreviewPlacement(placement);
     setPreviewMaxHeight(Math.max(220, Math.floor(availableHeight)));
   }
+
+  useLayoutEffect(() => {
+    if (!trackerPreviewOpen) {
+      return;
+    }
+
+    const measure = () => {
+      const popover = trackerPopoverRef.current;
+      const preferredHeight = popover ? Math.ceil(popover.scrollHeight) : 512;
+      updatePreviewPlacement(preferredHeight);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => {
+        window.removeEventListener("resize", measure);
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      measure();
+    });
+    if (trackerPopoverRef.current) {
+      observer.observe(trackerPopoverRef.current);
+    }
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [trackerPreviewOpen]);
 
   function openTrackerPreview(immediate = false) {
     if (!canPreviewTrackers) {
