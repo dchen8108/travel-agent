@@ -65,7 +65,7 @@ textarea {
 }
 
 .dashboard-workbench--with-inspector {
-  grid-template-columns: minmax(0, 1fr) minmax(24rem, 28rem);
+  grid-template-columns: minmax(0, 1fr) minmax(32rem, 36rem);
   align-items: start;
 }
 
@@ -297,6 +297,7 @@ textarea {
   border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 800;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
@@ -1134,7 +1135,7 @@ textarea {
   border: 1px solid var(--surface-border);
   background: rgba(255, 251, 246, 0.98);
   box-shadow: 0 22px 64px rgba(30, 39, 48, 0.14);
-  padding: 1.35rem;
+  padding: 1.45rem;
 }
 
 .dashboard-inspector__close-row {
