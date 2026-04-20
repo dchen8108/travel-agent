@@ -1170,14 +1170,15 @@ textarea {
 }
 
 .dashboard-inspector .trip-identity-row {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
-  gap: 0.5rem;
+  gap: 0.55rem;
 }
 
 .dashboard-inspector .trip-identity-row__actions {
-  grid-column: 2;
-  justify-self: start;
+  grid-column: auto;
+  justify-self: end;
+  align-self: start;
 }
 
 .dashboard-inspector .trip-identity-row h3 {
@@ -2038,12 +2039,23 @@ body.route-drag-active {
     align-items: start;
   }
 
+  .modal-panel-head .trip-identity-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
   .dashboard-workbench--with-inspector {
     grid-template-columns: 1fr;
   }
 
   .trip-identity-row__actions {
     grid-column: 2;
+  }
+
+  .modal-panel-head .trip-identity-row__actions {
+    grid-column: auto;
+    justify-self: end;
+    align-self: start;
   }
 
   .filter-bar {
