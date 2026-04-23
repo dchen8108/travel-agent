@@ -38,7 +38,7 @@ Compatibility note:
 
 - the dashboard at `/` is the primary operational surface
 - collections are inspected and edited inline on dashboard collection cards
-- trip inspection happens inline on dashboard trip rows and the bookings/trackers modal panels
+- trip inspection happens inline on dashboard trip rows plus bookings/flights detail panels
 - trips keep dedicated create/edit pages
 - a limited set of old routes still exist as compatibility redirects into the SPA; new work should target `/`, `/trips/new`, `/trips/{id}/edit`, and the `/api/...` endpoints directly
 
@@ -53,7 +53,7 @@ Compatibility note:
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Price Record`: one append-only fetched offer row captured for analytics history
 - `Booking`: a purchased itinerary that may be linked to a trip instance and, when uniquely matchable, to one tracked route option
-- `Unmatched Booking`: a purchased itinerary still waiting to be linked to a scheduled trip
+- `Unmatched Booking`: still stored through the shared `Booking` model, but kept in the separate `unmatched_bookings` runtime/storage surface until resolved
 - `Booking Email Event`: one Gmail intake result, including ignored, auto-linked, duplicate, and needs-resolution outcomes
 
 ## Run
@@ -98,7 +98,7 @@ Then open `http://127.0.0.1:8000`.
 6. Optionally require lower-ranked options to be cheaper by configured dollar amounts.
 7. Use the dashboard to review collections, recurring trips, upcoming travel, and any bookings that still need linking.
 8. Use collection cards to inspect recurring trips and jump straight into recurring-trip edits.
-9. Use trip rows and their bookings/trackers modals to inspect bookings, live fares, and Google Flights links.
+9. Use trip rows and their bookings/flights detail panels to inspect bookings, live fares, and Google Flights links.
 10. Let the background fetcher populate current prices automatically. New or edited trips are nudged to refresh sooner.
 11. Record bookings manually or let Gmail automation create them automatically.
 12. Use edit forms for template-level changes, and detach an attached recurring instance before editing it as a one-off trip.
@@ -165,6 +165,13 @@ uv run python -m app.jobs.uninstall_launchd_booking_poller
 ```bash
 uv run pytest -q
 ```
+
+Primary regression layers today:
+
+- backend/domain coverage through `pytest`
+- focused API/dashboard regression tests under `tests/test_frontend_api.py`, `tests/test_dashboard_views.py`, and `tests/test_web_smoke.py`
+
+The Playwright helper below is still a targeted debug/smoke tool, not the main automated browser test layer.
 
 ## Playwright Smoke Checks
 

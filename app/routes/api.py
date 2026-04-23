@@ -253,7 +253,7 @@ def create_collection_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = load_live_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
 
 
@@ -273,7 +273,7 @@ def update_collection_api(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    snapshot = load_live_snapshot(repository)
+    snapshot = load_persisted_snapshot(repository)
     return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=selected_trip_group_id, include_booked=include_booked)}
 
 

@@ -24,15 +24,22 @@ class IngestionRepositoryMixin:
         ))
         if not deduped_pairs:
             return []
-        clauses: list[str] = []
         params: list[str] = []
         for fetch_target_id, observed_at in deduped_pairs:
-            clauses.append("(fetch_target_id = ? AND observed_at = ?)")
             params.extend([fetch_target_id, observed_at])
+        values = ", ".join("(?, ?)" for _fetch_target_id, _observed_at in deduped_pairs)
         query = f"""
+            WITH latest(fetch_target_id, observed_at) AS (
+                VALUES {values}
+            )
             SELECT *
             FROM price_records
-            WHERE {" OR ".join(clauses)}
+            WHERE EXISTS (
+                SELECT 1
+                FROM latest
+                WHERE latest.fetch_target_id = price_records.fetch_target_id
+                  AND latest.observed_at = price_records.observed_at
+            )
             ORDER BY observed_at DESC, price ASC, offer_rank ASC, rowid ASC
         """
         return self._load_models(query, PriceRecord, tuple(params))

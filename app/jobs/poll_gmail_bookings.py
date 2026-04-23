@@ -255,7 +255,7 @@ def main() -> None:
         for message_id in reversed(selection.message_ids):
             try:
                 message = fetch_gmail_message(service, message_id)
-            except Exception as exc:
+            except HttpError as exc:
                 with repository.transaction():
                     event = _record_message_processing_error(
                         repository,
@@ -281,44 +281,12 @@ def main() -> None:
                 )
                 continue
 
-            try:
-                with repository.transaction():
-                    result = process_gmail_booking_message(
-                        repository,
-                        message=message,
-                        config=config,
-                    )
-            except Exception as exc:
-                with repository.transaction():
-                    event = _record_message_processing_error(
-                        repository,
-                        message_id=message_id,
-                        history_id=message.gmail_history_id,
-                        message=message,
-                        error=exc,
-                        error_stage="message_processing",
-                    )
-                processed_count += 1
-                error_count += 1
-                _emit_log(
-                    "message_processed",
-                    run_id=run_id,
-                    gmail_message_id=message_id,
-                    subject=event.subject,
-                    from_address=event.from_address,
-                    processing_status=str(event.processing_status),
-                    email_kind=event.email_kind,
-                    extraction_confidence=event.extraction_confidence,
-                    created_booking_ids=event.result_booking_ids,
-                    created_unlinked_booking_ids=event.result_unmatched_booking_ids,
-                    notes=event.notes,
-                    debug={
-                        "error_stage": "message_processing",
-                        "retryable": event.retryable,
-                        "traceback": traceback.format_exc(),
-                    },
+            with repository.transaction():
+                result = process_gmail_booking_message(
+                    repository,
+                    message=message,
+                    config=config,
                 )
-                continue
 
             processed_count += 1
             created_booking_count += len(result.created_bookings)

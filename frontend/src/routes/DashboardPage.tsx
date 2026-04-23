@@ -243,9 +243,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (panel === "bookings" && panelTripInstanceId) {
-      if (searchParams.has("booking_mode") || searchParams.has("booking_id")) {
-        setBookingPanelState(initialBookingPanelState(searchParams));
-      }
+      setBookingPanelState(initialBookingPanelState(searchParams));
       return;
     }
     setBookingPanelState({ mode: "list", bookingId: "" });
@@ -531,8 +529,17 @@ export function DashboardPage() {
     const next = new URLSearchParams(searchParams);
     next.set("panel", nextPanel);
     next.set("trip_instance_id", tripInstanceId);
-    next.delete("booking_mode");
-    next.delete("booking_id");
+    if (nextPanel === "bookings" && mode !== "list") {
+      next.set("booking_mode", mode);
+      if (bookingId) {
+        next.set("booking_id", bookingId);
+      } else {
+        next.delete("booking_id");
+      }
+    } else {
+      next.delete("booking_mode");
+      next.delete("booking_id");
+    }
     setSearchParams(next, { replace: false });
     if (nextPanel === "bookings") {
       setBookingPanelState({ mode, bookingId });
@@ -550,6 +557,22 @@ export function DashboardPage() {
 
   function changeBookingMode(mode: "list" | "create" | "edit", bookingId = "") {
     setBookingPanelState({ mode, bookingId });
+    if (panel !== "bookings" || !panelTripInstanceId) {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    if (mode === "list") {
+      next.delete("booking_mode");
+      next.delete("booking_id");
+    } else {
+      next.set("booking_mode", mode);
+      if (bookingId) {
+        next.set("booking_id", bookingId);
+      } else {
+        next.delete("booking_id");
+      }
+    }
+    setSearchParams(next, { replace: false });
   }
 
   const currentTripRow = panelTripInstanceId ? visibleTripRows.get(panelTripInstanceId) : undefined;

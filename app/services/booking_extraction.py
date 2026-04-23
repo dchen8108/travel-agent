@@ -4,7 +4,7 @@ from decimal import Decimal
 import re
 from typing import Literal
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, BadRequestError, OpenAI, OpenAIError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.money import normalize_extracted_total_price
@@ -67,6 +67,12 @@ class BookingEmailExtraction(BaseModel):
             self.total_price,
             context_texts=[self.summary, self.notes, *(leg.evidence for leg in self.legs)],
         )
+
+
+class BookingExtractionError(RuntimeError):
+    def __init__(self, message: str, *, retryable: bool) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 SYSTEM_PROMPT = """You extract structured flight booking information from emails.
@@ -174,8 +180,9 @@ def extract_booking_email(
 ) -> BookingEmailExtraction:
     api_key = openai_api_key(settings)
     if not api_key:
-        raise RuntimeError(
-            "OPENAI_API_KEY is not configured. Set it in the environment or config/local/openai_api_key.txt."
+        raise BookingExtractionError(
+            "OPENAI_API_KEY is not configured. Set it in the environment or config/local/openai_api_key.txt.",
+            retryable=False,
         )
 
     client = OpenAI(api_key=api_key)
@@ -183,22 +190,35 @@ def extract_booking_email(
         body_text,
         max_chars=max_body_chars,
     )
-    response = client.responses.parse(
-        model=model,
-        input=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    "Parse this email into the schema.\n\n"
-                    f"From: {from_address}\n"
-                    f"Subject: {subject}\n\n"
-                    f"{prepared_body}"
-                ),
-            },
-        ],
-        text_format=BookingEmailExtraction,
-    )
+    try:
+        response = client.responses.parse(
+            model=model,
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        "Parse this email into the schema.\n\n"
+                        f"From: {from_address}\n"
+                        f"Subject: {subject}\n\n"
+                        f"{prepared_body}"
+                    ),
+                },
+            ],
+            text_format=BookingEmailExtraction,
+        )
+    except (APIConnectionError, APITimeoutError) as exc:
+        raise BookingExtractionError(str(exc), retryable=True) from exc
+    except BadRequestError as exc:
+        raise BookingExtractionError(str(exc), retryable=False) from exc
+    except APIStatusError as exc:
+        retryable = exc.status_code in {408, 409, 425, 429, 500, 502, 503, 504}
+        raise BookingExtractionError(str(exc), retryable=retryable) from exc
+    except OpenAIError as exc:
+        raise BookingExtractionError(str(exc), retryable=False) from exc
     if response.output_parsed is None:
-        raise RuntimeError("The extraction model did not return structured booking output.")
+        raise BookingExtractionError(
+            "The extraction model did not return structured booking output.",
+            retryable=False,
+        )
     return response.output_parsed

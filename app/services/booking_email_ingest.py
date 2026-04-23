@@ -12,7 +12,12 @@ from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, F
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
-from app.services.booking_extraction import BookingEmailExtraction, extract_booking_email, prepare_booking_email_body
+from app.services.booking_extraction import (
+    BookingEmailExtraction,
+    BookingExtractionError,
+    extract_booking_email,
+    prepare_booking_email_body,
+)
 from app.services.bookings import BookingCandidate, matching_trip_instance_ids_for_booking, record_booking
 from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.gmail_client import GmailMessage
@@ -132,8 +137,8 @@ def process_gmail_booking_message(
             max_body_chars=config.max_body_chars,
             prepared_body_text=prepared_body_text,
         )
-    except Exception as exc:
-        retryable = _is_retryable_extraction_error(exc)
+    except BookingExtractionError as exc:
+        retryable = exc.retryable
         event.processing_status = BookingEmailEventStatus.ERROR
         event.email_kind = "unknown"
         event.retryable = retryable
@@ -363,30 +368,6 @@ def _event_should_retry(event: BookingEmailEvent, config: GmailIntegrationConfig
     if not event.retryable:
         return False
     return event.extraction_attempt_count < config.max_retry_attempts
-
-
-def _is_retryable_extraction_error(exc: Exception) -> bool:
-    message = str(exc).lower()
-    if (
-        "request too large" in message
-        or "input or output tokens must be reduced" in message
-        or "maximum context length" in message
-        or "context length" in message
-    ):
-        return False
-    retryable_names = {
-        "APIConnectionError",
-        "APITimeoutError",
-        "InternalServerError",
-        "RateLimitError",
-    }
-    if type(exc).__name__ in retryable_names:
-        return True
-    return (
-        "quota exceeded" in message
-        or "insufficient_quota" in message
-        or "rate limit" in message
-    )
 
 
 def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[BookingCandidate]:

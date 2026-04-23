@@ -185,7 +185,7 @@ Bookings are trip-scoped. They can optionally link to a uniquely matched route o
 
 Unresolved bookings waiting to be linked to a scheduled trip.
 
-The repository still uses the same `Booking` model for these rows, but they live in a separate table and runtime collection until resolved.
+These rows still use the shared `Booking` model. The split is operational, not a separate product object type: unmatched rows live in a separate table and runtime collection until they are resolved into normal linked bookings.
 
 Key columns:
 
@@ -268,7 +268,7 @@ Key columns:
 - `created_at`
 - `updated_at`
 
-`result_unmatched_booking_ids` remains the historical schema name for the ids of created unlinked bookings. The product no longer treats them as a separate object type, but the column name is retained for on-disk compatibility.
+`result_unmatched_booking_ids` remains the historical schema name for the ids of created unlinked bookings. The product no longer treats them as a separate domain model, but the column name is retained for on-disk compatibility.
 
 ## Relationships
 

@@ -36,10 +36,11 @@ These are historical references, not current source-of-truth docs:
 - attached recurring instances inherit rule group targets; detached instances freeze them
 - the dashboard at `/` is the canonical operational surface
 - collection inspection happens inline on dashboard collection cards
-- trip inspection happens inline on dashboard rows plus bookings/trackers modal panels
+- trip inspection happens inline on dashboard rows plus bookings/flights detail panels
 - `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
 - route options are ranked tracker definitions under a trip
 - bookings are trip-scoped and can optionally link to a uniquely matched route option
+- unresolved bookings still use the shared `Booking` model, but they live in the separate `unmatched_bookings` storage/runtime surface until resolved
 - unlinked bookings are handled inline on the dashboard, not through a separate primary `Resolve` or `Bookings` workspace
 - Gmail booking automation is incremental and checkpointed
 - runtime data is stored in SQLite, while checked-in config lives under `config/`

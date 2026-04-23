@@ -28,7 +28,7 @@ There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The das
 Primary screens:
 
 - dashboard at `/`
-- dashboard modal panels for trip bookings and trackers
+- dashboard detail panels for trip bookings and flights
 - focused create/edit flow for trips at `/trips/new` and `/trips/{id}/edit`
 - compatibility redirects under `/groups/{trip_group_id}`, `/trip-instances/{trip_instance_id}`, and `/trips/{trip_id}`
 - the persistent Milemark mark/wordmark is the global route back to `/`; page-level `Back` links are only local navigation helpers
@@ -38,7 +38,7 @@ Important hierarchy:
 - the dashboard is the canonical operational page
 - groups are organizational only and are inspected inline on collection cards
 - collections are organizational only and are inspected inline on collection cards
-- scheduled trips are inspected inline in the dashboard ledger, with bookings and trackers opening in modal panels
+- scheduled trips are inspected inline in the dashboard ledger, with bookings and flights opening in detail panels
 - recurring trips do not keep a standalone detail page; `/trips/{trip_id}` redirects to edit for weekly trips
 - `/groups/{id}` and `/trip-instances/{id}` are compatibility redirects, not primary destinations
 - unlinked bookings are resolved inline on the dashboard

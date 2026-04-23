@@ -6,7 +6,12 @@ from app.models.base import BookingEmailEventStatus
 from app.services.bookings import BookingCandidate, record_booking
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.booking_email_ingest import loggable_debug_fields, process_gmail_booking_message
-from app.services.booking_extraction import BookingEmailExtraction, BookingEmailLeg, prepare_booking_email_body
+from app.services.booking_extraction import (
+    BookingEmailExtraction,
+    BookingEmailLeg,
+    BookingExtractionError,
+    prepare_booking_email_body,
+)
 from app.services.gmail_client import GmailMessage
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -292,7 +297,7 @@ def test_booking_email_ingest_is_idempotent_for_duplicate_message(repository: Re
 def test_booking_email_ingest_records_retryable_error_event(repository: Repository, monkeypatch) -> None:
     monkeypatch.setattr(
         "app.services.booking_email_ingest.extract_booking_email",
-        lambda **_: (_ for _ in ()).throw(RuntimeError("quota exceeded")),
+        lambda **_: (_ for _ in ()).throw(BookingExtractionError("quota exceeded", retryable=True)),
     )
 
     message = _gmail_message(
@@ -323,7 +328,10 @@ def test_booking_email_ingest_does_not_retry_terminal_extraction_error(repositor
     monkeypatch.setattr(
         "app.services.booking_email_ingest.extract_booking_email",
         lambda **_: (_ for _ in ()).throw(
-            RuntimeError("Request too large for gpt-5.4. The input or output tokens must be reduced.")
+            BookingExtractionError(
+                "Request too large for gpt-5.4. The input or output tokens must be reduced.",
+                retryable=False,
+            )
         ),
     )
 
@@ -347,6 +355,26 @@ def test_booking_email_ingest_does_not_retry_terminal_extraction_error(repositor
     assert second.event.processing_status == BookingEmailEventStatus.ERROR
     assert second.event.extraction_attempt_count == 1
     assert len(repository.load_booking_email_events()) == 1
+
+
+def test_booking_email_ingest_propagates_unexpected_extraction_errors(repository: Repository, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: (_ for _ in ()).throw(ValueError("bad extraction fixture")),
+    )
+
+    message = _gmail_message(
+        message_id="msg-unexpected-error",
+        subject="Fwd: You're going to Burbank",
+        body_text="Very long forwarded body",
+    )
+
+    try:
+        process_gmail_booking_message(repository, message=message, config=GmailIntegrationConfig())
+    except ValueError as exc:
+        assert str(exc) == "bad extraction fixture"
+    else:
+        raise AssertionError("Expected unexpected extraction errors to propagate")
 
 
 def test_prepare_booking_email_body_limits_size_and_keeps_relevant_lines() -> None:

@@ -19,13 +19,14 @@ from app.services.scheduled_trip_state import trip_lifecycle_status_label, trip_
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.ids import new_id
 from app.services.google_flights_fetcher import (
+    GoogleFlightsOffer,
     GoogleFlightsNoResultsError,
     best_google_flights_offer,
     departure_time_from_offer_label,
     filter_google_flights_offers_by_departure_window,
     parse_google_flights_offers,
 )
-from app.services.price_records import build_price_records
+from app.services.price_records import SuccessfulFetchRecord, build_price_records
 from app.services.recommendations import apply_fetch_target_rollups, recompute_trip_states
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -1612,3 +1613,55 @@ def test_successful_fetch_builds_price_records_for_all_offers(repository: Reposi
     assert saved_records[0].offer_rank == 1
     assert saved_records[1].offer_rank == 2
     assert all(item.search_fare_class == "basic_economy" for item in saved_records)
+
+
+def test_sync_and_persist_skips_price_history_unless_requested(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Lean snapshot",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+    snapshot = sync_and_persist(repository)
+    records = build_price_records(
+        trips=snapshot.trips,
+        trip_instances=snapshot.trip_instances,
+        trackers=snapshot.trackers,
+        fetch_targets=snapshot.tracker_fetch_targets,
+            successful_fetches=[
+                SuccessfulFetchRecord(
+                    fetch_target_id=snapshot.tracker_fetch_targets[0].fetch_target_id,
+                    fetched_at=datetime.now().astimezone(),
+                    offers=[
+                        GoogleFlightsOffer(
+                            airline="Southwest",
+                            departure_label="6:10 PM on Wed, Apr 1",
+                            arrival_label="7:20 PM on Wed, Apr 1",
+                            price=267,
+                            price_text="$267",
+                        )
+                    ],
+                )
+            ],
+        )
+    repository.append_price_records(records)
+
+    lean_snapshot = sync_and_persist(repository)
+    assert lean_snapshot.price_records == []
+
+    history_snapshot = sync_and_persist(repository, include_price_records=True)
+    assert len(history_snapshot.price_records) == 1
+    assert history_snapshot.price_records[0].trip_id == trip.trip_id

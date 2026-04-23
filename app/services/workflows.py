@@ -74,7 +74,12 @@ def _diff_models(
     return changed_items, removed_keys
 
 
-def build_reconciled_snapshot(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+def build_reconciled_snapshot(
+    repository: Repository,
+    *,
+    today: date | None = None,
+    include_price_records: bool = False,
+) -> AppSnapshot:
     """Recompute runtime-derived state from authored trips, routes, bookings, and fetch data."""
     repository.ensure_data_dir()
     today = today or date.today()
@@ -91,7 +96,7 @@ def build_reconciled_snapshot(repository: Repository, *, today: date | None = No
     bookings = repository.load_bookings()
     unmatched_bookings = repository.load_unmatched_bookings()
     booking_email_events = repository.load_booking_email_events()
-    price_records = repository.load_price_records()
+    price_records = repository.load_price_records() if include_price_records else []
 
     trip_instances = reconcile_trip_instances(
         trips,
@@ -219,7 +224,16 @@ def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -
     return snapshot
 
 
-def sync_and_persist(repository: Repository, *, today: date | None = None) -> AppSnapshot:
+def sync_and_persist(
+    repository: Repository,
+    *,
+    today: date | None = None,
+    include_price_records: bool = False,
+) -> AppSnapshot:
     """Reconcile the full runtime snapshot and persist any resulting runtime-table changes."""
-    snapshot = build_reconciled_snapshot(repository, today=today)
+    snapshot = build_reconciled_snapshot(
+        repository,
+        today=today,
+        include_price_records=include_price_records,
+    )
     return persist_reconciled_snapshot(repository, snapshot)
