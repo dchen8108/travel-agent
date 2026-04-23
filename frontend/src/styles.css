@@ -1186,9 +1186,9 @@ textarea {
 }
 
 .dashboard-inspector .date-tile {
-  width: 4.6rem;
-  min-width: 4.6rem;
-  padding: 0.68rem 0.45rem;
+  width: 5rem;
+  min-width: 5rem;
+  padding: 0.68rem 0.5rem;
   border-radius: 1rem;
 }
 
@@ -1198,6 +1198,7 @@ textarea {
 
 .dashboard-inspector .date-tile__month-day {
   font-size: 0.94rem;
+  white-space: nowrap;
 }
 
 .dashboard-inspector .modal-list {
