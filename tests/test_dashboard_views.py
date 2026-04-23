@@ -237,6 +237,85 @@ def test_unbooked_trip_row_hides_stale_tracker_price() -> None:
     }
 
 
+def test_unbooked_trip_row_shows_na_when_all_trackers_have_no_results() -> None:
+    fresh_at = utcnow() - timedelta(hours=1)
+    snapshot = AppSnapshot(
+        trip_groups=[],
+        trips=[
+            Trip(
+                trip_id="trip_1",
+                label="Work commute",
+                trip_kind="one_time",
+                anchor_date="2026-04-06",
+            )
+        ],
+        rule_group_targets=[],
+        route_options=[],
+        trip_instances=[
+            TripInstance(
+                trip_instance_id="inst_1",
+                trip_id="trip_1",
+                display_label="Work commute (2026-04-06)",
+                anchor_date="2026-04-06",
+            )
+        ],
+        trip_instance_group_memberships=[],
+        trackers=[
+            Tracker(
+                tracker_id="tracker_1",
+                trip_instance_id="inst_1",
+                route_option_id="opt_1",
+                rank=1,
+                preference_bias_dollars=0,
+                origin_airports="BUR",
+                destination_airports="SFO",
+                airlines="Alaska",
+                day_offset=0,
+                travel_date="2026-04-06",
+                start_time="06:00",
+                end_time="10:00",
+                latest_observed_price=None,
+                latest_fetched_at=fresh_at,
+            )
+        ],
+        tracker_fetch_targets=[
+            TrackerFetchTarget(
+                fetch_target_id="fetch_1",
+                tracker_id="tracker_1",
+                trip_instance_id="inst_1",
+                origin_airport="BUR",
+                destination_airport="SFO",
+                google_flights_url="https://example.com/gf",
+                last_fetch_status="no_results",
+                last_fetch_finished_at=fresh_at,
+                latest_price=None,
+                latest_fetched_at=fresh_at,
+            )
+        ],
+        bookings=[],
+        unmatched_bookings=[],
+        booking_email_events=[],
+        price_records=[],
+        app_state=AppState(),
+    )
+
+    row = trip_row_summary(snapshot, "inst_1")
+
+    assert row["current_offer"] == {
+        "label": "Live fare",
+        "detail": "BUR → SFO",
+        "airline_key": "Alaska",
+        "primary_meta_label": "",
+        "meta_badges": [],
+        "meta_label": "",
+        "price_label": "N/A",
+        "href": "",
+        "tone": "neutral",
+        "price_is_status": True,
+        "status_kind": "unavailable",
+    }
+
+
 def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
     fresh_at = utcnow() - timedelta(hours=1)
     snapshot = AppSnapshot(
