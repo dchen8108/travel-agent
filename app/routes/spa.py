@@ -120,7 +120,7 @@ def app_shell(
     if panel == "trackers" and trip_instance_id:
         bootstrap_payload["trackerPanel"] = {
             "tripInstanceId": trip_instance_id,
-            "data": tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id),
+            "data": tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id, repository=repository),
         }
     if normalized_path == "/trips/new":
         try:

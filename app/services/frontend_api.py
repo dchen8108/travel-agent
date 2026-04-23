@@ -10,8 +10,6 @@ from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
 from app.services.dashboard_page import dashboard_attention_views
 from app.services.dashboard_queries import scheduled_ledger_view, trip_groups
-from app.services.dashboard_trip_panels import tracker_context, tracker_search_rows
-from app.services.itinerary_display import format_refresh_timestamp_label
 from app.services.scheduled_trip_display import (
     booking_offer_summary,
     trip_row_actions_view,
@@ -20,6 +18,7 @@ from app.services.scheduled_trip_display import (
     trip_ui_picker_label,
 )
 from app.services.scheduled_trip_state import booking_route_tracking_state, bookings_for_instance
+from app.services.tracker_flights import latest_trip_flight_panel
 from app.services.snapshot_queries import (
     recurring_rule_for_instance,
     trip_for_instance,
@@ -425,40 +424,22 @@ def unmatched_booking_form_payload(
     }
 
 
-def tracker_panel_payload(snapshot, *, trip_instance_id: str) -> dict[str, object]:
+def tracker_panel_payload(snapshot, *, trip_instance_id: str, repository) -> dict[str, object]:
     trip = trip_identity_value(snapshot, trip_instance_id)
-    trip_instance, _parent_trip, trackers, tracker_targets = tracker_context(snapshot, trip_instance_id)
-    oldest_tracker_refresh_at = min(
-        (
-            target.last_fetch_finished_at
-            for targets in tracker_targets.values()
-            for target in targets
-            if target.last_fetch_finished_at is not None
-        ),
-        default=None,
-    )
+    panel = latest_trip_flight_panel(snapshot, repository, trip_instance_id=trip_instance_id)
     return {
         "trip": trip,
         "rows": [
             {
-                "rowId": row.row_id,
-                "travelDate": row.travel_date.isoformat(),
-                "offer": _offer_value(row.row.get("current_offer")),
+                "rowId": str(row.get("rowId", "")),
+                "travelDate": str(row.get("travelDate", "")),
+                "offer": _offer_value(row.get("offer")),
             }
-            for tracker in trackers
-            for row in tracker_search_rows(
-                snapshot,
-                trip_instance,
-                tracker,
-                fetch_targets=tracker_targets.get(tracker.tracker_id, []),
-            )
+            for row in panel["rows"]
         ],
-        "lastRefreshLabel": (
-            f"Last refresh · {format_refresh_timestamp_label(oldest_tracker_refresh_at)}"
-            if oldest_tracker_refresh_at is not None
-            else ""
-        ),
-        "tripAnchorDate": trip_instance.anchor_date.isoformat(),
+        "lastRefreshLabel": str(panel.get("lastRefreshLabel", "")),
+        "tripAnchorDate": str(panel.get("tripAnchorDate", trip["anchorDate"])),
+        "emptyLabel": str(panel.get("emptyLabel", "No live fares right now.")),
     }
 
 

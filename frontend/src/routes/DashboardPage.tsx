@@ -137,19 +137,21 @@ function trackerPanelPreview(row: TripRowValue | undefined): TrackerPanelPayload
   if (!row) {
     return null;
   }
+  const previewRows = row.currentOffer && !row.currentOffer.priceIsStatus
+    ? [
+        {
+          rowId: "",
+          travelDate: row.trip.anchorDate,
+          offer: row.currentOffer,
+        },
+      ]
+    : [];
   return {
     trip: row.trip,
-    rows: row.currentOffer
-      ? [
-          {
-            rowId: "",
-            travelDate: row.trip.anchorDate,
-            offer: row.currentOffer,
-          },
-        ]
-      : [],
+    rows: previewRows,
     lastRefreshLabel: "",
     tripAnchorDate: row.trip.anchorDate,
+    emptyLabel: row.currentOffer?.statusKind === "unavailable" ? "No live fares right now." : "Checking live fares…",
   };
 }
 
@@ -751,7 +753,7 @@ export function DashboardPage() {
           </main>
         </div>
         {showingDesktopInspector ? (
-          <InspectorShell title={panel === "bookings" ? "Bookings" : "Trackers"} onClose={closePanel}>
+          <InspectorShell title={panel === "bookings" ? "Bookings" : "Flights"} onClose={closePanel}>
             {panel === "bookings" ? (
               <BookingInspector
                 tripInstanceId={panelTripInstanceId}

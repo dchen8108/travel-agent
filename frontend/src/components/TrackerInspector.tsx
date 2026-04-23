@@ -23,32 +23,28 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
   });
 
   if (panelQuery.isError) {
-    return <div className="modal-loading">{errorMessage(panelQuery.error, "Unable to load trackers.")}</div>;
+    return <div className="modal-loading">{errorMessage(panelQuery.error, "Unable to load flights.")}</div>;
   }
 
   if (!panelQuery.data) {
-    return <div className="modal-loading">Loading trackers…</div>;
+    return <div className="modal-loading">Loading flights…</div>;
   }
-
-  const visibleRows = panelQuery.data.rows.filter((row) => (
-    !(row.offer.priceIsStatus && row.offer.statusKind === "unavailable")
-  ));
 
   return (
     <div className="modal-panel-stack">
       <div className="modal-panel-head">
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
-      {visibleRows.length ? (
+      {panelQuery.data.rows.length ? (
         <div className="modal-list">
-          {visibleRows.map((row) => (
+          {panelQuery.data.rows.map((row) => (
             <article key={row.rowId} className="modal-list-row modal-list-row--tracker">
               <OfferBlock kind="live" offer={row.offer} />
             </article>
           ))}
         </div>
       ) : (
-        <div className="modal-loading">No live fares right now.</div>
+        <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
       )}
       {panelQuery.data.lastRefreshLabel ? (
         <div className="modal-footer-note">{panelQuery.data.lastRefreshLabel}</div>

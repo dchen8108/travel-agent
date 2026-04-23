@@ -404,7 +404,7 @@ def tracker_panel_api(
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
-    return tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id)
+    return tracker_panel_payload(snapshot, trip_instance_id=trip_instance_id, repository=repository)
 
 
 @router.post("/bookings")

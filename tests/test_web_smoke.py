@@ -12,7 +12,9 @@ from app.models.base import AppState
 from app.models.base import FetchTargetStatus, utcnow
 from app.services.dashboard_navigation import trip_focus_url
 from app.services.bookings import BookingCandidate, record_booking
+from app.services.google_flights_fetcher import GoogleFlightsOffer
 from app.services.groups import save_trip_group
+from app.services.price_records import SuccessfulFetchRecord, build_price_records
 from app.services.trip_instances import detach_generated_trip_instance
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
@@ -1952,10 +1954,39 @@ def test_trip_instance_detail_renders_live_tracker_price(tmp_path: Path) -> None
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
 
     target = repository.load_tracker_fetch_targets()[0]
+    tracker = repository.load_trackers()[0]
+    fetched_at = utcnow()
     target.latest_price = 185
     target.latest_departure_label = "6:00 AM"
-    target.latest_fetched_at = utcnow()
+    target.latest_arrival_label = "7:20 AM"
+    target.latest_fetched_at = fetched_at
+    target.last_fetch_finished_at = fetched_at
+    target.last_fetch_status = FetchTargetStatus.SUCCESS
     repository.upsert_tracker_fetch_targets([target])
+    tracker.latest_observed_price = 185
+    tracker.latest_fetched_at = fetched_at
+    repository.upsert_trackers([tracker])
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=[
+            SuccessfulFetchRecord(
+                fetch_target_id=target.fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Alaska",
+                        departure_label="6:00 AM",
+                        arrival_label="7:20 AM",
+                        price=185,
+                        price_text="$185",
+                    ),
+                ],
+            )
+        ],
+    ))
 
     detail = _tracker_panel_payload(client, trip_instance_id)
     assert detail["trip"]["tripInstanceId"] == trip_instance_id
@@ -2815,10 +2846,8 @@ def test_trip_trackers_page_shows_refresh_metadata(tmp_path: Path) -> None:
     assert f"panel=trackers&trip_instance_id={trip_instance_id}" in trackers_page.headers["location"]
     tracker_payload = _tracker_panel_payload(client, trip_instance_id)
 
-    assert any(row["offer"]["statusKind"] == "pending" for row in tracker_payload["rows"])
-    assert any("BUR → SFO" in row["offer"]["detail"] for row in tracker_payload["rows"])
-    assert any("LAX → SFO" in row["offer"]["detail"] for row in tracker_payload["rows"])
-    assert any("google.com/travel/flights" in row["offer"]["href"] for row in tracker_payload["rows"] if row["offer"]["href"])
+    assert tracker_payload["rows"] == []
+    assert tracker_payload["emptyLabel"] == "Checking live fares…"
     assert tracker_payload["lastRefreshLabel"] == ""
 
 
@@ -2853,7 +2882,8 @@ def test_trip_trackers_page_shows_due_now_for_past_due_refresh(tmp_path: Path) -
 
     trip_instance_id = _trip_instance_id_for_label(repository, "Past due refresh")
     tracker_payload = _tracker_panel_payload(client, trip_instance_id)
-    assert any(row["offer"]["statusKind"] == "pending" for row in tracker_payload["rows"])
+    assert tracker_payload["rows"] == []
+    assert tracker_payload["emptyLabel"] == "Checking live fares…"
     assert "Last refresh" in tracker_payload["lastRefreshLabel"]
 
 
@@ -2916,9 +2946,8 @@ def test_trip_trackers_page_shows_no_results_state_without_failure_copy(tmp_path
 
     trip_instance_id = _trip_instance_id_for_label(repository, "No results tracker")
     tracker_payload = _tracker_panel_payload(client, trip_instance_id)
-    assert any(row["offer"]["priceLabel"] == "N/A" for row in tracker_payload["rows"])
-    assert any(row["offer"]["metaLabel"] == "6:00 AM \u2013 10:00 AM" for row in tracker_payload["rows"])
-    assert any("google.com/travel/flights/search" in row["offer"]["href"] for row in tracker_payload["rows"] if row["offer"]["href"])
+    assert tracker_payload["rows"] == []
+    assert tracker_payload["emptyLabel"] == "No live fares right now."
 
 
 def test_trip_trackers_page_hides_stale_target_prices(tmp_path: Path) -> None:
@@ -2953,8 +2982,8 @@ def test_trip_trackers_page_hides_stale_target_prices(tmp_path: Path) -> None:
 
     trip_instance_id = _trip_instance_id_for_label(repository, "Stale tracker price")
     tracker_payload = _tracker_panel_payload(client, trip_instance_id)
-    assert all(row["offer"]["priceLabel"] != "$123" for row in tracker_payload["rows"])
-    assert any(row["offer"]["statusKind"] == "pending" for row in tracker_payload["rows"])
+    assert tracker_payload["rows"] == []
+    assert tracker_payload["emptyLabel"] == "Checking live fares…"
 
 
 def test_unmatched_booking_can_be_linked_from_dashboard_flow(tmp_path: Path) -> None:

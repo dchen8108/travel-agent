@@ -1,18 +1,29 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from app.models.base import utcnow
 
 from app.models.base import AppState, DataScope
 from app.services.bookings import BookingCandidate, record_booking
+from app.services.google_flights_fetcher import GoogleFlightsOffer
 from app.services.groups import save_trip_group
+from app.services.price_records import SuccessfulFetchRecord, build_price_records
 from app.services.trips import save_trip
 from app.services.workflows import sync_and_persist
 from app.storage.repository import Repository
 import app.storage.repository as repository_module
 
 
+def _next_weekday(weekday: int) -> date:
+    today = date.today()
+    days_ahead = (weekday - today.weekday()) % 7
+    if days_ahead == 0:
+        days_ahead = 7
+    return today + timedelta(days=days_ahead)
+
+
 def _seed_dashboard_trip(repository: Repository) -> str:
+    anchor_date = _next_weekday(0)
     group = save_trip_group(repository, trip_group_id=None, label="Commute")
     save_trip(
         repository,
@@ -20,8 +31,8 @@ def _seed_dashboard_trip(repository: Repository) -> str:
         label="Commute",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 20),
-        anchor_weekday="Monday",
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
         trip_group_ids=[group.trip_group_id],
         route_option_payloads=[
             {
@@ -37,7 +48,7 @@ def _seed_dashboard_trip(repository: Repository) -> str:
         ],
         data_scope=DataScope.LIVE,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     record_booking(
         repository,
@@ -45,7 +56,7 @@ def _seed_dashboard_trip(repository: Repository) -> str:
             airline="Southwest",
             origin_airport="LAX",
             destination_airport="SFO",
-            departure_date=date(2026, 4, 20),
+            departure_date=anchor_date,
             departure_time="06:00",
             arrival_time="07:20",
             booked_price="78.40",
@@ -53,11 +64,12 @@ def _seed_dashboard_trip(repository: Repository) -> str:
         ),
         trip_instance_id=trip_instance_id,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     return trip_instance_id
 
 
 def _seed_grouped_recurring_trip(repository: Repository) -> str:
+    anchor_date = _next_weekday(0)
     group = save_trip_group(repository, trip_group_id=None, label="Commute")
     save_trip(
         repository,
@@ -65,8 +77,8 @@ def _seed_grouped_recurring_trip(repository: Repository) -> str:
         label="Commute",
         trip_kind="weekly",
         active=True,
-        anchor_date=date(2026, 4, 20),
-        anchor_weekday="Monday",
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
         trip_group_ids=[group.trip_group_id],
         route_option_payloads=[
             {
@@ -82,11 +94,11 @@ def _seed_grouped_recurring_trip(repository: Repository) -> str:
         ],
         data_scope=DataScope.LIVE,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     trip_instance_id = next(
         instance.trip_instance_id
         for instance in repository.load_trip_instances()
-        if instance.anchor_date == date(2026, 4, 20)
+        if instance.anchor_date == anchor_date
     )
     record_booking(
         repository,
@@ -94,7 +106,7 @@ def _seed_grouped_recurring_trip(repository: Repository) -> str:
             airline="Southwest",
             origin_airport="LAX",
             destination_airport="SFO",
-            departure_date=date(2026, 4, 20),
+            departure_date=anchor_date,
             departure_time="06:00",
             arrival_time="07:20",
             booked_price="78.40",
@@ -102,7 +114,7 @@ def _seed_grouped_recurring_trip(repository: Repository) -> str:
         ),
         trip_instance_id=trip_instance_id,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     return trip_instance_id
 
 
@@ -126,15 +138,16 @@ def test_repository_initialization_is_shared_per_db_path(settings, monkeypatch) 
 
 
 def test_dashboard_api_returns_collections_and_trip_rows(client, repository: Repository) -> None:
-    _seed_dashboard_trip(repository)
+    trip_instance_id = _seed_dashboard_trip(repository)
 
     response = client.get("/api/dashboard")
 
     assert response.status_code == 200
     payload = response.json()
+    trip_instance = next(item for item in repository.load_trip_instances() if item.trip_instance_id == trip_instance_id)
     assert payload["collections"][0]["label"] == "Commute"
     assert payload["trips"][0]["trip"]["title"] == "Commute"
-    assert payload["trips"][0]["trip"]["dateTile"]["monthDay"] == "Apr 20"
+    assert payload["trips"][0]["trip"]["dateTile"]["monthDay"] == trip_instance.anchor_date.strftime("%b %d")
     assert payload["trips"][0]["bookedOffer"]["metaLabel"].endswith("BDJ594")
 
 
@@ -258,6 +271,7 @@ def test_delete_collection_api_detaches_trips_without_deleting_them(client, repo
 
 
 def test_update_trip_editor_redirect_does_not_select_collection_filter(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
     group = save_trip_group(repository, trip_group_id=None, label="Commute")
     trip = save_trip(
         repository,
@@ -265,8 +279,8 @@ def test_update_trip_editor_redirect_does_not_select_collection_filter(client, r
         label="Commute",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 20),
-        anchor_weekday="Monday",
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
         trip_group_ids=[group.trip_group_id],
         route_option_payloads=[
             {
@@ -282,7 +296,7 @@ def test_update_trip_editor_redirect_does_not_select_collection_filter(client, r
         ],
         data_scope=DataScope.LIVE,
     )
-    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    snapshot = sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     trip_instance_id = next(
         item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id and not item.deleted
     )
@@ -321,8 +335,8 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert booking_form_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
     assert trackers_response.status_code == 200
     assert trackers_response.json()["trip"]["title"] == "Commute"
-    assert trackers_response.json()["rows"]
-    assert trackers_response.json()["rows"][0]["offer"]["metaBadges"] == []
+    assert trackers_response.json()["rows"] == []
+    assert trackers_response.json()["emptyLabel"] == "Checking live fares…"
     assert create_response.status_code == 200
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
 
@@ -352,11 +366,49 @@ def test_tracker_panel_inlines_day_offset_into_fallback_window_times(client, rep
     )
     sync_and_persist(repository, today=date(2026, 4, 1))
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    tracker = repository.load_trackers()[0]
+    target = repository.load_tracker_fetch_targets()[0]
+    fetched_at = utcnow()
+    target.latest_price = 109
+    target.latest_airline = "Southwest"
+    target.latest_departure_label = "4:00 PM on Thu, Apr 21"
+    target.latest_arrival_label = "10:00 PM on Thu, Apr 21"
+    target.latest_fetched_at = fetched_at
+    target.last_fetch_finished_at = fetched_at
+    target.last_fetch_status = "success"
+    target.google_flights_url = "https://example.com/gf"
+    repository.upsert_tracker_fetch_targets([target])
+    tracker.latest_observed_price = 109
+    tracker.latest_winning_origin_airport = "SFO"
+    tracker.latest_winning_destination_airport = "LAX"
+    tracker.latest_fetched_at = fetched_at
+    repository.upsert_trackers([tracker])
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=[
+            SuccessfulFetchRecord(
+                fetch_target_id=target.fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="4:00 PM on Thu, Apr 21",
+                        arrival_label="10:00 PM on Thu, Apr 21",
+                        price=109,
+                        price_text="$109",
+                    ),
+                ],
+            )
+        ],
+    ))
 
     trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
 
     assert trackers_response.status_code == 200
-    assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "4:00 PM⁺¹ – 10:00 PM⁺¹"
+    assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "4:00 PM⁺¹ → 10:00 PM⁺¹"
 
 
 def test_tracker_panel_inlines_day_offset_into_fetched_times_with_explicit_date_text(client, repository: Repository) -> None:
@@ -391,17 +443,143 @@ def test_tracker_panel_inlines_day_offset_into_fetched_times_with_explicit_date_
     target.latest_departure_label = "8:10 PM on Thu, Apr 21"
     target.latest_arrival_label = "9:40 PM on Fri, Apr 22"
     target.google_flights_url = "https://example.com/gf"
+    fetched_at = utcnow()
+    target.latest_fetched_at = fetched_at
+    target.last_fetch_finished_at = fetched_at
+    target.last_fetch_status = "success"
     repository.upsert_tracker_fetch_targets([target])
     tracker.latest_observed_price = 109
     tracker.latest_winning_origin_airport = "SFO"
     tracker.latest_winning_destination_airport = "LAX"
-    tracker.latest_fetched_at = utcnow()
+    tracker.latest_fetched_at = fetched_at
     repository.upsert_trackers([tracker])
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=[
+            SuccessfulFetchRecord(
+                fetch_target_id=target.fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="8:10 PM on Thu, Apr 21",
+                        arrival_label="9:40 PM on Fri, Apr 22",
+                        price=109,
+                        price_text="$109",
+                    ),
+                ],
+            )
+        ],
+    ))
 
     trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
 
     assert trackers_response.status_code == 200
     assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "8:10 PM⁺¹ → 9:40 PM⁺²"
+
+
+def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(client, repository: Repository) -> None:
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Ranked flights",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 20),
+        anchor_weekday="Monday",
+        preference_mode="ranked_bias",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "BUR",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "20:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            },
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "BUR",
+                "airlines": "Alaska",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "20:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 50,
+            },
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    trackers = repository.load_trackers()
+    targets = repository.load_tracker_fetch_targets()
+    targets_by_origin = {target.origin_airport: target for target in targets}
+    fetched_at = utcnow()
+    for tracker in trackers:
+        tracker.latest_fetched_at = fetched_at
+        tracker.latest_observed_price = 1
+        tracker.preference_bias_dollars = 0 if tracker.origin_airports == "SFO" else 50
+        repository.upsert_trackers([tracker])
+    for target in targets:
+        target.latest_fetched_at = fetched_at
+        target.last_fetch_finished_at = fetched_at
+        target.last_fetch_status = "success"
+        target.latest_price = 100 if target.origin_airport == "SFO" else 60
+        repository.upsert_tracker_fetch_targets([target])
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=[
+            SuccessfulFetchRecord(
+                fetch_target_id=targets_by_origin["SFO"].fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="5:15 PM",
+                        arrival_label="6:40 PM",
+                        price=100,
+                        price_text="$100",
+                    ),
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="9:15 PM",
+                        arrival_label="10:40 PM",
+                        price=80,
+                        price_text="$80",
+                    ),
+                ],
+            ),
+            SuccessfulFetchRecord(
+                fetch_target_id=targets_by_origin["LAX"].fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Alaska",
+                        departure_label="5:55 PM",
+                        arrival_label="7:28 PM",
+                        price=60,
+                        price_text="$60",
+                    ),
+                ],
+            ),
+        ],
+    ))
+
+    trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
+
+    assert trackers_response.status_code == 200
+    payload = trackers_response.json()
+    assert [row["offer"]["detail"] for row in payload["rows"]] == ["SFO → BUR", "LAX → BUR"]
+    assert [row["offer"]["priceLabel"] for row in payload["rows"]] == ["$100", "$60"]
 
 
 def test_booking_delete_and_unlink_api_mutations_return_updated_panel(client, repository: Repository) -> None:
@@ -598,14 +776,15 @@ def test_dashboard_api_uses_price_drop_copy_for_same_route_rebook(client, reposi
 
 
 def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
     save_trip(
         repository,
         trip_id=None,
         label="Cross-route commute",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 20),
-        anchor_weekday="Monday",
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
         route_option_payloads=[
             {
                 "origin_airports": "SFO",
@@ -631,7 +810,7 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
         preference_mode="ranked_bias",
         data_scope=DataScope.LIVE,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     record_booking(
         repository,
@@ -639,7 +818,7 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
             airline="Alaska",
             origin_airport="SFO",
             destination_airport="LAX",
-            departure_date=date(2026, 4, 20),
+            departure_date=anchor_date,
             departure_time="18:01",
             arrival_time="19:33",
             fare_class="economy",
@@ -648,7 +827,7 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
         ),
         trip_instance_id=trip_instance_id,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
 
     trackers = repository.load_trackers()
     now = utcnow()

@@ -10,7 +10,7 @@ interface Props {
 
 export function TrackerPanel({ tripInstanceId, initialPanel, onClose }: Props) {
   return (
-    <Modal title="Trackers" onClose={onClose} size="compact">
+    <Modal title="Flights" onClose={onClose} size="compact">
       <TrackerInspector tripInstanceId={tripInstanceId} initialPanel={initialPanel} />
     </Modal>
   );

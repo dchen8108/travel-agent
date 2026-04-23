@@ -52,7 +52,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
 
   const actionContent = actions ?? (onOpen ? (
     <IconButton
-      label={kind === "booked" ? "View bookings" : "View trackers"}
+      label={kind === "booked" ? "View bookings" : "View flights"}
       variant="inline"
       onClick={onOpen}
       onMouseEnter={onPrefetchAction}

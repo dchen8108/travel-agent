@@ -11,6 +11,32 @@ class IngestionRepositoryMixin:
     def load_price_records(self) -> list[PriceRecord]:
         return self._load_models("SELECT * FROM price_records ORDER BY rowid", PriceRecord)
 
+    def load_price_records_for_fetch_targets_at_times(
+        self,
+        fetch_target_observed_at: list[tuple[str, str]],
+    ) -> list[PriceRecord]:
+        if not fetch_target_observed_at:
+            return []
+        deduped_pairs = list(dict.fromkeys(
+            (fetch_target_id.strip(), observed_at.strip())
+            for fetch_target_id, observed_at in fetch_target_observed_at
+            if fetch_target_id and observed_at
+        ))
+        if not deduped_pairs:
+            return []
+        clauses: list[str] = []
+        params: list[str] = []
+        for fetch_target_id, observed_at in deduped_pairs:
+            clauses.append("(fetch_target_id = ? AND observed_at = ?)")
+            params.extend([fetch_target_id, observed_at])
+        query = f"""
+            SELECT *
+            FROM price_records
+            WHERE {" OR ".join(clauses)}
+            ORDER BY observed_at DESC, price ASC, offer_rank ASC, rowid ASC
+        """
+        return self._load_models(query, PriceRecord, tuple(params))
+
     def load_booking_email_events(self) -> list[BookingEmailEvent]:
         return self._load_models(
             "SELECT * FROM booking_email_events ORDER BY received_at DESC, rowid DESC",

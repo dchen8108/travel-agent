@@ -214,6 +214,7 @@ export interface TrackerPanelPayload {
   }>;
   lastRefreshLabel: string;
   tripAnchorDate: string;
+  emptyLabel: string;
 }
 
 export interface FrontendBootstrap {
