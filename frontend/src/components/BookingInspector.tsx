@@ -121,7 +121,7 @@ export function BookingInspector({
   return (
     <div className="modal-panel-stack">
       <div className="modal-panel-head">
-        <TripIdentityRow trip={payload.trip} />
+        <TripIdentityRow trip={payload.trip} showEditAction={false} />
         <button
           type="button"
           className="primary-button"

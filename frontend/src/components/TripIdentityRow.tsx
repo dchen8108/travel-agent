@@ -10,9 +10,10 @@ import { PrefetchLink } from "./PrefetchLink";
 interface Props {
   trip: TripIdentity;
   onDelete?: () => void;
+  showEditAction?: boolean;
 }
 
-export function TripIdentityRow({ trip, onDelete }: Props) {
+export function TripIdentityRow({ trip, onDelete, showEditAction = true }: Props) {
   const queryClient = useQueryClient();
 
   return (
@@ -21,22 +22,26 @@ export function TripIdentityRow({ trip, onDelete }: Props) {
       <div className="trip-identity-row__copy">
         <h3>{trip.title}</h3>
       </div>
-      <div className="trip-identity-row__actions">
-        <PrefetchLink
-          className="icon-link icon-link--inline"
-          to={trip.editHref}
-          aria-label="Edit trip"
-          title="Edit trip"
-          onPrefetch={() => void prefetchTripEditorFromHref(queryClient, trip.editHref)}
-        >
-          <EditIcon />
-        </PrefetchLink>
-        {trip.delete && onDelete ? (
-          <IconButton label={trip.delete.confirmation.action} tone="danger" variant="inline" onClick={onDelete}>
-            <DeleteIcon />
-          </IconButton>
-        ) : null}
-      </div>
+      {showEditAction || (trip.delete && onDelete) ? (
+        <div className="trip-identity-row__actions">
+          {showEditAction ? (
+            <PrefetchLink
+              className="icon-link icon-link--inline"
+              to={trip.editHref}
+              aria-label="Edit trip"
+              title="Edit trip"
+              onPrefetch={() => void prefetchTripEditorFromHref(queryClient, trip.editHref)}
+            >
+              <EditIcon />
+            </PrefetchLink>
+          ) : null}
+          {trip.delete && onDelete ? (
+            <IconButton label={trip.delete.confirmation.action} tone="danger" variant="inline" onClick={onDelete}>
+              <DeleteIcon />
+            </IconButton>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
