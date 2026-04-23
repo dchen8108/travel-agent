@@ -92,34 +92,6 @@ textarea {
   font-weight: 900;
 }
 
-.page-header__stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.page-header__stats > div {
-  min-width: 8rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--surface-border);
-  border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.65);
-  box-shadow: 0 12px 30px rgba(40, 53, 69, 0.06);
-}
-
-.page-header__stats span {
-  display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--copy-muted);
-}
-
-.page-header__stats strong {
-  font-size: 1.4rem;
-}
-
 .dashboard-layout {
   display: grid;
   gap: 1.5rem;
@@ -2066,14 +2038,6 @@ body.route-drag-active {
 
   .filter-toggle {
     align-self: flex-start;
-  }
-
-  .page-header__stats {
-    width: 100%;
-  }
-
-  .page-header__stats > div {
-    flex: 1;
   }
 
   .modal-list-row {

@@ -643,16 +643,6 @@ export function DashboardPage() {
               <p className="page-header__eyebrow">Milemark</p>
               <h1>Travel dashboard</h1>
             </div>
-            <div className="page-header__stats">
-              <div>
-                <span>Upcoming</span>
-                <strong>{dashboardQuery.data?.counts.totalUpcoming ?? "—"}</strong>
-              </div>
-              <div>
-                <span>Booked</span>
-                <strong>{dashboardQuery.data?.counts.totalBooked ?? "—"}</strong>
-              </div>
-            </div>
           </header>
           <main className="dashboard-layout">
             {dashboardQuery.data ? (
