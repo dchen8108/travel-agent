@@ -125,7 +125,7 @@ class DataScope(StrEnum):
 
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
-    future_weeks: int = 16
+    future_weeks: int = 24
     enable_background_fetcher: bool = True
     dashboard_needs_booking_window_weeks: int = Field(default=6, ge=1)
     dashboard_overbooked_window_days: int = Field(default=7, ge=1)

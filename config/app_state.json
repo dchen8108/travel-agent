@@ -1,6 +1,6 @@
 {
   "enable_background_fetcher": true,
-  "future_weeks": 16,
+  "future_weeks": 24,
   "dashboard_needs_booking_window_weeks": 6,
   "dashboard_overbooked_window_days": 7,
   "tracker_freshness_window_hours": 72,

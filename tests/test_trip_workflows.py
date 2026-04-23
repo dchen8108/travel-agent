@@ -68,7 +68,7 @@ def _decode_tfs(url: str) -> list[tuple[int, int, object]]:
     return _parse_fields(urlsafe_b64decode(padded))
 
 
-def test_weekly_trip_generates_sixteen_future_instances(repository: Repository) -> None:
+def test_weekly_trip_generates_twenty_four_future_instances(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -92,7 +92,7 @@ def test_weekly_trip_generates_sixteen_future_instances(repository: Repository) 
     snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
     trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
 
-    assert len(trip_instances) == 16
+    assert len(trip_instances) == 24
     assert trip_instances[0].anchor_date == date(2026, 4, 6)
     assert all(instance.display_label.startswith("LA to SF Outbound") for instance in trip_instances)
     assert all(instance.instance_kind == "generated" for instance in trip_instances)
@@ -124,12 +124,12 @@ def test_build_reconciled_snapshot_does_not_persist_until_requested(repository: 
 
     snapshot = build_reconciled_snapshot(repository, today=date(2026, 3, 31))
     trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
-    assert len(trip_instances) == 16
+    assert len(trip_instances) == 24
     assert repository.load_trip_instances() == []
 
     persist_reconciled_snapshot(repository, snapshot)
     persisted_instances = [item for item in repository.load_trip_instances() if item.trip_id == trip.trip_id]
-    assert len(persisted_instances) == 16
+    assert len(persisted_instances) == 24
 
 
 def test_persist_reconciled_snapshot_uses_narrow_runtime_writes(repository: Repository, monkeypatch) -> None:
@@ -231,7 +231,7 @@ def test_deactivating_weekly_trip_preserves_existing_instances_without_growing_f
         for tracker in initial.trackers
         if any(instance.trip_instance_id == tracker.trip_instance_id for instance in initial_instances)
     }
-    assert len(initial_dates) == 16
+    assert len(initial_dates) == 24
 
     set_trip_active(repository, trip.trip_id, False)
     paused = sync_and_persist(repository, today=date(2026, 4, 21))
@@ -719,8 +719,8 @@ def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repos
     snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
 
     trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
-    assert len(trip_instances) == 17
-    assert len(horizon_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 16
+    assert len(trip_instances) == 25
+    assert len(horizon_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 24
     assert len(past_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 1
 
 
