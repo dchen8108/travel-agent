@@ -775,7 +775,6 @@ export function DashboardPage() {
                 {collectionEditor?.mode !== "create" ? (
                   <IconButton
                     label="Create collection"
-                    tone="accent"
                     className="surface__header-action-button"
                     onClick={startCreateCollection}
                   >
@@ -783,7 +782,7 @@ export function DashboardPage() {
                   </IconButton>
                 ) : (
                   <span
-                    className="icon-button icon-button--accent surface__header-action-button surface__header-action-placeholder"
+                    className="icon-button surface__header-action-button surface__header-action-placeholder"
                     aria-hidden="true"
                   >
                     <AddIcon />
@@ -880,7 +879,6 @@ export function DashboardPage() {
             headerActions={panel === "bookings" ? (
               <IconButton
                 label="Create booking"
-                tone="accent"
                 className="surface__header-action-button"
                 onClick={() => changeBookingMode("create")}
               >
