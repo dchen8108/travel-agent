@@ -112,7 +112,7 @@ export function BookingInspector({
                   items={[
                     {
                       key: "add-booking",
-                      label: "Add Booking",
+                      label: "New",
                       icon: <AddIcon />,
                       onSelect: () => onChangeMode("create"),
                     },

@@ -78,7 +78,7 @@ export function TripRow({
                 items={[
                   {
                     key: "add-booking",
-                    label: "Add Booking",
+                    label: "New",
                     icon: <AddIcon />,
                     onSelect: () => onOpenBookings(tripInstanceId, "create"),
                     onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
