@@ -68,7 +68,6 @@ export function ActionItemsSection({
                 <div>
                   <p className="attention-card__eyebrow">{item.title}</p>
                 </div>
-                {item.badge ? <span className="attention-card__badge">{item.badge}</span> : null}
               </div>
               <TripRow
                 row={item.row}

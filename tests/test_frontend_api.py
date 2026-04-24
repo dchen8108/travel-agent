@@ -917,7 +917,7 @@ def test_dashboard_api_uses_price_drop_copy_for_same_route_rebook(client, reposi
     rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "priceDrop"]
     assert len(rebook_items) == 1
     assert rebook_items[0]["title"] == "Price drop"
-    assert rebook_items[0]["badge"] == "$8.40 lower"
+    assert "badge" not in rebook_items[0]
 
 
 def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, repository: Repository) -> None:
@@ -993,7 +993,7 @@ def test_dashboard_api_uses_better_option_copy_for_cross_route_rebook(client, re
     rebook_items = [item for item in payload["actionItems"] if item.get("attentionKind") == "betterOption"]
     assert len(rebook_items) == 1
     assert rebook_items[0]["title"] == "Better option after preferences"
-    assert rebook_items[0]["badge"] == ""
+    assert "badge" not in rebook_items[0]
 
 
 def test_dashboard_api_collection_pills_expose_lifecycle_and_attention_kind(client, repository: Repository) -> None:

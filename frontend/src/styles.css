@@ -410,44 +410,28 @@ textarea {
   color: var(--copy-muted);
 }
 
-.attention-card--overbooked .attention-card__eyebrow,
-.attention-card--overbooked .attention-card__badge {
+.attention-card--overbooked .attention-card__eyebrow {
   color: var(--danger);
 }
 
-.attention-card--unmatched .attention-card__eyebrow,
-.attention-card--unmatched .attention-card__badge {
+.attention-card--unmatched .attention-card__eyebrow {
   color: var(--link-copy);
 }
 
-.attention-card--priceDrop .attention-card__eyebrow,
-.attention-card--priceDrop .attention-card__badge {
+.attention-card--priceDrop .attention-card__eyebrow {
   color: var(--accent-strong);
 }
 
-.attention-card--betterOption .attention-card__eyebrow,
-.attention-card--betterOption .attention-card__badge {
+.attention-card--betterOption .attention-card__eyebrow {
   color: var(--info-copy);
 }
 
-.attention-card--needsBooking .attention-card__eyebrow,
-.attention-card--needsBooking .attention-card__badge {
+.attention-card--needsBooking .attention-card__eyebrow {
   color: var(--warning-copy);
 }
 
 .attention-card__title {
   margin: 0;
-}
-
-.attention-card__badge {
-  align-self: center;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--surface-border);
-  border-radius: 999px;
-  background: white;
-  color: var(--copy-muted);
-  font-size: 0.85rem;
-  font-weight: 800;
 }
 
 .attention-card__offer-shell .offer-block {

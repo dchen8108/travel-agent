@@ -883,7 +883,7 @@ def test_today_page_surfaces_near_term_multiple_bookings(tmp_path: Path) -> None
     overbooked = [item for item in payload["actionItems"] if item.get("attentionKind") == "overbooked"]
     assert overbooked
     assert overbooked[0]["row"]["trip"]["title"] == "Crowded Commute"
-    assert overbooked[0]["badge"] == "2 active"
+    assert "badge" not in overbooked[0]
 
 
 def test_today_page_only_applies_needs_booking_window(tmp_path: Path) -> None:

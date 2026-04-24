@@ -223,19 +223,17 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
                 "kind": "tripAttention",
                 "attentionKind": "overbooked",
                 "title": "Multiple bookings",
-                "badge": f"{card['active_booking_count']} active",
                 "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
             }
         )
     for card in attention["rebook_views"]:
         attention_kind = rebook_attention_kind(snapshot, card["instance"].trip_instance_id)
-        title, badge = rebook_attention_title_and_badge(snapshot, card["instance"].trip_instance_id)
+        title, _ = rebook_attention_title_and_badge(snapshot, card["instance"].trip_instance_id)
         items.append(
             {
                 "kind": "tripAttention",
                 "attentionKind": attention_kind,
                 "title": title,
-                "badge": badge,
                 "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
             }
         )
@@ -245,7 +243,6 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
                 "kind": "tripAttention",
                 "attentionKind": "needsBooking",
                 "title": "Needs booking",
-                "badge": card["instance"].anchor_date.strftime("%b %d"),
                 "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
             }
         )

@@ -118,7 +118,6 @@ export interface DashboardTripAttentionActionItem {
   kind: "tripAttention";
   attentionKind: TripAttentionKind;
   title: string;
-  badge: string;
   row: TripRow;
 }
 
