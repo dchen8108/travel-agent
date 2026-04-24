@@ -1,5 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
+
+import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import type { TripRow as TripRowValue } from "../types";
+import { AddIcon, DeleteIcon, EditIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
+import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
 
 interface Props {
@@ -23,11 +28,43 @@ export function TripRow({
   onPrefetchCreateBooking,
   onPrefetchTrackers,
 }: Props) {
+  const queryClient = useQueryClient();
   const tripInstanceId = row.trip.tripInstanceId;
 
   return (
     <article className={`trip-row${isActive ? " trip-row--active" : ""}`} id={`scheduled-${tripInstanceId}`}>
-      <TripIdentityRow trip={row.trip} onDelete={() => onDelete(row)} />
+      <TripIdentityRow
+        trip={row.trip}
+        showEditAction={false}
+        actions={(
+          <OverflowMenu
+            label="Trip actions"
+            items={[
+              {
+                key: "add-booking",
+                label: "Add",
+                icon: <AddIcon />,
+                onSelect: () => onOpenBookings(tripInstanceId, "create"),
+                onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
+              },
+              {
+                key: "edit",
+                label: "Edit",
+                icon: <EditIcon />,
+                href: row.trip.editHref,
+                onPrefetch: () => void prefetchTripEditorFromHref(queryClient, row.trip.editHref),
+              },
+              ...(row.trip.delete ? [{
+                key: "delete",
+                label: "Delete",
+                tone: "danger" as const,
+                icon: <DeleteIcon />,
+                onSelect: () => onDelete(row),
+              }] : []),
+            ]}
+          />
+        )}
+      />
       {row.bookedOffer ? (
         <OfferBlock
           kind="booked"

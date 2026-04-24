@@ -4,10 +4,9 @@ import { api } from "../lib/api";
 import { prefetchOnce } from "../lib/prefetch";
 import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
 import type { BookingPanelPayload } from "../types";
-import { AddIcon, EditIcon } from "./Icons";
+import { EditIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
-import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
 
 interface Props {
@@ -32,13 +31,6 @@ export function BookingInspector({
     placeholderData: initialPanel ?? undefined,
   });
 
-  function prefetchCreateForm() {
-    void prefetchOnce(queryClient, {
-      queryKey: bookingFormQueryKey(tripInstanceId),
-      queryFn: () => api.bookingForm(tripInstanceId),
-    });
-  }
-
   function prefetchEditForm(bookingId: string) {
     void prefetchOnce(queryClient, {
       queryKey: bookingFormQueryKey(tripInstanceId, bookingId),
@@ -59,24 +51,7 @@ export function BookingInspector({
   return (
     <div className="modal-panel-stack">
       <div className="modal-panel-head">
-        <TripIdentityRow
-          trip={payload.trip}
-          showEditAction={false}
-          actions={(
-            <OverflowMenu
-              label="Booking actions"
-              items={[
-                {
-                  key: "add-booking",
-                  label: "Add booking",
-                  icon: <AddIcon />,
-                  onSelect: () => onChangeMode("create"),
-                  onPrefetch: prefetchCreateForm,
-                },
-              ]}
-            />
-          )}
-        />
+        <TripIdentityRow trip={payload.trip} showEditAction={false} />
       </div>
       <div className="modal-list">
         {payload.rows.map((row) => (
