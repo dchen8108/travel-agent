@@ -1253,10 +1253,11 @@ textarea {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .dashboard-inspector .modal-list-row {
-  padding: 0.95rem 1rem;
+  padding: 0.95rem 1.35rem 0.95rem 1rem;
 }
 
 .dashboard-inspector .offer-block__detail {
