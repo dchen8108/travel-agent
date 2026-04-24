@@ -81,6 +81,9 @@ export function OverflowMenu({ label = "Actions", items }: Props) {
                 type="button"
                 className={`overflow-menu__item${item.tone === "danger" ? " overflow-menu__item--danger" : ""}`}
                 role="menuitem"
+                onMouseEnter={handlePrefetch(item.onPrefetch)}
+                onFocus={handlePrefetch(item.onPrefetch)}
+                onPointerDown={handlePrefetch(item.onPrefetch)}
                 onClick={() => {
                   setOpen(false);
                   item.onSelect?.();
@@ -95,4 +98,10 @@ export function OverflowMenu({ label = "Actions", items }: Props) {
       ) : null}
     </div>
   );
+}
+
+function handlePrefetch(handler?: () => void) {
+  return (_event: unknown) => {
+    handler?.();
+  };
 }
