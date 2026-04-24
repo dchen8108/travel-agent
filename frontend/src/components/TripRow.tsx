@@ -3,18 +3,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import type { TripRow as TripRowValue } from "../types";
 import { AddIcon, DeleteIcon, EditIcon } from "./Icons";
+import { IconButton } from "./IconButton";
 import { OfferBlock } from "./OfferBlock";
 import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
 
 interface Props {
   row: TripRowValue;
-  onOpenBookings: (tripInstanceId: string, mode: "list" | "create", bookingId?: string) => void;
+  onOpenBookings: (tripInstanceId: string, mode: "list" | "create" | "edit", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDelete: (row: TripRowValue) => void;
   isActive?: boolean;
   onPrefetchBookings?: (tripInstanceId: string) => void;
   onPrefetchCreateBooking?: (tripInstanceId: string) => void;
+  onPrefetchEditBooking?: (tripInstanceId: string, bookingId: string) => void;
   onPrefetchTrackers?: (tripInstanceId: string) => void;
 }
 
@@ -26,6 +28,7 @@ export function TripRow({
   isActive = false,
   onPrefetchBookings,
   onPrefetchCreateBooking,
+  onPrefetchEditBooking,
   onPrefetchTrackers,
 }: Props) {
   const queryClient = useQueryClient();
@@ -72,6 +75,22 @@ export function TripRow({
           offer={row.bookedOffer}
           onOpen={row.actions.showBookingModal ? () => onOpenBookings(tripInstanceId, "list") : undefined}
           onPrefetchAction={row.actions.showBookingModal ? () => onPrefetchBookings?.(tripInstanceId) : undefined}
+          actions={
+            row.actions.editBookingId ? (
+              <div className="offer-action-cluster">
+                <IconButton
+                  label="Edit booking"
+                  variant="inline"
+                  onClick={() => onOpenBookings(tripInstanceId, "edit", row.actions.editBookingId)}
+                  onMouseEnter={() => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId)}
+                  onFocus={() => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId)}
+                  onPointerDown={() => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId)}
+                >
+                  <EditIcon />
+                </IconButton>
+              </div>
+            ) : undefined
+          }
         />
       ) : (
         <OfferBlock

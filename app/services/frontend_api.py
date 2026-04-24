@@ -116,6 +116,7 @@ def trip_row_value(snapshot, trip_instance_id: str) -> dict[str, object]:
         "actions": {
             "showBookingModal": bool(actions.get("show_booking_modal")),
             "canCreateBooking": bool(actions.get("can_create_booking")),
+            "editBookingId": str(actions.get("edit_booking_id", "")),
             "showTrackers": bool(actions.get("show_trackers")),
         },
     }

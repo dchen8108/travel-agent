@@ -50,6 +50,7 @@ export interface TripRow {
   actions: {
     showBookingModal: boolean;
     canCreateBooking: boolean;
+    editBookingId: string;
     showTrackers: boolean;
   };
 }

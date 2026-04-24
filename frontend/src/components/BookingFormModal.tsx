@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "../lib/api";
 import { bookingFormQueryKey, bookingFormQueryPrefix, bookingPanelQueryKey } from "../lib/queryKeys";
+import type { BookingPanelPayload } from "../types";
 import { BookingForm } from "./BookingForm";
 import { useConfirm } from "./ConfirmProvider";
 import { DeleteIcon, DetachIcon } from "./Icons";
@@ -16,7 +17,8 @@ interface Props {
   bookingId: string;
   dashboardFilters: URLSearchParams;
   onClose: () => void;
-  onRefreshDashboard: () => void;
+  onComplete: (panel: BookingPanelPayload | null) => void;
+  onRefreshDashboard: () => Promise<void>;
 }
 
 function blankBookingForm(tripInstanceId: string): Record<string, string> {
@@ -48,6 +50,7 @@ export function BookingFormModal({
   bookingId,
   dashboardFilters,
   onClose,
+  onComplete,
   onRefreshDashboard,
 }: Props) {
   const queryClient = useQueryClient();
@@ -65,14 +68,14 @@ export function BookingFormModal({
       }
       return api.createBooking(values, dashboardFilters);
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.panel) {
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
-      onRefreshDashboard();
+      await onRefreshDashboard();
       queryClient.removeQueries({ queryKey: bookingFormQueryPrefix(tripInstanceId) });
       pushToast({ message: mode === "edit" ? "Booking saved" : "Booking created" });
-      onClose();
+      onComplete(result.panel);
     },
   });
 
@@ -83,14 +86,14 @@ export function BookingFormModal({
       }
       return api.unlinkBooking(bookingId, dashboardFilters);
     },
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       if (result.panel) {
         queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
       }
-      onRefreshDashboard();
+      await onRefreshDashboard();
       queryClient.removeQueries({ queryKey: bookingFormQueryPrefix(tripInstanceId) });
       pushToast({ message: variables.kind === "delete" ? "Booking deleted" : "Booking needs linking" });
-      onClose();
+      onComplete(result.panel);
     },
   });
 

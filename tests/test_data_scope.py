@@ -165,7 +165,7 @@ def test_load_live_snapshot_reconciles_and_persists_instances(tmp_path: Path) ->
 
     live = load_live_snapshot(repository, today=date(2026, 4, 6))
     live_trip_instances = [item for item in live.trip_instances if item.trip_id == trip.trip_id]
-    assert len(live_trip_instances) == 16
+    assert len(live_trip_instances) == 24
 
     stored_trip_instances = [item for item in repository.load_trip_instances() if item.trip_id == trip.trip_id]
-    assert len(stored_trip_instances) == 16
+    assert len(stored_trip_instances) == 24

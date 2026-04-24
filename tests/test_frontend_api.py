@@ -341,6 +341,151 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
 
 
+def test_dashboard_booking_actions_distinguish_zero_one_and_multiple_bookings(client, repository: Repository) -> None:
+    base_date = _next_weekday(0)
+
+    zero_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Zero booking trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=base_date,
+        anchor_weekday=base_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    single_date = base_date + timedelta(days=1)
+    single_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Single booking trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=single_date,
+        anchor_weekday=single_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    multi_date = base_date + timedelta(days=2)
+    multi_trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Multi booking trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=multi_date,
+        anchor_weekday=multi_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=base_date - timedelta(days=14))
+
+    trip_instances = {item.trip_id: item.trip_instance_id for item in repository.load_trip_instances()}
+    single_instance_id = trip_instances[single_trip.trip_id]
+    multi_instance_id = trip_instances[multi_trip.trip_id]
+
+    single_booking, _ = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=single_date,
+            departure_time="06:00",
+            arrival_time="07:20",
+            booked_price="78.40",
+            record_locator="SINGLE1",
+        ),
+        trip_instance_id=single_instance_id,
+    )
+    assert single_booking is not None
+    first_multi = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=multi_date,
+            departure_time="06:00",
+            arrival_time="07:20",
+            booked_price="81.00",
+            record_locator="MULTI01",
+        ),
+        trip_instance_id=multi_instance_id,
+    )
+    second_multi = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=multi_date,
+            departure_time="06:15",
+            arrival_time="07:35",
+            booked_price="84.00",
+            record_locator="MULTI02",
+        ),
+        trip_instance_id=multi_instance_id,
+    )
+    assert first_multi[0] is not None
+    assert second_multi[0] is not None
+    sync_and_persist(repository, today=base_date - timedelta(days=14))
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    rows_by_title = {row["trip"]["title"]: row for row in response.json()["trips"]}
+
+    zero_actions = rows_by_title[zero_trip.label]["actions"]
+    assert zero_actions["canCreateBooking"] is True
+    assert zero_actions["showBookingModal"] is False
+    assert zero_actions["editBookingId"] == ""
+
+    single_actions = rows_by_title[single_trip.label]["actions"]
+    assert single_actions["canCreateBooking"] is False
+    assert single_actions["showBookingModal"] is False
+    assert single_actions["editBookingId"] == single_booking.booking_id
+
+    multi_actions = rows_by_title[multi_trip.label]["actions"]
+    assert multi_actions["canCreateBooking"] is False
+    assert multi_actions["showBookingModal"] is True
+    assert multi_actions["editBookingId"] == ""
+
+
 def test_tracker_panel_inlines_day_offset_into_fallback_window_times(client, repository: Repository) -> None:
     save_trip(
         repository,

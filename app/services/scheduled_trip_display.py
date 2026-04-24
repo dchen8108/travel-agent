@@ -239,6 +239,7 @@ def trip_row_actions_view(snapshot: AppSnapshot, trip_instance_id: str) -> dict[
     trip = trip_for_instance(snapshot, trip_instance_id)
     recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
     active_booking_count = active_booking_count_for_instance(snapshot, trip_instance_id)
+    single_booking = booking_for_instance(snapshot, trip_instance_id) if active_booking_count == 1 else None
     has_trackers = bool(trackers_for_instance(snapshot, trip_instance_id))
 
     if instance is None or trip is None:
@@ -246,6 +247,7 @@ def trip_row_actions_view(snapshot: AppSnapshot, trip_instance_id: str) -> dict[
             "edit_href": "",
             "can_create_booking": False,
             "show_booking_modal": False,
+            "edit_booking_id": "",
             "show_trackers": False,
             "delete_href": "",
             "delete_confirmation": None,
@@ -281,8 +283,9 @@ def trip_row_actions_view(snapshot: AppSnapshot, trip_instance_id: str) -> dict[
 
     return {
         "edit_href": edit_href,
-        "can_create_booking": True,
-        "show_booking_modal": active_booking_count > 0,
+        "can_create_booking": active_booking_count == 0,
+        "show_booking_modal": active_booking_count > 1,
+        "edit_booking_id": single_booking.booking_id if single_booking is not None else "",
         "show_trackers": has_trackers,
         "delete_href": delete_href,
         "delete_confirmation": delete_confirmation,

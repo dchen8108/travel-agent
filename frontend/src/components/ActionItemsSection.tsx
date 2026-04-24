@@ -13,7 +13,7 @@ import { TripRow } from "./TripRow";
 
 interface Props {
   items: DashboardActionItem[];
-  onOpenBookings: (tripInstanceId: string, mode: "list" | "create", bookingId?: string) => void;
+  onOpenBookings: (tripInstanceId: string, mode: "list" | "create" | "edit", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDeleteTrip: (row: TripRowValue) => void;
   activeTripInstanceId?: string;
@@ -22,6 +22,7 @@ interface Props {
   onDeleteUnmatchedBooking: (unmatchedBookingId: string) => Promise<void>;
   onPrefetchBookings?: (tripInstanceId: string) => void;
   onPrefetchCreateBooking?: (tripInstanceId: string) => void;
+  onPrefetchEditBooking?: (tripInstanceId: string, bookingId: string) => void;
   onPrefetchTrackers?: (tripInstanceId: string) => void;
 }
 
@@ -36,6 +37,7 @@ export function ActionItemsSection({
   onDeleteUnmatchedBooking,
   onPrefetchBookings,
   onPrefetchCreateBooking,
+  onPrefetchEditBooking,
   onPrefetchTrackers,
 }: Props) {
   if (items.length === 0) {
@@ -76,6 +78,7 @@ export function ActionItemsSection({
                 isActive={activeTripInstanceId === item.row.trip.tripInstanceId}
                 onPrefetchBookings={onPrefetchBookings}
                 onPrefetchCreateBooking={onPrefetchCreateBooking}
+                onPrefetchEditBooking={onPrefetchEditBooking}
                 onPrefetchTrackers={onPrefetchTrackers}
               />
             </article>

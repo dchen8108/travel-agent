@@ -286,8 +286,8 @@ export function DashboardPage() {
     void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
   }
 
-  function refreshCurrentDashboard() {
-    void queryClient.invalidateQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
+  async function refreshCurrentDashboard() {
+    await queryClient.invalidateQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
   }
 
   const collectionMutation = useMutation({
@@ -519,6 +519,10 @@ export function DashboardPage() {
     prefetchBookingForm(tripInstanceId);
   }
 
+  function prefetchBookingEditFlow(tripInstanceId: string, bookingId: string) {
+    prefetchBookingForm(tripInstanceId, bookingId);
+  }
+
   function prefetchTrackerPanel(tripInstanceId: string) {
     void prefetchOnce(queryClient, {
       queryKey: trackerPanelQueryKey(tripInstanceId),
@@ -532,6 +536,10 @@ export function DashboardPage() {
     mode: "list" | "create" | "edit" = "list",
     bookingId = "",
   ) {
+    const currentRow = visibleTripRows.get(tripInstanceId);
+    if (nextPanel === "bookings" && mode === "list" && !currentRow?.actions.showBookingModal) {
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set("panel", nextPanel);
     next.set("trip_instance_id", tripInstanceId);
@@ -562,6 +570,11 @@ export function DashboardPage() {
   }
 
   function changeBookingMode(mode: "list" | "create" | "edit", bookingId = "") {
+    const shouldShowList = panelTripInstanceId ? Boolean(visibleTripRows.get(panelTripInstanceId)?.actions.showBookingModal) : false;
+    if (mode === "list" && !shouldShowList) {
+      closePanel();
+      return;
+    }
     setBookingPanelState({ mode, bookingId });
     if (panel !== "bookings" || !panelTripInstanceId) {
       return;
@@ -584,7 +597,30 @@ export function DashboardPage() {
   const currentTripRow = panelTripInstanceId ? visibleTripRows.get(panelTripInstanceId) : undefined;
   const initialBookingPanel = panel === "bookings" ? bookingPanelPreview(currentTripRow) : null;
   const initialTrackerPanel = panel === "trackers" ? trackerPanelPreview(currentTripRow) : null;
-  const showingDesktopInspector = useDesktopInspector && !!panelTripInstanceId && (panel === "bookings" || panel === "trackers");
+  const showingDesktopInspector = useDesktopInspector && !!panelTripInstanceId && (
+    panel === "trackers"
+    || (
+      panel === "bookings"
+      && Boolean(currentTripRow?.actions.showBookingModal)
+    )
+  );
+
+  useEffect(() => {
+    if (panel !== "bookings" || !panelTripInstanceId || bookingPanelState.mode !== "list") {
+      return;
+    }
+    if (currentTripRow && !currentTripRow.actions.showBookingModal) {
+      closePanel();
+    }
+  }, [bookingPanelState.mode, currentTripRow, panel, panelTripInstanceId]);
+
+  function handleBookingFlowComplete(panelPayload: BookingPanelPayload | null) {
+    if (!panelPayload || panelPayload.rows.length <= 1) {
+      closePanel();
+      return;
+    }
+    changeBookingMode("list");
+  }
 
   async function handleDeleteTrip(row: TripRowValue) {
     const confirmation = row.trip.delete?.confirmation;
@@ -664,6 +700,7 @@ export function DashboardPage() {
                   onDeleteUnmatchedBooking={handleDeleteUnmatchedBooking}
                   onPrefetchBookings={prefetchBookingPanel}
                   onPrefetchCreateBooking={prefetchBookingCreateFlow}
+                  onPrefetchEditBooking={prefetchBookingEditFlow}
                   onPrefetchTrackers={prefetchTrackerPanel}
                 />
               ) : null
@@ -750,6 +787,7 @@ export function DashboardPage() {
                         isActive={panelTripInstanceId === row.trip.tripInstanceId}
                         onPrefetchBookings={prefetchBookingPanel}
                         onPrefetchCreateBooking={prefetchBookingCreateFlow}
+                        onPrefetchEditBooking={prefetchBookingEditFlow}
                         onPrefetchTrackers={prefetchTrackerPanel}
                       />
                     ))}
@@ -802,6 +840,7 @@ export function DashboardPage() {
             bookingId={bookingPanelState.bookingId}
             dashboardFilters={dashboardFilters}
             onClose={() => changeBookingMode("list")}
+            onComplete={handleBookingFlowComplete}
             onRefreshDashboard={refreshCurrentDashboard}
           />
         )
@@ -818,6 +857,7 @@ export function DashboardPage() {
           bookingId={bookingPanelState.bookingId}
           dashboardFilters={dashboardFilters}
           onClose={() => changeBookingMode("list")}
+          onComplete={handleBookingFlowComplete}
           onRefreshDashboard={refreshCurrentDashboard}
         />
       ) : null}
