@@ -787,6 +787,7 @@ textarea {
   right: 0;
   z-index: 20;
   min-width: 9.5rem;
+  width: max-content;
   padding: 0.35rem;
   border: 1px solid rgba(174, 186, 196, 0.56);
   border-radius: 1rem;
@@ -821,6 +822,10 @@ textarea {
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
+}
+
+.overflow-menu__item span {
+  white-space: nowrap;
 }
 
 .overflow-menu__item--danger {
