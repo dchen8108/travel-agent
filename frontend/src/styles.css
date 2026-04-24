@@ -766,15 +766,15 @@ textarea {
   flex-shrink: 0;
 }
 
-.trip-actions-menu {
+.overflow-menu {
   position: relative;
 }
 
-.trip-actions-menu__trigger.is-open {
+.overflow-menu__trigger.is-open {
   background: rgba(29, 43, 57, 0.06);
 }
 
-.trip-actions-menu__dropdown {
+.overflow-menu__dropdown {
   position: absolute;
   top: calc(100% + 0.3rem);
   right: 0;
@@ -787,7 +787,7 @@ textarea {
   box-shadow: 0 18px 38px rgba(30, 56, 70, 0.16);
 }
 
-.trip-actions-menu__item {
+.overflow-menu__item {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -805,18 +805,18 @@ textarea {
   cursor: pointer;
 }
 
-.trip-actions-menu__item:hover,
-.trip-actions-menu__item:focus-visible {
+.overflow-menu__item:hover,
+.overflow-menu__item:focus-visible {
   background: rgba(29, 43, 57, 0.06);
 }
 
-.trip-actions-menu__item svg {
+.overflow-menu__item svg {
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
 }
 
-.trip-actions-menu__item--danger {
+.overflow-menu__item--danger {
   color: var(--danger);
 }
 

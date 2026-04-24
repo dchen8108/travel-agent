@@ -6,7 +6,7 @@ import type { CollectionCard as CollectionCardValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import { DeleteIcon, EditIcon } from "./Icons";
 import { CollectionNameEditor } from "./CollectionNameEditor";
-import { IconButton } from "./IconButton";
+import { OverflowMenu } from "./OverflowMenu";
 import { PrefetchLink } from "./PrefetchLink";
 
 interface Props {
@@ -90,14 +90,24 @@ export function CollectionCard({
           ) : (
             <div className="collection-card__titleline">
               <h3>{collection.label}</h3>
-              <IconButton label="Edit collection" variant="inline" onClick={onEdit}>
-                <EditIcon />
-              </IconButton>
-              {onDelete ? (
-                <IconButton label="Delete collection" tone="danger" variant="inline" onClick={onDelete}>
-                  <DeleteIcon />
-                </IconButton>
-              ) : null}
+              <OverflowMenu
+                label="Collection actions"
+                items={[
+                  {
+                    key: "edit",
+                    label: "Edit",
+                    icon: <EditIcon />,
+                    onSelect: onEdit,
+                  },
+                  ...(onDelete ? [{
+                    key: "delete",
+                    label: "Delete",
+                    tone: "danger" as const,
+                    icon: <DeleteIcon />,
+                    onSelect: onDelete,
+                  }] : []),
+                ]}
+              />
             </div>
           )}
         </div>
