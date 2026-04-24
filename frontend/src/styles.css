@@ -973,37 +973,20 @@ textarea {
 .offer-block__content {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-areas:
+    ". label label"
+    "airline detail price"
+    ". meta meta"
+    ". badges badges";
+  align-items: start;
   column-gap: 0.75rem;
-  row-gap: 0.3rem;
+  row-gap: 0.18rem;
   min-width: 0;
 }
 
 .offer-block__airline {
-  grid-column: 1;
-  grid-row: 2 / -1;
-  align-self: center;
-}
-
-.offer-block__content > .offer-block__label-row,
-.offer-block__content > .offer-block__primary-meta-row,
-.offer-block__content > .offer-block__badge-row {
-  grid-column: 2 / 4;
-}
-
-.offer-block__content > .offer-block__label-row {
-  grid-row: 1;
-}
-
-.offer-block__content > .offer-block__detail {
-  grid-column: 2;
-  grid-row: 2;
-  min-width: 0;
-}
-
-.offer-block__content > .offer-block__price-column {
-  grid-column: 3;
-  grid-row: 2;
+  grid-area: airline;
+  grid-row: 2 / 4;
   align-self: center;
 }
 
@@ -1058,6 +1041,7 @@ textarea {
 }
 
 .offer-block__label-row {
+  grid-area: label;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1067,27 +1051,32 @@ textarea {
 .offer-block__label {
   font-size: 0.78rem;
   font-weight: 800;
+  line-height: 1.1;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--copy-muted);
 }
 
 .offer-block__detail {
+  grid-area: detail;
   display: block;
   font-size: 1rem;
   font-weight: 900;
+  line-height: 1.1;
+  min-width: 0;
+  align-self: center;
 }
 
 .offer-block__primary-meta-row {
+  grid-area: meta;
   display: flex;
   align-items: center;
-  grid-row: 3;
-  min-height: 1.1rem;
   min-width: 0;
 }
 
 .offer-block__primary-meta {
   font-size: 0.94rem;
+  line-height: 1.25;
   color: var(--copy-muted);
 }
 
@@ -1098,9 +1087,9 @@ textarea {
 }
 
 .offer-block__badge-row {
+  grid-area: badges;
   display: flex;
   align-items: center;
-  grid-row: 4;
   gap: 0.45rem;
   flex-wrap: wrap;
   min-width: 0;
@@ -1120,8 +1109,10 @@ textarea {
 }
 
 .offer-block__price-column {
+  grid-area: price;
   min-width: 5rem;
   text-align: right;
+  align-self: center;
 }
 
 .offer-block__actions {
