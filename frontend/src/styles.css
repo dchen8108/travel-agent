@@ -1261,6 +1261,7 @@ textarea {
 }
 
 .dashboard-inspector .modal-list {
+  display: block;
   border-radius: 1.45rem;
   min-height: 0;
   overflow: auto;
