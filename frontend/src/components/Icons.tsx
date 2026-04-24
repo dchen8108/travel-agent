@@ -63,20 +63,20 @@ export function AddIcon() {
   return svg(
     <>
       <path
-        d="M12 6.75v10.5"
+        d="M12 5.5v13"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="2.2"
       />
       <path
-        d="M6.75 12h10.5"
+        d="M5.5 12h13"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="2"
+        strokeWidth="2.2"
       />
     </>,
   );
