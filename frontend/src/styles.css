@@ -233,6 +233,11 @@ textarea {
   pointer-events: none;
 }
 
+.surface__header-action-button svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
 .quiet-state-card {
   display: grid;
   gap: 0.35rem;
