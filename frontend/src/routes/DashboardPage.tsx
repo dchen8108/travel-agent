@@ -771,24 +771,26 @@ export function DashboardPage() {
 
             <section className="surface" id="dashboard-groups">
               <div className="surface__header">
-                <h2>Collections</h2>
-                {collectionEditor?.mode !== "create" ? (
-                  <IconButton
-                    label="Create collection"
-                    variant="inline"
-                    className="surface__header-action-button"
-                    onClick={startCreateCollection}
-                  >
-                    <AddIcon />
-                  </IconButton>
-                ) : (
-                  <span
-                    className="icon-button icon-button--inline surface__header-action-button surface__header-action-placeholder"
-                    aria-hidden="true"
-                  >
-                    <AddIcon />
-                  </span>
-                )}
+                <div className="surface__header-title-group">
+                  <h2>Collections</h2>
+                  {collectionEditor?.mode !== "create" ? (
+                    <IconButton
+                      label="Create collection"
+                      variant="inline"
+                      className="surface__header-action-button"
+                      onClick={startCreateCollection}
+                    >
+                      <AddIcon />
+                    </IconButton>
+                  ) : (
+                    <span
+                      className="icon-button icon-button--inline surface__header-action-button surface__header-action-placeholder"
+                      aria-hidden="true"
+                    >
+                      <AddIcon />
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="collection-board-react">
                 {collectionEditor?.mode === "create" ? (
@@ -817,16 +819,18 @@ export function DashboardPage() {
 
             <section className="surface" id="all-travel">
               <div className="surface__header">
-                <h2>Trips</h2>
-                <PrefetchLink
-                  className="icon-link icon-link--inline surface__header-action-button"
-                  aria-label="Create trip"
-                  title="Create trip"
-                  to="/trips/new"
-                  onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
-                >
-                  <AddIcon />
-                </PrefetchLink>
+                <div className="surface__header-title-group">
+                  <h2>Trips</h2>
+                  <PrefetchLink
+                    className="icon-link icon-link--inline surface__header-action-button"
+                    aria-label="Create trip"
+                    title="Create trip"
+                    to="/trips/new"
+                    onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
+                  >
+                    <AddIcon />
+                  </PrefetchLink>
+                </div>
               </div>
               {dashboardQuery.data ? (
                 <>

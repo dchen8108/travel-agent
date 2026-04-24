@@ -217,6 +217,13 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.surface__header-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .surface__header h2,
 .section-title {
   margin: 0;
@@ -1196,10 +1203,16 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+.dashboard-inspector__title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .dashboard-inspector__actions {
   display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
 }
 
 .dashboard-inspector__title {
@@ -2066,6 +2079,12 @@ body.route-drag-active {
   .surface__header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .surface__header-title-group,
+  .dashboard-inspector__title-group {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .collection-card__header,

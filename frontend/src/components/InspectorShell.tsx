@@ -54,9 +54,11 @@ export function InspectorShell({
   return (
     <aside ref={inspectorRef} className="dashboard-inspector" aria-labelledby={titleId}>
       <div className="dashboard-inspector__close-row">
-        <h2 className="section-title dashboard-inspector__title" id={titleId}>{title}</h2>
-        <div className="dashboard-inspector__actions">
+        <div className="dashboard-inspector__title-group">
+          <h2 className="section-title dashboard-inspector__title" id={titleId}>{title}</h2>
           {headerActions}
+        </div>
+        <div className="dashboard-inspector__actions">
           <IconButton label={`Close ${title.toLowerCase()}`} onClick={onClose}>
             <CloseIcon />
           </IconButton>
