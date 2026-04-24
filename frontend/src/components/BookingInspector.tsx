@@ -98,7 +98,21 @@ export function BookingInspector({
   return (
     <div className="modal-panel-stack">
       <div className="modal-panel-head">
-        <TripIdentityRow trip={payload.trip} showEditAction={false} />
+        <TripIdentityRow
+          trip={payload.trip}
+          showEditAction={false}
+          actions={(
+            <button
+              type="button"
+              className="icon-button surface__header-action-button"
+              aria-label="Create booking"
+              title="Create booking"
+              onClick={() => onChangeMode("create")}
+            >
+              <AddIcon />
+            </button>
+          )}
+        />
       </div>
       <div className="modal-list">
         {payload.rows.map((row) => (
@@ -111,12 +125,6 @@ export function BookingInspector({
                   label="Booking actions"
                   align="end"
                   items={[
-                    {
-                      key: "add-booking",
-                      label: "New",
-                      icon: <AddIcon />,
-                      onSelect: () => onChangeMode("create"),
-                    },
                     {
                       key: "edit-booking",
                       label: "Edit",
