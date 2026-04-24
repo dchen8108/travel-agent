@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from app.models.base import utcnow
 
-from app.models.base import AppState, DataScope
+from app.models.base import DataScope
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.google_flights_fetcher import GoogleFlightsOffer
 from app.services.groups import save_trip_group
@@ -151,13 +151,12 @@ def test_dashboard_api_returns_collections_and_trip_rows(client, repository: Rep
     assert payload["trips"][0]["bookedOffer"]["metaLabel"].endswith("BDJ594")
 
 
-def test_trip_status_mutation_dashboard_payload_hides_test_scoped_rows(client, repository: Repository) -> None:
-    repository.save_app_state(AppState(show_test_data=False, process_test_data=False))
+def test_trip_status_mutation_synchronously_refreshes_dashboard(client, repository: Repository) -> None:
     live_trip = save_trip(
         repository,
         trip_id=None,
-        label="Live recurring",
-        trip_kind="weekly",
+        label="Live one-time",
+        trip_kind="one_time",
         active=True,
         anchor_date=date(2026, 4, 20),
         anchor_weekday="Monday",
@@ -175,28 +174,6 @@ def test_trip_status_mutation_dashboard_payload_hides_test_scoped_rows(client, r
         ],
         data_scope=DataScope.LIVE,
     )
-    save_trip(
-        repository,
-        trip_id=None,
-        label="QA Hidden recurring",
-        trip_kind="weekly",
-        active=True,
-        anchor_date=date(2026, 4, 20),
-        anchor_weekday="Wednesday",
-        route_option_payloads=[
-            {
-                "origin_airports": "BUR",
-                "destination_airports": "SFO",
-                "airlines": "Alaska",
-                "day_offset": 0,
-                "start_time": "06:00",
-                "end_time": "08:00",
-                "fare_class_policy": "include_basic",
-                "savings_needed_vs_previous": 0,
-            }
-        ],
-        data_scope=DataScope.TEST,
-    )
     sync_and_persist(repository, today=date(2026, 4, 1))
 
     response = client.patch(f"/api/trips/{live_trip.trip_id}/status", json={"active": False})
@@ -204,6 +181,8 @@ def test_trip_status_mutation_dashboard_payload_hides_test_scoped_rows(client, r
     assert response.status_code == 200
     payload = response.json()
     assert payload == {"tripId": live_trip.trip_id, "active": False}
+    dashboard = client.get("/api/dashboard").json()
+    assert all(row["trip"]["tripId"] != live_trip.trip_id for row in dashboard["trips"])
 
 
 def test_delete_collection_api_detaches_trips_without_deleting_them(client, repository: Repository) -> None:

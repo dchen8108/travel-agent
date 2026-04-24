@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from app.money import parse_money
@@ -296,14 +296,13 @@ def delete_collection_api(
 def update_trip_status_api(
     trip_id: str,
     body: TripStatusBody,
-    background_tasks: BackgroundTasks,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
         set_trip_active(repository, trip_id, body.active)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    background_tasks.add_task(load_live_snapshot, repository)
+    load_live_snapshot(repository)
     return {
         "tripId": trip_id,
         "active": body.active,

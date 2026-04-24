@@ -170,17 +170,13 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const { confirm } = useConfirm();
-  const [collectionEditor, setCollectionEditor] = useState<{ mode: "create" | "edit"; groupId?: string } | null>(() => (
-    initialCollectionEditor(searchParams)
-  ));
-  const [bookingPanelState, setBookingPanelState] = useState<{ mode: "list" | "create" | "edit"; bookingId: string }>(() => (
-    initialBookingPanelState(searchParams)
-  ));
   const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
   const [useDesktopInspector, setUseDesktopInspector] = useState(() => desktopInspectorPreferred());
 
   const panel = searchParams.get("panel");
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
+  const collectionEditor = useMemo(() => initialCollectionEditor(searchParams), [searchParams]);
+  const bookingPanelState = useMemo(() => initialBookingPanelState(searchParams), [searchParams]);
   const selectedTripGroupIds = searchParams.getAll("trip_group_id");
   const includeBooked = searchParams.get("include_booked") !== "false";
 
@@ -201,13 +197,6 @@ export function DashboardPage() {
     queryFn: () => api.dashboard(dashboardFilters),
   });
   const visibleTripRows = useMemo(() => tripRowLookup(dashboardQuery.data), [dashboardQuery.data]);
-
-  useEffect(() => {
-    const nextEditor = initialCollectionEditor(searchParams);
-    if (nextEditor) {
-      setCollectionEditor(nextEditor);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     const state = location.state as { toast?: { message: string; kind?: "success" | "error" } } | null;
@@ -249,13 +238,6 @@ export function DashboardPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (panel === "bookings" && panelTripInstanceId) {
-      setBookingPanelState(initialBookingPanelState(searchParams));
-      return;
-    }
-    setBookingPanelState({ mode: "list", bookingId: "" });
-  }, [panel, panelTripInstanceId, searchParams]);
 
   useEffect(() => {
     const tripRows = dashboardQuery.data?.trips.slice(0, 4) ?? [];
@@ -288,6 +270,15 @@ export function DashboardPage() {
     void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
   }
 
+  function updateDashboardSearchParams(
+    mutate: (next: URLSearchParams) => void,
+    options: { replace?: boolean } = {},
+  ) {
+    const next = new URLSearchParams(searchParams);
+    mutate(next);
+    setSearchParams(next, { replace: options.replace ?? false });
+  }
+
   async function refreshCurrentDashboard() {
     await queryClient.invalidateQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
   }
@@ -297,7 +288,6 @@ export function DashboardPage() {
       groupId ? api.updateCollection(groupId, label, dashboardFilters) : api.createCollection(label, dashboardFilters)
     ),
     onSuccess: ({ dashboard }) => {
-      setCollectionEditor(null);
       clearCollectionEditorParams();
       replaceCurrentDashboard(dashboard);
       pushToast({ message: "Collection saved" });
@@ -324,16 +314,19 @@ export function DashboardPage() {
       pushToast({ message: errorMessage(error, "Unable to delete collection."), kind: "error" });
     },
     onSuccess: (_result, groupId) => {
-      if (selectedTripGroupIds.includes(groupId)) {
-        const next = new URLSearchParams(searchParams);
-        const remaining = next.getAll("trip_group_id").filter((value) => value !== groupId);
-        next.delete("trip_group_id");
-        remaining.forEach((value) => next.append("trip_group_id", value));
-        setSearchParams(next, { replace: true });
+      if (selectedTripGroupIds.includes(groupId) || (collectionEditor?.mode === "edit" && collectionEditor.groupId === groupId)) {
+        updateDashboardSearchParams((next) => {
+          if (selectedTripGroupIds.includes(groupId)) {
+            const remaining = next.getAll("trip_group_id").filter((value) => value !== groupId);
+            next.delete("trip_group_id");
+            remaining.forEach((value) => next.append("trip_group_id", value));
+          }
+          if (collectionEditor?.mode === "edit" && collectionEditor.groupId === groupId) {
+            next.delete("create_group");
+            next.delete("edit_group_id");
+          }
+        }, { replace: true });
       }
-      setCollectionEditor((current) => (
-        current?.mode === "edit" && current.groupId === groupId ? null : current
-      ));
       void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
       pushToast({ message: "Collection deleted" });
     },
@@ -437,41 +430,44 @@ export function DashboardPage() {
   });
 
   function toggleGroupFilter(groupId: string) {
-    const next = new URLSearchParams(searchParams);
-    const current = new Set(next.getAll("trip_group_id"));
-    if (current.has(groupId)) {
-      current.delete(groupId);
-    } else {
-      current.add(groupId);
-    }
-    next.delete("trip_group_id");
-    [...current].forEach((value) => next.append("trip_group_id", value));
-    setSearchParams(next, { replace: true });
+    updateDashboardSearchParams((next) => {
+      const current = new Set(next.getAll("trip_group_id"));
+      if (current.has(groupId)) {
+        current.delete(groupId);
+      } else {
+        current.add(groupId);
+      }
+      next.delete("trip_group_id");
+      [...current].forEach((value) => next.append("trip_group_id", value));
+    }, { replace: true });
   }
 
   function clearCollectionEditorParams() {
-    if (!searchParams.has("create_group") && !searchParams.has("edit_group_id")) {
+    if (!collectionEditor) {
       return;
     }
-    const next = new URLSearchParams(searchParams);
-    next.delete("create_group");
-    next.delete("edit_group_id");
-    setSearchParams(next, { replace: true });
+    updateDashboardSearchParams((next) => {
+      next.delete("create_group");
+      next.delete("edit_group_id");
+    }, { replace: true });
   }
 
   function startCreateCollection() {
-    setCollectionEditor({ mode: "create" });
-    clearCollectionEditorParams();
+    updateDashboardSearchParams((next) => {
+      next.set("create_group", "1");
+      next.delete("edit_group_id");
+    }, { replace: true });
   }
 
   function stopCollectionEditing() {
-    setCollectionEditor(null);
     clearCollectionEditorParams();
   }
 
   function startEditCollection(groupId: string) {
-    setCollectionEditor({ mode: "edit", groupId });
-    clearCollectionEditorParams();
+    updateDashboardSearchParams((next) => {
+      next.delete("create_group");
+      next.set("edit_group_id", groupId);
+    }, { replace: true });
   }
 
   async function handleDeleteCollection(groupId: string, label: string) {
@@ -493,13 +489,13 @@ export function DashboardPage() {
   }
 
   function toggleBookedFilter() {
-    const next = new URLSearchParams(searchParams);
-    if (includeBooked) {
-      next.set("include_booked", "false");
-    } else {
-      next.delete("include_booked");
-    }
-    setSearchParams(next, { replace: true });
+    updateDashboardSearchParams((next) => {
+      if (includeBooked) {
+        next.set("include_booked", "false");
+      } else {
+        next.delete("include_booked");
+      }
+    }, { replace: true });
   }
 
   function prefetchBookingPanel(tripInstanceId: string) {
@@ -542,33 +538,30 @@ export function DashboardPage() {
     if (nextPanel === "bookings" && mode === "list" && !currentRow?.actions.showBookingModal) {
       return;
     }
-    const next = new URLSearchParams(searchParams);
-    next.set("panel", nextPanel);
-    next.set("trip_instance_id", tripInstanceId);
-    if (nextPanel === "bookings" && mode !== "list") {
-      next.set("booking_mode", mode);
-      if (bookingId) {
-        next.set("booking_id", bookingId);
+    updateDashboardSearchParams((next) => {
+      next.set("panel", nextPanel);
+      next.set("trip_instance_id", tripInstanceId);
+      if (nextPanel === "bookings" && mode !== "list") {
+        next.set("booking_mode", mode);
+        if (bookingId) {
+          next.set("booking_id", bookingId);
+        } else {
+          next.delete("booking_id");
+        }
       } else {
+        next.delete("booking_mode");
         next.delete("booking_id");
       }
-    } else {
-      next.delete("booking_mode");
-      next.delete("booking_id");
-    }
-    setSearchParams(next, { replace: false });
-    if (nextPanel === "bookings") {
-      setBookingPanelState({ mode, bookingId });
-    }
+    });
   }
 
   function closePanel() {
-    const next = new URLSearchParams(searchParams);
-    next.delete("panel");
-    next.delete("trip_instance_id");
-    next.delete("booking_mode");
-    next.delete("booking_id");
-    setSearchParams(next, { replace: false });
+    updateDashboardSearchParams((next) => {
+      next.delete("panel");
+      next.delete("trip_instance_id");
+      next.delete("booking_mode");
+      next.delete("booking_id");
+    });
   }
 
   function changeBookingMode(mode: "list" | "create" | "edit", bookingId = "") {
@@ -577,23 +570,22 @@ export function DashboardPage() {
       closePanel();
       return;
     }
-    setBookingPanelState({ mode, bookingId });
     if (panel !== "bookings" || !panelTripInstanceId) {
       return;
     }
-    const next = new URLSearchParams(searchParams);
-    if (mode === "list") {
-      next.delete("booking_mode");
-      next.delete("booking_id");
-    } else {
-      next.set("booking_mode", mode);
-      if (bookingId) {
-        next.set("booking_id", bookingId);
-      } else {
+    updateDashboardSearchParams((next) => {
+      if (mode === "list") {
+        next.delete("booking_mode");
         next.delete("booking_id");
+      } else {
+        next.set("booking_mode", mode);
+        if (bookingId) {
+          next.set("booking_id", bookingId);
+        } else {
+          next.delete("booking_id");
+        }
       }
-    }
-    setSearchParams(next, { replace: false });
+    });
   }
 
   const currentTripRow = panelTripInstanceId ? visibleTripRows.get(panelTripInstanceId) : undefined;
