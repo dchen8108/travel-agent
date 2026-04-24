@@ -30,6 +30,29 @@ export function TripRow({
 }: Props) {
   const queryClient = useQueryClient();
   const tripInstanceId = row.trip.tripInstanceId;
+  const tripMenuItems = [
+    ...(row.bookedOffer ? [{
+      key: "add-booking",
+      label: "Add",
+      icon: <AddIcon />,
+      onSelect: () => onOpenBookings(tripInstanceId, "create"),
+      onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
+    }] : []),
+    {
+      key: "edit",
+      label: "Edit",
+      icon: <EditIcon />,
+      href: row.trip.editHref,
+      onPrefetch: () => void prefetchTripEditorFromHref(queryClient, row.trip.editHref),
+    },
+    ...(row.trip.delete ? [{
+      key: "delete",
+      label: "Delete",
+      tone: "danger" as const,
+      icon: <DeleteIcon />,
+      onSelect: () => onDelete(row),
+    }] : []),
+  ];
 
   return (
     <article className={`trip-row${isActive ? " trip-row--active" : ""}`} id={`scheduled-${tripInstanceId}`}>
@@ -39,29 +62,7 @@ export function TripRow({
         actions={(
           <OverflowMenu
             label="Trip actions"
-            items={[
-              {
-                key: "add-booking",
-                label: "Add",
-                icon: <AddIcon />,
-                onSelect: () => onOpenBookings(tripInstanceId, "create"),
-                onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
-              },
-              {
-                key: "edit",
-                label: "Edit",
-                icon: <EditIcon />,
-                href: row.trip.editHref,
-                onPrefetch: () => void prefetchTripEditorFromHref(queryClient, row.trip.editHref),
-              },
-              ...(row.trip.delete ? [{
-                key: "delete",
-                label: "Delete",
-                tone: "danger" as const,
-                icon: <DeleteIcon />,
-                onSelect: () => onDelete(row),
-              }] : []),
-            ]}
+            items={tripMenuItems}
           />
         )}
       />
