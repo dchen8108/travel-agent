@@ -1300,6 +1300,7 @@ textarea {
 .dashboard-inspector .modal-footer-note--inspector {
   position: absolute;
   left: 0;
+  right: 0;
   bottom: 0;
   display: flex;
   align-items: center;
