@@ -43,9 +43,11 @@ export function TripIdentityRow({ trip, onDelete, showEditAction = true, actions
     <div className="trip-identity-row">
       <DateTile tile={trip.dateTile} />
       <div className="trip-identity-row__copy">
-        <h3>{trip.title}</h3>
+        <div className="trip-identity-row__titleline">
+          <h3>{trip.title}</h3>
+          {renderedActions ? <div className="trip-identity-row__actions">{renderedActions}</div> : null}
+        </div>
       </div>
-      {renderedActions ? <div className="trip-identity-row__actions">{renderedActions}</div> : null}
     </div>
   );
 }

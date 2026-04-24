@@ -759,6 +759,13 @@ textarea {
   min-width: 0;
 }
 
+.trip-identity-row__titleline {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .trip-identity-row__actions {
   display: inline-flex;
   align-items: center;
@@ -822,14 +829,15 @@ textarea {
 
 .trip-identity-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
 }
 
-.trip-identity-row h3 {
+.trip-identity-row__titleline h3 {
   margin: 0;
+  min-width: 0;
   font-size: 1.2rem;
   font-weight: 900;
   line-height: 1.05;
@@ -1196,15 +1204,9 @@ textarea {
 }
 
 .dashboard-inspector .trip-identity-row {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.55rem;
-}
-
-.dashboard-inspector .trip-identity-row__actions {
-  grid-column: auto;
-  justify-self: end;
-  align-self: center;
 }
 
 .dashboard-inspector .trip-identity-row h3 {
