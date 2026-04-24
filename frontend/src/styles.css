@@ -792,7 +792,7 @@ textarea {
 .overflow-menu__dropdown {
   position: absolute;
   top: calc(100% + 0.3rem);
-  right: 0;
+  left: 0;
   z-index: 20;
   min-width: 9.5rem;
   width: max-content;
