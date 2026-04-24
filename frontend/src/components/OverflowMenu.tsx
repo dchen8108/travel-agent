@@ -18,9 +18,15 @@ interface Props {
   label?: string;
   items: OverflowMenuItem[];
   align?: "start" | "end";
+  direction?: "down" | "up";
 }
 
-export function OverflowMenu({ label = "Actions", items, align = "start" }: Props) {
+export function OverflowMenu({
+  label = "Actions",
+  items,
+  align = "start",
+  direction = "down",
+}: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -65,6 +71,8 @@ export function OverflowMenu({ label = "Actions", items, align = "start" }: Prop
         <div
           className={`overflow-menu__dropdown${
             align === "end" ? " overflow-menu__dropdown--align-end" : ""
+          }${
+            direction === "up" ? " overflow-menu__dropdown--direction-up" : ""
           }`}
           role="menu"
           aria-label={label}

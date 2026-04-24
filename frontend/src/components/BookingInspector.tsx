@@ -110,6 +110,7 @@ export function BookingInspector({
                 <OverflowMenu
                   label="Booking actions"
                   align="end"
+                  direction="up"
                   items={[
                     {
                       key: "add-booking",

@@ -808,6 +808,11 @@ textarea {
   right: 0;
 }
 
+.overflow-menu__dropdown--direction-up {
+  top: auto;
+  bottom: calc(100% + 0.3rem);
+}
+
 .overflow-menu__item {
   display: flex;
   align-items: center;
