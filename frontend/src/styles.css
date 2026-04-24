@@ -217,9 +217,15 @@ textarea {
   margin-bottom: 1rem;
 }
 
-.surface__header h2 {
+.surface__header h2,
+.section-title {
   margin: 0;
   font-size: 1.45rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--copy);
 }
 
 .surface__header-action-placeholder {
@@ -1187,13 +1193,7 @@ textarea {
 }
 
 .dashboard-inspector__title {
-  margin: 0;
-  font-size: 1.45rem;
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--copy-strong);
+  color: var(--copy);
 }
 
 .dashboard-inspector__body {

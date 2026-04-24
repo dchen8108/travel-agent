@@ -15,7 +15,7 @@ export function InspectorShell({ title, onClose, children }: Props) {
   return (
     <aside className="dashboard-inspector" aria-labelledby={titleId}>
       <div className="dashboard-inspector__close-row">
-        <h2 className="dashboard-inspector__title" id={titleId}>{title}</h2>
+        <h2 className="section-title dashboard-inspector__title" id={titleId}>{title}</h2>
         <IconButton label={`Close ${title.toLowerCase()}`} onClick={onClose}>
           <CloseIcon />
         </IconButton>
