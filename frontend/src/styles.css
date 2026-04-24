@@ -1224,6 +1224,10 @@ textarea {
   height: 100%;
 }
 
+.dashboard-inspector .modal-panel-stack--footer-overlay {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .dashboard-inspector .modal-panel-head {
   display: grid;
   gap: 0.85rem;
@@ -1284,6 +1288,14 @@ textarea {
 .dashboard-inspector .modal-footer-note {
   margin-top: 0.1rem;
   font-size: 0.82rem;
+}
+
+.dashboard-inspector .modal-panel-stack--footer-overlay .modal-footer-note {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 0.9rem;
+  margin: 0;
+  line-height: 1;
 }
 
 .modal-close-row {

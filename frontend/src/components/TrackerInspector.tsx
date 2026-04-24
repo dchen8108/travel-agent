@@ -31,7 +31,7 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
   }
 
   return (
-    <div className="modal-panel-stack">
+    <div className="modal-panel-stack modal-panel-stack--footer-overlay">
       <div className="modal-panel-head">
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
