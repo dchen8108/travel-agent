@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { bookingFormQueryKey, bookingFormQueryPrefix, bookingPanelQueryKey } from "../lib/queryKeys";
 import { BookingForm } from "./BookingForm";
+import { useConfirm } from "./ConfirmProvider";
 import { Modal } from "./Modal";
 import { useToast } from "./ToastProvider";
 import { TripIdentityRow } from "./TripIdentityRow";
@@ -49,6 +50,7 @@ export function BookingFormModal({
 }: Props) {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
+  const { confirm } = useConfirm();
   const formQuery = useQuery({
     queryKey: bookingFormQueryKey(tripInstanceId, mode === "edit" ? bookingId : ""),
     queryFn: () => api.bookingForm(tripInstanceId, mode === "edit" ? bookingId : ""),
@@ -72,6 +74,65 @@ export function BookingFormModal({
     },
   });
 
+  const rowMutation = useMutation({
+    mutationFn: async ({ bookingId, kind }: { bookingId: string; kind: "delete" | "unlink" }) => {
+      if (kind === "delete") {
+        return api.deleteBooking(bookingId, dashboardFilters);
+      }
+      return api.unlinkBooking(bookingId, dashboardFilters);
+    },
+    onSuccess: (result, variables) => {
+      if (result.panel) {
+        queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), result.panel);
+      }
+      onRefreshDashboard();
+      queryClient.removeQueries({ queryKey: bookingFormQueryPrefix(tripInstanceId) });
+      pushToast({ message: variables.kind === "delete" ? "Booking deleted" : "Booking needs linking" });
+      onClose();
+    },
+  });
+
+  async function handleDelete() {
+    if (mode !== "edit" || !bookingId) {
+      return;
+    }
+    const approved = await confirm({
+      title: "Delete this booking?",
+      description: "This removes it from the trip and from the app.",
+      actionLabel: "Delete booking",
+      cancelLabel: "Keep booking",
+      tone: "danger",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      await rowMutation.mutateAsync({ bookingId, kind: "delete" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to delete booking."), kind: "error" });
+    }
+  }
+
+  async function handleDetach() {
+    if (mode !== "edit" || !bookingId) {
+      return;
+    }
+    const approved = await confirm({
+      title: "Detach this booking from the trip?",
+      description: "It will move back to needs linking.",
+      actionLabel: "Detach booking",
+      cancelLabel: "Keep booking",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      await rowMutation.mutateAsync({ bookingId, kind: "unlink" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to detach booking."), kind: "error" });
+    }
+  }
+
   return (
     <Modal title={mode === "edit" ? "Edit booking" : "Create booking"} onClose={onClose} size="panel">
       {formQuery.isError ? (
@@ -87,6 +148,26 @@ export function BookingFormModal({
             submitLabel={formQuery.data.form.submitLabel}
             onSubmit={async (values) => saveMutation.mutateAsync(values)}
             onCancel={onClose}
+            secondaryActions={mode === "edit" ? (
+              <div className="booking-form-danger-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => void handleDetach()}
+                  disabled={saveMutation.isPending || rowMutation.isPending}
+                >
+                  Detach booking
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={() => void handleDelete()}
+                  disabled={saveMutation.isPending || rowMutation.isPending}
+                >
+                  Delete booking
+                </button>
+              </div>
+            ) : null}
           />
         </div>
       )}

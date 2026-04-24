@@ -42,8 +42,6 @@ export function BookingPanel({
       <BookingInspector
         tripInstanceId={tripInstanceId}
         initialPanel={initialPanel}
-        dashboardFilters={dashboardFilters}
-        onRefreshDashboard={onRefreshDashboard}
         onChangeMode={onChangeMode}
       />
     </Modal>

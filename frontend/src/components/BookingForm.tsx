@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { SearchSelectField } from "./SearchSelectField";
 
@@ -43,9 +43,10 @@ interface Props {
   submitLabel: string;
   onSubmit: (values: Record<string, string>) => Promise<unknown>;
   onCancel: () => void;
+  secondaryActions?: ReactNode;
 }
 
-export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, onCancel }: Props) {
+export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, onCancel, secondaryActions }: Props) {
   const [values, setValues] = useState<Record<string, string>>(initialValues);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -191,7 +192,8 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
         </label>
       </div>
       {error ? <p className="inline-error">{error}</p> : null}
-      <div className="booking-form-actions">
+      <div className={`booking-form-actions${secondaryActions ? " booking-form-actions--split" : ""}`}>
+        {secondaryActions ? secondaryActions : null}
         <button type="button" className="secondary-button" onClick={onCancel} disabled={submitting}>Cancel</button>
         <button type="submit" className="primary-button" disabled={submitting}>{submitting ? busyLabel : submitLabel}</button>
       </div>

@@ -771,8 +771,6 @@ export function DashboardPage() {
               <BookingInspector
                 tripInstanceId={panelTripInstanceId}
                 initialPanel={initialBookingPanel}
-                dashboardFilters={dashboardFilters}
-                onRefreshDashboard={refreshCurrentDashboard}
                 onChangeMode={changeBookingMode}
               />
             ) : (
