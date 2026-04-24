@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type { CollectionCard as CollectionCardValue } from "../types";
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
-import { DeleteIcon, EditIcon } from "./Icons";
+import { AddIcon, DeleteIcon, EditIcon } from "./Icons";
 import { CollectionNameEditor } from "./CollectionNameEditor";
 import { OverflowMenu } from "./OverflowMenu";
 import { PrefetchLink } from "./PrefetchLink";
@@ -94,6 +94,13 @@ export function CollectionCard({
                 label="Collection actions"
                 items={[
                   {
+                    key: "add",
+                    label: "+ Create Trip",
+                    icon: <AddIcon />,
+                    href: collection.createTripHref,
+                    onPrefetch: () => void prefetchTripEditorFromHref(queryClient, collection.createTripHref),
+                  },
+                  {
                     key: "edit",
                     label: "Edit",
                     icon: <EditIcon />,
@@ -111,13 +118,6 @@ export function CollectionCard({
             </div>
           )}
         </div>
-        <PrefetchLink
-          className="primary-button"
-          to={collection.createTripHref}
-          onPrefetch={() => void prefetchTripEditorFromHref(queryClient, collection.createTripHref)}
-        >
-          Create trip
-        </PrefetchLink>
       </div>
       {collection.recurringTrips.length > 0 ? (
         <div className="recurring-grid">

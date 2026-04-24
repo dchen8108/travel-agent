@@ -36,7 +36,7 @@ export function TripRow({
   const tripMenuItems = [
     ...(row.bookedOffer ? [{
       key: "add-booking",
-      label: "Add",
+      label: "+ Add Booking",
       icon: <AddIcon />,
       onSelect: () => onOpenBookings(tripInstanceId, "create"),
       onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
