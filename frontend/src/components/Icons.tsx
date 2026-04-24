@@ -60,7 +60,26 @@ export function ViewIcon() {
 }
 
 export function AddIcon() {
-  return svg(<path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" fill="currentColor" />);
+  return svg(
+    <>
+      <path
+        d="M12 6.75v10.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M6.75 12h10.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </>,
+  );
 }
 
 export function DragHandleIcon() {
