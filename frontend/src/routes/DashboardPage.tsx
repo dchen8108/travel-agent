@@ -775,6 +775,7 @@ export function DashboardPage() {
                 {collectionEditor?.mode !== "create" ? (
                   <IconButton
                     label="Create collection"
+                    variant="inline"
                     className="surface__header-action-button"
                     onClick={startCreateCollection}
                   >
@@ -782,7 +783,7 @@ export function DashboardPage() {
                   </IconButton>
                 ) : (
                   <span
-                    className="icon-button surface__header-action-button surface__header-action-placeholder"
+                    className="icon-button icon-button--inline surface__header-action-button surface__header-action-placeholder"
                     aria-hidden="true"
                   >
                     <AddIcon />
@@ -818,7 +819,7 @@ export function DashboardPage() {
               <div className="surface__header">
                 <h2>Trips</h2>
                 <PrefetchLink
-                  className="icon-link surface__header-action-button"
+                  className="icon-link icon-link--inline surface__header-action-button"
                   aria-label="Create trip"
                   title="Create trip"
                   to="/trips/new"
@@ -879,6 +880,7 @@ export function DashboardPage() {
             headerActions={panel === "bookings" ? (
               <IconButton
                 label="Create booking"
+                variant="inline"
                 className="surface__header-action-button"
                 onClick={() => changeBookingMode("create")}
               >
