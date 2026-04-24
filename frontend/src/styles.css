@@ -1190,7 +1190,7 @@ textarea {
   border: 1px solid var(--surface-border);
   background: rgba(255, 251, 246, 0.98);
   box-shadow: 0 22px 64px rgba(30, 39, 48, 0.14);
-  padding: 1.1rem;
+  padding: 1.5rem 1.1rem 1.1rem;
 }
 
 .dashboard-inspector__close-row {
