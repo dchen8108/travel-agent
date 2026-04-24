@@ -1173,9 +1173,11 @@ textarea {
   position: fixed;
   top: 2rem;
   right: 0.75rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   width: var(--dashboard-inspector-width);
   max-height: calc(100vh - 4rem);
-  overflow: auto;
+  overflow: hidden;
   z-index: 40;
   border-radius: 1.6rem;
   border: 1px solid var(--surface-border);
@@ -1199,6 +1201,15 @@ textarea {
 .dashboard-inspector__body {
   display: grid;
   gap: 0.9rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-inspector .modal-panel-stack {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .dashboard-inspector .modal-panel-head {
@@ -1239,6 +1250,9 @@ textarea {
 
 .dashboard-inspector .modal-list {
   border-radius: 1.45rem;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .dashboard-inspector .modal-list-row {
