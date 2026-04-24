@@ -144,6 +144,16 @@ export function RefreshIcon() {
   );
 }
 
+export function MoreIcon() {
+  return svg(
+    <>
+      <circle cx="6.5" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="17.5" cy="12" r="1.6" fill="currentColor" />
+    </>
+  );
+}
+
 export function DetachIcon() {
   return svg(
     <>

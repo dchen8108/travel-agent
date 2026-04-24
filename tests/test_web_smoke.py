@@ -2086,7 +2086,7 @@ def test_trip_activation_queues_refresh_targets_immediately(tmp_path: Path) -> N
     assert activate.headers["location"] == "/?message=Trip+activated#all-travel"
 
     refreshed_targets = repository.load_tracker_fetch_targets()
-    assert len(refreshed_targets) == 16
+    assert len(refreshed_targets) == len(fetch_targets)
     assert all(target.refresh_requested_at is not None for target in refreshed_targets)
 
 
