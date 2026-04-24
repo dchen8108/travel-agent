@@ -5,15 +5,14 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ActionItemsSection } from "../components/ActionItemsSection";
 import { BookingFormModal } from "../components/BookingFormModal";
 import { BookingInspector } from "../components/BookingInspector";
-import { BookingPanel } from "../components/BookingPanel";
 import { CollectionCard } from "../components/CollectionCard";
 import { CollectionNameEditor } from "../components/CollectionNameEditor";
 import { useConfirm } from "../components/ConfirmProvider";
 import { FilterBar } from "../components/FilterBar";
 import { InspectorShell } from "../components/InspectorShell";
+import { Modal } from "../components/Modal";
 import { PrefetchLink } from "../components/PrefetchLink";
 import { TrackerInspector } from "../components/TrackerInspector";
-import { TrackerPanel } from "../components/TrackerPanel";
 import { TripRow } from "../components/TripRow";
 import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEditorModal";
 import { useToast } from "../components/ToastProvider";
@@ -788,19 +787,29 @@ export function DashboardPage() {
       </div>
 
       {!showingDesktopInspector && panel === "bookings" && panelTripInstanceId ? (
-        <BookingPanel
-          tripInstanceId={panelTripInstanceId}
-          mode={bookingPanelState.mode}
-          bookingId={bookingPanelState.bookingId}
-          initialPanel={initialBookingPanel}
-          dashboardFilters={dashboardFilters}
-          onClose={closePanel}
-          onRefreshDashboard={refreshCurrentDashboard}
-          onChangeMode={changeBookingMode}
-        />
+        bookingPanelState.mode === "list" ? (
+          <Modal title="Bookings" onClose={closePanel} size="panel">
+            <BookingInspector
+              tripInstanceId={panelTripInstanceId}
+              initialPanel={initialBookingPanel}
+              onChangeMode={changeBookingMode}
+            />
+          </Modal>
+        ) : (
+          <BookingFormModal
+            tripInstanceId={panelTripInstanceId}
+            mode={bookingPanelState.mode}
+            bookingId={bookingPanelState.bookingId}
+            dashboardFilters={dashboardFilters}
+            onClose={() => changeBookingMode("list")}
+            onRefreshDashboard={refreshCurrentDashboard}
+          />
+        )
       ) : null}
       {!showingDesktopInspector && panel === "trackers" && panelTripInstanceId ? (
-        <TrackerPanel tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} onClose={closePanel} />
+        <Modal title="Flights" onClose={closePanel} size="compact">
+          <TrackerInspector tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} />
+        </Modal>
       ) : null}
       {showingDesktopInspector && panel === "bookings" && panelTripInstanceId && bookingPanelState.mode !== "list" ? (
         <BookingFormModal
