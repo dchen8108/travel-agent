@@ -1,8 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 
-import { CloseIcon } from "./Icons";
-import { IconButton } from "./IconButton";
-
 interface Props {
   title: string;
   onClose: () => void;
@@ -55,12 +52,7 @@ export function InspectorShell({
     <aside ref={inspectorRef} className="dashboard-inspector" aria-labelledby={titleId}>
       <div className="dashboard-inspector__close-row">
         <h2 className="section-title dashboard-inspector__title" id={titleId}>{title}</h2>
-        <div className="dashboard-inspector__actions">
-          {headerActions}
-          <IconButton label={`Close ${title.toLowerCase()}`} onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
-        </div>
+        {headerActions ? <div className="dashboard-inspector__actions">{headerActions}</div> : null}
       </div>
       <div className="dashboard-inspector__body">
         {children}
