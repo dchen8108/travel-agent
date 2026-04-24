@@ -5,7 +5,7 @@ import { prefetchOnce } from "../lib/prefetch";
 import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
 import type { BookingPanelPayload } from "../types";
 import { useConfirm } from "./ConfirmProvider";
-import { AddIcon, DeleteIcon, DetachIcon, EditIcon } from "./Icons";
+import { DeleteIcon, DetachIcon, EditIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
 import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
@@ -98,21 +98,7 @@ export function BookingInspector({
   return (
     <div className="modal-panel-stack">
       <div className="modal-panel-head">
-        <TripIdentityRow
-          trip={payload.trip}
-          showEditAction={false}
-          actions={(
-            <button
-              type="button"
-              className="icon-button surface__header-action-button"
-              aria-label="Create booking"
-              title="Create booking"
-              onClick={() => onChangeMode("create")}
-            >
-              <AddIcon />
-            </button>
-          )}
-        />
+        <TripIdentityRow trip={payload.trip} showEditAction={false} />
       </div>
       <div className="modal-list">
         {payload.rows.map((row) => (

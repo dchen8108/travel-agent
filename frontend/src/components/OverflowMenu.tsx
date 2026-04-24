@@ -120,6 +120,7 @@ export function OverflowMenu({
         <div
           ref={menuRef}
           className="overflow-menu__dropdown"
+          data-overflow-menu-portal="true"
           style={menuStyle ?? { visibility: "hidden" }}
           role="menu"
           aria-label={label}

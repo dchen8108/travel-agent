@@ -1214,6 +1214,12 @@ textarea {
   margin-bottom: 0.75rem;
 }
 
+.dashboard-inspector__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .dashboard-inspector__title {
   color: var(--copy);
 }

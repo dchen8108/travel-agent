@@ -873,7 +873,21 @@ export function DashboardPage() {
           </main>
         </div>
         {showingDesktopInspector ? (
-          <InspectorShell title={panel === "bookings" ? "Bookings" : "Flights"} onClose={closePanel}>
+          <InspectorShell
+            title={panel === "bookings" ? "Bookings" : "Flights"}
+            onClose={closePanel}
+            disableOutsideClose={(panel === "bookings" && bookingPanelState.mode !== "list") || !!editingUnmatchedBookingId}
+            headerActions={panel === "bookings" ? (
+              <IconButton
+                label="Create booking"
+                tone="accent"
+                className="surface__header-action-button"
+                onClick={() => changeBookingMode("create")}
+              >
+                <AddIcon />
+              </IconButton>
+            ) : null}
+          >
             {panel === "bookings" ? (
               <BookingInspector
                 tripInstanceId={panelTripInstanceId}
