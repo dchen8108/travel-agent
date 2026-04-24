@@ -4,15 +4,19 @@ import { api } from "../lib/api";
 import { prefetchOnce } from "../lib/prefetch";
 import { bookingFormQueryKey, bookingPanelQueryKey } from "../lib/queryKeys";
 import type { BookingPanelPayload } from "../types";
-import { EditIcon } from "./Icons";
-import { IconButton } from "./IconButton";
+import { useConfirm } from "./ConfirmProvider";
+import { AddIcon, DeleteIcon, DetachIcon, EditIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
+import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
+import { useToast } from "./ToastProvider";
 
 interface Props {
   tripInstanceId: string;
   initialPanel: BookingPanelPayload | null;
+  dashboardFilters: URLSearchParams;
   onChangeMode: (mode: "list" | "create" | "edit", bookingId?: string) => void;
+  onPanelResult: (tripInstanceId: string, panel: BookingPanelPayload | null) => Promise<void>;
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -22,9 +26,13 @@ function errorMessage(error: unknown, fallback: string) {
 export function BookingInspector({
   tripInstanceId,
   initialPanel,
+  dashboardFilters,
   onChangeMode,
+  onPanelResult,
 }: Props) {
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
+  const { pushToast } = useToast();
   const listQuery = useQuery({
     queryKey: bookingPanelQueryKey(tripInstanceId),
     queryFn: () => api.bookingPanel(tripInstanceId),
@@ -36,6 +44,45 @@ export function BookingInspector({
       queryKey: bookingFormQueryKey(tripInstanceId, bookingId),
       queryFn: () => api.bookingForm(tripInstanceId, bookingId),
     });
+  }
+
+  async function handleDelete(bookingId: string) {
+    const approved = await confirm({
+      title: "Delete this booking?",
+      description: "This removes it from the trip and from the app.",
+      actionLabel: "Delete booking",
+      cancelLabel: "Keep booking",
+      tone: "danger",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      const result = await api.deleteBooking(bookingId, dashboardFilters);
+      await onPanelResult(tripInstanceId, result.panel);
+      pushToast({ message: "Booking deleted" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to delete booking."), kind: "error" });
+    }
+  }
+
+  async function handleDetach(bookingId: string) {
+    const approved = await confirm({
+      title: "Detach this booking from the trip?",
+      description: "It will move back to needs linking.",
+      actionLabel: "Detach booking",
+      cancelLabel: "Keep booking",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      const result = await api.unlinkBooking(bookingId, dashboardFilters);
+      await onPanelResult(tripInstanceId, result.panel);
+      pushToast({ message: "Booking needs linking" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to detach booking."), kind: "error" });
+    }
   }
 
   const payload = listQuery.data;
@@ -60,18 +107,37 @@ export function BookingInspector({
               kind="booked"
               offer={row.offer}
               actions={listQuery.isPlaceholderData ? undefined : (
-                <div className="offer-action-cluster">
-                  <IconButton
-                    label="Edit booking"
-                    variant="inline"
-                    onClick={() => onChangeMode("edit", row.bookingId)}
-                    onMouseEnter={() => prefetchEditForm(row.bookingId)}
-                    onFocus={() => prefetchEditForm(row.bookingId)}
-                    onPointerDown={() => prefetchEditForm(row.bookingId)}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                </div>
+                <OverflowMenu
+                  label="Booking actions"
+                  items={[
+                    {
+                      key: "add-booking",
+                      label: "Add Booking",
+                      icon: <AddIcon />,
+                      onSelect: () => onChangeMode("create"),
+                    },
+                    {
+                      key: "edit-booking",
+                      label: "Edit",
+                      icon: <EditIcon />,
+                      onSelect: () => onChangeMode("edit", row.bookingId),
+                      onPrefetch: () => prefetchEditForm(row.bookingId),
+                    },
+                    {
+                      key: "detach-booking",
+                      label: "Detach",
+                      icon: <DetachIcon />,
+                      onSelect: () => void handleDetach(row.bookingId),
+                    },
+                    {
+                      key: "delete-booking",
+                      label: "Delete",
+                      tone: "danger",
+                      icon: <DeleteIcon />,
+                      onSelect: () => void handleDelete(row.bookingId),
+                    },
+                  ]}
+                />
               )}
             />
             {listQuery.isPlaceholderData || !row.warning ? null : (

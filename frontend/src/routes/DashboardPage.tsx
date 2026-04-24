@@ -283,6 +283,22 @@ export function DashboardPage() {
     await queryClient.invalidateQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
   }
 
+  async function handleBookingPanelResult(tripInstanceId: string, panel: BookingPanelPayload | null) {
+    if (panel) {
+      queryClient.setQueryData(bookingPanelQueryKey(tripInstanceId), panel);
+    } else {
+      queryClient.removeQueries({ queryKey: bookingPanelQueryKey(tripInstanceId), exact: true });
+    }
+    await refreshCurrentDashboard();
+    if (panelTripInstanceId === tripInstanceId) {
+      if (!panel || panel.rows.length <= 1) {
+        closePanel();
+      } else {
+        changeBookingMode("list");
+      }
+    }
+  }
+
   const collectionMutation = useMutation({
     mutationFn: async ({ label, groupId }: { label: string; groupId?: string }) => (
       groupId ? api.updateCollection(groupId, label, dashboardFilters) : api.createCollection(label, dashboardFilters)
@@ -638,6 +654,45 @@ export function DashboardPage() {
     }
   }
 
+  async function handleDeleteBooking(tripInstanceId: string, bookingId: string) {
+    const approved = await confirm({
+      title: "Delete this booking?",
+      description: "This removes it from the trip and from the app.",
+      actionLabel: "Delete booking",
+      cancelLabel: "Keep booking",
+      tone: "danger",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      const result = await api.deleteBooking(bookingId, dashboardFilters);
+      await handleBookingPanelResult(tripInstanceId, result.panel);
+      pushToast({ message: "Booking deleted" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to delete booking."), kind: "error" });
+    }
+  }
+
+  async function handleDetachBooking(tripInstanceId: string, bookingId: string) {
+    const approved = await confirm({
+      title: "Detach this booking from the trip?",
+      description: "It will move back to needs linking.",
+      actionLabel: "Detach booking",
+      cancelLabel: "Keep booking",
+    });
+    if (!approved) {
+      return;
+    }
+    try {
+      const result = await api.unlinkBooking(bookingId, dashboardFilters);
+      await handleBookingPanelResult(tripInstanceId, result.panel);
+      pushToast({ message: "Booking needs linking" });
+    } catch (error) {
+      pushToast({ message: errorMessage(error, "Unable to detach booking."), kind: "error" });
+    }
+  }
+
   async function handleLinkUnmatchedBooking(unmatchedBookingId: string, tripInstanceId: string) {
     try {
       await unmatchedMutation.mutateAsync({ unmatchedBookingId, tripInstanceId, kind: "link" });
@@ -688,6 +743,8 @@ export function DashboardPage() {
                   onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
                   onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                   onDeleteTrip={handleDeleteTrip}
+                  onDeleteBooking={handleDeleteBooking}
+                  onDetachBooking={handleDetachBooking}
                   activeTripInstanceId={panelTripInstanceId}
                   onLinkUnmatchedBooking={handleLinkUnmatchedBooking}
                   onEditUnmatchedBooking={handleEditUnmatchedBooking}
@@ -788,6 +845,8 @@ export function DashboardPage() {
                         onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
                         onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                         onDelete={handleDeleteTrip}
+                        onDeleteBooking={handleDeleteBooking}
+                        onDetachBooking={handleDetachBooking}
                         isActive={panelTripInstanceId === row.trip.tripInstanceId}
                         onPrefetchBookings={prefetchBookingPanel}
                         onPrefetchCreateBooking={prefetchBookingCreateFlow}
@@ -819,7 +878,9 @@ export function DashboardPage() {
               <BookingInspector
                 tripInstanceId={panelTripInstanceId}
                 initialPanel={initialBookingPanel}
+                dashboardFilters={dashboardFilters}
                 onChangeMode={changeBookingMode}
+                onPanelResult={handleBookingPanelResult}
               />
             ) : (
               <TrackerInspector tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} />
@@ -834,7 +895,9 @@ export function DashboardPage() {
             <BookingInspector
               tripInstanceId={panelTripInstanceId}
               initialPanel={initialBookingPanel}
+              dashboardFilters={dashboardFilters}
               onChangeMode={changeBookingMode}
+              onPanelResult={handleBookingPanelResult}
             />
           </Modal>
         ) : (

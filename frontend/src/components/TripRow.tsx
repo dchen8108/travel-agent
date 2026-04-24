@@ -2,8 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import type { TripRow as TripRowValue } from "../types";
-import { AddIcon, DeleteIcon, EditIcon } from "./Icons";
-import { IconButton } from "./IconButton";
+import { AddIcon, DeleteIcon, DetachIcon, EditIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
 import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
@@ -13,6 +12,8 @@ interface Props {
   onOpenBookings: (tripInstanceId: string, mode: "list" | "create" | "edit", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDelete: (row: TripRowValue) => void;
+  onDeleteBooking: (tripInstanceId: string, bookingId: string) => void;
+  onDetachBooking: (tripInstanceId: string, bookingId: string) => void;
   isActive?: boolean;
   onPrefetchBookings?: (tripInstanceId: string) => void;
   onPrefetchCreateBooking?: (tripInstanceId: string) => void;
@@ -25,6 +26,8 @@ export function TripRow({
   onOpenBookings,
   onOpenTrackers,
   onDelete,
+  onDeleteBooking,
+  onDetachBooking,
   isActive = false,
   onPrefetchBookings,
   onPrefetchCreateBooking,
@@ -34,13 +37,6 @@ export function TripRow({
   const queryClient = useQueryClient();
   const tripInstanceId = row.trip.tripInstanceId;
   const tripMenuItems = [
-    ...(row.bookedOffer ? [{
-      key: "add-booking",
-      label: "Add Booking",
-      icon: <AddIcon />,
-      onSelect: () => onOpenBookings(tripInstanceId, "create"),
-      onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
-    }] : []),
     {
       key: "edit",
       label: "Edit",
@@ -77,18 +73,38 @@ export function TripRow({
           onPrefetchAction={row.actions.showBookingModal ? () => onPrefetchBookings?.(tripInstanceId) : undefined}
           actions={
             row.actions.editBookingId ? (
-              <div className="offer-action-cluster">
-                <IconButton
-                  label="Edit booking"
-                  variant="inline"
-                  onClick={() => onOpenBookings(tripInstanceId, "edit", row.actions.editBookingId)}
-                  onMouseEnter={() => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId)}
-                  onFocus={() => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId)}
-                  onPointerDown={() => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId)}
-                >
-                  <EditIcon />
-                </IconButton>
-              </div>
+              <OverflowMenu
+                label="Booking actions"
+                items={[
+                  {
+                    key: "add-booking",
+                    label: "Add Booking",
+                    icon: <AddIcon />,
+                    onSelect: () => onOpenBookings(tripInstanceId, "create"),
+                    onPrefetch: () => onPrefetchCreateBooking?.(tripInstanceId),
+                  },
+                  {
+                    key: "edit-booking",
+                    label: "Edit",
+                    icon: <EditIcon />,
+                    onSelect: () => onOpenBookings(tripInstanceId, "edit", row.actions.editBookingId),
+                    onPrefetch: () => onPrefetchEditBooking?.(tripInstanceId, row.actions.editBookingId),
+                  },
+                  {
+                    key: "detach-booking",
+                    label: "Detach",
+                    icon: <DetachIcon />,
+                    onSelect: () => onDetachBooking(tripInstanceId, row.actions.editBookingId),
+                  },
+                  {
+                    key: "delete-booking",
+                    label: "Delete",
+                    tone: "danger" as const,
+                    icon: <DeleteIcon />,
+                    onSelect: () => onDeleteBooking(tripInstanceId, row.actions.editBookingId),
+                  },
+                ]}
+              />
             ) : undefined
           }
         />

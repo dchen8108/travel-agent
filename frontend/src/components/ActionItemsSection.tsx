@@ -16,6 +16,8 @@ interface Props {
   onOpenBookings: (tripInstanceId: string, mode: "list" | "create" | "edit", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDeleteTrip: (row: TripRowValue) => void;
+  onDeleteBooking: (tripInstanceId: string, bookingId: string) => void;
+  onDetachBooking: (tripInstanceId: string, bookingId: string) => void;
   activeTripInstanceId?: string;
   onLinkUnmatchedBooking: (unmatchedBookingId: string, tripInstanceId: string) => Promise<void>;
   onEditUnmatchedBooking: (unmatchedBookingId: string) => void;
@@ -31,6 +33,8 @@ export function ActionItemsSection({
   onOpenBookings,
   onOpenTrackers,
   onDeleteTrip,
+  onDeleteBooking,
+  onDetachBooking,
   activeTripInstanceId = "",
   onLinkUnmatchedBooking,
   onEditUnmatchedBooking,
@@ -74,6 +78,8 @@ export function ActionItemsSection({
                 onOpenBookings={onOpenBookings}
                 onOpenTrackers={onOpenTrackers}
                 onDelete={onDeleteTrip}
+                onDeleteBooking={onDeleteBooking}
+                onDetachBooking={onDetachBooking}
                 isActive={activeTripInstanceId === item.row.trip.tripInstanceId}
                 onPrefetchBookings={onPrefetchBookings}
                 onPrefetchCreateBooking={onPrefetchCreateBooking}
