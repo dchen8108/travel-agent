@@ -31,24 +31,26 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
   }
 
   return (
-    <div className="modal-panel-stack modal-panel-stack--footer-overlay">
+    <div className="modal-panel-stack modal-panel-stack--footer-shell">
       <div className="modal-panel-head">
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
-      {panelQuery.data.rows.length ? (
-        <div className="modal-list">
-          {panelQuery.data.rows.map((row) => (
-            <article key={row.rowId} className="modal-list-row modal-list-row--tracker">
-              <OfferBlock kind="live" offer={row.offer} />
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
-      )}
-      {panelQuery.data.lastRefreshLabel ? (
-        <div className="modal-footer-note">{panelQuery.data.lastRefreshLabel}</div>
-      ) : null}
+      <div className="modal-list-shell">
+        {panelQuery.data.rows.length ? (
+          <div className="modal-list">
+            {panelQuery.data.rows.map((row) => (
+              <article key={row.rowId} className="modal-list-row modal-list-row--tracker">
+                <OfferBlock kind="live" offer={row.offer} />
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
+        )}
+        {panelQuery.data.lastRefreshLabel ? (
+          <div className="modal-footer-note modal-footer-note--inspector">{panelQuery.data.lastRefreshLabel}</div>
+        ) : null}
+      </div>
     </div>
   );
 }
