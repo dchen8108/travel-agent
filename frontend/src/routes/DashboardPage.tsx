@@ -3,12 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ActionItemsSection } from "../components/ActionItemsSection";
+import { AddIcon } from "../components/Icons";
 import { BookingFormModal } from "../components/BookingFormModal";
 import { BookingInspector } from "../components/BookingInspector";
 import { CollectionCard } from "../components/CollectionCard";
 import { CollectionNameEditor } from "../components/CollectionNameEditor";
 import { useConfirm } from "../components/ConfirmProvider";
 import { FilterBar } from "../components/FilterBar";
+import { IconButton } from "../components/IconButton";
 import { InspectorShell } from "../components/InspectorShell";
 import { Modal } from "../components/Modal";
 import { PrefetchLink } from "../components/PrefetchLink";
@@ -722,12 +724,20 @@ export function DashboardPage() {
               <div className="surface__header">
                 <h2>Collections</h2>
                 {collectionEditor?.mode !== "create" ? (
-                  <button type="button" className="primary-button" onClick={startCreateCollection}>
-                    Create collection
-                  </button>
+                  <IconButton
+                    label="Create collection"
+                    tone="accent"
+                    className="surface__header-action-button"
+                    onClick={startCreateCollection}
+                  >
+                    <AddIcon />
+                  </IconButton>
                 ) : (
-                  <span className="primary-button surface__header-action-placeholder" aria-hidden="true">
-                    Create collection
+                  <span
+                    className="icon-button icon-button--accent surface__header-action-button surface__header-action-placeholder"
+                    aria-hidden="true"
+                  >
+                    <AddIcon />
                   </span>
                 )}
               </div>
@@ -760,11 +770,13 @@ export function DashboardPage() {
               <div className="surface__header">
                 <h2>Trips</h2>
                 <PrefetchLink
-                  className="primary-button"
+                  className="icon-link surface__header-action-button"
+                  aria-label="Create trip"
+                  title="Create trip"
                   to="/trips/new"
                   onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
                 >
-                  Create trip
+                  <AddIcon />
                 </PrefetchLink>
               </div>
               {dashboardQuery.data ? (

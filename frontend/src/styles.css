@@ -227,6 +227,24 @@ textarea {
   pointer-events: none;
 }
 
+.surface__header-action-button.icon-button,
+.surface__header-action-button.icon-link {
+  width: 2.9rem;
+  height: 2.9rem;
+  min-width: 2.9rem;
+  min-height: 2.9rem;
+  border-color: rgba(17, 142, 132, 0.32);
+  background: rgba(214, 238, 233, 0.72);
+  color: var(--accent-strong);
+}
+
+.surface__header-action-button.icon-button:hover,
+.surface__header-action-button.icon-button:focus-visible,
+.surface__header-action-button.icon-link:hover,
+.surface__header-action-button.icon-link:focus-visible {
+  background: rgba(198, 232, 226, 0.96);
+}
+
 .quiet-state-card {
   display: grid;
   gap: 0.35rem;
