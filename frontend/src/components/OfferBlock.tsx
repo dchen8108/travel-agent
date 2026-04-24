@@ -65,27 +65,13 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
 
   const offerMain = (
     <>
-      <div className="offer-block__main">
+      <div className="offer-block__airline">
         <AirlineMark airlineKey={offer.airlineKey} />
-        <div className="offer-block__copy">
-          <div className="offer-block__label-row">
-            <span className="offer-block__label">{offer.label}</span>
-          </div>
-          <strong className="offer-block__detail">{offer.detail}</strong>
-          {offer.primaryMetaLabel ? (
-            <div className="offer-block__primary-meta-row">
-              <span className="offer-block__primary-meta">{renderPrimaryMeta(offer.primaryMetaLabel)}</span>
-            </div>
-          ) : null}
-          {offer.metaBadges.length ? (
-            <div className="offer-block__badge-row">
-              {offer.metaBadges.map((badge) => (
-                <span key={badge} className="offer-block__badge">{badge}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
       </div>
+      <div className="offer-block__label-row">
+        <span className="offer-block__label">{offer.label}</span>
+      </div>
+      <strong className="offer-block__detail">{offer.detail}</strong>
       <div className="offer-block__price-column">
         {offer.priceIsStatus && offer.statusKind === "pending" ? (
           <span className="offer-block__status-icon"><RefreshIcon /></span>
@@ -93,6 +79,18 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
           <strong className={`offer-block__price offer-block__price--${offer.tone}`}>{offer.priceLabel}</strong>
         )}
       </div>
+      {offer.primaryMetaLabel ? (
+        <div className="offer-block__primary-meta-row">
+          <span className="offer-block__primary-meta">{renderPrimaryMeta(offer.primaryMetaLabel)}</span>
+        </div>
+      ) : null}
+      {offer.metaBadges.length ? (
+        <div className="offer-block__badge-row">
+          {offer.metaBadges.map((badge) => (
+            <span key={badge} className="offer-block__badge">{badge}</span>
+          ))}
+        </div>
+      ) : null}
     </>
   );
 

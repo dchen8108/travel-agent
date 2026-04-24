@@ -972,18 +972,32 @@ textarea {
 
 .offer-block__content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.55rem;
+  column-gap: 0.75rem;
+  row-gap: 0.3rem;
   min-width: 0;
 }
 
-.offer-block__main {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 0.75rem;
+.offer-block__airline {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: center;
+}
+
+.offer-block__content > .offer-block__label-row,
+.offer-block__content > .offer-block__primary-meta-row,
+.offer-block__content > .offer-block__badge-row {
+  grid-column: 2 / 4;
+}
+
+.offer-block__content > .offer-block__detail {
+  grid-column: 2;
   min-width: 0;
+}
+
+.offer-block__content > .offer-block__price-column {
+  grid-column: 3;
 }
 
 .offer-block__content--link {
@@ -1000,12 +1014,6 @@ textarea {
 .offer-block__content--link:focus-visible {
   outline: 2px solid rgba(17, 142, 132, 0.28);
   outline-offset: 0.2rem;
-}
-
-.offer-block__copy {
-  min-width: 0;
-  display: grid;
-  gap: 0.35rem;
 }
 
 .airline-mark {
@@ -1045,9 +1053,8 @@ textarea {
 .offer-block__label-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .offer-block__label {
@@ -1068,6 +1075,7 @@ textarea {
   display: flex;
   align-items: center;
   min-height: 1.1rem;
+  min-width: 0;
 }
 
 .offer-block__primary-meta {
@@ -1086,6 +1094,7 @@ textarea {
   align-items: center;
   gap: 0.45rem;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .offer-block__badge {
@@ -1376,8 +1385,8 @@ textarea {
   font-size: 0.98rem;
 }
 
-.modal-list-row--tracker .offer-block__copy {
-  gap: 0.3rem;
+.modal-list-row--tracker .offer-block__content {
+  row-gap: 0.25rem;
 }
 
 .modal-row-warning {
