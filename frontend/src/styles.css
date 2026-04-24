@@ -1334,16 +1334,6 @@ textarea {
   justify-content: flex-end;
 }
 
-.booking-form-actions--split {
-  align-items: center;
-  justify-content: space-between;
-}
-
-.booking-form-danger-actions {
-  display: flex;
-  gap: 0.7rem;
-}
-
 .unmatched-booking-editor__head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -2093,15 +2083,6 @@ body.route-drag-active {
     padding-top: 0.85rem;
     padding-bottom: 0.1rem;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.96) 38%);
-  }
-
-  .booking-form-actions--split {
-    justify-content: flex-end;
-  }
-
-  .booking-form-danger-actions {
-    width: 100%;
-    justify-content: flex-end;
   }
 
   .time-range-field {
