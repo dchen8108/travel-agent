@@ -95,7 +95,7 @@ export function CollectionCard({
                 items={[
                   {
                     key: "add",
-                    label: "+ Create Trip",
+                    label: "Create Trip",
                     icon: <AddIcon />,
                     href: collection.createTripHref,
                     onPrefetch: () => void prefetchTripEditorFromHref(queryClient, collection.createTripHref),
