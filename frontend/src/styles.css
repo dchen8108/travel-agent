@@ -986,7 +986,6 @@ textarea {
 
 .offer-block__airline {
   grid-area: airline;
-  grid-row: 2 / 4;
   align-self: center;
 }
 
@@ -1118,6 +1117,8 @@ textarea {
 .offer-block__actions {
   display: inline-flex;
   align-items: center;
+  align-self: start;
+  margin-top: calc(0.78rem * 1.1 + 0.18rem + 0.25rem);
 }
 
 .offer-block__price {
