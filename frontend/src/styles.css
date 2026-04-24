@@ -803,6 +803,11 @@ textarea {
   box-shadow: 0 18px 38px rgba(30, 56, 70, 0.16);
 }
 
+.overflow-menu__dropdown--align-end {
+  left: auto;
+  right: 0;
+}
+
 .overflow-menu__item {
   display: flex;
   align-items: center;

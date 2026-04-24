@@ -109,6 +109,7 @@ export function BookingInspector({
               actions={listQuery.isPlaceholderData ? undefined : (
                 <OverflowMenu
                   label="Booking actions"
+                  align="end"
                   items={[
                     {
                       key: "add-booking",

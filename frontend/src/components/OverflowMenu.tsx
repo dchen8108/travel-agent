@@ -17,9 +17,10 @@ interface OverflowMenuItem {
 interface Props {
   label?: string;
   items: OverflowMenuItem[];
+  align?: "start" | "end";
 }
 
-export function OverflowMenu({ label = "Actions", items }: Props) {
+export function OverflowMenu({ label = "Actions", items, align = "start" }: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -61,7 +62,13 @@ export function OverflowMenu({ label = "Actions", items }: Props) {
         <MoreIcon />
       </IconButton>
       {open ? (
-        <div className="overflow-menu__dropdown" role="menu" aria-label={label}>
+        <div
+          className={`overflow-menu__dropdown${
+            align === "end" ? " overflow-menu__dropdown--align-end" : ""
+          }`}
+          role="menu"
+          aria-label={label}
+        >
           {items.map((item) => (
             item.href ? (
               <PrefetchLink
