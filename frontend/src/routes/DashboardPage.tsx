@@ -155,6 +155,13 @@ function trackerPanelPreview(row: TripRowValue | undefined): TrackerPanelPayload
   };
 }
 
+function desktopInspectorPreferred() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(min-width: 2000px)").matches;
+}
+
 export function DashboardPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -169,7 +176,7 @@ export function DashboardPage() {
     initialBookingPanelState(searchParams)
   ));
   const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
-  const [useDesktopInspector, setUseDesktopInspector] = useState(false);
+  const [useDesktopInspector, setUseDesktopInspector] = useState(() => desktopInspectorPreferred());
 
   const panel = searchParams.get("panel");
   const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
