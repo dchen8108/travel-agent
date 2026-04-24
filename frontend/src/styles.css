@@ -1277,7 +1277,7 @@ textarea {
   position: relative;
   display: grid;
   min-height: 0;
-  padding-bottom: 1.2rem;
+  padding-bottom: 1.25rem;
 }
 
 .dashboard-inspector .modal-list-row {
@@ -1299,8 +1299,12 @@ textarea {
 
 .dashboard-inspector .modal-footer-note--inspector {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 1.25rem;
   margin: 0;
   line-height: 1;
 }
