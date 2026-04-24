@@ -790,10 +790,8 @@ textarea {
 }
 
 .overflow-menu__dropdown {
-  position: absolute;
-  top: calc(100% + 0.3rem);
-  left: 0;
-  z-index: 20;
+  position: fixed;
+  z-index: 80;
   min-width: 9.5rem;
   width: max-content;
   padding: 0.35rem;

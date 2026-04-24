@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { MoreIcon } from "./Icons";
 import { IconButton } from "./IconButton";
@@ -28,6 +29,9 @@ export function OverflowMenu({
   direction = "down",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -36,7 +40,8 @@ export function OverflowMenu({
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !rootRef.current?.contains(target)) {
         setOpen(false);
       }
     }
@@ -55,25 +60,67 @@ export function OverflowMenu({
     };
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current || !menuRef.current) {
+      return;
+    }
+
+    const gutter = 8;
+    const gap = 6;
+
+    const updatePosition = () => {
+      if (!triggerRef.current || !menuRef.current) {
+        return;
+      }
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const menuRect = menuRef.current.getBoundingClientRect();
+
+      let left = align === "end"
+        ? triggerRect.right - menuRect.width
+        : triggerRect.left;
+      left = Math.max(gutter, Math.min(left, window.innerWidth - menuRect.width - gutter));
+
+      let top = direction === "up"
+        ? triggerRect.top - menuRect.height - gap
+        : triggerRect.bottom + gap;
+      top = Math.max(gutter, Math.min(top, window.innerHeight - menuRect.height - gutter));
+
+      setMenuStyle({
+        left,
+        top,
+        visibility: "visible",
+      });
+    };
+
+    setMenuStyle((current) => ({ ...current, visibility: "hidden" }));
+    updatePosition();
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [align, direction, open]);
+
   return (
-    <div className="overflow-menu" ref={menuRef}>
+    <div className="overflow-menu" ref={rootRef}>
       <IconButton
         label={label}
         variant="inline"
         className={open ? "overflow-menu__trigger is-open" : "overflow-menu__trigger"}
         aria-haspopup="menu"
         aria-expanded={open}
+        ref={triggerRef}
         onClick={() => setOpen((current) => !current)}
       >
         <MoreIcon />
       </IconButton>
-      {open ? (
+      {open ? createPortal(
         <div
-          className={`overflow-menu__dropdown${
-            align === "end" ? " overflow-menu__dropdown--align-end" : ""
-          }${
-            direction === "up" ? " overflow-menu__dropdown--direction-up" : ""
-          }`}
+          ref={menuRef}
+          className="overflow-menu__dropdown"
+          style={menuStyle ?? { visibility: "hidden" }}
           role="menu"
           aria-label={label}
         >
@@ -109,7 +156,8 @@ export function OverflowMenu({
               </button>
             )
           ))}
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
