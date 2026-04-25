@@ -5,7 +5,11 @@ from datetime import datetime
 from googleapiclient.errors import HttpError
 from httplib2 import Response
 
-from app.jobs.poll_gmail_bookings import _record_message_processing_error, _select_message_ids_for_poll
+from app.jobs.poll_gmail_bookings import (
+    _history_id_after_run,
+    _record_message_processing_error,
+    _select_message_ids_for_poll,
+)
 from app.models.base import BookingEmailEventStatus
 from app.models.booking_email_event import BookingEmailEvent
 
@@ -280,3 +284,27 @@ def test_record_message_processing_error_reuses_existing_event_and_marks_termina
     assert updated.retryable is False
     assert updated.extraction_attempt_count == 2
     assert "This email will not be retried automatically." in updated.notes
+
+
+def test_history_id_after_run_preserves_incremental_checkpoint_when_retryable_errors_occur() -> None:
+    assert _history_id_after_run(
+        history_id_before="250",
+        latest_history_id="300",
+        retryable_error_found=True,
+    ) == "250"
+
+
+def test_history_id_after_run_advances_when_no_retryable_errors_occur() -> None:
+    assert _history_id_after_run(
+        history_id_before="250",
+        latest_history_id="300",
+        retryable_error_found=False,
+    ) == "300"
+
+
+def test_history_id_after_run_advances_initial_backfill_even_when_retryable_errors_occur() -> None:
+    assert _history_id_after_run(
+        history_id_before="",
+        latest_history_id="300",
+        retryable_error_found=True,
+    ) == "300"

@@ -91,6 +91,17 @@ class MessageSelection:
     history_id_before: str
 
 
+def _history_id_after_run(
+    *,
+    history_id_before: str,
+    latest_history_id: str,
+    retryable_error_found: bool,
+) -> str:
+    if retryable_error_found and history_id_before:
+        return history_id_before
+    return latest_history_id
+
+
 def _retryable_message_error(exc: Exception) -> bool:
     if isinstance(exc, HttpError):
         status = _http_error_status(exc)
@@ -252,6 +263,7 @@ def main() -> None:
         )
         stage = "process"
         any_state_changes = False
+        retryable_error_message_ids: list[str] = []
         for message_id in reversed(selection.message_ids):
             try:
                 message = fetch_gmail_message(service, message_id)
@@ -265,6 +277,8 @@ def main() -> None:
                     )
                 processed_count += 1
                 error_count += 1
+                if event.retryable:
+                    retryable_error_message_ids.append(message_id)
                 _emit_log(
                     "message_processed",
                     run_id=run_id,
@@ -298,6 +312,8 @@ def main() -> None:
                 duplicate_count += 1
             elif status == "error":
                 error_count += 1
+                if result.event.retryable:
+                    retryable_error_message_ids.append(result.event.gmail_message_id)
             if result.state_changed:
                 any_state_changes = True
             _emit_log(
@@ -321,7 +337,12 @@ def main() -> None:
         if any_state_changes:
             stage = "sync"
             sync_and_persist(repository)
-        sync_state.last_history_id = selection.latest_history_id
+        history_id_after = _history_id_after_run(
+            history_id_before=selection.history_id_before,
+            latest_history_id=selection.latest_history_id,
+            retryable_error_found=bool(retryable_error_message_ids),
+        )
+        sync_state.last_history_id = history_id_after
         sync_state.last_polled_at = utcnow()
         save_gmail_sync_state(settings, sync_state)
         _emit_log(
@@ -334,7 +355,9 @@ def main() -> None:
             ignored_count=ignored_count,
             duplicate_count=duplicate_count,
             error_count=error_count,
-            history_id_after=selection.latest_history_id,
+            history_id_after=history_id_after,
+            history_advanced=history_id_after == selection.latest_history_id,
+            retryable_error_message_ids=retryable_error_message_ids,
             state_changed=any_state_changes,
         )
     except (GmailAuthorizationRequired, HttpError, RuntimeError, ValueError) as exc:

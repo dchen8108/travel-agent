@@ -19,6 +19,11 @@ import { TripRow } from "../components/TripRow";
 import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEditorModal";
 import { useToast } from "../components/ToastProvider";
 import { api } from "../lib/api";
+import {
+  buildDashboardFilters,
+  DASHBOARD_PARAM_KEYS,
+  parseDashboardUrlState,
+} from "../lib/dashboardUrlState";
 import { prefetchOnce } from "../lib/prefetch";
 import {
   bookingFormQueryKey,
@@ -35,21 +40,6 @@ import type {
   TrackerPanelPayload,
   TripRow as TripRowValue,
 } from "../types";
-
-function initialCollectionEditor(searchParams: URLSearchParams) {
-  if (searchParams.get("create_group") === "1") {
-    return { mode: "create" as const };
-  }
-  const groupId = searchParams.get("edit_group_id") ?? "";
-  return groupId ? { mode: "edit" as const, groupId } : null;
-}
-
-function initialBookingPanelState(searchParams: URLSearchParams) {
-  return {
-    mode: (searchParams.get("booking_mode") as "list" | "create" | "edit" | null) ?? "list",
-    bookingId: searchParams.get("booking_id") ?? "",
-  };
-}
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -173,22 +163,11 @@ export function DashboardPage() {
   const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
   const [useDesktopInspector, setUseDesktopInspector] = useState(() => desktopInspectorPreferred());
 
-  const panel = searchParams.get("panel");
-  const panelTripInstanceId = searchParams.get("trip_instance_id") ?? "";
-  const collectionEditor = useMemo(() => initialCollectionEditor(searchParams), [searchParams]);
-  const bookingPanelState = useMemo(() => initialBookingPanelState(searchParams), [searchParams]);
-  const selectedTripGroupIds = searchParams.getAll("trip_group_id");
-  const includeBooked = searchParams.get("include_booked") !== "false";
+  const { panel, panelTripInstanceId, collectionEditor, bookingPanelState, selectedTripGroupIds, includeBooked } =
+    useMemo(() => parseDashboardUrlState(searchParams), [searchParams]);
 
   const dashboardFilters = useMemo(() => {
-    const params = new URLSearchParams();
-    for (const value of [...selectedTripGroupIds].sort()) {
-      params.append("trip_group_id", value);
-    }
-    if (!includeBooked) {
-      params.set("include_booked", "false");
-    }
-    return params;
+    return buildDashboardFilters(selectedTripGroupIds, includeBooked);
   }, [includeBooked, selectedTripGroupIds]);
   const dashboardQueryString = dashboardFilters.toString();
 
@@ -209,17 +188,17 @@ export function DashboardPage() {
   }, [location.hash, location.pathname, location.search, location.state, navigate, pushToast]);
 
   useEffect(() => {
-    const message = searchParams.get("message");
+    const message = searchParams.get(DASHBOARD_PARAM_KEYS.message);
     if (!message) {
       return;
     }
     pushToast({
       message,
-      kind: searchParams.get("message_kind") === "error" ? "error" : "success",
+      kind: searchParams.get(DASHBOARD_PARAM_KEYS.messageKind) === "error" ? "error" : "success",
     });
     const next = new URLSearchParams(searchParams);
-    next.delete("message");
-    next.delete("message_kind");
+    next.delete(DASHBOARD_PARAM_KEYS.message);
+    next.delete(DASHBOARD_PARAM_KEYS.messageKind);
     setSearchParams(next, { replace: true });
   }, [pushToast, searchParams, setSearchParams]);
 
@@ -333,13 +312,13 @@ export function DashboardPage() {
       if (selectedTripGroupIds.includes(groupId) || (collectionEditor?.mode === "edit" && collectionEditor.groupId === groupId)) {
         updateDashboardSearchParams((next) => {
           if (selectedTripGroupIds.includes(groupId)) {
-            const remaining = next.getAll("trip_group_id").filter((value) => value !== groupId);
-            next.delete("trip_group_id");
-            remaining.forEach((value) => next.append("trip_group_id", value));
+            const remaining = next.getAll(DASHBOARD_PARAM_KEYS.tripGroupId).filter((value) => value !== groupId);
+            next.delete(DASHBOARD_PARAM_KEYS.tripGroupId);
+            remaining.forEach((value) => next.append(DASHBOARD_PARAM_KEYS.tripGroupId, value));
           }
           if (collectionEditor?.mode === "edit" && collectionEditor.groupId === groupId) {
-            next.delete("create_group");
-            next.delete("edit_group_id");
+            next.delete(DASHBOARD_PARAM_KEYS.createCollection);
+            next.delete(DASHBOARD_PARAM_KEYS.editCollectionId);
           }
         }, { replace: true });
       }
@@ -447,14 +426,14 @@ export function DashboardPage() {
 
   function toggleGroupFilter(groupId: string) {
     updateDashboardSearchParams((next) => {
-      const current = new Set(next.getAll("trip_group_id"));
+      const current = new Set(next.getAll(DASHBOARD_PARAM_KEYS.tripGroupId));
       if (current.has(groupId)) {
         current.delete(groupId);
       } else {
         current.add(groupId);
       }
-      next.delete("trip_group_id");
-      [...current].forEach((value) => next.append("trip_group_id", value));
+      next.delete(DASHBOARD_PARAM_KEYS.tripGroupId);
+      [...current].forEach((value) => next.append(DASHBOARD_PARAM_KEYS.tripGroupId, value));
     }, { replace: true });
   }
 
@@ -463,15 +442,15 @@ export function DashboardPage() {
       return;
     }
     updateDashboardSearchParams((next) => {
-      next.delete("create_group");
-      next.delete("edit_group_id");
+      next.delete(DASHBOARD_PARAM_KEYS.createCollection);
+      next.delete(DASHBOARD_PARAM_KEYS.editCollectionId);
     }, { replace: true });
   }
 
   function startCreateCollection() {
     updateDashboardSearchParams((next) => {
-      next.set("create_group", "1");
-      next.delete("edit_group_id");
+      next.set(DASHBOARD_PARAM_KEYS.createCollection, "1");
+      next.delete(DASHBOARD_PARAM_KEYS.editCollectionId);
     }, { replace: true });
   }
 
@@ -481,8 +460,8 @@ export function DashboardPage() {
 
   function startEditCollection(groupId: string) {
     updateDashboardSearchParams((next) => {
-      next.delete("create_group");
-      next.set("edit_group_id", groupId);
+      next.delete(DASHBOARD_PARAM_KEYS.createCollection);
+      next.set(DASHBOARD_PARAM_KEYS.editCollectionId, groupId);
     }, { replace: true });
   }
 
@@ -507,9 +486,9 @@ export function DashboardPage() {
   function toggleBookedFilter() {
     updateDashboardSearchParams((next) => {
       if (includeBooked) {
-        next.set("include_booked", "false");
+        next.set(DASHBOARD_PARAM_KEYS.includeBooked, "false");
       } else {
-        next.delete("include_booked");
+        next.delete(DASHBOARD_PARAM_KEYS.includeBooked);
       }
     }, { replace: true });
   }
@@ -555,28 +534,28 @@ export function DashboardPage() {
       return;
     }
     updateDashboardSearchParams((next) => {
-      next.set("panel", nextPanel);
-      next.set("trip_instance_id", tripInstanceId);
+      next.set(DASHBOARD_PARAM_KEYS.panel, nextPanel);
+      next.set(DASHBOARD_PARAM_KEYS.tripInstanceId, tripInstanceId);
       if (nextPanel === "bookings" && mode !== "list") {
-        next.set("booking_mode", mode);
+        next.set(DASHBOARD_PARAM_KEYS.bookingMode, mode);
         if (bookingId) {
-          next.set("booking_id", bookingId);
+          next.set(DASHBOARD_PARAM_KEYS.bookingId, bookingId);
         } else {
-          next.delete("booking_id");
+          next.delete(DASHBOARD_PARAM_KEYS.bookingId);
         }
       } else {
-        next.delete("booking_mode");
-        next.delete("booking_id");
+        next.delete(DASHBOARD_PARAM_KEYS.bookingMode);
+        next.delete(DASHBOARD_PARAM_KEYS.bookingId);
       }
     });
   }
 
   function closePanel() {
     updateDashboardSearchParams((next) => {
-      next.delete("panel");
-      next.delete("trip_instance_id");
-      next.delete("booking_mode");
-      next.delete("booking_id");
+      next.delete(DASHBOARD_PARAM_KEYS.panel);
+      next.delete(DASHBOARD_PARAM_KEYS.tripInstanceId);
+      next.delete(DASHBOARD_PARAM_KEYS.bookingMode);
+      next.delete(DASHBOARD_PARAM_KEYS.bookingId);
     });
   }
 
@@ -591,14 +570,14 @@ export function DashboardPage() {
     }
     updateDashboardSearchParams((next) => {
       if (mode === "list") {
-        next.delete("booking_mode");
-        next.delete("booking_id");
+        next.delete(DASHBOARD_PARAM_KEYS.bookingMode);
+        next.delete(DASHBOARD_PARAM_KEYS.bookingId);
       } else {
-        next.set("booking_mode", mode);
+        next.set(DASHBOARD_PARAM_KEYS.bookingMode, mode);
         if (bookingId) {
-          next.set("booking_id", bookingId);
+          next.set(DASHBOARD_PARAM_KEYS.bookingId, bookingId);
         } else {
-          next.delete("booking_id");
+          next.delete(DASHBOARD_PARAM_KEYS.bookingId);
         }
       }
     });

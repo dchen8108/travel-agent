@@ -10,7 +10,7 @@ from app.models.tracker import Tracker
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.services.bookings import BookingCandidate, record_booking
-from app.services.dashboard_snapshot import load_live_snapshot, load_persisted_snapshot
+from app.services.dashboard_snapshot import _snapshot_signature, load_live_snapshot, load_persisted_snapshot
 from app.services.trips import save_trip
 from app.settings import Settings
 from app.storage.repository import Repository
@@ -74,6 +74,24 @@ def test_load_persisted_snapshot_returns_isolated_copies(tmp_path: Path) -> None
     second = load_persisted_snapshot(repository)
 
     assert second.trips[0].label == "Live Trip"
+
+
+def test_snapshot_signature_tracks_sqlite_wal_sidecar_changes(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    before = _snapshot_signature(repository)
+
+    wal_path = Path(f"{repository.db_path}-wal")
+    wal_path.write_bytes(b"first-write")
+    after_create = _snapshot_signature(repository)
+
+    wal_path.write_bytes(b"second-write-with-more-bytes")
+    after_update = _snapshot_signature(repository)
+
+    assert before != after_create
+    assert after_create != after_update
 
 
 def test_record_booking_ignores_test_trackers_when_processing_disabled(tmp_path: Path) -> None:
