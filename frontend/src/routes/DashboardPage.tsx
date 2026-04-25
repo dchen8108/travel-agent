@@ -216,11 +216,16 @@ export function DashboardPage() {
   const dashboardFilters = useMemo(() => {
     return buildDashboardFilters(selectedTripGroupIds, includeBooked, includeSkipped);
   }, [includeBooked, includeSkipped, selectedTripGroupIds]);
+  const canonicalDashboardFilters = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set(DASHBOARD_PARAM_KEYS.includeSkipped, "true");
+    return params;
+  }, []);
   const dashboardCacheKey = dashboardQueryKey("all");
 
   const dashboardQuery = useQuery({
     queryKey: dashboardCacheKey,
-    queryFn: () => api.dashboard(),
+    queryFn: () => api.dashboard(canonicalDashboardFilters),
   });
   const displayTrips = useMemo(
     () => filteredTripRows(dashboardQuery.data, { selectedTripGroupIds, includeBooked, includeSkipped }),
@@ -334,7 +339,7 @@ export function DashboardPage() {
 
   const collectionMutation = useMutation({
     mutationFn: async ({ label, groupId }: { label: string; groupId?: string }) => (
-      groupId ? api.updateCollection(groupId, label) : api.createCollection(label)
+      groupId ? api.updateCollection(groupId, label, canonicalDashboardFilters) : api.createCollection(label, canonicalDashboardFilters)
     ),
     onSuccess: ({ dashboard }) => {
       clearCollectionEditorParams();
@@ -406,7 +411,7 @@ export function DashboardPage() {
   });
 
   const deleteTripMutation = useMutation({
-    mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId),
+    mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId, canonicalDashboardFilters),
     onMutate: async (tripInstanceId) => {
       await queryClient.cancelQueries({ queryKey: dashboardCacheKey });
       const previous = queryClient.getQueryData<DashboardPayload>(dashboardCacheKey);
@@ -435,7 +440,7 @@ export function DashboardPage() {
 
   const skipTripMutation = useMutation({
     mutationFn: ({ tripInstanceId, skipped }: { tripInstanceId: string; skipped: boolean }) => (
-      api.setTripSkipped(tripInstanceId, skipped)
+      api.setTripSkipped(tripInstanceId, skipped, canonicalDashboardFilters)
     ),
     onSuccess: ({ dashboard }, { tripInstanceId, skipped }) => {
       replaceCurrentDashboard(dashboard);
