@@ -31,7 +31,7 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
   }
 
   return (
-    <div className="modal-panel-stack modal-panel-stack--footer-shell">
+    <div className="modal-panel-stack">
       <div className="modal-panel-head">
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
@@ -47,10 +47,10 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
         ) : (
           <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
         )}
-        {panelQuery.data.lastRefreshLabel ? (
-          <div className="modal-footer-note modal-footer-note--inspector">{panelQuery.data.lastRefreshLabel}</div>
-        ) : null}
       </div>
+      {panelQuery.data.lastRefreshLabel ? (
+        <div className="modal-footer-note modal-footer-note--inspector">{panelQuery.data.lastRefreshLabel}</div>
+      ) : null}
     </div>
   );
 }

@@ -1224,10 +1224,6 @@ textarea {
   height: 100%;
 }
 
-.dashboard-inspector .modal-panel-stack--footer-shell {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
 .dashboard-inspector .modal-panel-head {
   display: grid;
   gap: 0.85rem;
@@ -1274,10 +1270,7 @@ textarea {
 }
 
 .dashboard-inspector .modal-list-shell {
-  position: relative;
-  display: grid;
   min-height: 0;
-  padding-bottom: 2rem;
 }
 
 .dashboard-inspector .modal-list-row {
@@ -1298,10 +1291,6 @@ textarea {
 }
 
 .dashboard-inspector .modal-footer-note--inspector {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
