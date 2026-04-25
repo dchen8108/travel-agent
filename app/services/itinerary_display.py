@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 import re
 
-from app.catalog import airline_marketing_code
+from app.catalog import airline_marketing_code, stop_display_label
+from app.flight_numbers import split_flight_numbers
 from app.models.booking import Booking
 from app.models.base import utcnow
 from app.models.tracker import Tracker
@@ -26,21 +27,31 @@ _SUPERSCRIPT_TRANSLATION = str.maketrans({
 
 
 def booking_route_label(booking: Booking) -> str:
-    return f"{booking.origin_airport} \u2192 {booking.destination_airport}"
+    route = f"{booking.origin_airport} \u2192 {booking.destination_airport}"
+    return append_route_stop_label(route, getattr(booking, "stops", ""))
 
 
 def booking_airline_label(booking: Booking) -> str:
-    flight_number = " ".join(str(getattr(booking, "flight_number", "") or "").strip().upper().split())
-    if not flight_number:
+    flight_numbers = split_flight_numbers(getattr(booking, "flight_number", "") or "")
+    if not flight_numbers:
         return ""
     marketing_code = airline_marketing_code(booking.airline)
     compact_prefix = f"{marketing_code}".upper()
-    if flight_number.startswith(f"{compact_prefix} "):
-        return flight_number
-    if flight_number.startswith(compact_prefix) and len(flight_number) > len(compact_prefix):
-        suffix = flight_number[len(compact_prefix):].strip()
-        return f"{compact_prefix} {suffix}".strip()
-    return f"{compact_prefix} {flight_number}".strip()
+    labels: list[str] = []
+    for flight_number in flight_numbers:
+        if re.match(r"^[A-Z]{2,3}\s*\d", flight_number):
+            compact = re.sub(r"^([A-Z0-9]{2,3})\s*(\d)", r"\1 \2", flight_number)
+            labels.append(compact.strip())
+            continue
+        if flight_number.startswith(f"{compact_prefix} "):
+            labels.append(flight_number)
+            continue
+        if flight_number.startswith(compact_prefix) and len(flight_number) > len(compact_prefix):
+            suffix = flight_number[len(compact_prefix):].strip()
+            labels.append(f"{compact_prefix} {suffix}".strip())
+            continue
+        labels.append(f"{compact_prefix} {flight_number}".strip())
+    return " · ".join(labels)
 
 
 def _split_time_day_suffix(value: str) -> tuple[str, int | None]:
@@ -236,6 +247,13 @@ def route_option_display_label(
     if origins and destinations:
         route = f"{origins} \u2192 {destinations}"
     return route
+
+
+def append_route_stop_label(route: str, stops: str | None) -> str:
+    stop_label = stop_display_label(stops, allow_empty=True)
+    if not route or not stop_label or stop_label == "Nonstop":
+        return route
+    return f"{route} \u00b7 {stop_label}"
 
 
 def tracker_best_fetch_target(

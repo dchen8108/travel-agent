@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from datetime import date, datetime
 
 from app.models.base import BookingEmailEventStatus
@@ -27,6 +28,7 @@ def _seed_trip(
     airlines: str = "Alaska",
     start_time: str = "06:00",
     end_time: str = "10:00",
+    stops: str = "nonstop",
 ) -> str:
     trip = save_trip(
         repository,
@@ -44,6 +46,7 @@ def _seed_trip(
                 "day_offset": 0,
                 "start_time": start_time,
                 "end_time": end_time,
+                "stops": stops,
             }
         ],
     )
@@ -214,6 +217,358 @@ def test_booking_email_ingest_creates_unmatched_when_no_tracker_matches(reposito
     assert not result.created_bookings
     assert len(result.created_unlinked_bookings) == 1
     assert result.created_unlinked_bookings[0].source == "gmail"
+
+
+def test_booking_email_ingest_collapses_connecting_itinerary_into_single_booking(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 4, 22),
+        origin_airports="BUR",
+        destination_airports="SEA",
+        airlines="Alaska",
+        start_time="07:00",
+        end_time="13:00",
+        stops="1_stop",
+    )
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.98,
+            record_locator="CON123",
+            total_price="221.40",
+            legs=[
+                BookingEmailLeg(
+                    airline="AS",
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    departure_date="2026-04-22",
+                    departure_time="08:00",
+                    arrival_time="09:25",
+                    flight_number="123",
+                ),
+                BookingEmailLeg(
+                    airline="AS",
+                    origin_airport="SFO",
+                    destination_airport="SEA",
+                    departure_date="2026-04-22",
+                    departure_time="10:15",
+                    arrival_time="12:20",
+                    flight_number="456",
+                ),
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-connecting",
+            subject="Your flight booking confirmation",
+            body_text="Record locator CON123",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    assert len(result.created_bookings) == 1
+    booking = result.created_bookings[0]
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.origin_airport == "BUR"
+    assert booking.destination_airport == "SEA"
+    assert booking.stops == "1_stop"
+    assert booking.flight_number == "123 | 456"
+    assert booking.booked_price == Decimal("221.40")
+
+
+def test_booking_email_ingest_includes_multiple_flight_credits_in_effective_price(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 4, 22),
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Southwest",
+        start_time="05:00",
+        end_time="09:00",
+    )
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.97,
+            record_locator="CRED99",
+            cash_paid="23.40",
+            flight_credits_applied="100.00",
+            total_price="123.40",
+            segments=[
+                {
+                    "airline": "WN",
+                    "origin_airport": "LAX",
+                    "destination_airport": "SFO",
+                    "departure_date": "2026-04-22",
+                    "departure_time": "06:45",
+                    "arrival_time": "08:05",
+                    "stops": "nonstop",
+                    "flight_number": "2426",
+                }
+            ],
+            legs=[],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-multi-credit",
+            subject="Your booking confirmation",
+            body_text="Record locator CRED99",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    assert len(result.created_bookings) == 1
+    booking = result.created_bookings[0]
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.booked_price == Decimal("123.40")
+    assert "Included $100 flight credit." in booking.notes
+
+
+def test_booking_email_ingest_values_points_at_one_cent_each(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 4, 22),
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Southwest",
+        start_time="05:00",
+        end_time="09:00",
+    )
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.97,
+            record_locator="PTS55",
+            cash_paid="5.60",
+            points_used=5500,
+            total_price="60.60",
+            segments=[
+                {
+                    "airline": "WN",
+                    "origin_airport": "LAX",
+                    "destination_airport": "SFO",
+                    "departure_date": "2026-04-22",
+                    "departure_time": "06:45",
+                    "arrival_time": "08:05",
+                    "stops": "nonstop",
+                    "flight_number": "2426",
+                }
+            ],
+            legs=[],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-points",
+            subject="Your reward booking confirmation",
+            body_text="Record locator PTS55",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    assert len(result.created_bookings) == 1
+    booking = result.created_bookings[0]
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.booked_price == Decimal("60.60")
+    assert "Redeemed 5,500 points valued at $55." in booking.notes
+
+
+def test_booking_email_ingest_turns_round_trip_email_into_two_bookings(repository: Repository, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.94,
+            record_locator="ROUND1",
+            total_price="312.20",
+            legs=[
+                BookingEmailLeg(
+                    airline="WN",
+                    origin_airport="LAX",
+                    destination_airport="SFO",
+                    departure_date="2026-04-22",
+                    departure_time="06:45",
+                    arrival_time="08:05",
+                    flight_number="2426",
+                ),
+                BookingEmailLeg(
+                    airline="WN",
+                    origin_airport="SFO",
+                    destination_airport="LAX",
+                    departure_date="2026-04-25",
+                    departure_time="19:40",
+                    arrival_time="21:05",
+                    flight_number="2801",
+                ),
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-roundtrip",
+            subject="Your round trip booking confirmation",
+            body_text="Record locator ROUND1",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.NEEDS_RESOLUTION
+    assert not result.created_bookings
+    assert len(result.created_unlinked_bookings) == 2
+    first, second = result.created_unlinked_bookings
+    assert (first.origin_airport, first.destination_airport, first.stops) == ("LAX", "SFO", "nonstop")
+    assert (second.origin_airport, second.destination_airport, second.stops) == ("SFO", "LAX", "nonstop")
+
+
+def test_booking_email_ingest_prefers_explicit_segments_for_round_trip(repository: Repository, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.97,
+            record_locator="SEG123",
+            total_price="312.20",
+            segments=[
+                {
+                    "airline": "WN",
+                    "origin_airport": "LAX",
+                    "destination_airport": "SFO",
+                    "departure_date": "2026-04-22",
+                    "departure_time": "06:45",
+                    "arrival_time": "08:05",
+                    "stops": "nonstop",
+                    "flight_number": "2426",
+                },
+                {
+                    "airline": "WN",
+                    "origin_airport": "SFO",
+                    "destination_airport": "LAX",
+                    "departure_date": "2026-04-25",
+                    "departure_time": "19:40",
+                    "arrival_time": "21:05",
+                    "stops": "nonstop",
+                    "flight_number": "2801",
+                },
+            ],
+            legs=[],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-roundtrip-segments",
+            subject="Your round trip booking confirmation",
+            body_text="Record locator SEG123",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.NEEDS_RESOLUTION
+    assert not result.created_bookings
+    assert len(result.created_unlinked_bookings) == 2
+    first, second = result.created_unlinked_bookings
+    assert first.flight_number == "2426"
+    assert second.flight_number == "2801"
+    assert first.record_locator == "SEG123"
+    assert second.record_locator == "SEG123"
+
+
+def test_booking_email_ingest_enriches_explicit_segment_with_shared_fare_and_leg_flight_numbers(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 1),
+        origin_airports="LAX",
+        destination_airports="BUR",
+        airlines="Alaska",
+        start_time="10:00",
+        end_time="21:00",
+        stops="1_stop",
+    )
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.97,
+            record_locator="WUYQTV",
+            total_price="0.00",
+            segments=[
+                {
+                    "airline": "AS",
+                    "origin_airport": "LAX",
+                    "destination_airport": "BUR",
+                    "departure_date": "2026-06-01",
+                    "departure_time": "11:12",
+                    "arrival_time": "19:34",
+                    "stops": "1_stop",
+                    "flight_number": "",
+                    "fare_class": "unknown",
+                }
+            ],
+            legs=[
+                {
+                    "airline": "AS",
+                    "origin_airport": "LAX",
+                    "destination_airport": "SEA",
+                    "departure_date": "2026-06-01",
+                    "departure_time": "11:12",
+                    "arrival_time": "15:47",
+                    "flight_number": "1484",
+                    "fare_class": "main",
+                },
+                {
+                    "airline": "AS",
+                    "origin_airport": "SEA",
+                    "destination_airport": "BUR",
+                    "departure_date": "2026-06-01",
+                    "departure_time": "16:59",
+                    "arrival_time": "19:34",
+                    "flight_number": "530",
+                    "fare_class": "main",
+                },
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-enriched-segment",
+            subject="Updated itinerary confirmation",
+            body_text="Record locator WUYQTV",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status in {
+        BookingEmailEventStatus.RESOLVED_AUTO,
+        BookingEmailEventStatus.NEEDS_RESOLUTION,
+    }
+    created = result.created_bookings or result.created_unlinked_bookings
+    assert len(created) == 1
+    booking = created[0]
+    assert booking.flight_number == "1484 | 530"
+    assert booking.fare_class == "economy"
 
 
 def test_booking_email_ingest_low_confidence_booking_stays_unmatched(repository: Repository, monkeypatch) -> None:
@@ -451,6 +806,81 @@ def test_booking_email_ingest_cancels_existing_booking(repository: Repository, m
             message_id="msg-cancel",
             subject="Your flight has been canceled",
             body_text="Record locator ABC123",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    saved_booking = repository.load_bookings()[0]
+    assert saved_booking.status == "cancelled"
+
+
+def test_booking_email_ingest_cancels_existing_multi_stop_booking(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 8),
+        origin_airports="BUR",
+        destination_airports="SEA",
+        airlines="Alaska",
+        start_time="07:00",
+        end_time="13:00",
+        stops="1_stop",
+    )
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="AS",
+            origin_airport="BUR",
+            destination_airport="SEA",
+            departure_date=date(2026, 6, 8),
+            departure_time="08:00",
+            arrival_time="12:20",
+            booked_price=Decimal("221.40"),
+            record_locator="MULTI1",
+            stops="1_stop",
+        ),
+        trip_instance_id=trip_instance_id,
+        source="gmail",
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="cancellation",
+            confidence=0.96,
+            record_locator="MULTI1",
+            legs=[
+                BookingEmailLeg(
+                    airline="AS",
+                    origin_airport="BUR",
+                    destination_airport="SFO",
+                    departure_date="2026-06-08",
+                    departure_time="08:00",
+                    arrival_time="09:25",
+                    leg_status="cancelled",
+                ),
+                BookingEmailLeg(
+                    airline="AS",
+                    origin_airport="SFO",
+                    destination_airport="SEA",
+                    departure_date="2026-06-08",
+                    departure_time="10:15",
+                    arrival_time="12:20",
+                    leg_status="cancelled",
+                ),
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-cancel-multistop",
+            subject="Your itinerary has been canceled",
+            body_text="Record locator MULTI1",
         ),
         config=GmailIntegrationConfig(),
     )

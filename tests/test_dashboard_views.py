@@ -528,6 +528,68 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
     }
 
 
+def test_trip_row_shows_multi_leg_booking_numbers_and_stop_label() -> None:
+    snapshot = AppSnapshot(
+        trip_groups=[],
+        trips=[
+            Trip(
+                trip_id="trip_1",
+                label="Return home",
+                trip_kind="one_time",
+                anchor_date="2026-06-01",
+            )
+        ],
+        rule_group_targets=[],
+        route_options=[],
+        trip_instances=[
+            TripInstance(
+                trip_instance_id="inst_1",
+                trip_id="trip_1",
+                display_label="Return home (2026-06-01)",
+                anchor_date="2026-06-01",
+            )
+        ],
+        trip_instance_group_memberships=[],
+        trackers=[],
+        tracker_fetch_targets=[],
+        bookings=[
+            Booking(
+                booking_id="book_1",
+                trip_instance_id="inst_1",
+                route_option_id="",
+                airline="Alaska",
+                origin_airport="SEA",
+                destination_airport="BUR",
+                departure_date="2026-06-01",
+                departure_time="11:12",
+                arrival_time="19:34",
+                stops="1_stop",
+                flight_number="1484 | 530",
+                booked_price=0,
+            )
+        ],
+        unmatched_bookings=[],
+        booking_email_events=[],
+        price_records=[],
+        app_state=AppState(),
+    )
+
+    row = trip_row_summary(snapshot, "inst_1")
+
+    assert row["booked_offer"] == {
+        "label": "Booked",
+        "detail": "SEA → BUR · 1 stop",
+        "airline_key": "Alaska",
+        "primary_meta_label": "11:12 AM → 7:34 PM · AS 1484 · AS 530",
+        "meta_badges": [],
+        "meta_label": "11:12 AM → 7:34 PM · AS 1484 · AS 530",
+        "price_label": "$0",
+        "href": "",
+        "tone": "neutral",
+        "price_is_status": False,
+    }
+
+
 def test_trip_row_stacks_explicit_arrival_day_shift_on_top_of_travel_day_offset() -> None:
     fresh_at = utcnow() - timedelta(hours=1)
     snapshot = AppSnapshot(

@@ -5,7 +5,8 @@ from datetime import date, datetime
 
 from pydantic import Field, field_validator, model_validator
 
-from app.catalog import normalize_airline_code, normalize_airport_code
+from app.catalog import normalize_airline_code, normalize_airport_code, normalize_stop_value
+from app.flight_numbers import join_flight_numbers
 from app.money import parse_money
 from app.models.base import (
     BookingMatchStatus,
@@ -34,6 +35,7 @@ class Booking(CsvModel):
     arrival_time: str = ""
     arrival_day_offset: int = 0
     fare_class: FareClass = FareClass.BASIC_ECONOMY
+    stops: str = ""
     flight_number: str = ""
     booked_price: Decimal
     record_locator: str = ""
@@ -82,10 +84,15 @@ class Booking(CsvModel):
     def validate_fare_class(cls, value: object) -> FareClass:
         return parse_fare_class(value)
 
+    @field_validator("stops")
+    @classmethod
+    def normalize_stops(cls, value: str) -> str:
+        return normalize_stop_value(value, allow_empty=True)
+
     @field_validator("flight_number")
     @classmethod
     def normalize_flight_number(cls, value: str) -> str:
-        return " ".join(value.strip().upper().split())
+        return join_flight_numbers(value)
 
     @field_validator("record_locator")
     @classmethod

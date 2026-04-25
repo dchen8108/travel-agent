@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from email.utils import parseaddr
 import json
 
-from app.catalog import normalize_airline_code
+from app.catalog import normalize_airline_code, normalize_stop_value
+from app.flight_numbers import join_flight_numbers
 from app.money import format_money
 from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, FareClass, parse_fare_class, utcnow
 from app.models.booking import Booking
@@ -14,6 +15,8 @@ from app.models.booking_email_event import BookingEmailEvent
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.booking_extraction import (
     BookingEmailExtraction,
+    BookingEmailLeg,
+    BookingEmailSegment,
     BookingExtractionError,
     extract_booking_email,
     prepare_booking_email_body,
@@ -32,6 +35,13 @@ class BookingEmailProcessResult:
     created_unlinked_bookings: list[Booking]
     state_changed: bool = False
     debug_fields: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _ResolvedLeg:
+    leg: BookingEmailLeg
+    departure_at: datetime
+    arrival_at: datetime
 
 
 def process_gmail_booking_message(
@@ -166,6 +176,7 @@ def process_gmail_booking_message(
     event.extracted_payload_json = extraction.model_dump_json(indent=2)
     debug_fields["llm"] = {
         **debug_fields["llm"],
+        "parsed_segment_count": len(extraction.segments),
         "parsed_leg_count": len(extraction.legs),
         "parsed_summary": extraction.summary,
     }
@@ -184,7 +195,7 @@ def process_gmail_booking_message(
                 debug_fields["matching"] = {
                     **debug_fields["matching"],
                     "auto_apply_allowed": False,
-                    "candidate_count": len(extraction.legs),
+                    "candidate_count": len(_candidates_from_extraction(extraction)),
                 }
                 _upsert_booking_email_event(repository, event)
                 return BookingEmailProcessResult(
@@ -209,7 +220,7 @@ def process_gmail_booking_message(
                 **debug_fields["matching"],
                 "auto_apply_allowed": True,
                 "cancelled_booking_ids": [item.booking_id for item in cancelled_bookings],
-                "candidate_count": len(extraction.legs),
+                "candidate_count": len(_candidates_from_extraction(extraction)),
             }
             _upsert_booking_email_event(repository, event)
             return BookingEmailProcessResult(
@@ -234,7 +245,7 @@ def process_gmail_booking_message(
     candidates = _candidates_from_extraction(extraction)
     if not candidates:
         event.processing_status = BookingEmailEventStatus.ERROR
-        event.notes = "The extractor did not return any valid booking legs."
+        event.notes = "The extractor did not return any valid booking segments."
         event.updated_at = utcnow()
         debug_fields["matching"] = {
             **debug_fields["matching"],
@@ -268,7 +279,9 @@ def process_gmail_booking_message(
                 "departure_date": candidate.departure_date.isoformat(),
                 "departure_time": candidate.departure_time,
                 "arrival_time": candidate.arrival_time,
+                "arrival_day_offset": candidate.arrival_day_offset,
                 "fare_class": candidate.fare_class,
+                "stops": candidate.stops,
                 "record_locator": candidate.record_locator,
                 "matching_trip_instance_ids": matching_trip_instance_ids,
             }
@@ -315,7 +328,7 @@ def process_gmail_booking_message(
             event.notes = "Created booking automatically from Gmail."
     else:
         event.processing_status = BookingEmailEventStatus.DUPLICATE
-        event.notes = "All extracted legs already exist in the booking ledger."
+        event.notes = "All extracted booking segments already exist in the booking ledger."
 
     _upsert_booking_email_event(repository, event)
     return BookingEmailProcessResult(
@@ -371,35 +384,54 @@ def _event_should_retry(event: BookingEmailEvent, config: GmailIntegrationConfig
 
 
 def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[BookingCandidate]:
+    segments = _segments_from_extraction(extraction)
+    if not segments:
+        return []
+
     candidates: list[BookingCandidate] = []
-    extracted_total_price = extraction.total_price_amount()
-    multi_leg_total_price = extracted_total_price if len(extraction.legs) > 1 else None
-    for leg in extraction.legs:
-        if not (leg.airline and leg.origin_airport and leg.destination_airport and leg.departure_date and leg.departure_time):
+    extracted_total_price = extraction.effective_total_price_amount()
+    multi_segment_total_price = extracted_total_price if len(segments) > 1 else None
+    pricing_notes = _pricing_notes_from_extraction(extraction)
+    for segment in segments:
+        if not (
+            segment.airline
+            and segment.origin_airport
+            and segment.destination_airport
+            and segment.departure_date
+            and segment.departure_time
+        ):
             continue
-        try:
-            departure_date = date.fromisoformat(leg.departure_date)
-        except ValueError:
+        departure_date = _parse_iso_date(segment.departure_date)
+        if departure_date is None:
             continue
         price = extracted_total_price or Decimal("0")
         notes = "Imported from Gmail."
-        if multi_leg_total_price is not None:
+        if multi_segment_total_price is not None:
             price = Decimal("0")
-            notes = f"Imported from Gmail. Total itinerary price was {format_money(multi_leg_total_price)}."
+            notes = f"Imported from Gmail. Total itinerary value was {format_money(multi_segment_total_price)}."
+        elif pricing_notes:
+            notes = f"{notes} {pricing_notes}"
         if extraction.record_locator:
             notes = f"{notes} Record locator {extraction.record_locator}."
-        airline = _normalize_airline_code(leg.airline)
+        elif pricing_notes and not multi_segment_total_price:
+            notes = notes.strip()
+        airline = _normalize_airline_code(segment.airline)
         candidates.append(
             BookingCandidate(
                 airline=airline,
-                origin_airport=leg.origin_airport,
-                destination_airport=leg.destination_airport,
+                origin_airport=segment.origin_airport,
+                destination_airport=segment.destination_airport,
                 departure_date=departure_date,
-                departure_time=leg.departure_time,
-                arrival_time=leg.arrival_time,
-                arrival_day_offset=_arrival_day_offset_for_leg(leg.departure_time, leg.arrival_time),
-                flight_number=leg.flight_number,
-                fare_class=_fare_class_from_extracted_leg(leg.fare_class),
+                departure_time=segment.departure_time,
+                arrival_time=segment.arrival_time,
+                arrival_day_offset=_arrival_day_offset_for_times(
+                    segment.departure_time,
+                    segment.arrival_time,
+                    explicit_offset=segment.arrival_day_offset,
+                ),
+                stops=_normalized_segment_stops(segment.stops),
+                flight_number=segment.flight_number,
+                fare_class=_fare_class_from_extracted_value(segment.fare_class),
                 booked_price=price,
                 record_locator=extraction.record_locator,
                 notes=notes,
@@ -412,7 +444,180 @@ def _normalize_airline_code(value: str) -> str:
     return normalize_airline_code(value)
 
 
-def _arrival_day_offset_for_leg(departure_time: str, arrival_time: str) -> int:
+def _pricing_notes_from_extraction(extraction: BookingEmailExtraction) -> str:
+    parts: list[str] = []
+    credits_amount = extraction.flight_credits_amount()
+    if credits_amount is not None and credits_amount > Decimal("0"):
+        parts.append(f"Included {format_money(credits_amount)} flight credit.")
+    if extraction.points_used > 0:
+        parts.append(
+            f"Redeemed {extraction.points_used:,} points valued at {format_money(extraction.points_value_amount())}."
+        )
+    return " ".join(parts)
+
+
+def _segments_from_extraction(extraction: BookingEmailExtraction) -> list[BookingEmailSegment]:
+    explicit_segments = [segment for segment in extraction.segments if _segment_has_core_fields(segment)]
+    if explicit_segments:
+        inferred_segments = _segments_from_legs(extraction.legs)
+        return [_enrich_explicit_segment(segment, inferred_segments) for segment in explicit_segments]
+    return _segments_from_legs(extraction.legs)
+
+
+def _segment_has_core_fields(segment: BookingEmailSegment) -> bool:
+    return bool(
+        segment.airline
+        and segment.origin_airport
+        and segment.destination_airport
+        and segment.departure_date
+        and segment.departure_time
+    )
+
+
+def _segments_from_legs(legs: list[BookingEmailLeg]) -> list[BookingEmailSegment]:
+    resolved_legs = [resolved for leg in legs if (resolved := _resolve_leg(leg)) is not None]
+    if not resolved_legs:
+        return []
+    segments: list[list[_ResolvedLeg]] = []
+    current_segment: list[_ResolvedLeg] = []
+    for resolved in resolved_legs:
+        if current_segment and _legs_belong_to_same_segment(current_segment[-1], resolved):
+            current_segment.append(resolved)
+            continue
+        if current_segment:
+            segments.append(current_segment)
+        current_segment = [resolved]
+    if current_segment:
+        segments.append(current_segment)
+    return [_segment_from_resolved_legs(segment) for segment in segments]
+
+
+def _resolve_leg(leg: BookingEmailLeg) -> _ResolvedLeg | None:
+    if not (leg.airline and leg.origin_airport and leg.destination_airport and leg.departure_date and leg.departure_time):
+        return None
+    departure_date = _parse_iso_date(leg.departure_date)
+    departure_time = _parse_hhmm(leg.departure_time)
+    if departure_date is None or departure_time is None:
+        return None
+    departure_at = datetime.combine(departure_date, departure_time)
+    arrival_time = _parse_hhmm(leg.arrival_time) or departure_time
+    arrival_at = datetime.combine(departure_date, arrival_time) + timedelta(
+        days=_arrival_day_offset_for_times(
+            leg.departure_time,
+            leg.arrival_time,
+            explicit_offset=leg.arrival_day_offset,
+        )
+    )
+    return _ResolvedLeg(leg=leg, departure_at=departure_at, arrival_at=arrival_at)
+
+
+def _legs_belong_to_same_segment(previous: _ResolvedLeg, current: _ResolvedLeg) -> bool:
+    if previous.leg.leg_status != current.leg.leg_status:
+        return False
+    if previous.leg.destination_airport != current.leg.origin_airport:
+        return False
+    layover = current.departure_at - previous.arrival_at
+    return timedelta(0) <= layover <= timedelta(hours=12)
+
+
+def _segment_from_resolved_legs(resolved_legs: list[_ResolvedLeg]) -> BookingEmailSegment:
+    first = resolved_legs[0]
+    last = resolved_legs[-1]
+    flight_number = join_flight_numbers(leg.leg.flight_number for leg in resolved_legs)
+    fare_class = _shared_leg_fare_class(resolved_legs)
+    evidence = " | ".join(leg.leg.evidence for leg in resolved_legs if leg.leg.evidence)
+    stops = _stop_value_for_connection_count(len(resolved_legs) - 1)
+    arrival_day_offset = max(0, (last.arrival_at.date() - first.departure_at.date()).days)
+    return BookingEmailSegment(
+        airline=first.leg.airline,
+        origin_airport=first.leg.origin_airport,
+        destination_airport=last.leg.destination_airport,
+        departure_date=first.leg.departure_date,
+        departure_time=first.leg.departure_time,
+        arrival_time=last.leg.arrival_time,
+        arrival_day_offset=arrival_day_offset,
+        stops=stops,
+        flight_number=flight_number,
+        segment_status=first.leg.leg_status,
+        fare_class=fare_class,
+        evidence=evidence,
+    )
+
+
+def _enrich_explicit_segment(
+    segment: BookingEmailSegment,
+    inferred_segments: list[BookingEmailSegment],
+) -> BookingEmailSegment:
+    matched = next(
+        (
+            inferred
+            for inferred in inferred_segments
+            if inferred.origin_airport == segment.origin_airport
+            and inferred.destination_airport == segment.destination_airport
+            and inferred.departure_date == segment.departure_date
+            and inferred.departure_time == segment.departure_time
+        ),
+        None,
+    )
+    if matched is None:
+        return segment
+
+    fare_class = segment.fare_class
+    if (fare_class or "").strip().lower() in {"", "unknown"} and (matched.fare_class or "").strip().lower() not in {"", "unknown"}:
+        fare_class = matched.fare_class
+
+    return segment.model_copy(
+        update={
+            "fare_class": fare_class,
+            "flight_number": segment.flight_number or matched.flight_number,
+            "stops": segment.stops or matched.stops,
+        }
+    )
+
+
+def _shared_leg_fare_class(resolved_legs: list[_ResolvedLeg]) -> str:
+    known_fares = [
+        (leg.leg.fare_class or "").strip().lower()
+        for leg in resolved_legs
+        if (leg.leg.fare_class or "").strip().lower() not in {"", "unknown"}
+    ]
+    if not known_fares:
+        return "unknown"
+    first = known_fares[0]
+    if all(fare == first for fare in known_fares):
+        return first
+    return "unknown"
+
+
+def _parse_iso_date(value: str) -> date | None:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _parse_hhmm(value: str) -> time | None:
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        return None
+
+
+def _stop_value_for_connection_count(count: int) -> str:
+    if count <= 0:
+        return "nonstop"
+    if count == 1:
+        return "1_stop"
+    return "2_stops"
+
+
+def _normalized_segment_stops(value: str) -> str:
+    return normalize_stop_value(value, allow_empty=True)
+
+
+def _arrival_day_offset_for_times(departure_time: str, arrival_time: str, *, explicit_offset: int = 0) -> int:
+    if explicit_offset > 0:
+        return explicit_offset
     if not departure_time or not arrival_time:
         return 0
     return 1 if arrival_time < departure_time else 0
@@ -431,6 +636,7 @@ def _booking_candidate_exists(repository: Repository, candidate: BookingCandidat
             and unmatched.departure_date == candidate.departure_date
             and unmatched.departure_time == candidate.departure_time
             and unmatched.fare_class == candidate.fare_class
+            and _stop_fields_match(unmatched.stops, candidate.stops)
             and unmatched.record_locator == candidate.record_locator
             and unmatched.resolution_status == "open"
         ):
@@ -446,11 +652,20 @@ def _same_booking(booking: Booking, candidate: BookingCandidate) -> bool:
         and booking.departure_date == candidate.departure_date
         and booking.departure_time == candidate.departure_time
         and booking.fare_class == candidate.fare_class
+        and _stop_fields_match(booking.stops, candidate.stops)
         and booking.record_locator == candidate.record_locator
     )
 
 
-def _fare_class_from_extracted_leg(raw: str) -> FareClass:
+def _stop_fields_match(existing: str | None, incoming: str | None) -> bool:
+    normalized_existing = normalize_stop_value(existing, allow_empty=True)
+    normalized_incoming = normalize_stop_value(incoming, allow_empty=True)
+    if not normalized_existing or not normalized_incoming:
+        return True
+    return normalized_existing == normalized_incoming
+
+
+def _fare_class_from_extracted_value(raw: str) -> FareClass:
     normalized = (raw or "").strip().lower()
     if normalized in {"", "unknown"}:
         return FareClass.BASIC_ECONOMY
@@ -466,7 +681,8 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
     bookings = filter_items(repository.load_bookings(), include_test_data=include_test_data)
     updated: list[Booking] = []
     matched_ids: set[str] = set()
-    if not extraction.legs and extraction.record_locator:
+    cancellation_candidates = _candidates_from_extraction(extraction)
+    if not cancellation_candidates and extraction.record_locator:
         for booking in bookings:
             if booking.status == BookingStatus.CANCELLED:
                 continue
@@ -478,16 +694,11 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
         if updated:
             repository.upsert_bookings(updated)
         return updated
-    for leg in extraction.legs:
-        if not (leg.departure_date or extraction.record_locator):
+    for candidate in cancellation_candidates:
+        if not (candidate.departure_date or extraction.record_locator):
             continue
-        departure_date: date | None = None
-        if leg.departure_date:
-            try:
-                departure_date = date.fromisoformat(leg.departure_date)
-            except ValueError:
-                continue
-        airline = _normalize_airline_code(leg.airline) if leg.airline else ""
+        departure_date = candidate.departure_date
+        airline = candidate.airline
         exact_matches: list[Booking] = []
         for booking in bookings:
             if booking.booking_id in matched_ids:
@@ -498,17 +709,18 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
             route_matches = (
                 airline
                 and booking.airline == airline
-                and booking.origin_airport == leg.origin_airport
-                and booking.destination_airport == leg.destination_airport
+                and booking.origin_airport == candidate.origin_airport
+                and booking.destination_airport == candidate.destination_airport
                 and departure_date is not None
                 and booking.departure_date == departure_date
-                and (not leg.departure_time or booking.departure_time == leg.departure_time)
+                and (not candidate.departure_time or booking.departure_time == candidate.departure_time)
+                and _stop_fields_match(booking.stops, candidate.stops)
             )
             if locator_matches and route_matches:
                 exact_matches.append(booking)
 
         target_bookings = exact_matches
-        if not target_bookings and extraction.record_locator and len(extraction.legs) == 1:
+        if not target_bookings and extraction.record_locator and len(cancellation_candidates) == 1:
             target_bookings = [
                 booking
                 for booking in bookings
@@ -524,10 +736,11 @@ def _apply_cancellation(repository: Repository, extraction: BookingEmailExtracti
                 and booking.status != BookingStatus.CANCELLED
                 and airline
                 and booking.airline == airline
-                and booking.origin_airport == leg.origin_airport
-                and booking.destination_airport == leg.destination_airport
+                and booking.origin_airport == candidate.origin_airport
+                and booking.destination_airport == candidate.destination_airport
                 and booking.departure_date == departure_date
-                and (not leg.departure_time or booking.departure_time == leg.departure_time)
+                and (not candidate.departure_time or booking.departure_time == candidate.departure_time)
+                and _stop_fields_match(booking.stops, candidate.stops)
             ]
 
         for booking in target_bookings:

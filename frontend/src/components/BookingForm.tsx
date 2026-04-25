@@ -39,6 +39,7 @@ interface Props {
     airports: Array<{ value: string; label: string }>;
     airlines: Array<{ value: string; label: string }>;
     fareClasses: Array<{ value: string; label: string }>;
+    bookingStops: Array<{ value: string; label: string; keywords: string }>;
   };
   submitLabel: string;
   onSubmit: (values: Record<string, string>) => Promise<unknown>;
@@ -141,6 +142,7 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
             disabled={submitting}
           />
         </div>
+        <div className="booking-form-divider" aria-hidden="true" />
         <div className="field-block">
           <span>Airline</span>
           <SearchSelectField
@@ -173,6 +175,23 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
             disabled={submitting}
           />
         </div>
+        <div className="field-block">
+          <span>Stops</span>
+          <SearchSelectField
+            options={catalogs.bookingStops.map((item) => ({
+              value: item.value,
+              label: item.label,
+              keywords: item.keywords,
+              summary: item.label,
+            }))}
+            value={values.stops}
+            onChange={(value) => update("stops", value)}
+            placeholder="Choose stops"
+            allowEmpty
+            emptySelectionLabel="Choose"
+            disabled={submitting}
+          />
+        </div>
         <label className="field-block">
           <span>Booked price</span>
           <input type="text" value={values.bookedPrice} onChange={(event) => update("bookedPrice", event.target.value)} disabled={submitting} placeholder="$198" />
@@ -181,13 +200,19 @@ export function BookingForm({ initialValues, catalogs, submitLabel, onSubmit, on
           <span>Record locator</span>
           <input type="text" value={values.recordLocator} onChange={(event) => update("recordLocator", event.target.value)} disabled={submitting} placeholder="Optional" />
         </label>
-        <label className="field-block field-block--span-2">
-          <span>Flight number</span>
-          <input type="text" value={values.flightNumber} onChange={(event) => update("flightNumber", event.target.value)} disabled={submitting} placeholder="Optional" />
+        <label className="field-block">
+          <span>Flight number(s)</span>
+          <input
+            type="text"
+            value={values.flightNumber}
+            onChange={(event) => update("flightNumber", event.target.value)}
+            disabled={submitting}
+            placeholder="2426 | 2801"
+          />
         </label>
         <label className="field-block field-block--span-2">
           <span>Notes</span>
-          <textarea value={values.notes} onChange={(event) => update("notes", event.target.value)} disabled={submitting} rows={2} placeholder="Optional" />
+          <input type="text" value={values.notes} onChange={(event) => update("notes", event.target.value)} disabled={submitting} placeholder="Optional" />
         </label>
       </div>
       {error ? <p className="inline-error">{error}</p> : null}
