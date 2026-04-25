@@ -1277,7 +1277,7 @@ textarea {
   position: relative;
   display: grid;
   min-height: 0;
-  padding-bottom: 1.25rem;
+  padding-bottom: 2rem;
 }
 
 .dashboard-inspector .modal-list-row {
@@ -1305,7 +1305,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  height: 1.25rem;
+  height: 2rem;
   margin: 0;
   line-height: 1;
 }
