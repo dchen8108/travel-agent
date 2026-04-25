@@ -722,22 +722,6 @@ textarea {
   background: rgba(221, 226, 216, 0.9);
 }
 
-.trip-pill--attention-overbooked {
-  border-color: var(--danger);
-}
-
-.trip-pill--attention-priceDrop {
-  border-color: var(--accent);
-}
-
-.trip-pill--attention-betterOption {
-  border-color: var(--info-copy);
-}
-
-.trip-pill--attention-needsBooking {
-  border-color: var(--warning-strong);
-}
-
 .trip-row {
   display: grid;
   grid-template-columns: minmax(14rem, 1.1fr) minmax(15rem, 1fr) minmax(15rem, 1fr);
@@ -757,11 +741,6 @@ textarea {
 .trip-row--skipped {
   background: rgba(232, 235, 228, 0.9);
   border-color: rgba(187, 194, 182, 0.88);
-}
-
-.trip-row--skipped .trip-identity-row,
-.trip-row--skipped .offer-block {
-  background: rgba(255, 255, 255, 0.66);
 }
 
 .trip-identity-row__copy {
@@ -1433,6 +1412,13 @@ textarea {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.95rem 1rem;
+}
+
+.booking-form-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  margin: 0.05rem 0 0.1rem;
+  background: rgba(208, 214, 207, 0.9);
 }
 
 .booking-form-actions {
@@ -2206,5 +2192,9 @@ body.route-drag-active {
 @media (max-width: 620px) {
   .booking-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .booking-form-divider {
+    margin: -0.05rem 0 0;
   }
 }

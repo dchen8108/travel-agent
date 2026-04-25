@@ -20,6 +20,7 @@ from app.services.scheduled_trip_display import (
 from app.services.scheduled_trip_state import booking_route_tracking_state, bookings_for_instance
 from app.services.tracker_flights import latest_trip_flight_panel
 from app.services.snapshot_queries import (
+    groups_for_instance,
     recurring_rule_for_instance,
     trip_for_instance,
     trip_group_by_id,
@@ -98,6 +99,7 @@ def trip_identity_value(snapshot, trip_instance_id: str) -> dict[str, object]:
         "title": trip_ui_label(snapshot, trip_instance_id),
         "anchorDate": instance.anchor_date.isoformat(),
         "dateTile": _date_tile_value(instance.anchor_date),
+        "tripGroupIds": [group.trip_group_id for group in groups_for_instance(snapshot, trip_instance_id)],
         "skipped": bool(instance.skipped),
         "editHref": str(actions.get("edit_href", "")),
         "delete": _delete_capability(snapshot, trip_instance_id),
@@ -318,6 +320,7 @@ def booking_form_state_value(booking: Booking | None = None, *, trip_instance_id
             "arrivalTime": "",
             "arrivalDayOffset": "0",
             "fareClass": "basic_economy",
+            "stops": "",
             "flightNumber": "",
             "bookedPrice": "",
             "recordLocator": "",
@@ -334,6 +337,7 @@ def booking_form_state_value(booking: Booking | None = None, *, trip_instance_id
         "arrivalTime": booking.arrival_time,
         "arrivalDayOffset": str(booking.arrival_day_offset),
         "fareClass": booking.fare_class,
+        "stops": booking.stops,
         "flightNumber": booking.flight_number,
         "bookedPrice": str(booking.booked_price),
         "recordLocator": booking.record_locator,

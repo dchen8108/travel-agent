@@ -10,6 +10,7 @@ from app.services.bookings import (
     record_booking,
     resolve_unmatched_booking_to_trip,
     resolve_unmatched_booking_to_trip_instance,
+    suggested_route_option_payload_for_booking,
     update_booking,
     update_unmatched_booking,
 )
@@ -139,6 +140,70 @@ def test_boundary_departure_matches_later_adjacent_route_option(repository: Repo
     assert booking is not None
     assert booking.trip_instance_id == trip_instance_id
     assert booking.route_option_id == route_options[1].route_option_id
+
+
+def test_booking_stop_count_must_fit_route_stop_policy(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Stop Policy Trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 4, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SFO",
+                "airlines": "Alaska",
+                "stops": "1_stop",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            },
+        ],
+    )
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance_id = next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    route_option_id = next(item.route_option_id for item in repository.load_route_options() if item.trip_id == trip.trip_id)
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="07:15",
+            arrival_time="08:40",
+            stops="nonstop",
+            booked_price=121,
+            record_locator="STOP01",
+        ),
+    )
+
+    assert unmatched is None
+    assert booking is not None
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.route_option_id == route_option_id
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Alaska",
+            origin_airport="BUR",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="08:15",
+            arrival_time="09:40",
+            stops="2_stops",
+            booked_price=141,
+            record_locator="STOP02",
+        ),
+    )
+
+    assert booking is None
+    assert unmatched is not None
 
 
 def test_unmatched_booking_can_be_linked_to_existing_trip_instance(repository: Repository) -> None:
@@ -614,7 +679,7 @@ def test_linked_booking_route_match_clears_when_trip_route_changes(repository: R
     assert refreshed.route_option_id == ""
 
 
-def test_update_booking_persists_flight_number(repository: Repository) -> None:
+def test_update_booking_persists_flight_number_and_stops(repository: Repository) -> None:
     trip_instance_id = seed_trip(repository)
 
     booking, unmatched = record_booking(
@@ -647,6 +712,7 @@ def test_update_booking_persists_flight_number(repository: Repository) -> None:
             departure_time="07:15",
             arrival_time="08:40",
             fare_class="basic_economy",
+            stops="nonstop",
             flight_number="AS 1105",
             booked_price=121,
             record_locator="FLIGHT1",
@@ -654,11 +720,13 @@ def test_update_booking_persists_flight_number(repository: Repository) -> None:
     )
 
     assert updated.flight_number == "AS 1105"
+    assert updated.stops == "nonstop"
     stored = next(item for item in repository.load_bookings() if item.booking_id == booking.booking_id)
     assert stored.flight_number == "AS 1105"
+    assert stored.stops == "nonstop"
 
 
-def test_update_unmatched_booking_persists_flight_number(repository: Repository) -> None:
+def test_update_unmatched_booking_persists_flight_number_and_stops(repository: Repository) -> None:
     booking, unmatched = record_booking(
         repository,
         BookingCandidate(
@@ -687,6 +755,7 @@ def test_update_unmatched_booking_persists_flight_number(repository: Repository)
             departure_time="07:15",
             arrival_time="08:40",
             fare_class="basic_economy",
+            stops="2_stops",
             flight_number="UA 1234",
             booked_price=149,
             record_locator="UNFLT1",
@@ -694,7 +763,27 @@ def test_update_unmatched_booking_persists_flight_number(repository: Repository)
     )
 
     assert updated.flight_number == "UA 1234"
+    assert updated.stops == "2_stops"
     stored = next(
         item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id
     )
     assert stored.flight_number == "UA 1234"
+    assert stored.stops == "2_stops"
+
+
+def test_suggested_route_option_payload_defaults_unknown_booking_stops_to_broadest_supported_policy() -> None:
+    payload = suggested_route_option_payload_for_booking(
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 4, 6),
+            departure_time="06:30",
+            arrival_time="07:45",
+            booked_price="78.40",
+            record_locator="",
+            stops="",
+        )
+    )
+
+    assert payload["stops"] == "2_stops"

@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import type { TripRow as TripRowValue } from "../types";
-import { AddIcon, CheckIcon, DeleteIcon, DetachIcon, EditIcon, SkipIcon } from "./Icons";
+import { AddIcon, DeleteIcon, DetachIcon, EditIcon, SkipIcon, UnskipIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
 import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
@@ -49,7 +49,7 @@ export function TripRow({
     {
       key: row.trip.skipped ? "unskip" : "skip",
       label: row.trip.skipped ? "Unskip" : "Skip",
-      icon: row.trip.skipped ? <CheckIcon /> : <SkipIcon />,
+      icon: row.trip.skipped ? <UnskipIcon /> : <SkipIcon />,
       onSelect: () => onSetSkipped(row, !row.trip.skipped),
     },
     ...(row.trip.delete ? [{

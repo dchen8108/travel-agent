@@ -35,6 +35,7 @@ function blankRouteOption(): LocalTripEditorRouteOption {
     originAirports: [],
     destinationAirports: [],
     airlines: [],
+    stops: "nonstop",
     dayOffset: 0,
     startTime: "00:00",
     endTime: "23:59",
@@ -532,6 +533,21 @@ export function TripEditorPage() {
               value={route.fareClass}
               onChange={(fareClass) => updateRoute(index, { fareClass: fareClass as "basic_economy" | "economy" })}
               placeholder="Choose fare"
+              disabled={saveMutation.isPending}
+            />
+          </div>
+          <div className="field-block">
+            <span>Stops</span>
+            <SearchSelectField
+              options={payload.catalogs.routeStops.map((item) => ({
+                value: item.value,
+                label: item.label,
+                keywords: item.keywords,
+                summary: item.label,
+              }))}
+              value={route.stops}
+              onChange={(stops) => updateRoute(index, { stops })}
+              placeholder="Choose stops"
               disabled={saveMutation.isPending}
             />
           </div>

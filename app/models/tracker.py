@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import AliasChoices, Field, field_validator
 
-from app.catalog import normalize_airline_code, normalize_airport_code
+from app.catalog import normalize_airline_code, normalize_airport_code, normalize_stop_value
 from app.models.base import CsvModel, DataScope, FareClass, parse_fare_class, utcnow
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
@@ -19,6 +19,7 @@ class Tracker(CsvModel):
     origin_airports: str
     destination_airports: str
     airlines: str
+    stops: str = "nonstop"
     day_offset: int
     travel_date: date
     start_time: str
@@ -49,6 +50,11 @@ class Tracker(CsvModel):
     @classmethod
     def validate_airline_list(cls, value: str) -> str:
         return join_pipe([normalize_airline_code(item) for item in split_pipe(value)])
+
+    @field_validator("stops")
+    @classmethod
+    def validate_stops(cls, value: str) -> str:
+        return normalize_stop_value(value)
 
     @field_validator("rank")
     @classmethod

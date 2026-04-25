@@ -15,7 +15,7 @@ from app.models.base import (
 from app.models.booking import Booking
 from app.models.tracker import Tracker
 from app.models.trip_instance import TripInstance
-from app.route_options import time_in_window_exclusive_end
+from app.route_options import stop_policy_matches_booking, time_in_window_exclusive_end
 from app.route_options import join_pipe, split_pipe
 from app.services.data_scope import filter_items, include_test_data_for_processing
 from app.services.ids import new_id
@@ -33,6 +33,7 @@ class BookingCandidate:
     booked_price: Decimal
     record_locator: str
     arrival_day_offset: int = 0
+    stops: str = ""
     flight_number: str = ""
     notes: str = ""
     fare_class: FareClass = FareClass.BASIC_ECONOMY
@@ -61,6 +62,7 @@ def _build_booking(
         arrival_time=candidate.arrival_time,
         arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        stops=candidate.stops,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
@@ -88,6 +90,7 @@ def _booking_to_unmatched(booking: Booking) -> Booking:
         arrival_time=booking.arrival_time,
         arrival_day_offset=booking.arrival_day_offset,
         fare_class=booking.fare_class,
+        stops=booking.stops,
         flight_number=booking.flight_number,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
@@ -132,6 +135,8 @@ def _matching_trackers_for_booking(
         if candidate.airline not in tracker.airline_codes:
             continue
         if tracker.fare_class != candidate.fare_class:
+            continue
+        if not stop_policy_matches_booking(tracker.stops, candidate.stops):
             continue
         if not time_in_window_exclusive_end(tracker.start_time, tracker.end_time, candidate.departure_time):
             continue
@@ -210,6 +215,7 @@ def _candidate_from_unmatched(unmatched: Booking) -> BookingCandidate:
         arrival_time=unmatched.arrival_time,
         arrival_day_offset=unmatched.arrival_day_offset,
         fare_class=unmatched.fare_class,
+        stops=unmatched.stops,
         flight_number=unmatched.flight_number,
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
@@ -226,6 +232,7 @@ def _candidate_from_booking(booking: Booking) -> BookingCandidate:
         arrival_time=booking.arrival_time,
         arrival_day_offset=booking.arrival_day_offset,
         fare_class=booking.fare_class,
+        stops=booking.stops,
         flight_number=booking.flight_number,
         booked_price=booking.booked_price,
         record_locator=booking.record_locator,
@@ -248,6 +255,7 @@ def suggested_route_option_payload_for_booking(candidate: BookingCandidate) -> d
         "start_time": start_time,
         "end_time": end_time,
         "fare_class": candidate.fare_class,
+        "stops": candidate.stops or "2_stops",
     }
 
 
@@ -355,6 +363,7 @@ def reconcile_unmatched_bookings(
                 arrival_time=candidate.arrival_time,
                 arrival_day_offset=candidate.arrival_day_offset,
                 fare_class=candidate.fare_class,
+                stops=candidate.stops,
                 flight_number=candidate.flight_number,
                 booked_price=candidate.booked_price,
                 record_locator=candidate.record_locator,
@@ -433,6 +442,7 @@ def record_booking(
         arrival_time=candidate.arrival_time,
         arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        stops=candidate.stops,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
@@ -494,6 +504,7 @@ def resolve_unmatched_booking_to_trip_instance(
         arrival_time=unmatched.arrival_time,
         arrival_day_offset=unmatched.arrival_day_offset,
         fare_class=unmatched.fare_class,
+        stops=unmatched.stops,
         flight_number=unmatched.flight_number,
         booked_price=unmatched.booked_price,
         record_locator=unmatched.record_locator,
@@ -517,6 +528,7 @@ def resolve_unmatched_booking_to_trip_instance(
         arrival_time=candidate.arrival_time,
         arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        stops=candidate.stops,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
@@ -675,6 +687,7 @@ def update_booking(
         arrival_time=candidate.arrival_time,
         arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        stops=candidate.stops,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,
@@ -713,6 +726,7 @@ def update_unmatched_booking(
         arrival_time=candidate.arrival_time,
         arrival_day_offset=candidate.arrival_day_offset,
         fare_class=candidate.fare_class,
+        stops=candidate.stops,
         flight_number=candidate.flight_number,
         booked_price=candidate.booked_price,
         record_locator=candidate.record_locator,

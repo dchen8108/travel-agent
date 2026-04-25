@@ -226,7 +226,38 @@ export function SkipIcon() {
         strokeWidth="2"
       />
       <path
-        d="M8.5 12h7"
+        d="M7 17 17 7"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </>,
+  );
+}
+
+export function UnskipIcon() {
+  return svg(
+    <>
+      <path
+        d="M9 7 4 12l5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M5 12h8a5 5 0 1 1 0 10h-3"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M10 22h3"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"

@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import urlencode
 
+from app.catalog import stop_limit_value
 from app.models.base import FareClass, fare_class_label
 from app.models.tracker import Tracker
+from app.route_options import stop_policy_label
 
 GOOGLE_FLIGHTS_LANGUAGE = "en-US"
 GOOGLE_FLIGHTS_TIME_FILTER_TFU = "EgYIABAAGAA"
@@ -34,6 +36,7 @@ class GoogleFlightsSearchSpec:
     airline_codes: list[str]
     start_time: str
     end_time: str
+    stops: str = "nonstop"
     fare_class: FareClass = FareClass.BASIC_ECONOMY
 
 
@@ -82,6 +85,7 @@ def _encode_info_message(tracker: Tracker) -> bytes:
         origin_airport=tracker.primary_origin,
         destination_airport=tracker.primary_destination,
         airline_codes=tracker.airline_codes,
+        stops=tracker.stops,
         start_time=tracker.start_time,
         end_time=tracker.end_time,
         fare_class=tracker.fare_class,
@@ -114,6 +118,7 @@ def build_google_flights_query_url(tracker: Tracker) -> str:
         origin_airport=tracker.primary_origin,
         destination_airport=tracker.primary_destination,
         airline_codes=tracker.airline_codes,
+        stops=tracker.stops,
         start_time=tracker.start_time,
         end_time=tracker.end_time,
         fare_class=tracker.fare_class,
@@ -128,6 +133,7 @@ def build_google_flights_query_url_for_search(
     airline_codes: list[str],
     start_time: str,
     end_time: str,
+    stops: str = "nonstop",
     fare_class: FareClass = FareClass.BASIC_ECONOMY,
 ) -> str:
     search = GoogleFlightsSearchSpec(
@@ -135,6 +141,7 @@ def build_google_flights_query_url_for_search(
         origin_airport=origin_airport,
         destination_airport=destination_airport,
         airline_codes=airline_codes,
+        stops=stops,
         start_time=start_time,
         end_time=end_time,
         fare_class=fare_class,
@@ -159,10 +166,11 @@ def generated_tracker_seed_summary(tracker: Tracker) -> str:
             f"({departure_start}:00-{departure_end + 1}:00)"
         )
     fare_text = f" for {fare_class_label(tracker.fare_class)}"
+    stop_text = f" with {stop_policy_label(tracker.stops).lower()}"
     if len(tracker.origin_codes) == 1 and len(tracker.destination_codes) == 1:
-        return f"Generated search opens {route}{airline_text}{departure_text}{fare_text}."
+        return f"Generated search opens {route}{airline_text}{departure_text}{fare_text}{stop_text}."
     return (
-        f"Generated search opens {route}{airline_text}{departure_text}{fare_text} using the primary airport pair. "
+        f"Generated search opens {route}{airline_text}{departure_text}{fare_text}{stop_text} using the primary airport pair. "
         "Refine alternate airports directly in Google Flights if needed."
     )
 
@@ -184,7 +192,7 @@ def _departure_hour_window(start_time: str, end_time: str) -> tuple[int, int]:
 def _encode_flight_data_message(search: GoogleFlightsSearchSpec) -> bytes:
     payload = bytearray()
     payload.extend(_encode_string_field(2, search.travel_date))
-    payload.extend(_encode_enum_field(5, 0))  # nonstop only
+    payload.extend(_encode_enum_field(5, stop_limit_value(search.stops)))
     for airline in search.airline_codes:
         payload.extend(_encode_string_field(6, GOOGLE_FLIGHTS_AIRLINE_CODES.get(airline, airline)))
     departure_start, departure_end = _departure_hour_window(search.start_time, search.end_time)

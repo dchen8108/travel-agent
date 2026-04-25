@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import AliasChoices, Field, field_validator
 
-from app.catalog import normalize_airline_code, normalize_airport_code
+from app.catalog import normalize_airline_code, normalize_airport_code, normalize_stop_value
 from app.models.base import CsvModel, DataScope, FareClass, parse_fare_class
 from app.route_options import join_pipe, split_pipe, validate_time_window
 
@@ -33,11 +33,17 @@ class PriceRecord(CsvModel):
         validation_alias=AliasChoices("search_fare_class", "search_fare_class_policy"),
         serialization_alias="search_fare_class_policy",
     )
+    search_stops: str = Field(
+        default="nonstop",
+        validation_alias=AliasChoices("search_stops", "search_stops_policy"),
+        serialization_alias="search_stops_policy",
+    )
     query_origin_airport: str
     query_destination_airport: str
     airline: str
     departure_label: str = ""
     arrival_label: str = ""
+    stops: str = ""
     price: int
     offer_rank: int = 1
 
@@ -88,6 +94,16 @@ class PriceRecord(CsvModel):
     @classmethod
     def validate_search_fare_class(cls, value: object) -> FareClass:
         return parse_fare_class(value)
+
+    @field_validator("search_stops")
+    @classmethod
+    def validate_search_stops(cls, value: str) -> str:
+        return normalize_stop_value(value)
+
+    @field_validator("stops")
+    @classmethod
+    def validate_stops(cls, value: str) -> str:
+        return normalize_stop_value(value, allow_empty=True)
 
     @field_validator("search_end_time")
     @classmethod

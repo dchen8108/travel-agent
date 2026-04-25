@@ -170,6 +170,7 @@ def test_initialize_schema_repairs_tracker_fetch_targets_shape_even_when_version
     assert "schedule_offset_seconds" not in columns
     assert "next_fetch_not_before" not in columns
     assert "refresh_requested_at" in columns
+    assert "latest_stops" in columns
     assert user_version == SCHEMA_VERSION
 
 
@@ -291,11 +292,161 @@ def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_pat
 
     assert user_version == SCHEMA_VERSION
     assert "data_scope" in columns
+    assert "search_stops_policy" in columns
+    assert "stops" in columns
     assert "price_text" not in columns
     assert "summary" not in columns
     assert "request_offer_count" not in columns
     assert "is_request_cheapest" not in columns
     assert "record_signature" not in columns
+
+
+def test_repository_backfills_legacy_stop_policy_to_broadest_supported_value(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(settings.data_dir / "travel_agent.sqlite3")
+    try:
+        connection.execute("PRAGMA user_version = 28")
+        connection.execute(
+            """
+            CREATE TABLE route_options (
+                route_option_id TEXT PRIMARY KEY,
+                trip_id TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                savings_needed_vs_previous INTEGER NOT NULL,
+                origin_airports TEXT NOT NULL,
+                destination_airports TEXT NOT NULL,
+                airlines TEXT NOT NULL,
+                day_offset INTEGER NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                fare_class_policy TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE trackers (
+                tracker_id TEXT PRIMARY KEY,
+                trip_instance_id TEXT NOT NULL,
+                route_option_id TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                preference_bias_dollars INTEGER NOT NULL,
+                origin_airports TEXT NOT NULL,
+                destination_airports TEXT NOT NULL,
+                airlines TEXT NOT NULL,
+                day_offset INTEGER NOT NULL,
+                travel_date TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                fare_class_policy TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                last_signal_at TEXT NULL,
+                latest_observed_price INTEGER NULL,
+                latest_fetched_at TEXT NULL,
+                latest_winning_origin_airport TEXT NOT NULL DEFAULT '',
+                latest_winning_destination_airport TEXT NOT NULL DEFAULT '',
+                latest_signal_source TEXT NOT NULL DEFAULT '',
+                latest_match_summary TEXT NOT NULL DEFAULT '',
+                definition_signature TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE price_records (
+                price_record_id TEXT PRIMARY KEY,
+                fetch_event_id TEXT NOT NULL,
+                observed_at TEXT NOT NULL,
+                data_scope TEXT NOT NULL DEFAULT 'live',
+                fetch_target_id TEXT NOT NULL,
+                tracker_id TEXT NOT NULL,
+                trip_instance_id TEXT NOT NULL,
+                trip_id TEXT NOT NULL,
+                route_option_id TEXT NOT NULL,
+                tracker_definition_signature TEXT NOT NULL,
+                tracker_rank INTEGER NOT NULL,
+                search_origin_airports TEXT NOT NULL,
+                search_destination_airports TEXT NOT NULL,
+                search_airlines TEXT NOT NULL,
+                search_day_offset INTEGER NOT NULL,
+                search_travel_date TEXT NOT NULL,
+                search_start_time TEXT NOT NULL,
+                search_end_time TEXT NOT NULL,
+                search_fare_class_policy TEXT NOT NULL,
+                query_origin_airport TEXT NOT NULL,
+                query_destination_airport TEXT NOT NULL,
+                airline TEXT NOT NULL,
+                departure_label TEXT NOT NULL DEFAULT '',
+                arrival_label TEXT NOT NULL DEFAULT '',
+                price INTEGER NOT NULL,
+                offer_rank INTEGER NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO route_options (
+                route_option_id, trip_id, rank, data_scope, savings_needed_vs_previous,
+                origin_airports, destination_airports, airlines, day_offset, start_time,
+                end_time, fare_class_policy, created_at, updated_at
+            ) VALUES (
+                'opt_1', 'trip_1', 1, 'live', 0, 'LAX', 'SFO', 'Southwest', 0,
+                '06:00', '10:00', 'basic_economy', '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO trackers (
+                tracker_id, trip_instance_id, route_option_id, rank, data_scope, preference_bias_dollars,
+                origin_airports, destination_airports, airlines, day_offset, travel_date, start_time,
+                end_time, fare_class_policy, provider, created_at, updated_at
+            ) VALUES (
+                'trk_1', 'inst_1', 'opt_1', 1, 'live', 0, 'LAX', 'SFO', 'Southwest', 0,
+                '2026-04-20', '06:00', '10:00', 'basic_economy', 'google_flights',
+                '2026-04-01T12:00:00+00:00', '2026-04-01T12:00:00+00:00'
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO price_records (
+                price_record_id, fetch_event_id, observed_at, data_scope, fetch_target_id,
+                tracker_id, trip_instance_id, trip_id, route_option_id, tracker_definition_signature,
+                tracker_rank, search_origin_airports, search_destination_airports, search_airlines,
+                search_day_offset, search_travel_date, search_start_time, search_end_time,
+                search_fare_class_policy, query_origin_airport, query_destination_airport, airline,
+                departure_label, arrival_label, price, offer_rank
+            ) VALUES (
+                'price_1', 'fetch_1', '2026-04-01T12:00:00+00:00', 'live', 'ft_1', 'trk_1',
+                'inst_1', 'trip_1', 'opt_1', 'sig_1', 1, 'LAX', 'SFO', 'Southwest', 0,
+                '2026-04-20', '06:00', '10:00', 'basic_economy', 'LAX', 'SFO', 'Southwest',
+                '6:00 AM', '7:30 AM', 199, 1
+            )
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    assert repository.load_route_options()[0].stops == "2_stops"
+    assert repository.load_trackers()[0].stops == "2_stops"
+    assert repository.load_price_records()[0].search_stops == "2_stops"
 
 
 def test_repository_repairs_gmail_booking_prices_with_decimal_cents(tmp_path: Path) -> None:
@@ -712,6 +863,7 @@ def test_repository_backfills_obvious_overnight_booking_arrival_day_offset(tmp_p
 
     assert arrival_day_offset == 1
     assert "arrival_day_offset" in booking_columns
+    assert "stops" in booking_columns
 
 
 def test_repository_backfills_obvious_qa_rows_as_test_scope(tmp_path: Path) -> None:

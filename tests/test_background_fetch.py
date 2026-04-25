@@ -123,11 +123,13 @@ def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
           <li>
             <div class="sSHqwe tPgKwe ogfYpf"><span>Southwest</span></div>
             <span class="mv1WYe"><div>6:10 PM on Wed, Apr 1</div><div>7:20 PM on Wed, Apr 1</div></span>
+            <div>Nonstop</div>
             <div class="YMlIz FpEdX">$267</div>
           </li>
           <li>
             <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
             <span class="mv1WYe"><div>5:55 PM on Wed, Apr 1</div><div>7:05 PM on Wed, Apr 1</div></span>
+            <div>1 stop</div>
             <div class="YMlIz FpEdX">$241</div>
           </li>
         </ul>
@@ -139,9 +141,31 @@ def test_parse_google_flights_offers_extracts_prices_and_best_offer() -> None:
     winner = best_google_flights_offer(offers)
 
     assert len(offers) == 2
+    assert offers[0].stops == "nonstop"
+    assert offers[1].stops == "1_stop"
     assert winner is not None
     assert winner.airline == "Alaska"
     assert winner.price == 241
+    assert winner.stops == "1_stop"
+
+
+def test_parse_google_flights_stops_collapses_three_plus_to_two_stops() -> None:
+    offers = parse_google_flights_offers(
+        """
+        <div jsname="IWWDBc">
+          <ul class="Rk10dc">
+            <li>
+              <div class="sSHqwe tPgKwe ogfYpf"><span>United</span></div>
+              <span class="mv1WYe"><div>6:15 AM on Tue, Apr 1</div><div>2:25 PM on Tue, Apr 1</div></span>
+              <div>3 stops</div>
+              <div class="YMlIz FpEdX">$341</div>
+            </li>
+          </ul>
+        </div>
+        """
+    )
+
+    assert offers[0].stops == "2_stops"
 
 
 def test_departure_time_filter_supports_minute_precision() -> None:
@@ -1142,6 +1166,87 @@ def test_run_fetch_batch_marks_no_results_when_broad_query_returns_only_out_of_w
         successful_fetches=result.successful_fetches,
     )
     assert len(records) == 2
+
+
+def test_run_fetch_batch_filters_winner_by_stop_policy_but_still_records_all_offers(
+    repository: Repository,
+    monkeypatch,
+) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Stop policy winner selection",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date.today() + timedelta(days=7),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "BUR",
+                "destination_airports": "SEA",
+                "airlines": "Alaska|United",
+                "stops": "1_stop",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "10:00",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository)
+    tracker = snapshot.trackers[0]
+
+    def fake_fetch(url: str, *, client=None, timeout=20.0):
+        return parse_google_flights_offers(
+            """
+            <div jsname="IWWDBc">
+              <ul class="Rk10dc">
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+                  <span class="mv1WYe"><div>6:30 AM on Tue, Apr 1</div><div>9:30 AM on Tue, Apr 1</div></span>
+                  <div>2 stops</div>
+                  <div class="YMlIz FpEdX">$119</div>
+                </li>
+                <li>
+                  <div class="sSHqwe tPgKwe ogfYpf"><span>United</span></div>
+                  <span class="mv1WYe"><div>7:00 AM on Tue, Apr 1</div><div>9:50 AM on Tue, Apr 1</div></span>
+                  <div>1 stop</div>
+                  <div class="YMlIz FpEdX">$149</div>
+                </li>
+              </ul>
+            </div>
+            """
+        )
+
+    monkeypatch.setattr("app.services.background_fetch.fetch_google_flights_offers", fake_fetch)
+
+    result = run_fetch_batch(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        sleep_between_requests=False,
+        startup_jitter_seconds=0,
+    )
+
+    assert result.attempts[0].status == "success"
+    assert result.attempts[0].offer_count == 2
+    assert result.attempts[0].matching_offer_count == 1
+    assert result.attempts[0].price == 149
+
+    apply_fetch_target_rollups(snapshot.trackers, snapshot.tracker_fetch_targets)
+    assert tracker.latest_observed_price == 149
+    assert snapshot.tracker_fetch_targets[0].latest_stops == "1_stop"
+
+    records = build_price_records(
+        trips=snapshot.trips,
+        trip_instances=snapshot.trip_instances,
+        trackers=snapshot.trackers,
+        fetch_targets=snapshot.tracker_fetch_targets,
+        successful_fetches=result.successful_fetches,
+    )
+    assert len(records) == 2
+    assert {record.price for record in records} == {119, 149}
 
 
 def test_fetch_rollup_clears_background_only_tracker_when_targets_reset() -> None:

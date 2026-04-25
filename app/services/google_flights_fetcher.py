@@ -7,6 +7,7 @@ from datetime import datetime
 import httpx
 from selectolax.lexbor import LexborHTMLParser
 
+from app.catalog import normalize_stop_value, stop_display_label
 from app.models.base import AppState
 from app.route_options import time_in_window
 
@@ -40,12 +41,16 @@ class GoogleFlightsOffer:
     arrival_label: str
     price: int
     price_text: str
+    stops: str = ""
 
     @property
     def summary(self) -> str:
         details = [self.airline]
         if self.departure_label and self.arrival_label:
             details.append(f"{self.departure_label} → {self.arrival_label}")
+        stop_label = stop_display_label(self.stops, allow_empty=True)
+        if stop_label and stop_label != "Nonstop":
+            details.append(stop_label)
         details.append(self.price_text)
         return " · ".join(details)
 
@@ -104,6 +109,7 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
                 continue
             departure_label = time_nodes[0].text(strip=True) if len(time_nodes) > 0 else ""
             arrival_label = time_nodes[1].text(strip=True) if len(time_nodes) > 1 else ""
+            raw_text = item.text()
             offers.append(
                 GoogleFlightsOffer(
                     airline=airline,
@@ -111,6 +117,7 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
                     arrival_label=arrival_label,
                     price=price,
                     price_text=price_text,
+                    stops=parse_google_flights_stops(raw_text),
                 )
             )
     if not offers:
@@ -128,6 +135,19 @@ def parse_google_flights_price(value: str) -> int | None:
     if not digits:
         return None
     return int(digits)
+
+
+def parse_google_flights_stops(value: str) -> str:
+    raw = str(value or "")
+    if not raw:
+        return ""
+    if re.search(r"\bnonstop\b", raw, flags=re.IGNORECASE):
+        return "nonstop"
+    match = re.search(r"\b(\d+)\+?\s*stop(?:s)?\b", raw, flags=re.IGNORECASE)
+    if not match:
+        return ""
+    stop_count = int(match.group(1))
+    return normalize_stop_value("1_stop" if stop_count == 1 else "2_stops")
 
 
 def best_google_flights_offer(offers: list[GoogleFlightsOffer]) -> GoogleFlightsOffer | None:

@@ -5,6 +5,7 @@ from datetime import date
 from app.catalog import known_airline_code
 from app.models.tracker import Tracker
 from app.services.itinerary_display import (
+    append_route_stop_label,
     booking_airline_label,
     booking_route_label,
     format_departure_time_label,
@@ -112,6 +113,7 @@ def live_fare_offer_summary(
     anchor_date: date | None,
     travel_date: date | None,
     detail: str,
+    stops: str = "",
     primary_meta_label: str,
     meta_badges: list[str] | None,
     airline_key: str = "",
@@ -124,7 +126,7 @@ def live_fare_offer_summary(
     badges = [item for item in (meta_badges or []) if item]
     offer = {
         "label": "Live fare",
-        "detail": detail,
+        "detail": append_route_stop_label(detail, stops),
         "airline_key": known_airline_code(airline_key),
         "primary_meta_label": primary_meta_label,
         "meta_badges": badges,
@@ -190,6 +192,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             anchor_date=instance.anchor_date if instance is not None else date.today(),
             travel_date=display_tracker.travel_date if display_tracker is not None else None,
             detail=current_offer_detail,
+            stops=(current_target.latest_stops if current_target is not None else ""),
             primary_meta_label=current_offer_primary_meta,
             meta_badges=[],
             airline_key=(

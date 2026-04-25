@@ -71,6 +71,12 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_bookings_arrival_day_offset_to_v26(connection)
     if current_version < 27:
         _migrate_trip_instances_skipped_to_v27(connection)
+    if current_version < 28:
+        _migrate_bookings_stops_to_v28(connection)
+    if current_version < 29:
+        _migrate_route_and_tracker_stops_to_v29(connection)
+    if current_version < 30:
+        _migrate_price_records_and_fetch_target_stops_to_v30(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -90,6 +96,12 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_arrival_day_offset_to_v26(connection)
     # Apply the same shape-repair policy for trip instance skipped state.
     _migrate_trip_instances_skipped_to_v27(connection)
+    # Apply the same shape-repair policy for booking stops.
+    _migrate_bookings_stops_to_v28(connection)
+    # Apply the same shape-repair policy for route-option and tracker stops.
+    _migrate_route_and_tracker_stops_to_v29(connection)
+    # Apply the same shape-repair policy for fetched-offer and fetch-target stops.
+    _migrate_price_records_and_fetch_target_stops_to_v30(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -793,6 +805,53 @@ def _migrate_trip_instances_skipped_to_v27(connection: sqlite3.Connection) -> No
         )
 
 
+def _migrate_bookings_stops_to_v28(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "stops" not in columns:
+        connection.execute(
+            "ALTER TABLE bookings ADD COLUMN stops TEXT NOT NULL DEFAULT ''"
+        )
+
+
+def _migrate_route_and_tracker_stops_to_v29(connection: sqlite3.Connection) -> None:
+    if _table_exists(connection, "route_options"):
+        route_option_columns = _table_columns(connection, "route_options")
+        if "stops" not in route_option_columns:
+            connection.execute(
+                "ALTER TABLE route_options ADD COLUMN stops TEXT NOT NULL DEFAULT 'nonstop'"
+            )
+            connection.execute("UPDATE route_options SET stops = '2_stops'")
+    if _table_exists(connection, "trackers"):
+        tracker_columns = _table_columns(connection, "trackers")
+        if "stops" not in tracker_columns:
+            connection.execute(
+                "ALTER TABLE trackers ADD COLUMN stops TEXT NOT NULL DEFAULT 'nonstop'"
+            )
+            connection.execute("UPDATE trackers SET stops = '2_stops'")
+
+
+def _migrate_price_records_and_fetch_target_stops_to_v30(connection: sqlite3.Connection) -> None:
+    if _table_exists(connection, "price_records"):
+        price_record_columns = _table_columns(connection, "price_records")
+        if "search_stops_policy" not in price_record_columns:
+            connection.execute(
+                "ALTER TABLE price_records ADD COLUMN search_stops_policy TEXT NOT NULL DEFAULT 'nonstop'"
+            )
+            connection.execute("UPDATE price_records SET search_stops_policy = '2_stops'")
+        if "stops" not in price_record_columns:
+            connection.execute(
+                "ALTER TABLE price_records ADD COLUMN stops TEXT NOT NULL DEFAULT ''"
+            )
+    if _table_exists(connection, "tracker_fetch_targets"):
+        tracker_target_columns = _table_columns(connection, "tracker_fetch_targets")
+        if "latest_stops" not in tracker_target_columns:
+            connection.execute(
+                "ALTER TABLE tracker_fetch_targets ADD COLUMN latest_stops TEXT NOT NULL DEFAULT ''"
+            )
+
+
 def _migrate_trips_remove_legacy_group_column_to_v19(connection: sqlite3.Connection) -> None:
     if not _table_exists(connection, "trips"):
         return
@@ -1072,6 +1131,7 @@ def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> Non
         "fetch_claim_expires_at",
         "latest_price",
         "latest_airline",
+        "latest_stops",
         "latest_departure_label",
         "latest_arrival_label",
         "latest_summary",
@@ -1103,6 +1163,7 @@ def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> Non
             fetch_claim_expires_at TEXT NULL,
             latest_price INTEGER NULL,
             latest_airline TEXT NOT NULL DEFAULT '',
+            latest_stops TEXT NOT NULL DEFAULT '',
             latest_departure_label TEXT NOT NULL DEFAULT '',
             latest_arrival_label TEXT NOT NULL DEFAULT '',
             latest_summary TEXT NOT NULL DEFAULT '',
@@ -1112,8 +1173,9 @@ def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> Non
         )
         """
     )
+    latest_stops_sql = "COALESCE(latest_stops, '')" if "latest_stops" in columns else "''"
     connection.execute(
-        """
+        f"""
         INSERT INTO tracker_fetch_targets_v22 (
             fetch_target_id,
             tracker_id,
@@ -1133,6 +1195,7 @@ def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> Non
             fetch_claim_expires_at,
             latest_price,
             latest_airline,
+            latest_stops,
             latest_departure_label,
             latest_arrival_label,
             latest_summary,
@@ -1159,6 +1222,7 @@ def _migrate_tracker_fetch_targets_to_v22(connection: sqlite3.Connection) -> Non
             fetch_claim_expires_at,
             latest_price,
             COALESCE(latest_airline, ''),
+            {latest_stops_sql},
             COALESCE(latest_departure_label, ''),
             COALESCE(latest_arrival_label, ''),
             COALESCE(latest_summary, ''),

@@ -21,6 +21,7 @@ from app.services.google_flights_fetcher import (
     filter_google_flights_offers_by_departure_window,
 )
 from app.services.price_records import SuccessfulFetchRecord
+from app.route_options import stop_policy_allows_stops
 from app.storage.repository import Repository
 
 def _app_state(app_state: AppState | None) -> AppState:
@@ -282,11 +283,17 @@ def run_fetch_batch(
                     start_time=tracker.start_time,
                     end_time=tracker.end_time,
                 )
+                matching_offers = [
+                    offer
+                    for offer in matching_offers
+                    if stop_policy_allows_stops(tracker.stops, offer.stops)
+                ]
                 winner = best_google_flights_offer(matching_offers)
                 if winner is None:
                     raise GoogleFlightsNoWindowMatchError("Flights were found, but none matched the exact departure window.")
                 target.latest_price = winner.price
                 target.latest_airline = winner.airline
+                target.latest_stops = winner.stops
                 target.latest_departure_label = winner.departure_label
                 target.latest_arrival_label = winner.arrival_label
                 target.latest_summary = winner.summary
@@ -321,6 +328,7 @@ def run_fetch_batch(
                 no_results_at = utcnow()
                 target.latest_price = None
                 target.latest_airline = ""
+                target.latest_stops = ""
                 target.latest_departure_label = ""
                 target.latest_arrival_label = ""
                 target.latest_summary = ""
@@ -354,6 +362,7 @@ def run_fetch_batch(
                 no_window_match_at = utcnow()
                 target.latest_price = None
                 target.latest_airline = ""
+                target.latest_stops = ""
                 target.latest_departure_label = ""
                 target.latest_arrival_label = ""
                 target.latest_summary = ""

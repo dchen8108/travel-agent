@@ -46,6 +46,7 @@ def _parse_route_options(raw: str) -> list[dict[str, object]]:
                 "origin_airports": "|".join(item.get("origin_airports", []) or []),
                 "destination_airports": "|".join(item.get("destination_airports", []) or []),
                 "airlines": "|".join(item.get("airlines", []) or []),
+                "stops": str(item.get("stops", "nonstop") or "nonstop"),
                 "day_offset": int(item.get("day_offset", 0)),
                 "start_time": str(item.get("start_time", "") or ""),
                 "end_time": str(item.get("end_time", "") or ""),

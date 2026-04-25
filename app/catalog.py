@@ -103,6 +103,17 @@ AIRLINE_ALIASES = {
     "sy": "Sun Country",
     "sun country": "Sun Country",
 }
+STOP_VALUES = {"nonstop", "1_stop", "2_stops"}
+STOP_LIMITS = {
+    "nonstop": 0,
+    "1_stop": 1,
+    "2_stops": 2,
+}
+STOP_LABELS = {
+    "nonstop": "Nonstop",
+    "1_stop": "1 stop",
+    "2_stops": "2 stops",
+}
 
 
 def airport_options() -> list[dict[str, str]]:
@@ -144,6 +155,67 @@ def fare_class_options() -> list[dict[str, str]]:
             "keywords": "economy main standard coach",
         },
     ]
+
+
+def booking_stop_options() -> list[dict[str, str]]:
+    return [
+        {
+            "value": "nonstop",
+            "label": "Nonstop",
+            "keywords": "nonstop direct no stops",
+        },
+        {
+            "value": "1_stop",
+            "label": "1 stop",
+            "keywords": "1 stop one stop",
+        },
+        {
+            "value": "2_stops",
+            "label": "2 stops",
+            "keywords": "2 stops two stops",
+        },
+    ]
+
+
+def route_stop_options() -> list[dict[str, str]]:
+    return [
+        {
+            "value": "nonstop",
+            "label": "Nonstop",
+            "keywords": "nonstop direct no stops",
+        },
+        {
+            "value": "1_stop",
+            "label": "Up to 1 stop",
+            "keywords": "1 stop one stop up to 1 stop",
+        },
+        {
+            "value": "2_stops",
+            "label": "Up to 2 stops",
+            "keywords": "2 stops two stops up to 2 stops",
+        },
+    ]
+
+
+def normalize_stop_value(value: object, *, default: str = "nonstop", allow_empty: bool = False) -> str:
+    normalized = str(value or "").strip().lower().replace(" ", "_")
+    if not normalized:
+        return "" if allow_empty else default
+    if normalized not in STOP_VALUES:
+        raise ValueError("Choose a valid stop count.")
+    return normalized
+
+
+def stop_limit_value(value: object, *, default: str = "nonstop") -> int:
+    normalized = normalize_stop_value(value, default=default)
+    return STOP_LIMITS[normalized]
+
+
+def stop_display_label(value: object, *, allow_empty: bool = False) -> str:
+    normalized = normalize_stop_value(value, allow_empty=allow_empty)
+    if not normalized:
+        return ""
+    return STOP_LABELS[normalized]
 
 
 def normalize_airport_code(value: str) -> str:
@@ -200,6 +272,8 @@ def catalogs_json() -> str:
         "airports": airport_options(),
         "airlines": airline_options(),
         "fareClasses": fare_class_options(),
+        "routeStops": route_stop_options(),
+        "bookingStops": booking_stop_options(),
         "weekdays": WEEKDAYS,
         "tripKinds": [
             {"value": "one_time", "label": "One-time"},

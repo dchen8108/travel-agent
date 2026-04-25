@@ -2125,7 +2125,7 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
     trips_page = client.get("/trips")
     assert trips_page.status_code == 200
     payload = _dashboard_payload(client)
-    assert any(item["label"] == "No collection" for item in payload["filters"]["groupOptions"])
+    assert any(item["label"] == "Other" for item in payload["filters"]["groupOptions"])
     assert any(item["label"] == "Weekly LA to SF" for collection in payload["collections"] for item in collection["recurringTrips"])
     assert any(item["trip"]["title"] == "Conference Arrival" for item in payload["trips"])
 

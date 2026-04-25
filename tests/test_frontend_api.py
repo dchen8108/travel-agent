@@ -151,6 +151,18 @@ def test_dashboard_api_returns_collections_and_trip_rows(client, repository: Rep
     assert payload["trips"][0]["bookedOffer"]["metaLabel"].endswith("BDJ594")
 
 
+def test_dashboard_api_trip_rows_expose_trip_group_ids_for_grouped_recurring_instances(client, repository: Repository) -> None:
+    trip_instance_id = _seed_grouped_recurring_trip(repository)
+    group_id = repository.load_trip_groups()[0].trip_group_id
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    payload = response.json()
+    trip_row = next(row for row in payload["trips"] if row["trip"]["tripInstanceId"] == trip_instance_id)
+    assert trip_row["trip"]["tripGroupIds"] == [group_id]
+
+
 def test_trip_status_mutation_synchronously_refreshes_dashboard(client, repository: Repository) -> None:
     live_trip = save_trip(
         repository,
@@ -312,12 +324,71 @@ def test_trip_panel_apis_return_booking_and_tracker_payloads(client, repository:
     assert bookings_response.json()["catalogs"] is None
     assert booking_form_response.status_code == 200
     assert booking_form_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
+    assert booking_form_response.json()["form"]["values"]["stops"] == ""
+    assert [item["value"] for item in booking_form_response.json()["catalogs"]["bookingStops"]] == [
+        "nonstop",
+        "1_stop",
+        "2_stops",
+    ]
     assert trackers_response.status_code == 200
     assert trackers_response.json()["trip"]["title"] == "Commute"
     assert trackers_response.json()["rows"] == []
     assert trackers_response.json()["emptyLabel"] == "Checking live fares…"
     assert create_response.status_code == 200
     assert create_response.json()["form"]["values"]["tripInstanceId"] == trip_instance_id
+
+
+def test_dashboard_and_booking_panel_show_booking_stop_counts(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Stop-count booking",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "06:00",
+                "end_time": "08:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=anchor_date,
+            departure_time="06:00",
+            arrival_time="08:30",
+            booked_price="98.40",
+            record_locator="STOP01",
+            stops="1_stop",
+            flight_number="WN 2426",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+
+    dashboard_response = client.get("/api/dashboard")
+    bookings_response = client.get(f"/api/trip-instances/{trip_instance_id}/bookings?mode=list")
+
+    assert dashboard_response.status_code == 200
+    assert bookings_response.status_code == 200
+    assert dashboard_response.json()["trips"][0]["bookedOffer"]["detail"] == "LAX → SFO · 1 stop"
+    assert bookings_response.json()["rows"][0]["offer"]["detail"] == "LAX → SFO · 1 stop"
 
 
 def test_dashboard_booking_actions_distinguish_zero_one_and_multiple_bookings(client, repository: Repository) -> None:
@@ -605,6 +676,84 @@ def test_tracker_panel_inlines_day_offset_into_fetched_times_with_explicit_date_
     assert trackers_response.json()["rows"][0]["offer"]["primaryMetaLabel"] == "8:10 PM⁺¹ → 9:40 PM⁺²"
 
 
+def test_dashboard_and_tracker_panel_show_live_offer_stop_counts(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Stop-count tracker trip",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "LAX",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "16:00",
+                "end_time": "22:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+                "stops": "2_stops",
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    tracker = repository.load_trackers()[0]
+    target = repository.load_tracker_fetch_targets()[0]
+    fetched_at = utcnow()
+    target.latest_price = 184
+    target.latest_airline = "Southwest"
+    target.latest_stops = "1_stop"
+    target.latest_departure_label = "5:57 PM"
+    target.latest_arrival_label = "7:28 PM"
+    target.latest_fetched_at = fetched_at
+    target.last_fetch_finished_at = fetched_at
+    target.last_fetch_status = "success"
+    target.google_flights_url = "https://example.com/gf"
+    repository.upsert_tracker_fetch_targets([target])
+    tracker.latest_observed_price = 184
+    tracker.latest_winning_origin_airport = "SFO"
+    tracker.latest_winning_destination_airport = "LAX"
+    tracker.latest_fetched_at = fetched_at
+    repository.upsert_trackers([tracker])
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=[
+            SuccessfulFetchRecord(
+                fetch_target_id=target.fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="5:57 PM",
+                        arrival_label="7:28 PM",
+                        price=184,
+                        price_text="$184",
+                        stops="1_stop",
+                    ),
+                ],
+            )
+        ],
+    ))
+
+    dashboard_response = client.get("/api/dashboard")
+    trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
+
+    assert dashboard_response.status_code == 200
+    assert trackers_response.status_code == 200
+    row = next(item for item in dashboard_response.json()["trips"] if item["trip"]["title"] == "Stop-count tracker trip")
+    assert row["currentOffer"]["detail"] == "SFO → LAX · 1 stop"
+    assert trackers_response.json()["rows"][0]["offer"]["detail"] == "SFO → LAX · 1 stop"
+
+
 def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(client, repository: Repository) -> None:
     save_trip(
         repository,
@@ -774,6 +923,7 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
     assert form_payload["form"]["values"]["recordLocator"] == "SKLOAK"
     assert form_payload["form"]["values"]["tripInstanceId"] == ""
     assert form_payload["form"]["values"]["arrivalDayOffset"] == "1"
+    assert form_payload["form"]["values"]["stops"] == ""
 
     update_response = client.patch(
         f"/api/unmatched-bookings/{unmatched.unmatched_booking_id}",
@@ -786,6 +936,7 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
             "departureTime": "21:45",
             "arrivalTime": "01:00",
             "arrivalDayOffset": 1,
+            "stops": "1_stop",
             "bookedPrice": "41.20",
             "recordLocator": "EDIT01",
             "notes": "Updated from modal",
@@ -796,8 +947,10 @@ def test_unmatched_booking_form_and_update_api(client, repository: Repository) -
     assert update_response.json() == {"ok": True}
     dashboard = client.get("/api/dashboard").json()
     unmatched_item = next(item for item in dashboard["actionItems"] if item["kind"] == "unmatchedBooking")
-    assert unmatched_item["offer"]["detail"] == "JFK → LAX"
+    assert unmatched_item["offer"]["detail"] == "JFK → LAX · 1 stop"
     assert unmatched_item["offer"]["metaLabel"].endswith("EDIT01")
+    updated = next(item for item in repository.load_unmatched_bookings() if item.unmatched_booking_id == unmatched.unmatched_booking_id)
+    assert updated.stops == "1_stop"
 
 
 def test_dashboard_api_suppresses_rebook_card_when_preference_buffer_erases_raw_savings(

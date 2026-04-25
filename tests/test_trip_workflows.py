@@ -1255,10 +1255,54 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
     assert any(field == 2 and value == 2 for field, wire, value in top_fields if wire == 0)
     assert any(field == 14 and value == 1 for field, wire, value in top_fields if wire == 0)
     assert any(field == 16 for field, wire, value in top_fields if wire == 2)
+    assert any(field == 5 and value == 0 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 8 and value == 6 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 9 and value == 9 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 10 and value == 0 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 11 and value == 23 for field, wire, value in nested_fields if wire == 0)
+
+
+@pytest.mark.parametrize(
+    ("stops", "expected_limit"),
+    [
+        ("nonstop", 0),
+        ("1_stop", 1),
+        ("2_stops", 2),
+    ],
+)
+def test_generated_google_flights_url_encodes_stop_limit(repository: Repository, stops: str, expected_limit: int) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label=f"Stops {stops}",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 7, 6),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "LAX",
+                "destination_airports": "SFO",
+                "airlines": "Southwest",
+                "stops": stops,
+                "day_offset": 0,
+                "start_time": "00:00",
+                "end_time": "23:59",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
+
+    url = build_google_flights_query_url(tracker)
+    top_fields = _decode_tfs(url)
+    flight_data = next(value for field, wire, value in top_fields if field == 3 and wire == 2)
+    nested_fields = _parse_fields(flight_data)  # type: ignore[arg-type]
+
+    assert tracker.stops == stops
+    assert any(field == 5 and value == expected_limit for field, wire, value in nested_fields if wire == 0)
 
 
 def test_route_option_fare_class_persists_to_trackers(repository: Repository) -> None:

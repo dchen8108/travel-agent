@@ -71,11 +71,13 @@ def build_price_records(
                     search_start_time=tracker.start_time,
                     search_end_time=tracker.end_time,
                     search_fare_class=tracker.fare_class,
+                    search_stops=tracker.stops,
                     query_origin_airport=target.origin_airport,
                     query_destination_airport=target.destination_airport,
                     airline=offer.airline,
                     departure_label=offer.departure_label,
                     arrival_label=offer.arrival_label,
+                    stops=offer.stops,
                     price=offer.price,
                     offer_rank=index,
                 )

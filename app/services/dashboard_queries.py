@@ -240,16 +240,16 @@ def scheduled_ledger_view(
         "total_active_scheduled": total_active_scheduled,
         "total_booked_scheduled": total_booked_scheduled,
         "group_filter_options": [
-            {
-                "value": UNGROUPED_TRIPS_FILTER_VALUE,
-                "label": "Ungrouped",
-                "hideValue": True,
-                "keywords": "ungrouped no group without collection no collection",
-            },
             *(
                 {"value": group.trip_group_id, "label": group.label}
                 for group in group_items
             ),
+            {
+                "value": UNGROUPED_TRIPS_FILTER_VALUE,
+                "label": "Other",
+                "hideValue": True,
+                "keywords": "other ungrouped no group without collection no collection",
+            },
         ],
         "today": today,
     }

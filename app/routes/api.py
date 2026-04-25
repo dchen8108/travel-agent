@@ -64,6 +64,7 @@ class BookingBody(BaseModel):
     arrivalTime: str
     arrivalDayOffset: int = Field(default=0, ge=0, le=7)
     fareClass: str = FareClass.BASIC_ECONOMY
+    stops: str = ""
     flightNumber: str = ""
     bookedPrice: str
     recordLocator: str = ""
@@ -115,6 +116,7 @@ def _booking_candidate(body: BookingBody) -> BookingCandidate:
         arrival_time=body.arrivalTime.strip(),
         arrival_day_offset=body.arrivalDayOffset,
         fare_class=fare_class,
+        stops=body.stops.strip(),
         flight_number=body.flightNumber.strip(),
         booked_price=booked_price,
         record_locator=body.recordLocator.strip(),

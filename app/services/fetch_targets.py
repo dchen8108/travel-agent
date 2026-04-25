@@ -47,6 +47,7 @@ def reconcile_fetch_targets(
                 airline_codes=tracker.airline_codes,
                 start_time=tracker.start_time,
                 end_time=tracker.end_time,
+                stops=tracker.stops,
                 fare_class=tracker.fare_class,
             )
             existing = existing_by_id.get(fetch_target_id)
@@ -61,6 +62,7 @@ def reconcile_fetch_targets(
                 if url_changed or definition_changed:
                     existing.latest_price = None
                     existing.latest_airline = ""
+                    existing.latest_stops = ""
                     existing.latest_departure_label = ""
                     existing.latest_arrival_label = ""
                     existing.latest_summary = ""

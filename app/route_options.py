@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from app.catalog import normalize_stop_value, stop_limit_value
 from app.catalog import WEEKDAYS
 from app.models.base import FareClass, fare_class_label, parse_fare_class
 
@@ -103,6 +104,26 @@ def time_windows_overlap_exclusive_end(start_a: str, end_a: str, start_b: str, e
     return max(start_a, start_b) < min(end_a, end_b)
 
 
+def stop_policy_allows_stops(stop_policy: str, stops: str | None) -> bool:
+    normalized_stops = normalize_stop_value(stops, allow_empty=True)
+    if not normalized_stops:
+        return True
+    return stop_limit_value(normalized_stops) <= stop_limit_value(stop_policy)
+
+
+def stop_policy_matches_booking(stop_policy: str, booking_stops: str | None) -> bool:
+    return stop_policy_allows_stops(stop_policy, booking_stops)
+
+
+def stop_policy_label(stop_policy: object) -> str:
+    normalized = normalize_stop_value(stop_policy)
+    if normalized == "nonstop":
+        return "Nonstop"
+    if normalized == "1_stop":
+        return "Up to 1 stop"
+    return "Up to 2 stops"
+
+
 def route_option_summary(
     origin_airports: list[str],
     destination_airports: list[str],
@@ -111,12 +132,14 @@ def route_option_summary(
     start_time: str,
     end_time: str,
     fare_class: str = FareClass.ECONOMY,
+    stops: str = "nonstop",
 ) -> str:
     origins = ", ".join(origin_airports)
     destinations = ", ".join(destination_airports)
     airline_label = ", ".join(airlines)
     fare_label = fare_class_label(parse_fare_class(fare_class))
-    return f"{origins} → {destinations} · {day_label} · {start_time}-{end_time} · {airline_label} · {fare_label}"
+    stop_label = stop_policy_label(stops)
+    return f"{origins} → {destinations} · {day_label} · {start_time}-{end_time} · {airline_label} · {fare_label} · {stop_label}"
 
 
 def cumulative_route_option_bias(savings_needed_vs_previous: list[int], index: int) -> int:

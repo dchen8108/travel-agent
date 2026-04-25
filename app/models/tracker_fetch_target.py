@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import Field, field_validator
 
-from app.catalog import normalize_airport_code
+from app.catalog import normalize_airport_code, normalize_stop_value
 from app.models.base import CsvModel, DataScope, FetchTargetStatus, utcnow
 
 
@@ -27,6 +27,7 @@ class TrackerFetchTarget(CsvModel):
     fetch_claim_expires_at: datetime | None = None
     latest_price: int | None = None
     latest_airline: str = ""
+    latest_stops: str = ""
     latest_departure_label: str = ""
     latest_arrival_label: str = ""
     latest_summary: str = ""
@@ -45,6 +46,7 @@ class TrackerFetchTarget(CsvModel):
         "last_fetch_error",
         "fetch_claim_owner",
         "latest_airline",
+        "latest_stops",
         "latest_departure_label",
         "latest_arrival_label",
         "latest_summary",
@@ -52,6 +54,11 @@ class TrackerFetchTarget(CsvModel):
     @classmethod
     def normalize_text(cls, value: str) -> str:
         return value.strip()
+
+    @field_validator("latest_stops")
+    @classmethod
+    def validate_stops(cls, value: str) -> str:
+        return normalize_stop_value(value, allow_empty=True)
 
     @field_validator("consecutive_failures")
     @classmethod

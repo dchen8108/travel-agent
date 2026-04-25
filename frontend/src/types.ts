@@ -39,6 +39,7 @@ export interface TripIdentity {
   title: string;
   anchorDate: string;
   dateTile: DateTile;
+  tripGroupIds: string[];
   skipped: boolean;
   editHref: string;
   delete: TripDeleteAction | null;
@@ -151,6 +152,7 @@ export interface BookingFormPayload {
       arrivalTime: string;
       arrivalDayOffset: string;
       fareClass: FareClass;
+      stops: string;
       flightNumber: string;
       bookedPrice: string;
       recordLocator: string;
@@ -162,6 +164,7 @@ export interface BookingFormPayload {
     airports: Array<{ value: string; label: string; keywords: string }>;
     airlines: Array<{ value: string; label: string; keywords: string }>;
     fareClasses: Array<{ value: FareClass; label: string; keywords: string }>;
+    bookingStops: Array<{ value: string; label: string; keywords: string }>;
   };
 }
 
@@ -181,6 +184,7 @@ export interface UnmatchedBookingFormPayload {
       arrivalTime: string;
       arrivalDayOffset: string;
       fareClass: FareClass;
+      stops: string;
       flightNumber: string;
       bookedPrice: string;
       recordLocator: string;
@@ -192,6 +196,7 @@ export interface UnmatchedBookingFormPayload {
     airports: Array<{ value: string; label: string; keywords: string }>;
     airlines: Array<{ value: string; label: string; keywords: string }>;
     fareClasses: Array<{ value: FareClass; label: string; keywords: string }>;
+    bookingStops: Array<{ value: string; label: string; keywords: string }>;
   };
 }
 
@@ -263,6 +268,7 @@ export interface TripEditorRouteOption {
   originAirports: string[];
   destinationAirports: string[];
   airlines: string[];
+  stops: string;
   dayOffset: number;
   startTime: string;
   endTime: string;
@@ -292,6 +298,7 @@ export interface TripEditorPayload {
     airports: Array<{ value: string; label: string; keywords: string }>;
     airlines: Array<{ value: string; label: string; keywords: string }>;
     fareClasses: Array<{ value: FareClass; label: string; keywords: string }>;
+    routeStops: Array<{ value: string; label: string; keywords: string }>;
     weekdays: string[];
     tripKinds: Array<{ value: string; label: string }>;
   };

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.money import format_money
-from app.route_options import time_in_window
+from app.route_options import stop_policy_allows_stops, time_in_window
 from app.services.dashboard_trip_panels import tracker_context
 from app.services.google_flights_fetcher import departure_time_from_offer_label
 from app.services.itinerary_display import format_refresh_timestamp_label, format_time_range_label, travel_day_delta
@@ -45,11 +45,14 @@ def latest_trip_flight_panel(snapshot, repository, *, trip_instance_id: str) -> 
         departure_time = departure_time_from_offer_label(record.departure_label)
         if not time_in_window(tracker.start_time, tracker.end_time, departure_time):
             continue
+        if not stop_policy_allows_stops(tracker.stops, record.stops):
+            continue
         effective_price = record.price + int(tracker.preference_bias_dollars or 0)
         offer = live_fare_offer_summary(
             anchor_date=trip_instance.anchor_date,
             travel_date=tracker.travel_date,
             detail=f"{record.query_origin_airport} \u2192 {record.query_destination_airport}",
+            stops=record.stops,
             primary_meta_label=format_time_range_label(
                 record.departure_label,
                 record.arrival_label,

@@ -17,6 +17,7 @@ def tracker_definition_signature(
     origin_airports: str,
     destination_airports: str,
     airlines: str,
+    stops: str,
     day_offset: int,
     travel_date,
     start_time: str,
@@ -29,6 +30,7 @@ def tracker_definition_signature(
         origin_airports,
         destination_airports,
         airlines,
+        stops,
         day_offset,
         travel_date.isoformat(),
         start_time,
@@ -76,6 +78,7 @@ def reconcile_trackers(
                 origin_airports=option.origin_airports,
                 destination_airports=option.destination_airports,
                 airlines=option.airlines,
+                stops=option.stops,
                 day_offset=option.day_offset,
                 travel_date=travel_date,
                 start_time=option.start_time,
@@ -91,6 +94,7 @@ def reconcile_trackers(
                 existing.origin_airports = option.origin_airports
                 existing.destination_airports = option.destination_airports
                 existing.airlines = option.airlines
+                existing.stops = option.stops
                 existing.day_offset = option.day_offset
                 existing.travel_date = travel_date
                 existing.start_time = option.start_time
@@ -119,6 +123,7 @@ def reconcile_trackers(
                     origin_airports=option.origin_airports,
                     destination_airports=option.destination_airports,
                     airlines=option.airlines,
+                    stops=option.stops,
                     day_offset=option.day_offset,
                     travel_date=travel_date,
                     start_time=option.start_time,

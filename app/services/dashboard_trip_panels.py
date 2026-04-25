@@ -64,6 +64,7 @@ def _tracker_target_row_view(snapshot, trip_instance, tracker, target, *, is_bes
                 anchor_date=trip_instance.anchor_date,
                 travel_date=tracker.travel_date,
                 detail=fetch_target_route_label(target, fallback_tracker=tracker),
+                stops=target.latest_stops,
                 primary_meta_label=(
                     format_time_range_label(
                         target.latest_departure_label,
@@ -110,6 +111,7 @@ def _tracker_fallback_row_view(trip_instance, tracker) -> TrackerSearchRowView:
                     tracker.destination_codes,
                     tracker.airline_codes,
                 ),
+                stops="",
                 primary_meta_label=format_departure_window_label(
                     tracker.start_time,
                     tracker.end_time,

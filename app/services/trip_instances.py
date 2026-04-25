@@ -257,6 +257,7 @@ def _route_option_payloads(route_options: list[RouteOption]) -> list[dict[str, o
             "origin_airports": option.origin_airports,
             "destination_airports": option.destination_airports,
             "airlines": option.airlines,
+            "stops": option.stops,
             "day_offset": option.day_offset,
             "start_time": option.start_time,
             "end_time": option.end_time,

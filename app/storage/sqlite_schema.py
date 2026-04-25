@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 27
+SCHEMA_VERSION = 30
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     arrival_time TEXT NOT NULL DEFAULT '',
     arrival_day_offset INTEGER NOT NULL DEFAULT 0,
     fare_class TEXT NOT NULL DEFAULT 'basic_economy',
+    stops TEXT NOT NULL DEFAULT '',
     flight_number TEXT NOT NULL DEFAULT '',
     booked_price REAL NOT NULL,
     record_locator TEXT NOT NULL DEFAULT '',
@@ -56,11 +57,13 @@ CREATE TABLE IF NOT EXISTS price_records (
     search_start_time TEXT NOT NULL,
     search_end_time TEXT NOT NULL,
     search_fare_class_policy TEXT NOT NULL,
+    search_stops_policy TEXT NOT NULL DEFAULT 'nonstop',
     query_origin_airport TEXT NOT NULL,
     query_destination_airport TEXT NOT NULL,
     airline TEXT NOT NULL,
     departure_label TEXT NOT NULL DEFAULT '',
     arrival_label TEXT NOT NULL DEFAULT '',
+    stops TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL,
     offer_rank INTEGER NOT NULL
 )
@@ -111,6 +114,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         origin_airports TEXT NOT NULL,
         destination_airports TEXT NOT NULL,
         airlines TEXT NOT NULL,
+        stops TEXT NOT NULL DEFAULT 'nonstop',
         day_offset INTEGER NOT NULL,
         start_time TEXT NOT NULL,
         end_time TEXT NOT NULL,
@@ -161,6 +165,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         origin_airports TEXT NOT NULL,
         destination_airports TEXT NOT NULL,
         airlines TEXT NOT NULL,
+        stops TEXT NOT NULL DEFAULT 'nonstop',
         day_offset INTEGER NOT NULL,
         travel_date TEXT NOT NULL,
         start_time TEXT NOT NULL,
@@ -199,6 +204,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         fetch_claim_expires_at TEXT NULL,
         latest_price INTEGER NULL,
         latest_airline TEXT NOT NULL DEFAULT '',
+        latest_stops TEXT NOT NULL DEFAULT '',
         latest_departure_label TEXT NOT NULL DEFAULT '',
         latest_arrival_label TEXT NOT NULL DEFAULT '',
         latest_summary TEXT NOT NULL DEFAULT '',

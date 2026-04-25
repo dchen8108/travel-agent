@@ -99,7 +99,7 @@ def build_route_options(
 ) -> list[RouteOption]:
     existing_by_id = {option.route_option_id: option for option in existing_route_options or []}
     built: list[RouteOption] = []
-    seen_signatures: set[tuple[str, str, str, int, str, str, str]] = set()
+    seen_signatures: set[tuple[str, str, str, str, int, str, str, str]] = set()
     for index, payload in enumerate(payloads, start=1):
         route_option_id = str(payload.get("route_option_id") or "").strip() or new_id("opt")
         original = existing_by_id.get(route_option_id)
@@ -112,6 +112,7 @@ def build_route_options(
             origin_airports=str(payload.get("origin_airports", "")),
             destination_airports=str(payload.get("destination_airports", "")),
             airlines=str(payload.get("airlines", "")),
+            stops=str(payload.get("stops", "nonstop") or "nonstop"),
             day_offset=int(payload.get("day_offset", 0)),
             start_time=str(payload.get("start_time", "")),
             end_time=str(payload.get("end_time", "")),
@@ -126,6 +127,7 @@ def build_route_options(
             option.origin_airports,
             option.destination_airports,
             option.airlines,
+            option.stops,
             option.day_offset,
             option.start_time,
             option.end_time,

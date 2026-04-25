@@ -143,9 +143,7 @@ function filteredTripRows(
     if (!selectedIds.size) {
       return true;
     }
-    const matchingGroups = dashboard.collections
-      .filter((collection) => collection.upcomingTrips.some((trip) => trip.tripInstanceId === row.trip.tripInstanceId))
-      .map((collection) => collection.groupId);
+    const matchingGroups = row.trip.tripGroupIds;
     if (matchingGroups.length === 0) {
       return includeUngrouped;
     }
