@@ -1037,11 +1037,13 @@ def test_skip_trip_api_hides_trip_by_default_and_surfaces_it_when_requested(clie
     hidden_dashboard = hidden_response.json()
     assert hidden_dashboard["filters"]["includeSkipped"] is False
     assert all(row["trip"]["tripInstanceId"] != trip_instance_id for row in hidden_dashboard["trips"])
-    assert all(
-        pill["tripInstanceId"] != trip_instance_id
+    hidden_pill = next(
+        pill
         for collection in hidden_dashboard["collections"]
         for pill in collection["upcomingTrips"]
+        if pill["tripInstanceId"] == trip_instance_id
     )
+    assert hidden_pill["lifecycle"] == "skipped"
     assert any(
         item.get("attentionKind") == "overbooked" and item["row"]["trip"]["tripInstanceId"] == trip_instance_id
         for item in hidden_dashboard["actionItems"]

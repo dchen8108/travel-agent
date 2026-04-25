@@ -41,15 +41,16 @@ export function FilterBar({
           aria-pressed={includeBooked}
           onClick={onToggleBooked}
         >
-          Show booked
+          Show Booked
         </button>
+        <span className="filter-chip-divider" aria-hidden="true" />
         <button
           type="button"
           className={`filter-chip ${includeSkipped ? "is-active" : ""}`}
           aria-pressed={includeSkipped}
           onClick={onToggleSkipped}
         >
-          Show skipped
+          Show Skipped
         </button>
       </div>
     </div>

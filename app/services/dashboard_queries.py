@@ -242,9 +242,9 @@ def scheduled_ledger_view(
         "group_filter_options": [
             {
                 "value": UNGROUPED_TRIPS_FILTER_VALUE,
-                "label": "No collection",
+                "label": "Ungrouped",
                 "hideValue": True,
-                "keywords": "ungrouped no group without collection",
+                "keywords": "ungrouped no group without collection no collection",
             },
             *(
                 {"value": group.trip_group_id, "label": group.label}

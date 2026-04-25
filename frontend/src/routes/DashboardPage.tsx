@@ -114,6 +114,45 @@ function tripRowLookup(dashboard: DashboardPayload | undefined) {
   return lookup;
 }
 
+function filteredTripRows(
+  dashboard: DashboardPayload | undefined,
+  {
+    selectedTripGroupIds,
+    includeBooked,
+    includeSkipped,
+  }: {
+    selectedTripGroupIds: string[];
+    includeBooked: boolean;
+    includeSkipped: boolean;
+  },
+) {
+  if (!dashboard) {
+    return [];
+  }
+  const selectedIds = new Set(selectedTripGroupIds);
+  const includeUngrouped = selectedIds.has("__ungrouped__");
+  const groupedSelections = new Set([...selectedIds].filter((value) => value !== "__ungrouped__"));
+
+  return dashboard.trips.filter((row) => {
+    if (!includeSkipped && row.trip.skipped) {
+      return false;
+    }
+    if (!includeBooked && row.bookedOffer) {
+      return false;
+    }
+    if (!selectedIds.size) {
+      return true;
+    }
+    const matchingGroups = dashboard.collections
+      .filter((collection) => collection.upcomingTrips.some((trip) => trip.tripInstanceId === row.trip.tripInstanceId))
+      .map((collection) => collection.groupId);
+    if (matchingGroups.length === 0) {
+      return includeUngrouped;
+    }
+    return matchingGroups.some((groupId) => groupedSelections.has(groupId));
+  });
+}
+
 function bookingPanelPreview(row: TripRowValue | undefined): BookingPanelPayload | null {
   if (!row) {
     return null;
@@ -177,13 +216,20 @@ export function DashboardPage() {
   const dashboardFilters = useMemo(() => {
     return buildDashboardFilters(selectedTripGroupIds, includeBooked, includeSkipped);
   }, [includeBooked, includeSkipped, selectedTripGroupIds]);
-  const dashboardQueryString = dashboardFilters.toString();
+  const dashboardCacheKey = dashboardQueryKey("all");
 
   const dashboardQuery = useQuery({
-    queryKey: dashboardQueryKey(dashboardQueryString),
-    queryFn: () => api.dashboard(dashboardFilters),
+    queryKey: dashboardCacheKey,
+    queryFn: () => api.dashboard(),
   });
-  const visibleTripRows = useMemo(() => tripRowLookup(dashboardQuery.data), [dashboardQuery.data]);
+  const displayTrips = useMemo(
+    () => filteredTripRows(dashboardQuery.data, { selectedTripGroupIds, includeBooked, includeSkipped }),
+    [dashboardQuery.data, includeBooked, includeSkipped, selectedTripGroupIds],
+  );
+  const visibleTripRows = useMemo(
+    () => tripRowLookup(dashboardQuery.data ? { ...dashboardQuery.data, trips: displayTrips } : undefined),
+    [dashboardQuery.data, displayTrips],
+  );
 
   useEffect(() => {
     const state = location.state as { toast?: { message: string; kind?: "success" | "error" } } | null;
@@ -253,7 +299,7 @@ export function DashboardPage() {
   }, [dashboardQuery.data]);
 
   function replaceCurrentDashboard(next: DashboardPayload) {
-    queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), next);
+    queryClient.setQueryData(dashboardCacheKey, next);
     void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
   }
 
@@ -267,7 +313,7 @@ export function DashboardPage() {
   }
 
   async function refreshCurrentDashboard() {
-    await queryClient.invalidateQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
+    await queryClient.invalidateQueries({ queryKey: dashboardCacheKey });
   }
 
   async function handleBookingPanelResult(tripInstanceId: string, panel: BookingPanelPayload | null) {
@@ -288,7 +334,7 @@ export function DashboardPage() {
 
   const collectionMutation = useMutation({
     mutationFn: async ({ label, groupId }: { label: string; groupId?: string }) => (
-      groupId ? api.updateCollection(groupId, label, dashboardFilters) : api.createCollection(label, dashboardFilters)
+      groupId ? api.updateCollection(groupId, label) : api.createCollection(label)
     ),
     onSuccess: ({ dashboard }) => {
       clearCollectionEditorParams();
@@ -300,11 +346,11 @@ export function DashboardPage() {
   const deleteCollectionMutation = useMutation({
     mutationFn: (groupId: string) => api.deleteCollection(groupId),
     onMutate: async (groupId) => {
-      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
-      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      await queryClient.cancelQueries({ queryKey: dashboardCacheKey });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardCacheKey);
       if (previous) {
         queryClient.setQueryData(
-          dashboardQueryKey(dashboardQueryString),
+          dashboardCacheKey,
           optimisticRemoveCollection(previous, groupId),
         );
       }
@@ -312,7 +358,7 @@ export function DashboardPage() {
     },
     onError: (error, _groupId, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+        queryClient.setQueryData(dashboardCacheKey, context.previous);
       }
       pushToast({ message: errorMessage(error, "Unable to delete collection."), kind: "error" });
     },
@@ -338,11 +384,11 @@ export function DashboardPage() {
   const toggleTripMutation = useMutation({
     mutationFn: ({ tripId, active }: { tripId: string; active: boolean }) => api.toggleRecurringTrip(tripId, active, dashboardFilters),
     onMutate: async ({ tripId, active }) => {
-      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
-      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      await queryClient.cancelQueries({ queryKey: dashboardCacheKey });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardCacheKey);
       if (previous) {
         queryClient.setQueryData(
-          dashboardQueryKey(dashboardQueryString),
+          dashboardCacheKey,
           optimisticSetRecurringTripActive(previous, tripId, active),
         );
       }
@@ -350,7 +396,7 @@ export function DashboardPage() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+        queryClient.setQueryData(dashboardCacheKey, context.previous);
       }
       pushToast({ message: errorMessage(error, "Unable to update recurring trip."), kind: "error" });
     },
@@ -360,13 +406,13 @@ export function DashboardPage() {
   });
 
   const deleteTripMutation = useMutation({
-    mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId, dashboardFilters),
+    mutationFn: (tripInstanceId: string) => api.deleteTripInstance(tripInstanceId),
     onMutate: async (tripInstanceId) => {
-      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
-      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      await queryClient.cancelQueries({ queryKey: dashboardCacheKey });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardCacheKey);
       if (previous) {
         queryClient.setQueryData(
-          dashboardQueryKey(dashboardQueryString),
+          dashboardCacheKey,
           optimisticRemoveTripInstance(previous, tripInstanceId),
         );
       }
@@ -374,7 +420,7 @@ export function DashboardPage() {
     },
     onError: (error, _tripInstanceId, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+        queryClient.setQueryData(dashboardCacheKey, context.previous);
       }
       pushToast({ message: errorMessage(error, "Unable to delete trip."), kind: "error" });
     },
@@ -389,7 +435,7 @@ export function DashboardPage() {
 
   const skipTripMutation = useMutation({
     mutationFn: ({ tripInstanceId, skipped }: { tripInstanceId: string; skipped: boolean }) => (
-      api.setTripSkipped(tripInstanceId, skipped, dashboardFilters)
+      api.setTripSkipped(tripInstanceId, skipped)
     ),
     onSuccess: ({ dashboard }, { tripInstanceId, skipped }) => {
       replaceCurrentDashboard(dashboard);
@@ -430,11 +476,11 @@ export function DashboardPage() {
       return api.linkUnmatchedBooking(unmatchedBookingId, tripInstanceId, dashboardFilters);
     },
     onMutate: async ({ unmatchedBookingId }) => {
-      await queryClient.cancelQueries({ queryKey: dashboardQueryKey(dashboardQueryString) });
-      const previous = queryClient.getQueryData<DashboardPayload>(dashboardQueryKey(dashboardQueryString));
+      await queryClient.cancelQueries({ queryKey: dashboardCacheKey });
+      const previous = queryClient.getQueryData<DashboardPayload>(dashboardCacheKey);
       if (previous) {
         queryClient.setQueryData(
-          dashboardQueryKey(dashboardQueryString),
+          dashboardCacheKey,
           optimisticRemoveUnmatchedBooking(previous, unmatchedBookingId),
         );
       }
@@ -442,7 +488,7 @@ export function DashboardPage() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(dashboardQueryKey(dashboardQueryString), context.previous);
+        queryClient.setQueryData(dashboardCacheKey, context.previous);
       }
       pushToast({ message: errorMessage(error, "Unable to update booking."), kind: "error" });
     },
@@ -864,15 +910,15 @@ export function DashboardPage() {
                 <>
                   <FilterBar
                     options={dashboardQuery.data.filters.groupOptions}
-                    selected={dashboardQuery.data.filters.selectedTripGroupIds}
-                    includeBooked={dashboardQuery.data.filters.includeBooked}
-                    includeSkipped={dashboardQuery.data.filters.includeSkipped}
+                    selected={selectedTripGroupIds}
+                    includeBooked={includeBooked}
+                    includeSkipped={includeSkipped}
                     onToggleOption={toggleGroupFilter}
                     onToggleBooked={toggleBookedFilter}
                     onToggleSkipped={toggleSkippedFilter}
                   />
                   <div className="trip-list">
-                    {dashboardQuery.data.trips.map((row) => (
+                    {displayTrips.map((row) => (
                       <TripRow
                         key={row.trip.tripInstanceId}
                         row={row}

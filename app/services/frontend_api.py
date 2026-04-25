@@ -128,7 +128,7 @@ def collection_card_value(
     trip_group_id: str,
     *,
     today: date,
-    include_skipped: bool = False,
+    include_skipped: bool = True,
 ) -> dict[str, object]:
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
@@ -294,7 +294,6 @@ def dashboard_payload(
                 snapshot,
                 group.trip_group_id,
                 today=today,
-                include_skipped=include_skipped,
             )
             for group in trip_groups(snapshot)
         ],

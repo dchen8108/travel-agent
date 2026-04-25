@@ -45,8 +45,8 @@ function withDashboardFilters(path: string, filters?: URLSearchParams): string {
 }
 
 export const api = {
-  dashboard(params: URLSearchParams): Promise<DashboardPayload> {
-    const query = params.toString();
+  dashboard(params?: URLSearchParams): Promise<DashboardPayload> {
+    const query = params?.toString() ?? "";
     return request<DashboardPayload>(`/api/dashboard${query ? `?${query}` : ""}`);
   },
   createCollection(label: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
