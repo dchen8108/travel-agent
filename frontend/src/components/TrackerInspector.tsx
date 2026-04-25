@@ -35,21 +35,19 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
       <div className="modal-panel-head">
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
-      <div className="modal-list-shell">
-        {panelQuery.data.rows.length ? (
-          <div className="modal-list">
-            {panelQuery.data.rows.map((row) => (
-              <article key={row.rowId} className="modal-list-row modal-list-row--tracker">
-                <OfferBlock kind="live" offer={row.offer} />
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
-        )}
-      </div>
+      {panelQuery.data.rows.length ? (
+        <div className="modal-list">
+          {panelQuery.data.rows.map((row) => (
+            <article key={row.rowId} className="modal-list-row modal-list-row--tracker">
+              <OfferBlock kind="live" offer={row.offer} />
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
+      )}
       {panelQuery.data.lastRefreshLabel ? (
-        <div className="modal-footer-note modal-footer-note--inspector">{panelQuery.data.lastRefreshLabel}</div>
+        <div className="modal-footer-note">{panelQuery.data.lastRefreshLabel}</div>
       ) : null}
     </div>
   );

@@ -1269,10 +1269,6 @@ textarea {
   scrollbar-gutter: stable;
 }
 
-.dashboard-inspector .modal-list-shell {
-  min-height: 0;
-}
-
 .dashboard-inspector .modal-list-row {
   padding: 0.76rem 1.35rem 0.48rem 1rem;
 }
@@ -1288,15 +1284,6 @@ textarea {
 .dashboard-inspector .modal-footer-note {
   margin-top: 0.1rem;
   font-size: 0.82rem;
-}
-
-.dashboard-inspector .modal-footer-note--inspector {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  height: 2rem;
-  margin: 0;
-  line-height: 1;
 }
 
 .modal-close-row {
