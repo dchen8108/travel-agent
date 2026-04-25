@@ -163,12 +163,20 @@ export function DashboardPage() {
   const [editingUnmatchedBookingId, setEditingUnmatchedBookingId] = useState("");
   const [useDesktopInspector, setUseDesktopInspector] = useState(() => desktopInspectorPreferred());
 
-  const { panel, panelTripInstanceId, collectionEditor, bookingPanelState, selectedTripGroupIds, includeBooked } =
+  const {
+    panel,
+    panelTripInstanceId,
+    collectionEditor,
+    bookingPanelState,
+    selectedTripGroupIds,
+    includeBooked,
+    includeSkipped,
+  } =
     useMemo(() => parseDashboardUrlState(searchParams), [searchParams]);
 
   const dashboardFilters = useMemo(() => {
-    return buildDashboardFilters(selectedTripGroupIds, includeBooked);
-  }, [includeBooked, selectedTripGroupIds]);
+    return buildDashboardFilters(selectedTripGroupIds, includeBooked, includeSkipped);
+  }, [includeBooked, includeSkipped, selectedTripGroupIds]);
   const dashboardQueryString = dashboardFilters.toString();
 
   const dashboardQuery = useQuery({
@@ -379,6 +387,25 @@ export function DashboardPage() {
     },
   });
 
+  const skipTripMutation = useMutation({
+    mutationFn: ({ tripInstanceId, skipped }: { tripInstanceId: string; skipped: boolean }) => (
+      api.setTripSkipped(tripInstanceId, skipped, dashboardFilters)
+    ),
+    onSuccess: ({ dashboard }, { tripInstanceId, skipped }) => {
+      replaceCurrentDashboard(dashboard);
+      if (!dashboard.trips.some((row) => row.trip.tripInstanceId === tripInstanceId) && panelTripInstanceId === tripInstanceId) {
+        closePanel();
+      }
+      pushToast({ message: skipped ? "Trip skipped" : "Trip unskipped" });
+    },
+    onError: (error, { skipped }) => {
+      pushToast({
+        message: errorMessage(error, skipped ? "Unable to skip trip." : "Unable to unskip trip."),
+        kind: "error",
+      });
+    },
+  });
+
   const unmatchedMutation = useMutation<
     unknown,
     unknown,
@@ -493,6 +520,16 @@ export function DashboardPage() {
     }, { replace: true });
   }
 
+  function toggleSkippedFilter() {
+    updateDashboardSearchParams((next) => {
+      if (includeSkipped) {
+        next.delete(DASHBOARD_PARAM_KEYS.includeSkipped);
+      } else {
+        next.set(DASHBOARD_PARAM_KEYS.includeSkipped, "true");
+      }
+    }, { replace: true });
+  }
+
   function prefetchBookingPanel(tripInstanceId: string) {
     void prefetchOnce(queryClient, {
       queryKey: bookingPanelQueryKey(tripInstanceId),
@@ -595,13 +632,20 @@ export function DashboardPage() {
   );
 
   useEffect(() => {
-    if (panel !== "bookings" || !panelTripInstanceId || bookingPanelState.mode !== "list") {
+    if (!dashboardQuery.data || !panelTripInstanceId) {
       return;
     }
-    if (currentTripRow && !currentTripRow.actions.showBookingModal) {
+    if (panel === "trackers" && !currentTripRow) {
+      closePanel();
+      return;
+    }
+    if (panel !== "bookings" || bookingPanelState.mode !== "list") {
+      return;
+    }
+    if (!currentTripRow || !currentTripRow.actions.showBookingModal) {
       closePanel();
     }
-  }, [bookingPanelState.mode, currentTripRow, panel, panelTripInstanceId]);
+  }, [bookingPanelState.mode, currentTripRow, dashboardQuery.data, panel, panelTripInstanceId]);
 
   function handleBookingFlowComplete(panelPayload: BookingPanelPayload | null) {
     if (!panelPayload || panelPayload.rows.length <= 1) {
@@ -630,6 +674,14 @@ export function DashboardPage() {
       await deleteTripMutation.mutateAsync(row.trip.tripInstanceId);
     } catch {
       // error toast + rollback are handled by the mutation lifecycle
+    }
+  }
+
+  async function handleSetSkipped(row: TripRowValue, skipped: boolean) {
+    try {
+      await skipTripMutation.mutateAsync({ tripInstanceId: row.trip.tripInstanceId, skipped });
+    } catch {
+      // error toast handled in mutation lifecycle
     }
   }
 
@@ -722,6 +774,7 @@ export function DashboardPage() {
                   onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
                   onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                   onDeleteTrip={handleDeleteTrip}
+                  onSetSkipped={handleSetSkipped}
                   onDeleteBooking={handleDeleteBooking}
                   onDetachBooking={handleDetachBooking}
                   activeTripInstanceId={panelTripInstanceId}
@@ -813,8 +866,10 @@ export function DashboardPage() {
                     options={dashboardQuery.data.filters.groupOptions}
                     selected={dashboardQuery.data.filters.selectedTripGroupIds}
                     includeBooked={dashboardQuery.data.filters.includeBooked}
+                    includeSkipped={dashboardQuery.data.filters.includeSkipped}
                     onToggleOption={toggleGroupFilter}
                     onToggleBooked={toggleBookedFilter}
+                    onToggleSkipped={toggleSkippedFilter}
                   />
                   <div className="trip-list">
                     {dashboardQuery.data.trips.map((row) => (
@@ -824,6 +879,7 @@ export function DashboardPage() {
                         onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
                         onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                         onDelete={handleDeleteTrip}
+                        onSetSkipped={handleSetSkipped}
                         onDeleteBooking={handleDeleteBooking}
                         onDetachBooking={handleDetachBooking}
                         isActive={panelTripInstanceId === row.trip.tripInstanceId}

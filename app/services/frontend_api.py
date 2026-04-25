@@ -98,6 +98,7 @@ def trip_identity_value(snapshot, trip_instance_id: str) -> dict[str, object]:
         "title": trip_ui_label(snapshot, trip_instance_id),
         "anchorDate": instance.anchor_date.isoformat(),
         "dateTile": _date_tile_value(instance.anchor_date),
+        "skipped": bool(instance.skipped),
         "editHref": str(actions.get("edit_href", "")),
         "delete": _delete_capability(snapshot, trip_instance_id),
     }
@@ -122,11 +123,17 @@ def trip_row_value(snapshot, trip_instance_id: str) -> dict[str, object]:
     }
 
 
-def collection_card_value(snapshot, trip_group_id: str, *, today: date) -> dict[str, object]:
+def collection_card_value(
+    snapshot,
+    trip_group_id: str,
+    *,
+    today: date,
+    include_skipped: bool = False,
+) -> dict[str, object]:
     group = trip_group_by_id(snapshot, trip_group_id)
     if group is None:
         raise HTTPException(status_code=404, detail="Collection not found")
-    view = group_summary_view(snapshot, group, today=today)
+    view = group_summary_view(snapshot, group, today=today, include_skipped=include_skipped)
     return {
         "groupId": group.trip_group_id,
         "label": group.label,
@@ -222,7 +229,7 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
             {
                 "kind": "tripAttention",
                 "attentionKind": "overbooked",
-                "title": "Multiple bookings",
+                "title": "Overbooked",
                 "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
             }
         )
@@ -255,18 +262,21 @@ def dashboard_payload(
     today: date,
     selected_trip_group_ids: list[str] | None = None,
     include_booked: bool = True,
+    include_skipped: bool = False,
 ) -> dict[str, object]:
     scheduled_view = scheduled_ledger_view(
         snapshot,
         today=today,
         selected_trip_group_ids=selected_trip_group_ids,
         include_booked=include_booked,
+        include_skipped=include_skipped,
     )
     return {
         "today": today.isoformat(),
         "filters": {
             "selectedTripGroupIds": list(scheduled_view["selected_trip_group_ids"]),
             "includeBooked": bool(scheduled_view["include_booked"]),
+            "includeSkipped": bool(scheduled_view["include_skipped"]),
             "groupOptions": [
                 {
                     "value": item["value"],
@@ -280,7 +290,12 @@ def dashboard_payload(
             "totalBooked": int(scheduled_view["total_booked_scheduled"]),
         },
         "collections": [
-            collection_card_value(snapshot, group.trip_group_id, today=today)
+            collection_card_value(
+                snapshot,
+                group.trip_group_id,
+                today=today,
+                include_skipped=include_skipped,
+            )
             for group in trip_groups(snapshot)
         ],
         "actionItems": _action_items_value(snapshot, today=today),

@@ -1,7 +1,7 @@
 export type OfferTone = "neutral" | "success" | "accent" | "warning";
 export type OfferStatusKind = "" | "pending" | "unavailable";
 export type TripAttentionKind = "overbooked" | "priceDrop" | "betterOption" | "needsBooking";
-export type TripLifecycle = "planned" | "booked";
+export type TripLifecycle = "planned" | "booked" | "skipped";
 export type FareClass = "basic_economy" | "economy";
 
 export interface DateTile {
@@ -39,6 +39,7 @@ export interface TripIdentity {
   title: string;
   anchorDate: string;
   dateTile: DateTile;
+  skipped: boolean;
   editHref: string;
   delete: TripDeleteAction | null;
 }
@@ -81,6 +82,7 @@ export interface DashboardPayload {
   filters: {
     selectedTripGroupIds: string[];
     includeBooked: boolean;
+    includeSkipped: boolean;
     groupOptions: Array<{
       value: string;
       label: string;

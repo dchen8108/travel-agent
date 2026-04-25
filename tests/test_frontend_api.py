@@ -1002,3 +1002,88 @@ def test_dashboard_api_collection_pills_expose_lifecycle_and_attention_kind(clie
     payload = response.json()
     pill = payload["collections"][0]["upcomingTrips"][0]
     assert pill["attentionKind"] == "priceDrop"
+
+
+def test_skip_trip_api_hides_trip_by_default_and_surfaces_it_when_requested(client, repository: Repository) -> None:
+    trip_instance_id = _seed_grouped_recurring_trip(repository)
+
+    skip_response = client.patch(
+        f"/api/trip-instances/{trip_instance_id}/skip?include_skipped=true",
+        json={"skipped": True},
+    )
+
+    assert skip_response.status_code == 200
+    skip_dashboard = skip_response.json()["dashboard"]
+    assert skip_dashboard["filters"]["includeSkipped"] is True
+    skipped_row = next(row for row in skip_dashboard["trips"] if row["trip"]["tripInstanceId"] == trip_instance_id)
+    assert skipped_row["trip"]["skipped"] is True
+    skipped_pill = next(
+        pill
+        for collection in skip_dashboard["collections"]
+        for pill in collection["upcomingTrips"]
+        if pill["tripInstanceId"] == trip_instance_id
+    )
+    assert skipped_pill["lifecycle"] == "skipped"
+    assert any(
+        item.get("attentionKind") == "overbooked"
+        and item["title"] == "Overbooked"
+        and item["row"]["trip"]["tripInstanceId"] == trip_instance_id
+        for item in skip_dashboard["actionItems"]
+    )
+
+    hidden_response = client.get("/api/dashboard")
+
+    assert hidden_response.status_code == 200
+    hidden_dashboard = hidden_response.json()
+    assert hidden_dashboard["filters"]["includeSkipped"] is False
+    assert all(row["trip"]["tripInstanceId"] != trip_instance_id for row in hidden_dashboard["trips"])
+    assert all(
+        pill["tripInstanceId"] != trip_instance_id
+        for collection in hidden_dashboard["collections"]
+        for pill in collection["upcomingTrips"]
+    )
+    assert any(
+        item.get("attentionKind") == "overbooked" and item["row"]["trip"]["tripInstanceId"] == trip_instance_id
+        for item in hidden_dashboard["actionItems"]
+    )
+
+    visible_response = client.get("/api/dashboard?include_skipped=true")
+
+    assert visible_response.status_code == 200
+    visible_dashboard = visible_response.json()
+    visible_row = next(row for row in visible_dashboard["trips"] if row["trip"]["tripInstanceId"] == trip_instance_id)
+    assert visible_row["trip"]["skipped"] is True
+    visible_pill = next(
+        pill
+        for collection in visible_dashboard["collections"]
+        for pill in collection["upcomingTrips"]
+        if pill["tripInstanceId"] == trip_instance_id
+    )
+    assert visible_pill["lifecycle"] == "skipped"
+
+
+def test_unskip_trip_api_restores_trip_to_default_dashboard_listing(client, repository: Repository) -> None:
+    trip_instance_id = _seed_grouped_recurring_trip(repository)
+
+    skip_response = client.patch(
+        f"/api/trip-instances/{trip_instance_id}/skip?include_skipped=true",
+        json={"skipped": True},
+    )
+    assert skip_response.status_code == 200
+
+    unskip_response = client.patch(
+        f"/api/trip-instances/{trip_instance_id}/skip",
+        json={"skipped": False},
+    )
+
+    assert unskip_response.status_code == 200
+    default_dashboard = client.get("/api/dashboard").json()
+    restored_row = next(row for row in default_dashboard["trips"] if row["trip"]["tripInstanceId"] == trip_instance_id)
+    assert restored_row["trip"]["skipped"] is False
+    restored_pill = next(
+        pill
+        for collection in default_dashboard["collections"]
+        for pill in collection["upcomingTrips"]
+        if pill["tripInstanceId"] == trip_instance_id
+    )
+    assert restored_pill["lifecycle"] == "booked"

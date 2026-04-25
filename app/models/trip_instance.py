@@ -23,6 +23,7 @@ class TripInstance(CsvModel):
     recurring_rule_trip_id: str = ""
     rule_occurrence_date: date | None = None
     inheritance_mode: TripInstanceInheritanceMode = TripInstanceInheritanceMode.MANUAL
+    skipped: bool = False
     deleted: bool = False
     booking_id: str = ""
     last_signal_at: datetime | None = None

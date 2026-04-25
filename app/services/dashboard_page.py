@@ -17,6 +17,7 @@ from app.services.scheduled_trip_state import (
     trip_monitoring_status_label,
     trip_recommended_action,
 )
+from app.services.trip_attention import dashboard_trip_attention_kind
 from app.services.snapshot_queries import trip_for_instance
 
 
@@ -111,17 +112,21 @@ def dashboard_attention_views(
     today: date,
 ) -> dict[str, object]:
     unmatched_views = unmatched_booking_resolution_views(snapshot)
-    upcoming_instances = scheduled_instances(snapshot, today=today)
+    upcoming_instances = scheduled_instances(snapshot, today=today, include_skipped=True)
     planned_instances = [
-        instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
+        instance
+        for instance in upcoming_instances
+        if not instance.skipped and active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
     ]
     booked_instances = [
-        instance for instance in upcoming_instances if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
+        instance
+        for instance in upcoming_instances
+        if not instance.skipped and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
     ]
     overbooked_instances = [
         instance
-        for instance in booked_instances
-        if active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 1
+        for instance in upcoming_instances
+        if dashboard_trip_attention_kind(snapshot, instance, today=today) == "overbooked"
     ]
     overbooked_instance_ids = {
         instance.trip_instance_id for instance in overbooked_instances

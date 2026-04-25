@@ -319,3 +319,21 @@ def delete_generated_trip_instance(repository: Repository, trip_instance_id: str
     trip_instance.updated_at = utcnow()
     repository.upsert_trip_instances([trip_instance])
     return trip_instance
+
+
+def set_trip_instance_skipped(
+    repository: Repository,
+    trip_instance_id: str,
+    *,
+    skipped: bool,
+) -> TripInstance:
+    trip_instances = repository.load_trip_instances()
+    trip_instance = next((item for item in trip_instances if item.trip_instance_id == trip_instance_id), None)
+    if trip_instance is None:
+        raise KeyError("Trip instance not found")
+    if trip_instance.deleted:
+        raise ValueError("Deleted trip instances cannot be updated.")
+    trip_instance.skipped = skipped
+    trip_instance.updated_at = utcnow()
+    repository.upsert_trip_instances([trip_instance])
+    return trip_instance

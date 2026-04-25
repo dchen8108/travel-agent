@@ -48,7 +48,7 @@ def rebook_attention_title_and_badge(snapshot, trip_instance_id: str) -> tuple[s
 
 def dashboard_trip_attention_kind(snapshot, instance, *, today: date) -> str | None:
     active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
-    if active_booking_count > 1:
+    if active_booking_count > 1 or (instance.skipped and active_booking_count > 0):
         return TRIP_ATTENTION_OVERBOOKED
 
     if active_booking_count > 0:
@@ -62,7 +62,7 @@ def dashboard_trip_attention_kind(snapshot, instance, *, today: date) -> str | N
 
 def trip_attention_title(kind: str | None) -> str:
     return {
-        TRIP_ATTENTION_OVERBOOKED: "Multiple bookings",
+        TRIP_ATTENTION_OVERBOOKED: "Overbooked",
         TRIP_ATTENTION_PRICE_DROP: "Price drop",
         TRIP_ATTENTION_BETTER_OPTION: "Better option after preferences",
         TRIP_ATTENTION_NEEDS_BOOKING: "Needs booking",

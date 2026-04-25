@@ -2,11 +2,21 @@ interface Props {
   options: Array<{ value: string; label: string }>;
   selected: string[];
   includeBooked: boolean;
+  includeSkipped: boolean;
   onToggleOption: (value: string) => void;
   onToggleBooked: () => void;
+  onToggleSkipped: () => void;
 }
 
-export function FilterBar({ options, selected, includeBooked, onToggleOption, onToggleBooked }: Props) {
+export function FilterBar({
+  options,
+  selected,
+  includeBooked,
+  includeSkipped,
+  onToggleOption,
+  onToggleBooked,
+  onToggleSkipped,
+}: Props) {
   return (
     <div className="filter-bar" role="group" aria-label="Trip filters">
       <div className="filter-chip-row">
@@ -32,6 +42,14 @@ export function FilterBar({ options, selected, includeBooked, onToggleOption, on
           onClick={onToggleBooked}
         >
           Show booked
+        </button>
+        <button
+          type="button"
+          className={`filter-chip ${includeSkipped ? "is-active" : ""}`}
+          aria-pressed={includeSkipped}
+          onClick={onToggleSkipped}
+        >
+          Show skipped
         </button>
       </div>
     </div>

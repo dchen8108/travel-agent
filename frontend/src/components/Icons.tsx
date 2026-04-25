@@ -211,3 +211,28 @@ export function DetachIcon() {
     </>
   );
 }
+
+export function SkipIcon() {
+  return svg(
+    <>
+      <circle
+        cx="12"
+        cy="12"
+        r="8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M8.5 12h7"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </>,
+  );
+}

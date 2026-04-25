@@ -77,6 +77,12 @@ export const api = {
       method: "DELETE",
     });
   },
+  setTripSkipped(tripInstanceId: string, skipped: boolean, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
+    return request<DashboardMutationPayload>(withDashboardFilters(`/api/trip-instances/${tripInstanceId}/skip`, filters), {
+      method: "PATCH",
+      body: JSON.stringify({ skipped }),
+    });
+  },
   bookingPanel(tripInstanceId: string): Promise<BookingPanelPayload> {
     return request<BookingPanelPayload>(`/api/trip-instances/${tripInstanceId}/bookings?mode=list`);
   },

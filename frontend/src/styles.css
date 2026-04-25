@@ -717,6 +717,11 @@ textarea {
   background: var(--success-soft);
 }
 
+.trip-pill--skipped {
+  color: var(--copy-muted);
+  background: rgba(221, 226, 216, 0.9);
+}
+
 .trip-pill--attention-overbooked {
   border-color: var(--danger);
 }
@@ -747,6 +752,16 @@ textarea {
 .trip-row--active {
   border-color: rgba(17, 142, 132, 0.42);
   box-shadow: 0 0 0 1px rgba(17, 142, 132, 0.08), 0 18px 36px rgba(30, 56, 70, 0.08);
+}
+
+.trip-row--skipped {
+  background: rgba(232, 235, 228, 0.9);
+  border-color: rgba(187, 194, 182, 0.88);
+}
+
+.trip-row--skipped .trip-identity-row,
+.trip-row--skipped .offer-block {
+  background: rgba(255, 255, 255, 0.66);
 }
 
 .trip-identity-row__copy {

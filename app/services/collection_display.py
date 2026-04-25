@@ -10,8 +10,8 @@ from app.services.trip_attention import dashboard_trip_attention_kind, trip_atte
 
 def group_trip_pill_view(snapshot, instance, *, today: date) -> dict[str, object]:
     active_booking_count = active_booking_count_for_instance(snapshot, instance.trip_instance_id)
-    lifecycle = "booked" if active_booking_count > 0 else "planned"
-    status_label = "Booked" if lifecycle == "booked" else "Planned"
+    lifecycle = "skipped" if instance.skipped else ("booked" if active_booking_count > 0 else "planned")
+    status_label = "Skipped" if instance.skipped else ("Booked" if lifecycle == "booked" else "Planned")
     attention_kind = dashboard_trip_attention_kind(snapshot, instance, today=today)
     attention_label = trip_attention_title(attention_kind)
     title = trip_ui_label(snapshot, instance.trip_instance_id)
@@ -38,8 +38,13 @@ def group_recurring_rule_view(rule) -> dict[str, object]:
     }
 
 
-def group_summary_view(snapshot, group, *, today: date) -> dict[str, object]:
-    upcoming = scheduled_instances(snapshot, trip_group_ids={group.trip_group_id}, today=today)
+def group_summary_view(snapshot, group, *, today: date, include_skipped: bool = False) -> dict[str, object]:
+    upcoming = scheduled_instances(
+        snapshot,
+        trip_group_ids={group.trip_group_id},
+        include_skipped=include_skipped,
+        today=today,
+    )
     recurring_rules = recurring_rules_for_group(snapshot, group.trip_group_id)
     return {
         "group": group,

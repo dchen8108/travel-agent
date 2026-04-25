@@ -30,6 +30,7 @@ from app.services.frontend_api import (
 from app.services.groups import delete_trip_group, save_trip_group
 from app.services.trip_instances import delete_generated_trip_instance
 from app.services.trip_instances import detach_generated_trip_instance
+from app.services.trip_instances import set_trip_instance_skipped
 from app.services.refresh_queue import queue_refresh_for_trip_instance
 from app.services.data_scope import include_test_data_for_processing
 from app.services.trip_editor import TripSaveInput, route_option_payloads, save_trip_workflow
@@ -47,6 +48,10 @@ class CollectionBody(BaseModel):
 
 class TripStatusBody(BaseModel):
     active: bool
+
+
+class TripSkipBody(BaseModel):
+    skipped: bool
 
 
 class BookingBody(BaseModel):
@@ -141,12 +146,14 @@ def _dashboard_view_payload(
     *,
     trip_group_ids: list[str] | None,
     include_booked: bool,
+    include_skipped: bool,
 ) -> dict[str, object]:
     return dashboard_payload(
         snapshot,
         today=date.today(),
         selected_trip_group_ids=trip_group_ids,
         include_booked=include_booked,
+        include_skipped=include_skipped,
     )
 
 
@@ -154,10 +161,16 @@ def _dashboard_view_payload(
 def dashboard_api(
     trip_group_id: list[str] | None = Query(default=None),
     include_booked: bool = True,
+    include_skipped: bool = False,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
-    return _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)
+    return _dashboard_view_payload(
+        snapshot,
+        trip_group_ids=trip_group_id,
+        include_booked=include_booked,
+        include_skipped=include_skipped,
+    )
 
 
 @router.get("/trips/new-form")
@@ -243,6 +256,7 @@ def create_collection_api(
     body: CollectionBody,
     trip_group_id: list[str] | None = Query(default=None),
     include_booked: bool = True,
+    include_skipped: bool = False,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
@@ -254,7 +268,14 @@ def create_collection_api(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     snapshot = load_persisted_snapshot(repository)
-    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
+    return {
+        "dashboard": _dashboard_view_payload(
+            snapshot,
+            trip_group_ids=trip_group_id,
+            include_booked=include_booked,
+            include_skipped=include_skipped,
+        )
+    }
 
 
 @router.patch("/collections/{trip_group_id}")
@@ -263,6 +284,7 @@ def update_collection_api(
     body: CollectionBody,
     selected_trip_group_id: list[str] | None = Query(default=None, alias="trip_group_id"),
     include_booked: bool = True,
+    include_skipped: bool = False,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     try:
@@ -274,7 +296,14 @@ def update_collection_api(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     snapshot = load_persisted_snapshot(repository)
-    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=selected_trip_group_id, include_booked=include_booked)}
+    return {
+        "dashboard": _dashboard_view_payload(
+            snapshot,
+            trip_group_ids=selected_trip_group_id,
+            include_booked=include_booked,
+            include_skipped=include_skipped,
+        )
+    }
 
 
 @router.delete("/collections/{trip_group_id}", status_code=204)
@@ -314,6 +343,7 @@ def delete_trip_instance_api(
     trip_instance_id: str,
     trip_group_id: list[str] | None = Query(default=None),
     include_booked: bool = True,
+    include_skipped: bool = False,
     repository: Repository = Depends(get_repository),
 ) -> dict[str, object]:
     snapshot = load_persisted_snapshot(repository)
@@ -331,7 +361,40 @@ def delete_trip_instance_api(
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     snapshot = load_live_snapshot(repository)
-    return {"dashboard": _dashboard_view_payload(snapshot, trip_group_ids=trip_group_id, include_booked=include_booked)}
+    return {
+        "dashboard": _dashboard_view_payload(
+            snapshot,
+            trip_group_ids=trip_group_id,
+            include_booked=include_booked,
+            include_skipped=include_skipped,
+        )
+    }
+
+
+@router.patch("/trip-instances/{trip_instance_id}/skip")
+def update_trip_skip_api(
+    trip_instance_id: str,
+    body: TripSkipBody,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
+    include_skipped: bool = False,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    try:
+        set_trip_instance_skipped(repository, trip_instance_id, skipped=body.skipped)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    snapshot = load_live_snapshot(repository)
+    return {
+        "dashboard": _dashboard_view_payload(
+            snapshot,
+            trip_group_ids=trip_group_id,
+            include_booked=include_booked,
+            include_skipped=include_skipped,
+        )
+    }
 
 
 @router.post("/trip-instances/{trip_instance_id}/detach")

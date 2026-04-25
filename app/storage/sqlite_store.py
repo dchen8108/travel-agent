@@ -69,6 +69,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_bookings_flight_number_to_v25(connection)
     if current_version < 26:
         _migrate_bookings_arrival_day_offset_to_v26(connection)
+    if current_version < 27:
+        _migrate_trip_instances_skipped_to_v27(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -86,6 +88,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_bookings_flight_number_to_v25(connection)
     # Apply the same shape-repair policy for booking arrival day offsets.
     _migrate_bookings_arrival_day_offset_to_v26(connection)
+    # Apply the same shape-repair policy for trip instance skipped state.
+    _migrate_trip_instances_skipped_to_v27(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -729,6 +733,7 @@ def _migrate_trip_instances_remove_skip_state_to_v18(connection: sqlite3.Connect
             recurring_rule_trip_id TEXT NOT NULL DEFAULT '',
             rule_occurrence_date TEXT NULL,
             inheritance_mode TEXT NOT NULL DEFAULT 'manual',
+            skipped INTEGER NOT NULL DEFAULT 0,
             deleted INTEGER NOT NULL DEFAULT 0,
             booking_id TEXT NOT NULL DEFAULT '',
             last_signal_at TEXT NULL,
@@ -749,6 +754,7 @@ def _migrate_trip_instances_remove_skip_state_to_v18(connection: sqlite3.Connect
             recurring_rule_trip_id,
             rule_occurrence_date,
             inheritance_mode,
+            skipped,
             deleted,
             booking_id,
             last_signal_at,
@@ -765,6 +771,7 @@ def _migrate_trip_instances_remove_skip_state_to_v18(connection: sqlite3.Connect
             COALESCE(recurring_rule_trip_id, ''),
             rule_occurrence_date,
             COALESCE(inheritance_mode, 'manual'),
+            0,
             COALESCE(deleted, 0),
             COALESCE(booking_id, ''),
             last_signal_at,
@@ -774,6 +781,16 @@ def _migrate_trip_instances_remove_skip_state_to_v18(connection: sqlite3.Connect
         """
     )
     connection.execute("DROP TABLE trip_instances_old_v18")
+
+
+def _migrate_trip_instances_skipped_to_v27(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "trip_instances"):
+        return
+    columns = _table_columns(connection, "trip_instances")
+    if "skipped" not in columns:
+        connection.execute(
+            "ALTER TABLE trip_instances ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 def _migrate_trips_remove_legacy_group_column_to_v19(connection: sqlite3.Connection) -> None:

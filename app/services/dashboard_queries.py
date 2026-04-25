@@ -99,6 +99,7 @@ def scheduled_instances(
     trip_group_ids: set[str] | None = None,
     recurring_trip_ids: set[str] | None = None,
     include_ungrouped: bool = False,
+    include_skipped: bool = False,
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
@@ -107,6 +108,7 @@ def scheduled_instances(
         item
         for item in snapshot.trip_instances
         if not item.deleted
+        and (include_skipped or not item.skipped)
         and not is_past_instance(item, today=today)
         and not (
             (trip := trip_lookup.get(item.trip_id)) is not None
@@ -146,10 +148,17 @@ def past_instances(
     trip_group_ids: set[str] | None = None,
     recurring_trip_ids: set[str] | None = None,
     include_ungrouped: bool = False,
+    include_skipped: bool = False,
     today: date | None = None,
 ) -> list[TripInstance]:
     today = today or date.today()
-    items = [item for item in snapshot.trip_instances if not item.deleted and is_past_instance(item, today=today)]
+    items = [
+        item
+        for item in snapshot.trip_instances
+        if not item.deleted
+        and (include_skipped or not item.skipped)
+        and is_past_instance(item, today=today)
+    ]
     if trip_group_ids or include_ungrouped:
         items = [
             item
@@ -183,6 +192,7 @@ def scheduled_ledger_view(
     today: date | None = None,
     selected_trip_group_ids: list[str] | None = None,
     include_booked: bool = True,
+    include_skipped: bool = False,
 ) -> dict[str, object]:
     today = today or date.today()
     group_items = trip_groups(snapshot)
@@ -199,6 +209,7 @@ def scheduled_ledger_view(
         snapshot,
         trip_group_ids=selected_id_set or None,
         include_ungrouped=include_ungrouped,
+        include_skipped=include_skipped,
         today=today,
     )
     if not include_booked:
@@ -208,13 +219,14 @@ def scheduled_ledger_view(
             if active_booking_count_for_instance(snapshot, instance.trip_instance_id) == 0
         ]
 
-    total_active_scheduled = len(scheduled_instances(snapshot, today=today))
+    total_active_scheduled = len(scheduled_instances(snapshot, today=today, include_skipped=include_skipped))
     total_booked_scheduled = len(
         [
             instance
             for instance in snapshot.trip_instances
             if instance.anchor_date >= today
             and not instance.deleted
+            and (include_skipped or not instance.skipped)
             and active_booking_count_for_instance(snapshot, instance.trip_instance_id) > 0
         ]
     )
@@ -224,6 +236,7 @@ def scheduled_ledger_view(
         "scheduled_items": scheduled_items,
         "selected_trip_group_ids": [*selected_ids, *([UNGROUPED_TRIPS_FILTER_VALUE] if include_ungrouped else [])],
         "include_booked": include_booked,
+        "include_skipped": include_skipped,
         "total_active_scheduled": total_active_scheduled,
         "total_booked_scheduled": total_booked_scheduled,
         "group_filter_options": [

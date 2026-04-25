@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 26
+SCHEMA_VERSION = 27
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -130,6 +130,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
         recurring_rule_trip_id TEXT NOT NULL DEFAULT '',
         rule_occurrence_date TEXT NULL,
         inheritance_mode TEXT NOT NULL DEFAULT 'manual',
+        skipped INTEGER NOT NULL DEFAULT 0,
         deleted INTEGER NOT NULL DEFAULT 0,
         booking_id TEXT NOT NULL DEFAULT '',
         last_signal_at TEXT NULL,

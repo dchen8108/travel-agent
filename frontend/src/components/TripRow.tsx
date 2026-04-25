@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { prefetchTripEditorFromHref } from "../lib/tripEditorPrefetch";
 import type { TripRow as TripRowValue } from "../types";
-import { AddIcon, DeleteIcon, DetachIcon, EditIcon } from "./Icons";
+import { AddIcon, CheckIcon, DeleteIcon, DetachIcon, EditIcon, SkipIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
 import { OverflowMenu } from "./OverflowMenu";
 import { TripIdentityRow } from "./TripIdentityRow";
@@ -12,6 +12,7 @@ interface Props {
   onOpenBookings: (tripInstanceId: string, mode: "list" | "create" | "edit", bookingId?: string) => void;
   onOpenTrackers: (tripInstanceId: string) => void;
   onDelete: (row: TripRowValue) => void;
+  onSetSkipped: (row: TripRowValue, skipped: boolean) => void;
   onDeleteBooking: (tripInstanceId: string, bookingId: string) => void;
   onDetachBooking: (tripInstanceId: string, bookingId: string) => void;
   isActive?: boolean;
@@ -26,6 +27,7 @@ export function TripRow({
   onOpenBookings,
   onOpenTrackers,
   onDelete,
+  onSetSkipped,
   onDeleteBooking,
   onDetachBooking,
   isActive = false,
@@ -44,6 +46,12 @@ export function TripRow({
       href: row.trip.editHref,
       onPrefetch: () => void prefetchTripEditorFromHref(queryClient, row.trip.editHref),
     },
+    {
+      key: row.trip.skipped ? "unskip" : "skip",
+      label: row.trip.skipped ? "Unskip" : "Skip",
+      icon: row.trip.skipped ? <CheckIcon /> : <SkipIcon />,
+      onSelect: () => onSetSkipped(row, !row.trip.skipped),
+    },
     ...(row.trip.delete ? [{
       key: "delete",
       label: "Delete",
@@ -54,7 +62,10 @@ export function TripRow({
   ];
 
   return (
-    <article className={`trip-row${isActive ? " trip-row--active" : ""}`} id={`scheduled-${tripInstanceId}`}>
+    <article
+      className={`trip-row${row.trip.skipped ? " trip-row--skipped" : ""}${isActive ? " trip-row--active" : ""}`}
+      id={`scheduled-${tripInstanceId}`}
+    >
       <TripIdentityRow
         trip={row.trip}
         showEditAction={false}

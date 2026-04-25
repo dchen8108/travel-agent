@@ -4,6 +4,7 @@ export const DASHBOARD_PARAM_KEYS = {
   createCollection: "create_group",
   editCollectionId: "edit_group_id",
   includeBooked: "include_booked",
+  includeSkipped: "include_skipped",
   message: "message",
   messageKind: "message_kind",
   panel: "panel",
@@ -30,6 +31,7 @@ export interface DashboardUrlState {
   bookingPanelState: BookingPanelState;
   selectedTripGroupIds: string[];
   includeBooked: boolean;
+  includeSkipped: boolean;
 }
 
 export function parseCollectionEditorState(searchParams: URLSearchParams): CollectionEditorState {
@@ -55,12 +57,14 @@ export function parseDashboardUrlState(searchParams: URLSearchParams): Dashboard
     bookingPanelState: parseBookingPanelState(searchParams),
     selectedTripGroupIds: searchParams.getAll(DASHBOARD_PARAM_KEYS.tripGroupId),
     includeBooked: searchParams.get(DASHBOARD_PARAM_KEYS.includeBooked) !== "false",
+    includeSkipped: searchParams.get(DASHBOARD_PARAM_KEYS.includeSkipped) === "true",
   };
 }
 
 export function buildDashboardFilters(
   selectedTripGroupIds: string[],
   includeBooked: boolean,
+  includeSkipped: boolean,
 ): URLSearchParams {
   const params = new URLSearchParams();
   for (const value of [...selectedTripGroupIds].sort()) {
@@ -68,6 +72,9 @@ export function buildDashboardFilters(
   }
   if (!includeBooked) {
     params.set(DASHBOARD_PARAM_KEYS.includeBooked, "false");
+  }
+  if (includeSkipped) {
+    params.set(DASHBOARD_PARAM_KEYS.includeSkipped, "true");
   }
   return params;
 }
