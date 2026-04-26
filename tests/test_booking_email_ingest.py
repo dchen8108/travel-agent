@@ -10,6 +10,7 @@ from app.services.booking_email_ingest import loggable_debug_fields, process_gma
 from app.services.booking_extraction import (
     BookingEmailExtraction,
     BookingEmailLeg,
+    BookingEmailSegment,
     BookingExtractionError,
     prepare_booking_email_body,
 )
@@ -710,6 +711,107 @@ def test_booking_email_ingest_does_not_retry_terminal_extraction_error(repositor
     assert second.event.processing_status == BookingEmailEventStatus.ERROR
     assert second.event.extraction_attempt_count == 1
     assert len(repository.load_booking_email_events()) == 1
+
+
+def test_booking_email_ingest_supports_anc_segment(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 1),
+        origin_airports="ANC",
+        destination_airports="BUR",
+        airlines="Alaska",
+        start_time="10:00",
+        end_time="21:00",
+        stops="1_stop",
+    )
+
+    extraction = BookingEmailExtraction(
+        email_kind="booking_confirmation",
+        confidence=0.98,
+        record_locator="WUYQTV",
+        segments=[
+            BookingEmailSegment(
+                airline="AS",
+                origin_airport="ANC",
+                destination_airport="BUR",
+                departure_date="2026-06-01",
+                departure_time="11:12",
+                arrival_time="19:34",
+                arrival_day_offset=0,
+                stops="1_stop",
+                fare_class="main",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: extraction,
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-anc",
+            subject="Fwd: Confirmation Letter - WUYQTV 06/01 - from Alaska Airlines",
+            body_text="ANC to BUR",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status in {
+        BookingEmailEventStatus.RESOLVED_AUTO,
+        BookingEmailEventStatus.NEEDS_RESOLUTION,
+    }
+    assert result.event.retryable is True
+    assert len(result.created_bookings) + len(result.created_unlinked_bookings) == 1
+    booking = (result.created_bookings or result.created_unlinked_bookings)[0]
+    assert booking.origin_airport == "ANC"
+    if result.created_bookings:
+        assert result.created_bookings[0].trip_instance_id == trip_instance_id
+
+
+def test_booking_email_ingest_records_terminal_error_for_invalid_booking_candidate(
+    repository: Repository, monkeypatch
+) -> None:
+    extraction = BookingEmailExtraction(
+        email_kind="booking_confirmation",
+        confidence=0.99,
+        record_locator="BAD123",
+        segments=[
+            BookingEmailSegment(
+                airline="AS",
+                origin_airport="ZZZ",
+                destination_airport="BUR",
+                departure_date="2026-06-01",
+                departure_time="11:12",
+                arrival_time="19:34",
+                arrival_day_offset=0,
+                stops="1_stop",
+                fare_class="main",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: extraction,
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-invalid-candidate",
+            subject="Fwd: Confirmation Letter - BAD123",
+            body_text="ZZZ to BUR",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.ERROR
+    assert result.event.retryable is False
+    assert "Booking import failed validation" in result.event.notes
+    assert "Choose a supported airport." in result.event.notes
+    assert not result.created_bookings
+    assert not result.created_unlinked_bookings
 
 
 def test_booking_email_ingest_propagates_unexpected_extraction_errors(repository: Repository, monkeypatch) -> None:

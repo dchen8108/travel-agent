@@ -28,6 +28,7 @@ SUPPORTED_AIRPORTS = [
     {"code": "LAS", "label": "Harry Reid Intl", "keywords": "Las Vegas"},
     {"code": "PHX", "label": "Phoenix Sky Harbor", "keywords": "Phoenix"},
     {"code": "SEA", "label": "Seattle-Tacoma Intl", "keywords": "Seattle SeaTac"},
+    {"code": "ANC", "label": "Ted Stevens Anchorage Intl", "keywords": "Anchorage Alaska"},
     {"code": "PDX", "label": "Portland Intl", "keywords": "Portland"},
     {"code": "DEN", "label": "Denver Intl", "keywords": "Denver"},
     {"code": "AUS", "label": "Austin-Bergstrom", "keywords": "Austin"},

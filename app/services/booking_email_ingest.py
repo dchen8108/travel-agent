@@ -6,6 +6,8 @@ from datetime import date, datetime, time, timedelta
 from email.utils import parseaddr
 import json
 
+from pydantic import ValidationError
+
 from app.catalog import normalize_airline_code, normalize_stop_value
 from app.flight_numbers import join_flight_numbers
 from app.money import format_money
@@ -289,12 +291,54 @@ def process_gmail_booking_message(
         if _booking_candidate_exists(repository, candidate):
             duplicate_count += 1
             continue
-        booking, unmatched = record_booking(
-            repository,
-            candidate,
-            source="gmail",
-            auto_link=auto_create_allowed,
-        )
+        try:
+            booking, unmatched = record_booking(
+                repository,
+                candidate,
+                source="gmail",
+                auto_link=auto_create_allowed,
+            )
+        except (ValidationError, ValueError) as exc:
+            event.processing_status = BookingEmailEventStatus.ERROR
+            event.retryable = False
+            event.result_booking_ids = "|".join(item.booking_id for item in created_bookings)
+            event.result_unmatched_booking_ids = "|".join(
+                item.unmatched_booking_id for item in created_unlinked_bookings
+            )
+            event.notes = (
+                "Booking import failed validation for one extracted segment: "
+                f"{type(exc).__name__}: {exc}. This email will not be retried automatically."
+            )
+            event.updated_at = utcnow()
+            debug_fields["matching"] = {
+                **debug_fields["matching"],
+                "auto_create_allowed": auto_create_allowed,
+                "candidate_count": len(candidates),
+                "candidates": candidate_summaries,
+                "duplicate_count": duplicate_count,
+                "failed_candidate": {
+                    "airline": candidate.airline,
+                    "origin_airport": candidate.origin_airport,
+                    "destination_airport": candidate.destination_airport,
+                    "departure_date": candidate.departure_date.isoformat(),
+                    "departure_time": candidate.departure_time,
+                    "arrival_time": candidate.arrival_time,
+                    "arrival_day_offset": candidate.arrival_day_offset,
+                    "fare_class": candidate.fare_class,
+                    "stops": candidate.stops,
+                    "record_locator": candidate.record_locator,
+                },
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
+            _upsert_booking_email_event(repository, event)
+            return BookingEmailProcessResult(
+                event=event,
+                created_bookings=created_bookings,
+                created_unlinked_bookings=created_unlinked_bookings,
+                state_changed=bool(created_bookings or created_unlinked_bookings),
+                debug_fields=debug_fields,
+            )
         if booking is not None:
             created_bookings.append(booking)
         if unmatched is not None:
