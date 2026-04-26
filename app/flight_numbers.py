@@ -56,4 +56,4 @@ def join_flight_numbers(values: object, *, airline: str = "") -> str:
             continue
         seen.add(canonical)
         normalized.append(canonical)
-    return " | ".join(normalized)
+    return ", ".join(normalized)

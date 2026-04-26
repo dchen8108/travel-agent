@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 import re
 
-from app.catalog import airline_marketing_code, stop_display_label
+from app.catalog import stop_display_label
 from app.flight_numbers import split_flight_numbers
 from app.models.booking import Booking
 from app.models.base import utcnow
@@ -35,23 +35,7 @@ def booking_airline_label(booking: Booking) -> str:
     flight_numbers = split_flight_numbers(getattr(booking, "flight_number", "") or "")
     if not flight_numbers:
         return ""
-    marketing_code = airline_marketing_code(booking.airline)
-    compact_prefix = f"{marketing_code}".upper()
-    labels: list[str] = []
-    for flight_number in flight_numbers:
-        if re.match(r"^[A-Z]{2,3}\s*\d", flight_number):
-            compact = re.sub(r"^([A-Z0-9]{2,3})\s*(\d)", r"\1 \2", flight_number)
-            labels.append(compact.strip())
-            continue
-        if flight_number.startswith(f"{compact_prefix} "):
-            labels.append(flight_number)
-            continue
-        if flight_number.startswith(compact_prefix) and len(flight_number) > len(compact_prefix):
-            suffix = flight_number[len(compact_prefix):].strip()
-            labels.append(f"{compact_prefix} {suffix}".strip())
-            continue
-        labels.append(f"{compact_prefix} {flight_number}".strip())
-    return " · ".join(labels)
+    return ", ".join(flight_numbers)
 
 
 def _split_time_day_suffix(value: str) -> tuple[str, int | None]:

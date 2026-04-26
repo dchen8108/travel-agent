@@ -279,7 +279,7 @@ def test_booking_email_ingest_collapses_connecting_itinerary_into_single_booking
     assert booking.origin_airport == "BUR"
     assert booking.destination_airport == "SEA"
     assert booking.stops == "1_stop"
-    assert booking.flight_number == "AS 123 | AS 456"
+    assert booking.flight_number == "AS 123, AS 456"
     assert booking.booked_price == Decimal("221.40")
 
 
@@ -568,7 +568,7 @@ def test_booking_email_ingest_enriches_explicit_segment_with_shared_fare_and_leg
     created = result.created_bookings or result.created_unlinked_bookings
     assert len(created) == 1
     booking = created[0]
-    assert booking.flight_number == "AS 1484 | AS 530"
+    assert booking.flight_number == "AS 1484, AS 530"
     assert booking.fare_class == "economy"
 
 

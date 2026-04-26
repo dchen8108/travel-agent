@@ -225,7 +225,7 @@ Rules:
 - segments.stops must be one of: nonstop, 1_stop, 2_stops. Use 2_stops for 2 or more stops.
 - segments.arrival_day_offset should capture whether the final arrival is on the same day (0), next day (1), or later. Do not rely only on clock comparison when time zones differ.
 - If the itinerary contains multiple physical flight legs, include every leg in legs as well.
-- For multi-leg segments, set flight_number to all flight designators in travel order joined by " | " when they are clearly stated, for example "AS 1484 | AS 530". If the flight designators are not clear, leave it empty.
+- For multi-leg segments, set flight_number to all flight designators in travel order joined by ", " when they are clearly stated, for example "AS 1484, AS 530". If the flight designators are not clear, leave it empty.
 - For multi-leg segments, if every leg clearly has the same fare family, set segment fare_class to that shared value. If the legs are mixed or ambiguous, use unknown.
 - cash_paid should be the final cash charged in USD, preserving cents, like "5.60". If there was no cash charge, return "0" or an empty string.
 - flight_credits_applied should be the total USD flight credit or voucher amount applied across all credits, preserving cents, like "50.00". If multiple credits were used, sum them. If none, return "0" or an empty string.
