@@ -168,6 +168,10 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
             departure_date=date(2026, 5, 10),
             departure_time="00:30",
             arrival_time="02:55",
+            arrival_day_offset=1,
+            fare_class="main",
+            stops="1_stop",
+            flight_number="DL 1484, DL 530",
             booked_price=189,
             record_locator="ZZZ999",
         ),
@@ -194,6 +198,8 @@ def test_create_trip_from_booking_opens_prefilled_form_and_links_on_save(tmp_pat
     assert payload["values"]["label"] == "Conference Arrival"
     assert payload["routeOptions"][0]["originAirports"] == ["LAX"]
     assert payload["routeOptions"][0]["destinationAirports"] == ["SEA"]
+    assert payload["routeOptions"][0]["stops"] == "1_stop"
+    assert payload["routeOptions"][0]["fareClass"] == "economy"
 
     save = client.post(
         "/api/trips/editor",

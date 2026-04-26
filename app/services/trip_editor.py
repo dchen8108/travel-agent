@@ -155,9 +155,13 @@ def new_trip_form_payload(
             departure_date=source_unmatched_booking.departure_date,
             departure_time=source_unmatched_booking.departure_time,
             arrival_time=source_unmatched_booking.arrival_time,
+            arrival_day_offset=source_unmatched_booking.arrival_day_offset,
             fare_class=source_unmatched_booking.fare_class,
+            stops=source_unmatched_booking.stops,
+            flight_number=source_unmatched_booking.flight_number,
             booked_price=source_unmatched_booking.booked_price,
             record_locator=source_unmatched_booking.record_locator,
+            notes=source_unmatched_booking.notes,
         )
         suggested_label = trip_label or default_trip_label_for_booking(source_unmatched_booking)
         values.update(
