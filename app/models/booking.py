@@ -124,6 +124,7 @@ class Booking(CsvModel):
 
     @model_validator(mode="after")
     def validate_chronology(self) -> Booking:
+        self.flight_number = join_flight_numbers(self.flight_number, airline=self.airline)
         if not self.arrival_time:
             return self
         departure_minutes = _minutes_since_midnight(self.departure_time)

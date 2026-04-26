@@ -771,7 +771,7 @@ def test_repository_backfills_booking_flight_number_from_email_event_when_airlin
     repository.ensure_data_dir()
 
     saved_booking = next(item for item in repository.load_bookings() if item.booking_id == "book_as")
-    assert saved_booking.flight_number == "2285"
+    assert saved_booking.flight_number == "AS 2285"
 
     connection = sqlite3.connect(repository.db_path)
     try:
@@ -782,7 +782,7 @@ def test_repository_backfills_booking_flight_number_from_email_event_when_airlin
     finally:
         connection.close()
 
-    assert flight_number == "2285"
+    assert flight_number == "AS 2285"
     assert "flight_number" in booking_columns
 
 

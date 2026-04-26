@@ -5,7 +5,7 @@ import re
 from typing import Literal
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, BadRequestError, OpenAI, OpenAIError
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.catalog import normalize_stop_value
 from app.flight_numbers import join_flight_numbers
@@ -43,6 +43,11 @@ class BookingEmailLeg(BaseModel):
     def normalize_flight_number(cls, value: object) -> str:
         return join_flight_numbers(value)
 
+    @model_validator(mode="after")
+    def canonicalize_flight_numbers(self) -> BookingEmailLeg:
+        self.flight_number = join_flight_numbers(self.flight_number, airline=self.airline)
+        return self
+
 
 class BookingEmailSegment(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -78,6 +83,11 @@ class BookingEmailSegment(BaseModel):
     @classmethod
     def normalize_flight_number(cls, value: object) -> str:
         return join_flight_numbers(value)
+
+    @model_validator(mode="after")
+    def canonicalize_flight_numbers(self) -> BookingEmailSegment:
+        self.flight_number = join_flight_numbers(self.flight_number, airline=self.airline)
+        return self
 
 
 class BookingEmailExtraction(BaseModel):

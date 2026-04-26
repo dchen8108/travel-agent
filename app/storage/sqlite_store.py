@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
 from app.catalog import normalize_airline_code
+from app.flight_numbers import join_flight_numbers
 from app.money import normalize_extracted_total_price
 from app.storage.sqlite_schema import CREATE_BOOKINGS_TABLE, CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
 
@@ -77,6 +78,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_route_and_tracker_stops_to_v29(connection)
     if current_version < 30:
         _migrate_price_records_and_fetch_target_stops_to_v30(connection)
+    if current_version < 31:
+        _migrate_bookings_canonical_flight_numbers_to_v31(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -102,6 +105,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_route_and_tracker_stops_to_v29(connection)
     # Apply the same shape-repair policy for fetched-offer and fetch-target stops.
     _migrate_price_records_and_fetch_target_stops_to_v30(connection)
+    # Apply the same shape-repair policy for canonical booking flight numbers.
+    _migrate_bookings_canonical_flight_numbers_to_v31(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
@@ -548,12 +553,15 @@ def _migrate_bookings_flight_number_to_v25(connection: sqlite3.Connection) -> No
         if not record_locator:
             continue
         for leg in payload.get("legs", []):
-            flight_number = " ".join(str(leg.get("flight_number", "")).strip().upper().split())
-            if not flight_number:
-                continue
             try:
                 airline = normalize_airline_code(str(leg.get("airline", "")).strip())
             except ValueError:
+                continue
+            flight_number = join_flight_numbers(
+                str(leg.get("flight_number", "")).strip(),
+                airline=airline,
+            )
+            if not flight_number:
                 continue
             key = (
                 record_locator,
@@ -583,7 +591,35 @@ def _migrate_bookings_flight_number_to_v25(connection: sqlite3.Connection) -> No
         )
         matches = flight_number_by_key.get(key, set())
         if len(matches) == 1:
-            updates.append((next(iter(matches)), row["booking_id"]))
+            updates.append((join_flight_numbers(next(iter(matches)), airline=airline), row["booking_id"]))
+    if updates:
+        connection.executemany(
+            "UPDATE bookings SET flight_number = ? WHERE booking_id = ?",
+            updates,
+        )
+
+
+def _migrate_bookings_canonical_flight_numbers_to_v31(connection: sqlite3.Connection) -> None:
+    if not _table_exists(connection, "bookings"):
+        return
+    columns = _table_columns(connection, "bookings")
+    if "flight_number" not in columns:
+        return
+    rows = connection.execute(
+        """
+        SELECT booking_id, airline, flight_number
+        FROM bookings
+        WHERE COALESCE(flight_number, '') != ''
+        """
+    ).fetchall()
+    updates: list[tuple[str, str]] = []
+    for row in rows:
+        try:
+            canonical = join_flight_numbers(row["flight_number"], airline=str(row["airline"]).strip())
+        except ValueError:
+            canonical = join_flight_numbers(row["flight_number"])
+        if canonical and canonical != row["flight_number"]:
+            updates.append((canonical, row["booking_id"]))
     if updates:
         connection.executemany(
             "UPDATE bookings SET flight_number = ? WHERE booking_id = ?",
