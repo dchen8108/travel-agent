@@ -106,12 +106,16 @@ def trip_identity_value(snapshot, trip_instance_id: str) -> dict[str, object]:
     }
 
 
-def trip_row_value(snapshot, trip_instance_id: str) -> dict[str, object]:
+def trip_row_value(snapshot, trip_instance_id: str, *, repository=None) -> dict[str, object]:
     instance = trip_instance_by_id(snapshot, trip_instance_id)
     if instance is None:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
     row = trip_row_summary(snapshot, trip_instance_id)
     actions = trip_row_actions_view(snapshot, trip_instance_id)
+    show_trackers = bool(actions.get("show_trackers"))
+    if show_trackers and repository is not None:
+        panel = latest_trip_flight_panel(snapshot, repository, trip_instance_id=trip_instance_id)
+        show_trackers = len(panel["rows"]) > 1
     return {
         "trip": trip_identity_value(snapshot, trip_instance_id),
         "bookedOffer": _offer_value(row.get("booked_offer")),
@@ -120,7 +124,7 @@ def trip_row_value(snapshot, trip_instance_id: str) -> dict[str, object]:
             "showBookingModal": bool(actions.get("show_booking_modal")),
             "canCreateBooking": bool(actions.get("can_create_booking")),
             "editBookingId": str(actions.get("edit_booking_id", "")),
-            "showTrackers": bool(actions.get("show_trackers")),
+            "showTrackers": show_trackers,
         },
     }
 
@@ -177,7 +181,7 @@ def _trip_picker_option_group_value(snapshot, trip_instances: list[object], *, l
     }
 
 
-def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
+def _action_items_value(snapshot, *, today: date, repository=None) -> list[dict[str, object]]:
     attention = dashboard_attention_views(snapshot, today=today)
     items: list[dict[str, object]] = []
 
@@ -232,7 +236,7 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
                 "kind": "tripAttention",
                 "attentionKind": "overbooked",
                 "title": "Overbooked",
-                "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
+                "row": trip_row_value(snapshot, card["instance"].trip_instance_id, repository=repository),
             }
         )
     for card in attention["rebook_views"]:
@@ -243,7 +247,7 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
                 "kind": "tripAttention",
                 "attentionKind": attention_kind,
                 "title": title,
-                "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
+                "row": trip_row_value(snapshot, card["instance"].trip_instance_id, repository=repository),
             }
         )
     for card in attention["book_now_views"]:
@@ -252,7 +256,7 @@ def _action_items_value(snapshot, *, today: date) -> list[dict[str, object]]:
                 "kind": "tripAttention",
                 "attentionKind": "needsBooking",
                 "title": "Needs booking",
-                "row": trip_row_value(snapshot, card["instance"].trip_instance_id),
+                "row": trip_row_value(snapshot, card["instance"].trip_instance_id, repository=repository),
             }
         )
     return items
@@ -265,6 +269,7 @@ def dashboard_payload(
     selected_trip_group_ids: list[str] | None = None,
     include_booked: bool = True,
     include_skipped: bool = False,
+    repository=None,
 ) -> dict[str, object]:
     scheduled_view = scheduled_ledger_view(
         snapshot,
@@ -299,9 +304,9 @@ def dashboard_payload(
             )
             for group in trip_groups(snapshot)
         ],
-        "actionItems": _action_items_value(snapshot, today=today),
+        "actionItems": _action_items_value(snapshot, today=today, repository=repository),
         "trips": [
-            trip_row_value(snapshot, instance.trip_instance_id)
+            trip_row_value(snapshot, instance.trip_instance_id, repository=repository)
             for instance in scheduled_view["scheduled_items"]
         ],
     }

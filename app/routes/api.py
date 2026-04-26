@@ -149,6 +149,7 @@ def _dashboard_view_payload(
     trip_group_ids: list[str] | None,
     include_booked: bool,
     include_skipped: bool,
+    repository: Repository,
 ) -> dict[str, object]:
     return dashboard_payload(
         snapshot,
@@ -156,6 +157,7 @@ def _dashboard_view_payload(
         selected_trip_group_ids=trip_group_ids,
         include_booked=include_booked,
         include_skipped=include_skipped,
+        repository=repository,
     )
 
 
@@ -172,6 +174,7 @@ def dashboard_api(
         trip_group_ids=trip_group_id,
         include_booked=include_booked,
         include_skipped=include_skipped,
+        repository=repository,
     )
 
 
@@ -276,6 +279,7 @@ def create_collection_api(
             trip_group_ids=trip_group_id,
             include_booked=include_booked,
             include_skipped=include_skipped,
+            repository=repository,
         )
     }
 
@@ -304,6 +308,7 @@ def update_collection_api(
             trip_group_ids=selected_trip_group_id,
             include_booked=include_booked,
             include_skipped=include_skipped,
+            repository=repository,
         )
     }
 
@@ -369,6 +374,7 @@ def delete_trip_instance_api(
             trip_group_ids=trip_group_id,
             include_booked=include_booked,
             include_skipped=include_skipped,
+            repository=repository,
         )
     }
 
@@ -395,6 +401,7 @@ def update_trip_skip_api(
             trip_group_ids=trip_group_id,
             include_booked=include_booked,
             include_skipped=include_skipped,
+            repository=repository,
         )
     }
 

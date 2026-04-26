@@ -751,18 +751,20 @@ def test_dashboard_and_tracker_panel_show_live_offer_stop_counts(client, reposit
     assert trackers_response.status_code == 200
     row = next(item for item in dashboard_response.json()["trips"] if item["trip"]["title"] == "Stop-count tracker trip")
     assert row["currentOffer"]["detail"] == "SFO → LAX · 1 stop"
+    assert row["actions"]["showTrackers"] is False
     assert trackers_response.json()["rows"][0]["offer"]["detail"] == "SFO → LAX · 1 stop"
 
 
 def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
     save_trip(
         repository,
         trip_id=None,
         label="Ranked flights",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 20),
-        anchor_weekday="Monday",
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
         preference_mode="ranked_bias",
         route_option_payloads=[
             {
@@ -788,7 +790,7 @@ def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(
         ],
         data_scope=DataScope.LIVE,
     )
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     trackers = repository.load_trackers()
     targets = repository.load_tracker_fetch_targets()
@@ -847,9 +849,13 @@ def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(
         ],
     ))
 
+    dashboard_response = client.get("/api/dashboard")
     trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
 
+    assert dashboard_response.status_code == 200
     assert trackers_response.status_code == 200
+    dashboard_row = next(item for item in dashboard_response.json()["trips"] if item["trip"]["tripInstanceId"] == trip_instance_id)
+    assert dashboard_row["actions"]["showTrackers"] is True
     payload = trackers_response.json()
     assert [row["offer"]["detail"] for row in payload["rows"]] == ["SFO → BUR", "LAX → BUR"]
     assert [row["offer"]["priceLabel"] for row in payload["rows"]] == ["$100", "$60"]

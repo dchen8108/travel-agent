@@ -91,6 +91,7 @@ def app_shell(
                 today=date.today(),
                 selected_trip_group_ids=trip_group_ids,
                 include_booked=include_booked,
+                repository=repository,
             ),
         }
     panel = request.query_params.get("panel", "")

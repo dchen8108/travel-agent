@@ -162,7 +162,7 @@ function bookingPanelPreview(row: TripRowValue | undefined): BookingPanelPayload
 }
 
 function trackerPanelPreview(row: TripRowValue | undefined): TrackerPanelPayload | null {
-  if (!row) {
+  if (!row || !row.actions.showTrackers) {
     return null;
   }
   const previewRows = row.currentOffer && !row.currentOffer.priceIsStatus
@@ -619,6 +619,9 @@ export function DashboardPage() {
     if (nextPanel === "bookings" && mode === "list" && !currentRow?.actions.showBookingModal) {
       return;
     }
+    if (nextPanel === "trackers" && !currentRow?.actions.showTrackers) {
+      return;
+    }
     updateDashboardSearchParams((next) => {
       next.set(DASHBOARD_PARAM_KEYS.panel, nextPanel);
       next.set(DASHBOARD_PARAM_KEYS.tripInstanceId, tripInstanceId);
@@ -673,7 +676,7 @@ export function DashboardPage() {
   const initialBookingPanel = panel === "bookings" ? bookingPanelPreview(currentTripRow) : null;
   const initialTrackerPanel = panel === "trackers" ? trackerPanelPreview(currentTripRow) : null;
   const showingDesktopInspector = useDesktopInspector && !!panelTripInstanceId && (
-    panel === "trackers"
+    (panel === "trackers" && Boolean(currentTripRow?.actions.showTrackers))
     || (
       panel === "bookings"
       && Boolean(currentTripRow?.actions.showBookingModal)
@@ -686,6 +689,12 @@ export function DashboardPage() {
     }
     if (panel === "trackers" && !currentTripRow) {
       closePanel();
+      return;
+    }
+    if (panel === "trackers") {
+      if (!currentTripRow?.actions.showTrackers) {
+        closePanel();
+      }
       return;
     }
     if (panel !== "bookings" || bookingPanelState.mode !== "list") {
@@ -1010,7 +1019,7 @@ export function DashboardPage() {
           />
         )
       ) : null}
-      {!showingDesktopInspector && panel === "trackers" && panelTripInstanceId ? (
+      {!showingDesktopInspector && panel === "trackers" && panelTripInstanceId && currentTripRow?.actions.showTrackers ? (
         <Modal title="Flights" onClose={closePanel} size="compact">
           <TrackerInspector tripInstanceId={panelTripInstanceId} initialPanel={initialTrackerPanel} />
         </Modal>
