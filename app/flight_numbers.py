@@ -36,12 +36,13 @@ def canonicalize_flight_number(value: object, *, airline: str = "") -> str:
     cleaned = " ".join(str(value or "").strip().upper().split())
     if not cleaned:
         return ""
-    prefixed = _FLIGHT_NUMBER_PREFIX_RE.match(cleaned)
+    compact = cleaned.replace(" ", "")
+    prefixed = _FLIGHT_NUMBER_PREFIX_RE.match(compact)
     if prefixed:
         return f"{prefixed.group(1)} {prefixed.group(2)}"
     known_airline = known_airline_code(airline)
     if known_airline:
-        bare_suffix = _FLIGHT_NUMBER_SUFFIX_RE.match(cleaned)
+        bare_suffix = _FLIGHT_NUMBER_SUFFIX_RE.match(compact)
         if bare_suffix:
             return f"{airline_marketing_code(known_airline)} {bare_suffix.group(1)}"
     return cleaned
