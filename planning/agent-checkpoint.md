@@ -1,6 +1,6 @@
 # Agent Checkpoint
 
-Last refreshed: `2026-04-16`
+Last refreshed: `2026-04-29`
 
 ## Purpose
 
@@ -95,6 +95,7 @@ Frontend code is split across:
 
 - one concrete scheduled trip
 - no persisted lifecycle enum anymore
+- `skipped` is a soft-hide/user-intent flag, not an operational disable
 - lifecycle is derived:
   - `Planned` if it has no active bookings
   - `Booked` if it has at least one active booking
@@ -104,11 +105,13 @@ Frontend code is split across:
 
 - belongs to exactly one trip instance when linked
 - can optionally link to a route option if the match is unique
+- supports `stops` and comma-separated multi-leg `flight_number` storage
 - route mismatch clears that optional link, but does not unlink the booking from the trip
 
 `Tracker`
 
 - one route option instantiated for one trip instance
+- route options and trackers now carry explicit stop-policy semantics (`nonstop`, `1_stop`, `2_stops`)
 - stores rolled-up best current signal from concrete fetch targets
 
 ## Important Product Decisions

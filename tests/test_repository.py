@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import os
 import sqlite3
 from decimal import Decimal
@@ -7,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.models.base import AppState
+from app.models.booking_email_event import BookingEmailEvent
 from app.settings import Settings
 from app.storage.repository import Repository
 from app.storage.sqlite_schema import DDL_STATEMENTS, SCHEMA_VERSION
@@ -191,6 +193,36 @@ def test_repository_does_not_rerun_schema_init_after_db_mtime_change(tmp_path: P
         second.ensure_data_dir()
 
     initialize_schema_mock.assert_not_called()
+
+
+def test_repository_existing_booking_email_message_ids_returns_requested_intersection(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+    repository.append_booking_email_events(
+        [
+            BookingEmailEvent(
+                email_event_id="mail_1",
+                gmail_message_id="msg-1",
+                received_at=datetime(2026, 4, 1, 9, 0).astimezone(),
+            ),
+            BookingEmailEvent(
+                email_event_id="mail_2",
+                gmail_message_id="msg-2",
+                received_at=datetime(2026, 4, 1, 10, 0).astimezone(),
+            ),
+        ]
+    )
+
+    assert repository.existing_booking_email_message_ids(["msg-2", "msg-3", "msg-1", "msg-2"]) == {
+        "msg-1",
+        "msg-2",
+    }
 
 
 def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_path: Path) -> None:

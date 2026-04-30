@@ -20,6 +20,12 @@ import { UnmatchedBookingEditorModal } from "../components/UnmatchedBookingEdito
 import { useToast } from "../components/ToastProvider";
 import { api } from "../lib/api";
 import {
+  bookingPanelPreview,
+  buildTripRowLookup,
+  filterTripRows,
+  trackerPanelPreview,
+} from "../lib/dashboardTripRows";
+import {
   buildDashboardFilters,
   DASHBOARD_PARAM_KEYS,
   parseDashboardUrlState,
@@ -37,7 +43,6 @@ import type {
   BookingPanelPayload,
   CollectionCard as CollectionCardValue,
   DashboardPayload,
-  TrackerPanelPayload,
   TripRow as TripRowValue,
 } from "../types";
 
@@ -98,91 +103,6 @@ function optimisticRemoveCollection(dashboard: DashboardPayload, groupId: string
   };
 }
 
-function tripRowLookup(dashboard: DashboardPayload | undefined) {
-  const lookup = new Map<string, TripRowValue>();
-  if (!dashboard) {
-    return lookup;
-  }
-  for (const row of dashboard.trips) {
-    lookup.set(row.trip.tripInstanceId, row);
-  }
-  for (const item of dashboard.actionItems) {
-    if (item.kind === "tripAttention") {
-      lookup.set(item.row.trip.tripInstanceId, item.row);
-    }
-  }
-  return lookup;
-}
-
-function filteredTripRows(
-  dashboard: DashboardPayload | undefined,
-  {
-    selectedTripGroupIds,
-    includeBooked,
-    includeSkipped,
-  }: {
-    selectedTripGroupIds: string[];
-    includeBooked: boolean;
-    includeSkipped: boolean;
-  },
-) {
-  if (!dashboard) {
-    return [];
-  }
-  const selectedIds = new Set(selectedTripGroupIds);
-  const includeUngrouped = selectedIds.has("__ungrouped__");
-  const groupedSelections = new Set([...selectedIds].filter((value) => value !== "__ungrouped__"));
-
-  return dashboard.trips.filter((row) => {
-    if (!includeSkipped && row.trip.skipped) {
-      return false;
-    }
-    if (!includeBooked && row.bookedOffer) {
-      return false;
-    }
-    if (!selectedIds.size) {
-      return true;
-    }
-    const matchingGroups = row.trip.tripGroupIds;
-    if (matchingGroups.length === 0) {
-      return includeUngrouped;
-    }
-    return matchingGroups.some((groupId) => groupedSelections.has(groupId));
-  });
-}
-
-function bookingPanelPreview(row: TripRowValue | undefined): BookingPanelPayload | null {
-  if (!row) {
-    return null;
-  }
-  return {
-    trip: row.trip,
-    rows: row.bookedOffer ? [{ bookingId: "", offer: row.bookedOffer, warning: "" }] : [],
-  };
-}
-
-function trackerPanelPreview(row: TripRowValue | undefined): TrackerPanelPayload | null {
-  if (!row || !row.actions.showTrackers) {
-    return null;
-  }
-  const previewRows = row.currentOffer && !row.currentOffer.priceIsStatus
-    ? [
-        {
-          rowId: "",
-          travelDate: row.trip.anchorDate,
-          offer: row.currentOffer,
-        },
-      ]
-    : [];
-  return {
-    trip: row.trip,
-    rows: previewRows,
-    lastRefreshLabel: "",
-    tripAnchorDate: row.trip.anchorDate,
-    emptyLabel: row.currentOffer?.statusKind === "unavailable" ? "No live fares right now." : "Checking live fares…",
-  };
-}
-
 function desktopInspectorPreferred() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return false;
@@ -226,11 +146,11 @@ export function DashboardPage() {
     queryFn: () => api.dashboard(canonicalDashboardFilters),
   });
   const displayTrips = useMemo(
-    () => filteredTripRows(dashboardQuery.data, { selectedTripGroupIds, includeBooked, includeSkipped }),
+    () => filterTripRows(dashboardQuery.data, { selectedTripGroupIds, includeBooked, includeSkipped }),
     [dashboardQuery.data, includeBooked, includeSkipped, selectedTripGroupIds],
   );
   const visibleTripRows = useMemo(
-    () => tripRowLookup(dashboardQuery.data ? { ...dashboardQuery.data, trips: displayTrips } : undefined),
+    () => buildTripRowLookup(dashboardQuery.data ? { ...dashboardQuery.data, trips: displayTrips } : undefined),
     [dashboardQuery.data, displayTrips],
   );
 

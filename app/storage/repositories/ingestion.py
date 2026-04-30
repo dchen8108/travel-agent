@@ -50,9 +50,34 @@ class IngestionRepositoryMixin:
             BookingEmailEvent,
         )
 
-    def load_booking_email_message_ids(self) -> set[str]:
-        rows = self._fetch_rows("SELECT gmail_message_id FROM booking_email_events")
-        return {str(row["gmail_message_id"]) for row in rows if row.get("gmail_message_id")}
+    def existing_booking_email_message_ids(
+        self,
+        gmail_message_ids: list[str],
+        *,
+        batch_size: int = 500,
+    ) -> set[str]:
+        deduped_ids = list(dict.fromkeys(
+            gmail_message_id.strip()
+            for gmail_message_id in gmail_message_ids
+            if gmail_message_id and gmail_message_id.strip()
+        ))
+        if not deduped_ids:
+            return set()
+
+        existing_ids: set[str] = set()
+        for start in range(0, len(deduped_ids), batch_size):
+            batch = deduped_ids[start:start + batch_size]
+            placeholders = ", ".join("?" for _ in batch)
+            rows = self._fetch_rows(
+                f"SELECT gmail_message_id FROM booking_email_events WHERE gmail_message_id IN ({placeholders})",
+                tuple(batch),
+            )
+            existing_ids.update(
+                str(row["gmail_message_id"])
+                for row in rows
+                if row.get("gmail_message_id")
+            )
+        return existing_ids
 
     def get_booking_email_event_by_message_id(self, gmail_message_id: str) -> BookingEmailEvent | None:
         rows = self._fetch_rows(

@@ -157,7 +157,6 @@ def _select_message_ids_for_poll(
     retry_limit: int,
     max_retry_attempts: int,
 ) -> MessageSelection:
-    existing_message_ids = repository.load_booking_email_message_ids()
     retry_ids = _retry_message_ids(repository, limit=retry_limit, max_retry_attempts=max_retry_attempts)
     sender_query = _sender_query(allowed_from_addresses or [])
 
@@ -184,6 +183,7 @@ def _select_message_ids_for_poll(
                 source_mode = "history_reset_backfill"
             else:
                 raise
+        existing_message_ids = repository.existing_booking_email_message_ids(incremental_ids)
         new_ids = [message_id for message_id in incremental_ids if message_id not in existing_message_ids]
         return MessageSelection(
             message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
@@ -199,6 +199,7 @@ def _select_message_ids_for_poll(
         backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids, query=sender_query)
     else:
         backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
+    existing_message_ids = repository.existing_booking_email_message_ids(backfill_ids)
     new_ids = [message_id for message_id in backfill_ids if message_id not in existing_message_ids]
     return MessageSelection(
         message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
