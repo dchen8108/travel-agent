@@ -23,31 +23,31 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
   });
 
   if (panelQuery.isError) {
-    return <div className="modal-loading">{errorMessage(panelQuery.error, "Unable to load flights.")}</div>;
+    return <div className="detail-panel-loading">{errorMessage(panelQuery.error, "Unable to load flights.")}</div>;
   }
 
   if (!panelQuery.data) {
-    return <div className="modal-loading">Loading flights…</div>;
+    return <div className="detail-panel-loading">Loading flights...</div>;
   }
 
   return (
-    <div className="modal-panel-stack">
-      <div className="modal-panel-head">
+    <div className="detail-panel-stack">
+      <div className="detail-panel-head">
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
       {panelQuery.data.rows.length ? (
-        <div className="modal-list">
+        <div className="detail-list">
           {panelQuery.data.rows.map((row) => (
-            <article key={row.rowId} className="modal-list-row modal-list-row--tracker">
+            <article key={row.rowId} className="detail-list-row detail-list-row--tracker">
               <OfferBlock kind="live" offer={row.offer} />
             </article>
           ))}
         </div>
       ) : (
-        <div className="modal-loading">{panelQuery.data.emptyLabel}</div>
+        <div className="detail-panel-loading">{panelQuery.data.emptyLabel}</div>
       )}
       {panelQuery.data.lastRefreshLabel ? (
-        <div className="modal-footer-note">{panelQuery.data.lastRefreshLabel}</div>
+        <div className="detail-footer-note">{panelQuery.data.lastRefreshLabel}</div>
       ) : null}
     </div>
   );

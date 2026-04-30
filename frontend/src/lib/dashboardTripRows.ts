@@ -1,5 +1,6 @@
 import type {
   BookingPanelPayload,
+  DashboardActionItem,
   DashboardPayload,
   TrackerPanelPayload,
   TripRow as TripRowValue,
@@ -31,36 +32,56 @@ export function buildTripRowLookup(dashboard: DashboardPayload | undefined) {
 
 export function filterTripRows(
   dashboard: DashboardPayload | undefined,
+  filters: DashboardTripFilters,
+) {
+  if (!dashboard) {
+    return [];
+  }
+  return dashboard.trips.filter((row) => tripRowMatchesFilters(row, filters));
+}
+
+export function filterDashboardActionItems(
+  dashboard: DashboardPayload | undefined,
+  filters: DashboardTripFilters,
+): DashboardActionItem[] {
+  if (!dashboard) {
+    return [];
+  }
+  return dashboard.actionItems.filter((item) => {
+    if (item.kind !== "tripAttention") {
+      return true;
+    }
+    return tripRowMatchesFilters(item.row, filters);
+  });
+}
+
+function tripRowMatchesFilters(
+  row: TripRowValue,
   {
     selectedTripGroupIds,
     includeBooked,
     includeSkipped,
   }: DashboardTripFilters,
 ) {
-  if (!dashboard) {
-    return [];
-  }
   const selectedIds = new Set(selectedTripGroupIds);
   const includeUngrouped = selectedIds.has(UNGROUPED_TRIPS_FILTER_VALUE);
   const groupedSelections = new Set(
     [...selectedIds].filter((value) => value !== UNGROUPED_TRIPS_FILTER_VALUE),
   );
 
-  return dashboard.trips.filter((row) => {
-    if (!includeSkipped && row.trip.skipped) {
-      return false;
-    }
-    if (!includeBooked && row.bookedOffer) {
-      return false;
-    }
-    if (!selectedIds.size) {
-      return true;
-    }
-    if (row.trip.tripGroupIds.length === 0) {
-      return includeUngrouped;
-    }
-    return row.trip.tripGroupIds.some((groupId) => groupedSelections.has(groupId));
-  });
+  if (!includeSkipped && row.trip.skipped) {
+    return false;
+  }
+  if (!includeBooked && row.bookedOffer) {
+    return false;
+  }
+  if (!selectedIds.size) {
+    return true;
+  }
+  if (row.trip.tripGroupIds.length === 0) {
+    return includeUngrouped;
+  }
+  return row.trip.tripGroupIds.some((groupId) => groupedSelections.has(groupId));
 }
 
 export function bookingPanelPreview(row: TripRowValue | undefined): BookingPanelPayload | null {

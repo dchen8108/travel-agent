@@ -489,6 +489,31 @@ def _migrate_bookings_fare_class_to_v24(connection: sqlite3.Connection) -> None:
             "ALTER TABLE bookings ADD COLUMN fare_class TEXT NOT NULL DEFAULT 'basic_economy'"
         )
     if _table_exists(connection, "route_options") and "route_option_id" in columns:
+        needs_repair = connection.execute(
+            """
+            SELECT 1
+            FROM bookings
+            WHERE COALESCE(route_option_id, '') != ''
+              AND fare_class != CASE COALESCE(
+                (
+                    SELECT route_options.fare_class_policy
+                    FROM route_options
+                    WHERE route_options.route_option_id = bookings.route_option_id
+                    LIMIT 1
+                ),
+                ''
+            )
+                WHEN 'include_basic' THEN 'basic_economy'
+                WHEN 'basic_economy' THEN 'basic_economy'
+                WHEN 'exclude_basic' THEN 'economy'
+                WHEN 'economy' THEN 'economy'
+                ELSE fare_class
+            END
+            LIMIT 1
+            """
+        ).fetchone()
+        if needs_repair is None:
+            return
         connection.execute(
             """
             UPDATE bookings
@@ -635,6 +660,19 @@ def _migrate_bookings_arrival_day_offset_to_v26(connection: sqlite3.Connection) 
         connection.execute(
             "ALTER TABLE bookings ADD COLUMN arrival_day_offset INTEGER NOT NULL DEFAULT 0"
         )
+    needs_repair = connection.execute(
+        """
+        SELECT 1
+        FROM bookings
+        WHERE COALESCE(arrival_time, '') != ''
+          AND COALESCE(arrival_day_offset, 0) = 0
+          AND COALESCE(departure_time, '') != ''
+          AND arrival_time < departure_time
+        LIMIT 1
+        """
+    ).fetchone()
+    if needs_repair is None:
+        return
     connection.execute(
         """
         UPDATE bookings

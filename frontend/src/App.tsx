@@ -8,6 +8,7 @@ import { frontendBootstrap } from "./lib/bootstrap";
 import {
   bookingFormQueryKey,
   bookingPanelQueryKey,
+  DASHBOARD_CANONICAL_QUERY,
   dashboardQueryKey,
   trackerPanelQueryKey,
   tripEditorQueryKey,
@@ -26,7 +27,7 @@ function createQueryClient() {
 
   const bootstrap = frontendBootstrap();
   if (bootstrap.dashboard) {
-    queryClient.setQueryData(dashboardQueryKey(bootstrap.dashboard.query), bootstrap.dashboard.data);
+    queryClient.setQueryData(dashboardQueryKey(DASHBOARD_CANONICAL_QUERY), bootstrap.dashboard.data);
   }
   if (bootstrap.bookingPanel) {
     queryClient.setQueryData(bookingPanelQueryKey(bootstrap.bookingPanel.tripInstanceId), bootstrap.bookingPanel.data);

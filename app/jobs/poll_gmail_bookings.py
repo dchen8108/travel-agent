@@ -89,6 +89,7 @@ class MessageSelection:
     new_message_ids: list[str]
     retry_message_ids: list[str]
     history_id_before: str
+    truncated: bool
 
 
 def _history_id_after_run(
@@ -96,7 +97,10 @@ def _history_id_after_run(
     history_id_before: str,
     latest_history_id: str,
     retryable_error_found: bool,
+    selection_truncated: bool = False,
 ) -> str:
+    if selection_truncated:
+        return history_id_before
     if retryable_error_found and history_id_before:
         return history_id_before
     return latest_history_id
@@ -185,13 +189,15 @@ def _select_message_ids_for_poll(
                 raise
         existing_message_ids = repository.existing_booking_email_message_ids(incremental_ids)
         new_ids = [message_id for message_id in incremental_ids if message_id not in existing_message_ids]
+        selected_ids = _dedupe_message_ids(new_ids + retry_ids)
         return MessageSelection(
-            message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
+            message_ids=selected_ids[:max_messages],
             latest_history_id=latest_history_id,
             source_mode=source_mode,
             new_message_ids=new_ids,
             retry_message_ids=retry_ids,
             history_id_before=sync_state_last_history_id,
+            truncated=len(selected_ids) > max_messages,
         )
 
     mailbox_profile = get_mailbox_profile(service)
@@ -201,13 +207,15 @@ def _select_message_ids_for_poll(
         backfill_ids = list_all_inbox_message_ids(service, label_ids=inbox_label_ids)
     existing_message_ids = repository.existing_booking_email_message_ids(backfill_ids)
     new_ids = [message_id for message_id in backfill_ids if message_id not in existing_message_ids]
+    selected_ids = _dedupe_message_ids(new_ids + retry_ids)
     return MessageSelection(
-        message_ids=_dedupe_message_ids(new_ids + retry_ids)[:max_messages],
+        message_ids=selected_ids[:max_messages],
         latest_history_id=mailbox_profile["history_id"],
         source_mode="backfill",
         new_message_ids=new_ids,
         retry_message_ids=retry_ids,
         history_id_before="",
+        truncated=len(selected_ids) > max_messages,
     )
 
 
@@ -342,6 +350,7 @@ def main() -> None:
             history_id_before=selection.history_id_before,
             latest_history_id=selection.latest_history_id,
             retryable_error_found=bool(retryable_error_message_ids),
+            selection_truncated=selection.truncated,
         )
         sync_state.last_history_id = history_id_after
         sync_state.last_polled_at = utcnow()
@@ -358,6 +367,7 @@ def main() -> None:
             error_count=error_count,
             history_id_after=history_id_after,
             history_advanced=history_id_after == selection.latest_history_id,
+            selection_truncated=selection.truncated,
             retryable_error_message_ids=retryable_error_message_ids,
             state_changed=any_state_changes,
         )

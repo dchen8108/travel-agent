@@ -22,6 +22,7 @@ import { api } from "../lib/api";
 import {
   bookingPanelPreview,
   buildTripRowLookup,
+  filterDashboardActionItems,
   filterTripRows,
   trackerPanelPreview,
 } from "../lib/dashboardTripRows";
@@ -34,6 +35,7 @@ import { prefetchOnce } from "../lib/prefetch";
 import {
   bookingFormQueryKey,
   bookingPanelQueryKey,
+  DASHBOARD_CANONICAL_QUERY,
   dashboardQueryKey,
   dashboardQueryPrefix,
   trackerPanelQueryKey,
@@ -139,7 +141,7 @@ export function DashboardPage() {
     params.set(DASHBOARD_PARAM_KEYS.includeSkipped, "true");
     return params;
   }, []);
-  const dashboardCacheKey = dashboardQueryKey("all");
+  const dashboardCacheKey = dashboardQueryKey(DASHBOARD_CANONICAL_QUERY);
 
   const dashboardQuery = useQuery({
     queryKey: dashboardCacheKey,
@@ -149,9 +151,17 @@ export function DashboardPage() {
     () => filterTripRows(dashboardQuery.data, { selectedTripGroupIds, includeBooked, includeSkipped }),
     [dashboardQuery.data, includeBooked, includeSkipped, selectedTripGroupIds],
   );
+  const displayActionItems = useMemo(
+    () => filterDashboardActionItems(dashboardQuery.data, { selectedTripGroupIds, includeBooked, includeSkipped }),
+    [dashboardQuery.data, includeBooked, includeSkipped, selectedTripGroupIds],
+  );
   const visibleTripRows = useMemo(
-    () => buildTripRowLookup(dashboardQuery.data ? { ...dashboardQuery.data, trips: displayTrips } : undefined),
-    [dashboardQuery.data, displayTrips],
+    () => buildTripRowLookup(
+      dashboardQuery.data
+        ? { ...dashboardQuery.data, trips: displayTrips, actionItems: displayActionItems }
+        : undefined,
+    ),
+    [dashboardQuery.data, displayActionItems, displayTrips],
   );
 
   useEffect(() => {
@@ -324,7 +334,7 @@ export function DashboardPage() {
       pushToast({ message: errorMessage(error, "Unable to update recurring trip."), kind: "error" });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "inactive" });
+      void refreshCurrentDashboard();
     },
   });
 
@@ -746,9 +756,9 @@ export function DashboardPage() {
           </header>
           <main className="dashboard-layout">
             {dashboardQuery.data ? (
-              dashboardQuery.data.actionItems.length ? (
+              displayActionItems.length ? (
                 <ActionItemsSection
-                  items={dashboardQuery.data.actionItems}
+                  items={displayActionItems}
                   onOpenBookings={(tripInstanceId, mode, rowBookingId) => openPanel("bookings", tripInstanceId, mode, rowBookingId)}
                   onOpenTrackers={(tripInstanceId) => openPanel("trackers", tripInstanceId)}
                   onDeleteTrip={handleDeleteTrip}

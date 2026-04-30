@@ -1,6 +1,6 @@
 # Google Flights POC Findings
 
-> Historical note: this document captures an earlier Google Flights proof-of-concept and inbox-import direction. It is not an authoritative description of the current fetcher or Gmail booking pipeline. Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) and [README.md](/Users/davidchen/code/travel-agent/README.md) for current behavior.
+> Historical note: this document captures an earlier Google Flights proof-of-concept and inbox-import direction. It is not an authoritative description of the current fetcher or Gmail booking pipeline. Use [planning/README.md](../README.md) and [README.md](../../README.md) for current behavior.
 
 ## Objective
 
@@ -34,7 +34,7 @@ Generated links should still be treated as best-effort rather than a hard API co
 
 The sample email at:
 
-`/Users/davidchen/Downloads/Prices for your tracked flights to Burbank, New York, Los Angeles have changed.eml`
+`~/Downloads/Prices for your tracked flights to Burbank, New York, Los Angeles have changed.eml`
 
 proves that the plain-text body can contain:
 

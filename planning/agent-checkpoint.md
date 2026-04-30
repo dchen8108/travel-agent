@@ -19,7 +19,7 @@ Core product shape:
 - `Route Option` is a ranked itinerary definition under a trip
 - `Tracker` and `Tracker Fetch Target` are derived monitoring objects
 - `Booking` may be linked to a scheduled trip and can optionally link to a uniquely matched route option
-- unresolved bookings still use the `Booking` model, but they live in the separate `unmatched_bookings` runtime/storage surface until resolved
+- unresolved bookings are shared `Booking` rows with `match_status = "unmatched"` until resolved
 
 There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with compatibility redirects and focused create/edit flows branching from it.
 
@@ -150,38 +150,38 @@ Known-good on this machine after the latest cleanup pass:
 
 High-signal docs:
 
-- [README.md](/Users/davidchen/code/travel-agent/README.md)
-- [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md)
-- [planning/sqlite-storage.md](/Users/davidchen/code/travel-agent/planning/sqlite-storage.md)
-- [planning/gmail-booking-ingestion.md](/Users/davidchen/code/travel-agent/planning/gmail-booking-ingestion.md)
+- [README.md](../README.md)
+- [planning/README.md](README.md)
+- [planning/sqlite-storage.md](sqlite-storage.md)
+- [planning/gmail-booking-ingestion.md](gmail-booking-ingestion.md)
 
 Entrypoints:
 
-- [app/main.py](/Users/davidchen/code/travel-agent/app/main.py)
-- [app/routes/spa.py](/Users/davidchen/code/travel-agent/app/routes/spa.py)
-- [app/routes/api.py](/Users/davidchen/code/travel-agent/app/routes/api.py)
-- [app/routes/groups.py](/Users/davidchen/code/travel-agent/app/routes/groups.py)
-- [app/routes/trackers.py](/Users/davidchen/code/travel-agent/app/routes/trackers.py)
+- [app/main.py](../app/main.py)
+- [app/routes/spa.py](../app/routes/spa.py)
+- [app/routes/api.py](../app/routes/api.py)
+- [app/routes/groups.py](../app/routes/groups.py)
+- [app/routes/trackers.py](../app/routes/trackers.py)
 
 Core services:
 
-- [app/services/dashboard_snapshot.py](/Users/davidchen/code/travel-agent/app/services/dashboard_snapshot.py)
-- [app/services/dashboard_queries.py](/Users/davidchen/code/travel-agent/app/services/dashboard_queries.py)
-- [app/services/dashboard_booking_views.py](/Users/davidchen/code/travel-agent/app/services/dashboard_booking_views.py)
-- [app/services/dashboard_navigation.py](/Users/davidchen/code/travel-agent/app/services/dashboard_navigation.py)
-- [app/services/scheduled_trip_state.py](/Users/davidchen/code/travel-agent/app/services/scheduled_trip_state.py)
-- [app/services/scheduled_trip_display.py](/Users/davidchen/code/travel-agent/app/services/scheduled_trip_display.py)
-- [app/services/workflows.py](/Users/davidchen/code/travel-agent/app/services/workflows.py)
-- [app/services/trips.py](/Users/davidchen/code/travel-agent/app/services/trips.py)
-- [app/services/bookings.py](/Users/davidchen/code/travel-agent/app/services/bookings.py)
-- [app/services/group_memberships.py](/Users/davidchen/code/travel-agent/app/services/group_memberships.py)
-- [app/services/background_fetch.py](/Users/davidchen/code/travel-agent/app/services/background_fetch.py)
+- [app/services/dashboard_snapshot.py](../app/services/dashboard_snapshot.py)
+- [app/services/dashboard_queries.py](../app/services/dashboard_queries.py)
+- [app/services/dashboard_booking_views.py](../app/services/dashboard_booking_views.py)
+- [app/services/dashboard_navigation.py](../app/services/dashboard_navigation.py)
+- [app/services/scheduled_trip_state.py](../app/services/scheduled_trip_state.py)
+- [app/services/scheduled_trip_display.py](../app/services/scheduled_trip_display.py)
+- [app/services/workflows.py](../app/services/workflows.py)
+- [app/services/trips.py](../app/services/trips.py)
+- [app/services/bookings.py](../app/services/bookings.py)
+- [app/services/group_memberships.py](../app/services/group_memberships.py)
+- [app/services/background_fetch.py](../app/services/background_fetch.py)
 
 Persistence:
 
-- [app/storage/repository.py](/Users/davidchen/code/travel-agent/app/storage/repository.py)
-- [app/storage/sqlite_store.py](/Users/davidchen/code/travel-agent/app/storage/sqlite_store.py)
-- [app/storage/sqlite_schema.py](/Users/davidchen/code/travel-agent/app/storage/sqlite_schema.py)
+- [app/storage/repository.py](../app/storage/repository.py)
+- [app/storage/sqlite_store.py](../app/storage/sqlite_store.py)
+- [app/storage/sqlite_schema.py](../app/storage/sqlite_schema.py)
 
 ## Current Caution Areas
 

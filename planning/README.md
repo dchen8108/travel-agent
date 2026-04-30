@@ -11,7 +11,7 @@ Use these first when you need the implementation as it exists today:
 - `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
 - there are no active historical planning docs in this directory; recover old migration notes from `planning/archive/` or git history if needed
 
-The top-level [README.md](/Users/davidchen/code/travel-agent/README.md) is the main source of truth for:
+The top-level [README.md](../README.md) is the main source of truth for:
 
 - current runtime architecture
 - launchd jobs
@@ -40,7 +40,7 @@ These are historical references, not current source-of-truth docs:
 - `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows
 - route options are ranked tracker definitions under a trip
 - bookings are trip-scoped and can optionally link to a uniquely matched route option
-- unresolved bookings still use the shared `Booking` model, but they live in the separate `unmatched_bookings` storage/runtime surface until resolved
+- unresolved bookings are shared `Booking` rows with `match_status = "unmatched"` until resolved
 - unlinked bookings are handled inline on the dashboard, not through a separate primary `Resolve` or `Bookings` workspace
 - Gmail booking automation is incremental and checkpointed
 - runtime data is stored in SQLite, while checked-in config lives under `config/`

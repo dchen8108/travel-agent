@@ -264,6 +264,7 @@ def test_select_message_ids_for_poll_applies_hard_cap_after_deduping(repository,
     assert selection.message_ids == ["msg-new-1", "msg-new-2"]
     assert selection.new_message_ids == ["msg-new-1", "msg-new-2", "msg-new-3"]
     assert selection.retry_message_ids == ["msg-retry"]
+    assert selection.truncated is True
 
 
 def test_record_message_processing_error_reuses_existing_event_and_marks_terminal_404(repository) -> None:
@@ -308,3 +309,21 @@ def test_history_id_after_run_advances_initial_backfill_even_when_retryable_erro
         latest_history_id="300",
         retryable_error_found=True,
     ) == "300"
+
+
+def test_history_id_after_run_preserves_checkpoint_when_selection_is_truncated() -> None:
+    assert _history_id_after_run(
+        history_id_before="250",
+        latest_history_id="300",
+        retryable_error_found=False,
+        selection_truncated=True,
+    ) == "250"
+
+
+def test_history_id_after_run_repeats_initial_backfill_when_selection_is_truncated() -> None:
+    assert _history_id_after_run(
+        history_id_before="",
+        latest_history_id="300",
+        retryable_error_found=False,
+        selection_truncated=True,
+    ) == ""

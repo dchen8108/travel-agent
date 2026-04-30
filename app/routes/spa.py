@@ -28,20 +28,25 @@ def _spa_index_path(settings: Settings) -> Path:
     return settings.frontend_dist_dir / "index.html"
 
 
+def _json_for_inline_script(payload: dict[str, object]) -> str:
+    serialized = json.dumps(payload, separators=(",", ":"))
+    return (
+        serialized
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def _inject_bootstrap(index_html: str, bootstrap_payload: dict[str, object]) -> str:
     bootstrap_script = (
         "<script>"
-        f"window.__MILEMARK_BOOTSTRAP__ = {json.dumps(bootstrap_payload, separators=(',', ':'))};"
+        f"window.__MILEMARK_BOOTSTRAP__ = {_json_for_inline_script(bootstrap_payload)};"
         "</script>"
     )
     return index_html.replace("</body>", f"{bootstrap_script}</body>")
-
-
-def _dashboard_query_string(*, trip_group_ids: list[str], include_booked: bool) -> str:
-    parts = [f"trip_group_id={trip_group_id}" for trip_group_id in trip_group_ids]
-    if not include_booked:
-        parts.append("include_booked=false")
-    return "&".join(parts)
 
 
 @router.get("/", include_in_schema=False)
@@ -73,8 +78,6 @@ def app_shell(
         if request_path == "/app" or request_path.startswith("/app/")
         else request_path
     ) or "/"
-    trip_group_ids = request.query_params.getlist("trip_group_id")
-    include_booked = request.query_params.get("include_booked", "true").lower() != "false"
     snapshot = load_persisted_snapshot(repository)
     bootstrap_payload: dict[str, object] = {}
     is_trip_editor_path = normalized_path == "/trips/new" or (
@@ -82,15 +85,13 @@ def app_shell(
     )
     if not is_trip_editor_path:
         bootstrap_payload["dashboard"] = {
-            "query": _dashboard_query_string(
-                trip_group_ids=trip_group_ids,
-                include_booked=include_booked,
-            ),
+            "query": "all",
             "data": dashboard_payload(
                 snapshot,
                 today=date.today(),
-                selected_trip_group_ids=trip_group_ids,
-                include_booked=include_booked,
+                selected_trip_group_ids=[],
+                include_booked=True,
+                include_skipped=True,
                 repository=repository,
             ),
         }

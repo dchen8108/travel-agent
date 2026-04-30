@@ -33,8 +33,6 @@ def group_recurring_rule_view(rule) -> dict[str, object]:
         "anchor_weekday": rule.anchor_weekday,
         "active": rule.active,
         "edit_href": f"/trips/{rule.trip_id}/edit",
-        "toggle_action": f"/trips/{rule.trip_id}/{'pause' if rule.active else 'activate'}",
-        "toggle_label": "Active" if rule.active else "Paused",
     }
 
 

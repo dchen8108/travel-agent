@@ -1,3 +1,5 @@
+export const DASHBOARD_CANONICAL_QUERY = "all";
+
 export function dashboardQueryPrefix() {
   return ["dashboard"] as const;
 }

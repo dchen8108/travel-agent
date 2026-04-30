@@ -32,7 +32,7 @@ This version is intentionally local and simple:
 - no paid fare APIs
 - no credits or hotels
 
-Use [planning/README.md](/Users/davidchen/code/travel-agent/planning/README.md) to distinguish current design notes from older historical planning docs.
+Use [planning/README.md](planning/README.md) to distinguish current design notes from older historical planning docs.
 
 Compatibility note:
 
@@ -53,13 +53,15 @@ Compatibility note:
 - `Tracker Fetch Target`: one concrete airport-pair Google Flights search under a tracker
 - `Price Record`: one append-only fetched offer row captured for analytics history
 - `Booking`: a purchased itinerary that may be linked to a trip instance and, when uniquely matchable, to one tracked route option
-- `Unmatched Booking`: still stored through the shared `Booking` model, but kept in the separate `unmatched_bookings` runtime/storage surface until resolved
+- `Unmatched Booking`: a shared `Booking` row with `match_status = "unmatched"` until it is linked or deleted
 - `Booking Email Event`: one Gmail intake result, including ignored, auto-linked, duplicate, and needs-resolution outcomes
 
 ## Run
 
 ```bash
 uv sync --python 3.12
+npm --prefix frontend install
+npm --prefix frontend run build
 uv run uvicorn app.main:app --reload
 ```
 
@@ -74,12 +76,13 @@ Frontend stack:
 To work on the frontend locally:
 
 ```bash
+uv run uvicorn app.main:app --reload
 cd frontend
 npm install
 npm run dev
 ```
 
-That starts the Vite dev server and proxies API requests back to the FastAPI app. For a production-style local build, run:
+That starts FastAPI on `:8000` and the Vite dev server on `:5173`; Vite proxies API requests back to FastAPI. For a production-style local build, run:
 
 ```bash
 npm --prefix frontend run build
@@ -264,7 +267,7 @@ The `data/` directory is still required at runtime because it holds:
 
 App-level config now lives outside the database in:
 
-- [config/app_state.json](/Users/davidchen/code/travel-agent/config/app_state.json)
+- [config/app_state.json](config/app_state.json)
 
 There is no longer any runtime fallback that migrates app config out of SQLite on startup. If `config/app_state.json` is missing, the app creates a fresh default config file there.
 
@@ -311,7 +314,7 @@ The main logical tables are:
 
 There is still a narrow unresolved-booking view in the product, but it is backed by rows in `bookings` rather than a separate database.
 
-For a more detailed schema map, see [planning/sqlite-storage.md](/Users/davidchen/code/travel-agent/planning/sqlite-storage.md).
+For a more detailed schema map, see [planning/sqlite-storage.md](planning/sqlite-storage.md).
 
 ## Historical Price Records
 

@@ -181,34 +181,7 @@ Key columns:
 
 Bookings are trip-scoped. They can optionally link to a uniquely matched route option, but booked-vs-current comparison logic is still based on the trip's best current option after preferences are applied.
 
-### `unmatched_bookings`
-
-Unresolved bookings waiting to be linked to a scheduled trip.
-
-These rows still use the shared `Booking` model. The split is operational, not a separate product object type: unmatched rows live in a separate table and runtime collection until they are resolved into normal linked bookings.
-
-Key columns:
-
-- `booking_id`
-- `source`
-- `data_scope`
-- `airline`
-- `origin_airport`
-- `destination_airport`
-- `departure_date`
-- `departure_time`
-- `arrival_time`
-- `booked_price`
-- `record_locator`
-- `booked_at`
-- `booking_status`
-- `match_status`
-- `raw_summary`
-- `candidate_trip_instance_ids`
-- `resolution_status`
-- `notes`
-- `created_at`
-- `updated_at`
+Unresolved bookings are not stored in a separate table. They are normal `bookings` rows with `match_status = 'unmatched'`, empty `trip_instance_id`, and optional `candidate_trip_instance_ids` until the user links or deletes them.
 
 ### `price_records`
 

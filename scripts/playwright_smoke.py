@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
@@ -39,11 +40,16 @@ def parse_args() -> argparse.Namespace:
 def wait_for_server(base_url: str, timeout_seconds: float = 15.0) -> None:
     deadline = time.time() + timeout_seconds
     last_error: Exception | None = None
+    probe_url = urllib.parse.urljoin(f"{base_url.rstrip('/')}/", "assets/__playwright_smoke_probe__")
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(base_url, timeout=1.0) as response:
+            with urllib.request.urlopen(probe_url, timeout=1.0) as response:
                 if response.status < 500:
                     return
+        except urllib.error.HTTPError as error:
+            if error.code < 500:
+                return
+            last_error = error
         except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
             last_error = error
         time.sleep(0.2)

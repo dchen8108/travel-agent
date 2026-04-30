@@ -88,21 +88,21 @@ export function BookingInspector({
   const payload = listQuery.data;
 
   if (listQuery.isError) {
-    return <div className="modal-loading">{errorMessage(listQuery.error, "Unable to load bookings.")}</div>;
+    return <div className="detail-panel-loading">{errorMessage(listQuery.error, "Unable to load bookings.")}</div>;
   }
 
   if (!payload) {
-    return <div className="modal-loading">Loading bookings…</div>;
+    return <div className="detail-panel-loading">Loading bookings...</div>;
   }
 
   return (
-    <div className="modal-panel-stack">
-      <div className="modal-panel-head">
+    <div className="detail-panel-stack">
+      <div className="detail-panel-head">
         <TripIdentityRow trip={payload.trip} showEditAction={false} />
       </div>
-      <div className="modal-list">
+      <div className="detail-list">
         {payload.rows.map((row) => (
-          <article key={row.bookingId} className="modal-list-row modal-list-row--offer">
+          <article key={row.bookingId} className="detail-list-row detail-list-row--offer">
             <OfferBlock
               kind="booked"
               offer={row.offer}
@@ -136,7 +136,7 @@ export function BookingInspector({
               )}
             />
             {listQuery.isPlaceholderData || !row.warning ? null : (
-              <p className="modal-row-warning">{row.warning}</p>
+              <p className="detail-row-warning">{row.warning}</p>
             )}
           </article>
         ))}

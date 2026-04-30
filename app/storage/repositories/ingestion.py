@@ -112,7 +112,7 @@ class IngestionRepositoryMixin:
         self._upsert_table(
             "booking_email_events",
             [event.model_dump(mode="json")],
-            conflict_columns=("email_event_id",),
+            conflict_columns=("gmail_message_id",),
         )
 
     def append_booking_email_events(self, events: list[BookingEmailEvent]) -> None:

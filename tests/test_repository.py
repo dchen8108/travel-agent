@@ -115,7 +115,7 @@ def test_initialize_schema_skips_legacy_migrations_for_current_schema(tmp_path: 
     forbidden = [
         statement
         for statement in statements
-        if statement.startswith(forbidden_prefixes)
+        if statement.lstrip().startswith(forbidden_prefixes)
     ]
     assert forbidden == []
 
@@ -223,6 +223,39 @@ def test_repository_existing_booking_email_message_ids_returns_requested_interse
         "msg-1",
         "msg-2",
     }
+
+
+def test_repository_upserts_booking_email_events_by_gmail_message_id(tmp_path: Path) -> None:
+    settings = Settings(
+        data_dir=tmp_path / "data",
+        config_dir=tmp_path / "config",
+        templates_dir=Path("app/templates"),
+        static_dir=Path("app/static"),
+    )
+    repository = Repository(settings)
+    repository.ensure_data_dir()
+
+    repository.upsert_booking_email_event(
+        BookingEmailEvent(
+            email_event_id="mail-first",
+            gmail_message_id="msg-1",
+            subject="Original",
+            received_at=datetime(2026, 4, 1, 9, 0).astimezone(),
+        )
+    )
+    repository.upsert_booking_email_event(
+        BookingEmailEvent(
+            email_event_id="mail-racing-poller",
+            gmail_message_id="msg-1",
+            subject="Updated",
+            received_at=datetime(2026, 4, 1, 9, 0).astimezone(),
+        )
+    )
+
+    events = repository.load_booking_email_events()
+    assert len(events) == 1
+    assert events[0].gmail_message_id == "msg-1"
+    assert events[0].subject == "Updated"
 
 
 def test_repository_migrates_existing_price_records_table_to_slim_schema(tmp_path: Path) -> None:
