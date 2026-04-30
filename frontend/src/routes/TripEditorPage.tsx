@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, startTransition, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -6,7 +6,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { IconButton } from "../components/IconButton";
 import { DeleteIcon, DragHandleIcon } from "../components/Icons";
 import { api } from "../lib/api";
-import { tripEditorQueryKey } from "../lib/queryKeys";
+import { dashboardQueryPrefix, tripEditorQueryKey } from "../lib/queryKeys";
 import type { TripEditorPayload, TripEditorRouteOption, TripEditorValues } from "../types";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { SearchSelectField } from "../components/SearchSelectField";
@@ -62,6 +62,7 @@ function fallbackCancelUrl(values: TripEditorValues, searchParams: URLSearchPara
 
 export function TripEditorPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { tripId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const mode = tripId ? "edit" : "create";
@@ -166,8 +167,9 @@ export function TripEditorPage() {
         formQuery.data?.sourceBooking?.unmatchedBookingId ?? "",
       );
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setSavePhase("redirecting");
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "all" });
       startTransition(() => {
         navigate(result.redirectTo, {
           state: { toast: { message: result.message, kind: "success" as const } },
@@ -182,8 +184,9 @@ export function TripEditorPage() {
 
   const detachMutation = useMutation({
     mutationFn: (tripInstanceId: string) => api.detachTripInstance(tripInstanceId),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setSavePhase("redirecting");
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryPrefix(), refetchType: "all" });
       navigate(result.redirectTo, {
         state: { toast: { message: result.message, kind: "success" as const } },
       });
