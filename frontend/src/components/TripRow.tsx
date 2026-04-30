@@ -146,6 +146,7 @@ export function TripRow({
           offer={row.currentOffer}
           onOpen={row.actions.showTrackers ? () => onOpenTrackers(tripInstanceId) : undefined}
           onPrefetchAction={row.actions.showTrackers ? () => onPrefetchTrackers?.(tripInstanceId) : undefined}
+          reserveActionSpace
         />
       ) : null}
     </article>

@@ -13,6 +13,7 @@ interface Props {
   onCreate?: () => void;
   onPrefetchAction?: () => void;
   actions?: ReactNode;
+  reserveActionSpace?: boolean;
 }
 
 const SUPERSCRIPT_RUN = /([⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g;
@@ -27,7 +28,16 @@ function renderPrimaryMeta(label: string) {
   ));
 }
 
-export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, onPrefetchAction, actions }: Props) {
+export function OfferBlock({
+  offer,
+  kind,
+  onOpen,
+  emptyState = false,
+  onCreate,
+  onPrefetchAction,
+  actions,
+  reserveActionSpace = false,
+}: Props) {
   if (emptyState) {
     return (
       <div className="offer-block offer-block--empty">
@@ -96,7 +106,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
 
   return (
     <div className={`offer-block offer-block--${kind}`}>
-      <div className={`offer-block__body${actionContent ? " offer-block__body--with-action" : ""}`}>
+      <div className={`offer-block__body${actionContent || reserveActionSpace ? " offer-block__body--with-action" : ""}`}>
         {offer.href ? (
           <a
             className="offer-block__content offer-block__content--link"
@@ -111,6 +121,7 @@ export function OfferBlock({ offer, kind, onOpen, emptyState = false, onCreate, 
           <div className="offer-block__content">{offerMain}</div>
         )}
         {actionContent ? <div className="offer-block__actions">{actionContent}</div> : null}
+        {!actionContent && reserveActionSpace ? <div className="offer-block__actions-spacer" aria-hidden="true" /> : null}
       </div>
     </div>
   );
