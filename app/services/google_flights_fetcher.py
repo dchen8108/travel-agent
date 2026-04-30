@@ -102,6 +102,7 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
             airline_node = item.css_first("div.sSHqwe.tPgKwe.ogfYpf span")
             price_node = item.css_first(".YMlIz.FpEdX")
             time_nodes = item.css("span.mv1WYe div")
+            summary_node = item.css_first(".JMc5Xc")
             airline = airline_node.text(strip=True) if airline_node else ""
             price_text = price_node.text(strip=True) if price_node else ""
             price = parse_google_flights_price(price_text)
@@ -109,6 +110,7 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
                 continue
             departure_label = time_nodes[0].text(strip=True) if len(time_nodes) > 0 else ""
             arrival_label = time_nodes[1].text(strip=True) if len(time_nodes) > 1 else ""
+            stop_source = summary_node.attributes.get("aria-label", "") if summary_node is not None else ""
             raw_text = item.text()
             offers.append(
                 GoogleFlightsOffer(
@@ -117,7 +119,7 @@ def parse_google_flights_offers(html: str) -> list[GoogleFlightsOffer]:
                     arrival_label=arrival_label,
                     price=price,
                     price_text=price_text,
-                    stops=parse_google_flights_stops(raw_text),
+                    stops=parse_google_flights_stops(stop_source or raw_text),
                 )
             )
     if not offers:

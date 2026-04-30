@@ -11,7 +11,9 @@ from app.models.tracker import Tracker
 from app.route_options import stop_policy_label
 
 GOOGLE_FLIGHTS_LANGUAGE = "en-US"
-GOOGLE_FLIGHTS_TIME_FILTER_TFU = "EgYIABAAGAA"
+# Mirrors the current Google Flights time-filter state seen in generated URLs
+# that actually return the expected filtered result set.
+GOOGLE_FLIGHTS_TIME_FILTER_TFU = "EgYIABABGAA"
 GOOGLE_FLIGHTS_FILTER_FLAGS = b"\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"
 GOOGLE_FLIGHTS_EXCLUDE_BASIC_FLAG = b"\xc8\x01\x01"
 GOOGLE_FLIGHTS_AIRLINE_CODES = {
@@ -106,8 +108,11 @@ def _encode_info_message_from_search(search: GoogleFlightsSearchSpec) -> bytes:
     if has_departure_filter:
         payload.extend(_encode_enum_field(14, 1))
         payload.extend(_encode_message_field(16, GOOGLE_FLIGHTS_FILTER_FLAGS))
-    payload.extend(_encode_enum_field(19, 2))  # one-way
-    if search.fare_class == FareClass.ECONOMY:
+        payload.extend(_encode_enum_field(19, 2))  # one-way
+        payload.extend(_encode_enum_field(25, 1))
+    else:
+        payload.extend(_encode_enum_field(19, 2))  # one-way
+    if search.fare_class == FareClass.ECONOMY and not has_departure_filter:
         payload.extend(GOOGLE_FLIGHTS_EXCLUDE_BASIC_FLAG)
     return bytes(payload)
 
@@ -180,12 +185,7 @@ def _departure_hour_window(start_time: str, end_time: str) -> tuple[int, int]:
     end = datetime.strptime(end_time, "%H:%M")
 
     start_hour = start.hour
-    end_exclusive = end.hour + (1 if end.minute > 0 else 0)
-    if end_exclusive == 0:
-        end_exclusive = 24
-    if end_exclusive <= start_hour:
-        end_exclusive = start_hour + 1
-    end_inclusive = min(23, end_exclusive - 1)
+    end_inclusive = max(start_hour, end.hour - 1)
     return start_hour, end_inclusive
 
 

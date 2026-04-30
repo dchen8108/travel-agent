@@ -1250,11 +1250,12 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
 
     assert url.startswith("https://www.google.com/travel/flights/search?")
     assert query["hl"] == ["en-US"]
-    assert query["tfu"] == ["EgYIABAAGAA"]
+    assert query["tfu"] == ["EgYIABABGAA"]
     assert any(field == 1 and value == 28 for field, wire, value in top_fields if wire == 0)
     assert any(field == 2 and value == 2 for field, wire, value in top_fields if wire == 0)
     assert any(field == 14 and value == 1 for field, wire, value in top_fields if wire == 0)
     assert any(field == 16 for field, wire, value in top_fields if wire == 2)
+    assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0)
     assert any(field == 5 and value == 0 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 8 and value == 6 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 9 and value == 9 for field, wire, value in nested_fields if wire == 0)
@@ -1367,5 +1368,51 @@ def test_generated_google_flights_url_can_exclude_basic_economy(repository: Repo
     top_fields = _decode_tfs(url)
 
     assert query["hl"] == ["en-US"]
-    assert query["tfu"] == ["EgYIABAAGAA"]
+    assert query["tfu"] == ["EgYIABABGAA"]
     assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0)
+
+
+def test_generated_google_flights_url_matches_known_one_stop_time_filter_shape(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Anchorage Return",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=date(2026, 6, 1),
+        anchor_weekday="",
+        route_option_payloads=[
+            {
+                "origin_airports": "ANC",
+                "destination_airports": "BUR",
+                "airlines": "Alaska",
+                "stops": "1_stop",
+                "day_offset": 0,
+                "start_time": "10:12",
+                "end_time": "13:12",
+                "fare_class": "basic_economy",
+            }
+        ],
+    )
+
+    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    trip_instance = next(item for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
+    tracker = next(item for item in snapshot.trackers if item.trip_instance_id == trip_instance.trip_instance_id)
+
+    url = build_google_flights_query_url(tracker)
+    query = parse_qs(urlsplit(url).query)
+    top_fields = _decode_tfs(url)
+    flight_data = next(value for field, wire, value in top_fields if field == 3 and wire == 2)
+    nested_fields = _parse_fields(flight_data)  # type: ignore[arg-type]
+
+    assert url == (
+        "https://www.google.com/travel/flights/search?"
+        "tfs=CBwQAhosEgoyMDI2LTA2LTAxKAEyAkFTQApIDFAAWBdqBwgBEgNBTkNyBwgBEgNCVVJAAUgBcAGCAQsI____________AZgBAsgBAQ"
+        "&hl=en-US&tfu=EgYIABABGAA"
+    )
+
+    assert query["tfu"] == ["EgYIABABGAA"]
+    assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0)
+    assert any(field == 5 and value == 1 for field, wire, value in nested_fields if wire == 0)
+    assert any(field == 8 and value == 10 for field, wire, value in nested_fields if wire == 0)
+    assert any(field == 9 and value == 12 for field, wire, value in nested_fields if wire == 0)

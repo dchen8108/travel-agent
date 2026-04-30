@@ -168,6 +168,27 @@ def test_parse_google_flights_stops_collapses_three_plus_to_two_stops() -> None:
     assert offers[0].stops == "2_stops"
 
 
+def test_parse_google_flights_offers_prefers_accessible_stop_summary_over_flattened_text() -> None:
+    offers = parse_google_flights_offers(
+        """
+        <div jsname="IWWDBc">
+          <ul class="Rk10dc">
+            <li class="pIav2d">
+              <div class="JMc5Xc" role="link" aria-label="From 268 US dollars. 1 stop flight with Alaska. Leaves Ted Stevens Anchorage International Airport at 11:12 AM on Monday, June 1 and arrives at Hollywood Burbank Airport at 7:34 PM on Monday, June 1."></div>
+              <div class="sSHqwe tPgKwe ogfYpf"><span>Alaska</span></div>
+              <span class="mv1WYe"><div>11:12 AM on Mon, Jun 1</div><div>7:34 PM on Mon, Jun 1</div></span>
+              <div class="YMlIz FpEdX">$268</div>
+              <div>344 kg CO2e</div>
+              <div>1 stop</div>
+            </li>
+          </ul>
+        </div>
+        """
+    )
+
+    assert offers[0].stops == "1_stop"
+
+
 def test_departure_time_filter_supports_minute_precision() -> None:
     offers = parse_google_flights_offers(
         """

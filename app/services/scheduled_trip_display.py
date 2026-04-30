@@ -163,9 +163,10 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
     current_offer_tone = "success" if booking is None else "accent"
     current_offer_price_is_status = False
     current_offer_status_kind = ""
+    if current_target is not None and current_target.google_flights_url:
+        current_offer_href = current_target.google_flights_url
     if current_price is not None:
         current_offer_price = format_money(current_price)
-        current_offer_href = current_target.google_flights_url if current_target and current_target.google_flights_url else ""
     else:
         current_offer_price = "N/A" if monitoring_label == "No matches" else "Checking"
         current_offer_tone = "neutral"

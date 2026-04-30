@@ -163,6 +163,40 @@ def test_dashboard_api_trip_rows_expose_trip_group_ids_for_grouped_recurring_ins
     assert trip_row["trip"]["tripGroupIds"] == [group_id]
 
 
+def test_dashboard_api_exposes_tracker_href_even_when_current_fare_is_pending(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Pending tracker href",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "ANC",
+                "destination_airports": "BUR",
+                "airlines": "Alaska",
+                "stops": "1_stop",
+                "day_offset": 0,
+                "start_time": "10:12",
+                "end_time": "13:12",
+                "fare_class": "basic_economy",
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+
+    response = client.get("/api/dashboard")
+
+    assert response.status_code == 200
+    row = next(item for item in response.json()["trips"] if item["trip"]["title"] == "Pending tracker href")
+    assert row["currentOffer"]["priceLabel"] == "Checking"
+    assert row["currentOffer"]["href"].startswith("https://www.google.com/travel/flights/search?")
+
+
 def test_trip_status_mutation_synchronously_refreshes_dashboard(client, repository: Repository) -> None:
     live_trip = save_trip(
         repository,
