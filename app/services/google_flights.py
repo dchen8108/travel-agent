@@ -184,6 +184,8 @@ def _departure_hour_window(start_time: str, end_time: str) -> tuple[int, int]:
     end = datetime.strptime(end_time, "%H:%M")
 
     start_hour = start.hour
+    if start_hour == 0 and end.hour == 23 and end.minute == 59:
+        return 0, 23
     end_inclusive = max(start_hour, end.hour - 1)
     return start_hour, end_inclusive
 

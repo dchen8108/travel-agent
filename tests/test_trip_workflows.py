@@ -7,14 +7,14 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from app.models.base import DataScope
+from app.models.base import DataScope, FareClass
 from app.services.bookings import BookingCandidate, record_booking
 from app.services.dashboard_queries import (
     deleted_one_time_trips,
     recurring_rules_for_group,
     scheduled_instances,
 )
-from app.services.google_flights import build_google_flights_query_url
+from app.services.google_flights import build_google_flights_query_url, build_google_flights_query_url_for_search
 from app.services.groups import save_trip_group
 from app.services.snapshot_queries import (
     groups_for_instance,
@@ -1304,6 +1304,60 @@ def test_generated_google_flights_url_encodes_stop_limit(repository: Repository,
 
     assert tracker.stops == stops
     assert any(field == 5 and value == expected_limit for field, wire, value in nested_fields if wire == 0)
+
+
+@pytest.mark.parametrize(
+    ("fare_class", "should_exclude_basic"),
+    [
+        (FareClass.BASIC_ECONOMY, False),
+        (FareClass.ECONOMY, True),
+    ],
+)
+@pytest.mark.parametrize(
+    ("stops", "expected_limit"),
+    [
+        ("nonstop", 0),
+        ("1_stop", 1),
+        ("2_stops", 2),
+    ],
+)
+@pytest.mark.parametrize(
+    ("start_time", "end_time", "has_departure_filter"),
+    [
+        ("00:00", "23:59", False),
+        ("06:00", "08:00", True),
+    ],
+)
+def test_google_flights_url_fare_class_stop_and_time_filter_matrix(
+    fare_class: FareClass,
+    should_exclude_basic: bool,
+    stops: str,
+    expected_limit: int,
+    start_time: str,
+    end_time: str,
+    has_departure_filter: bool,
+) -> None:
+    url = build_google_flights_query_url_for_search(
+        travel_date="2026-07-06",
+        origin_airport="LAX",
+        destination_airport="SFO",
+        airline_codes=["WN"],
+        stops=stops,
+        start_time=start_time,
+        end_time=end_time,
+        fare_class=fare_class,
+    )
+    query = parse_qs(urlsplit(url).query)
+    top_fields = _decode_tfs(url)
+    flight_data = next(value for field, wire, value in top_fields if field == 3 and wire == 2)
+    nested_fields = _parse_fields(flight_data)  # type: ignore[arg-type]
+
+    assert ("tfu" in query) is has_departure_filter
+    assert any(field == 5 and value == expected_limit for field, wire, value in nested_fields if wire == 0)
+    assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0) is should_exclude_basic
+    assert any(field == 16 for field, wire, value in top_fields if wire == 2) is has_departure_filter
+    assert any(field == 8 for field, wire, value in nested_fields if wire == 0) is has_departure_filter
+    assert any(field == 9 for field, wire, value in nested_fields if wire == 0) is has_departure_filter
 
 
 def test_route_option_fare_class_persists_to_trackers(repository: Repository) -> None:
