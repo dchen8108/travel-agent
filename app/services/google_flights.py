@@ -109,10 +109,9 @@ def _encode_info_message_from_search(search: GoogleFlightsSearchSpec) -> bytes:
         payload.extend(_encode_enum_field(14, 1))
         payload.extend(_encode_message_field(16, GOOGLE_FLIGHTS_FILTER_FLAGS))
         payload.extend(_encode_enum_field(19, 2))  # one-way
-        payload.extend(_encode_enum_field(25, 1))
     else:
         payload.extend(_encode_enum_field(19, 2))  # one-way
-    if search.fare_class == FareClass.ECONOMY and not has_departure_filter:
+    if search.fare_class == FareClass.ECONOMY:
         payload.extend(GOOGLE_FLIGHTS_EXCLUDE_BASIC_FLAG)
     return bytes(payload)
 

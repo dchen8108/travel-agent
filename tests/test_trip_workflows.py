@@ -1255,7 +1255,7 @@ def test_generated_google_flights_url_uses_structured_tfs_query(repository: Repo
     assert any(field == 2 and value == 2 for field, wire, value in top_fields if wire == 0)
     assert any(field == 14 and value == 1 for field, wire, value in top_fields if wire == 0)
     assert any(field == 16 for field, wire, value in top_fields if wire == 2)
-    assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0)
+    assert not any(field == 25 for field, wire, value in top_fields if wire == 0)
     assert any(field == 5 and value == 0 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 8 and value == 6 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 9 and value == 9 for field, wire, value in nested_fields if wire == 0)
@@ -1407,12 +1407,12 @@ def test_generated_google_flights_url_matches_known_one_stop_time_filter_shape(r
 
     assert url == (
         "https://www.google.com/travel/flights/search?"
-        "tfs=CBwQAhosEgoyMDI2LTA2LTAxKAEyAkFTQApIDFAAWBdqBwgBEgNBTkNyBwgBEgNCVVJAAUgBcAGCAQsI____________AZgBAsgBAQ"
+        "tfs=CBwQAhosEgoyMDI2LTA2LTAxKAEyAkFTQApIDFAAWBdqBwgBEgNBTkNyBwgBEgNCVVJAAUgBcAGCAQsI____________AZgBAg"
         "&hl=en-US&tfu=EgYIABABGAA"
     )
 
     assert query["tfu"] == ["EgYIABABGAA"]
-    assert any(field == 25 and value == 1 for field, wire, value in top_fields if wire == 0)
+    assert not any(field == 25 for field, wire, value in top_fields if wire == 0)
     assert any(field == 5 and value == 1 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 8 and value == 10 for field, wire, value in nested_fields if wire == 0)
     assert any(field == 9 and value == 12 for field, wire, value in nested_fields if wire == 0)
