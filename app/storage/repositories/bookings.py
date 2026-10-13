@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.models.booking import Booking
+from app.models.booking_calendar_event import BookingCalendarEvent
 
 
 class BookingsRepositoryMixin:
@@ -112,6 +113,29 @@ class BookingsRepositoryMixin:
             "bookings",
             where_sql=f"booking_id IN ({placeholders}) AND match_status = 'unmatched'",
             where_params=tuple(unmatched_booking_ids),
+        )
+
+    def load_booking_calendar_events(self) -> list[BookingCalendarEvent]:
+        return self._load_models(
+            "SELECT * FROM booking_calendar_events ORDER BY rowid",
+            BookingCalendarEvent,
+        )
+
+    def upsert_booking_calendar_events(self, events: list[BookingCalendarEvent]) -> None:
+        self._upsert_table(
+            "booking_calendar_events",
+            [event.model_dump(mode="json") for event in events],
+            conflict_columns=("booking_id",),
+        )
+
+    def delete_booking_calendar_events_by_booking_ids(self, booking_ids: list[str]) -> None:
+        if not booking_ids:
+            return
+        placeholders = ", ".join(["?"] * len(booking_ids))
+        self._delete_from_table(
+            "booking_calendar_events",
+            where_sql=f"booking_id IN ({placeholders})",
+            where_params=tuple(booking_ids),
         )
 
     @staticmethod

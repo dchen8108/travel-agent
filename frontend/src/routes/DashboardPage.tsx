@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ActionItemsSection } from "../components/ActionItemsSection";
-import { AddIcon } from "../components/Icons";
+import { AddIcon, RefreshIcon } from "../components/Icons";
 import { BookingFormModal } from "../components/BookingFormModal";
 import { BookingInspector } from "../components/BookingInspector";
 import { CollectionCard } from "../components/CollectionCard";
@@ -382,6 +382,27 @@ export function DashboardPage() {
         message: errorMessage(error, skipped ? "Unable to skip trip." : "Unable to unskip trip."),
         kind: "error",
       });
+    },
+  });
+
+  const refreshBookingsMutation = useMutation({
+    mutationFn: () => api.refreshBookings(canonicalDashboardFilters),
+    onSuccess: ({ summary }) => {
+      void queryClient.invalidateQueries({ queryKey: ["booking-panel"], refetchType: "inactive" });
+      void queryClient.invalidateQueries({ queryKey: ["booking-form"], refetchType: "inactive" });
+      if (summary.disabled) {
+        pushToast({ message: "Booking refresh is disabled", kind: "error" });
+        return;
+      }
+      pushToast({ message: summary.started ? "Booking refresh started" : "No booking refresh started" });
+      [8000, 20000, 45000].forEach((delayMs) => {
+        window.setTimeout(() => {
+          void queryClient.invalidateQueries({ queryKey: dashboardCacheKey });
+        }, delayMs);
+      });
+    },
+    onError: (error) => {
+      pushToast({ message: errorMessage(error, "Unable to refresh bookings."), kind: "error" });
     },
   });
 
@@ -838,15 +859,25 @@ export function DashboardPage() {
             <section className="surface" id="all-travel">
               <div className="surface__header">
                 <h2>Trips</h2>
-                <PrefetchLink
-                  className="icon-link icon-link--inline surface__header-action-button"
-                  aria-label="Create trip"
-                  title="Create trip"
-                  to="/trips/new"
-                  onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
-                >
-                  <AddIcon />
-                </PrefetchLink>
+                <div className="surface__header-actions">
+                  <IconButton
+                    label="Refresh bookings"
+                    variant="inline"
+                    className="surface__header-action-button"
+                    onClick={() => refreshBookingsMutation.mutate()}
+                  >
+                    <RefreshIcon />
+                  </IconButton>
+                  <PrefetchLink
+                    className="icon-link icon-link--inline surface__header-action-button"
+                    aria-label="Create trip"
+                    title="Create trip"
+                    to="/trips/new"
+                    onPrefetch={() => void prefetchTripEditorFromHref(queryClient, "/trips/new")}
+                  >
+                    <AddIcon />
+                  </PrefetchLink>
+                </div>
               </div>
               {dashboardQuery.data ? (
                 <>

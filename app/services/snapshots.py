@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
@@ -30,3 +31,4 @@ class AppSnapshot:
     booking_email_events: list[BookingEmailEvent]
     price_records: list[PriceRecord]
     app_state: object
+    loaded_at: datetime | None = None

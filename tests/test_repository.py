@@ -12,7 +12,12 @@ from app.models.booking_email_event import BookingEmailEvent
 from app.settings import Settings
 from app.storage.repository import Repository
 from app.storage.sqlite_schema import DDL_STATEMENTS, SCHEMA_VERSION
-from app.storage.sqlite_store import initialize_schema
+from app.storage.sqlite_store import (
+    SQLITE_BUSY_TIMEOUT_MS,
+    connect,
+    initialize_schema,
+    run_startup_repairs,
+)
 
 
 def test_repository_stores_app_state_in_config_json(tmp_path: Path) -> None:
@@ -44,6 +49,48 @@ def test_repository_stores_app_state_in_config_json(tmp_path: Path) -> None:
     assert "app_state" not in tables
 
 
+def test_sqlite_connections_use_background_job_friendly_busy_timeout(tmp_path: Path) -> None:
+    connection = connect(tmp_path / "travel_agent.sqlite3")
+    try:
+        busy_timeout = connection.execute("PRAGMA busy_timeout").fetchone()[0]
+    finally:
+        connection.close()
+
+    assert busy_timeout == SQLITE_BUSY_TIMEOUT_MS
+
+
+def test_schema_initialization_enables_wal_without_reissuing_it_on_connect(tmp_path: Path) -> None:
+    db_path = tmp_path / "travel_agent.sqlite3"
+    connection = connect(db_path)
+    try:
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+        initialize_schema(connection)
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    finally:
+        connection.close()
+
+    connection = connect(db_path)
+    try:
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    finally:
+        connection.close()
+
+
+def test_startup_repairs_do_not_write_when_data_scope_is_already_clean(tmp_path: Path) -> None:
+    db_path = tmp_path / "travel_agent.sqlite3"
+    connection = connect(db_path)
+    try:
+        initialize_schema(connection)
+        statements: list[str] = []
+        connection.set_trace_callback(statements.append)
+        run_startup_repairs(connection)
+        connection.set_trace_callback(None)
+    finally:
+        connection.close()
+
+    assert not any(statement.lstrip().startswith("UPDATE ") for statement in statements)
+
+
 def test_repository_initializes_default_app_state_when_config_missing(tmp_path: Path) -> None:
     settings = Settings(
         data_dir=tmp_path / "data",
@@ -73,8 +120,9 @@ def test_repository_load_app_state_reads_checked_in_shape_from_config_json(tmp_p
         {
           "dashboard_needs_booking_window_weeks": 5,
           "dashboard_overbooked_window_days": 9,
-          "launchd_fetch_interval_seconds": 120,
-          "launchd_fetch_max_targets": 4
+          "fetch_max_targets_per_run": 4,
+          "fetch_uninitialized_extra_targets_per_run": 8,
+          "launchd_fetch_interval_seconds": 120
         }
         """.strip(),
         encoding="utf-8",
@@ -84,8 +132,9 @@ def test_repository_load_app_state_reads_checked_in_shape_from_config_json(tmp_p
 
     assert app_state.dashboard_needs_booking_window_weeks == 5
     assert app_state.dashboard_overbooked_window_days == 9
+    assert app_state.fetch_max_targets_per_run == 4
+    assert app_state.fetch_uninitialized_extra_targets_per_run == 8
     assert app_state.launchd_fetch_interval_seconds == 120
-    assert app_state.launchd_fetch_max_targets == 4
 
 
 def test_initialize_schema_skips_legacy_migrations_for_current_schema(tmp_path: Path) -> None:

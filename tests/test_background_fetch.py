@@ -378,6 +378,104 @@ def test_select_due_fetch_targets_prioritizes_never_fetched_targets(repository: 
     assert chosen_instance.trip_id == second_trip.trip_id
 
 
+def test_select_due_fetch_targets_uses_runtime_extra_budget_for_uninitialized_targets(
+    repository: Repository,
+) -> None:
+    for index in range(5):
+        save_trip(
+            repository,
+            trip_id=None,
+            label=f"Init burst {index}",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=date.today() + timedelta(days=10 + index),
+            anchor_weekday="",
+            route_option_payloads=[
+                {
+                    "origin_airports": "BUR",
+                    "destination_airports": "SFO",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "06:00",
+                    "end_time": "10:00",
+                }
+            ],
+        )
+
+    snapshot = sync_and_persist(repository)
+    now = utcnow().replace(year=2026, month=4, day=1)
+    targets = sorted(snapshot.tracker_fetch_targets, key=lambda item: item.fetch_target_id)
+    stale_targets = targets[:2]
+    uninitialized_targets = targets[2:]
+    for index, target in enumerate(stale_targets):
+        target.refresh_requested_at = now - timedelta(minutes=30)
+        target.latest_fetched_at = now - timedelta(hours=index + 2)
+        target.last_fetch_finished_at = target.latest_fetched_at
+    for target in uninitialized_targets:
+        target.refresh_requested_at = None
+        target.latest_fetched_at = None
+        target.last_fetch_finished_at = None
+
+    due_targets = select_due_fetch_targets(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        now=now,
+        app_state=AppState(
+            fetch_max_targets_per_run=1,
+            fetch_uninitialized_extra_targets_per_run=2,
+        ),
+    )
+
+    assert len(due_targets) == 3
+    stale_target_ids = {target.fetch_target_id for target in stale_targets}
+    assert sum(item.fetch_target_id in stale_target_ids for item in due_targets) == 1
+    assert sum(item.last_fetch_finished_at is None for item in due_targets) == 2
+
+
+def test_select_due_fetch_targets_treats_explicit_max_targets_as_exact_cap(
+    repository: Repository,
+) -> None:
+    for index in range(3):
+        save_trip(
+            repository,
+            trip_id=None,
+            label=f"Exact cap {index}",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=date.today() + timedelta(days=10 + index),
+            anchor_weekday="",
+            route_option_payloads=[
+                {
+                    "origin_airports": "BUR",
+                    "destination_airports": "SFO",
+                    "airlines": "Alaska",
+                    "day_offset": 0,
+                    "start_time": "06:00",
+                    "end_time": "10:00",
+                }
+            ],
+        )
+
+    snapshot = sync_and_persist(repository)
+    now = utcnow().replace(year=2026, month=4, day=1)
+    for target in snapshot.tracker_fetch_targets:
+        target.refresh_requested_at = None
+        target.latest_fetched_at = None
+        target.last_fetch_finished_at = None
+
+    due_targets = select_due_fetch_targets(
+        snapshot.trackers,
+        snapshot.trip_instances,
+        snapshot.tracker_fetch_targets,
+        max_targets=1,
+        now=now,
+        app_state=AppState(fetch_uninitialized_extra_targets_per_run=4),
+    )
+
+    assert len(due_targets) == 1
+
+
 def test_select_due_fetch_targets_returns_empty_when_max_targets_is_zero(repository: Repository) -> None:
     save_trip(
         repository,

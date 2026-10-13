@@ -1,6 +1,8 @@
 # Agent Checkpoint
 
-Last refreshed: `2026-04-29`
+Last refreshed: `2026-10-13`
+
+Status: inactive. The final source state remains reproducible from Git, but machine-local runtime data, credentials, LaunchAgents, and services were deliberately removed when the project was retired.
 
 ## Purpose
 
@@ -21,13 +23,15 @@ Core product shape:
 - `Booking` may be linked to a scheduled trip and can optionally link to a uniquely matched route option
 - unresolved bookings are shared `Booking` rows with `match_status = "unmatched"` until resolved
 
-There is no primary `Resolve`, `Trips`, or `Bookings` workspace anymore. The dashboard is the primary control surface, with compatibility redirects and focused create/edit flows branching from it.
+The stable v1 dashboard remains the primary operational control surface, with compatibility redirects and focused create/edit flows branching from it. A parallel, read-focused v2 experience now exists under `/v2` without replacing or redirecting v1.
 
 ## Current UX Model
 
 Primary screens:
 
-- dashboard at `/`
+- stable v1 dashboard at `/`
+- parallel v2 home at `/v2`
+- v2 schedule, decision inbox, and recurring-rule views at `/v2/schedule`, `/v2/inbox`, and `/v2/rules`
 - dashboard detail panels for trip bookings and flights
 - focused create/edit flow for trips at `/trips/new` and `/trips/{id}/edit`
 - compatibility redirects under `/groups/{trip_group_id}`, `/trip-instances/{trip_instance_id}`, and `/trips/{trip_id}`
@@ -35,7 +39,9 @@ Primary screens:
 
 Important hierarchy:
 
-- the dashboard is the canonical operational page
+- the dashboard at `/` is the canonical v1 operational page
+- v2 reads canonical domain state through `/api/v2/workspace` and delegates mutations to v1 flows
+- there is no default redirect or automatic cutover from v1 to v2
 - groups are organizational only and are inspected inline on collection cards
 - collections are organizational only and are inspected inline on collection cards
 - scheduled trips are inspected inline in the dashboard ledger, with bookings and flights opening in detail panels
@@ -63,7 +69,9 @@ Runtime storage/config:
 Frontend code is split across:
 
 - `frontend/src/` for the primary SPA
+- `frontend/src/v2/` for isolated, lazy-loaded v2 views and styles
 - FastAPI SPA/bootstrap and JSON routes under `app/routes/spa.py` and `app/routes/api.py`
+- the v2 bootstrap/API boundary under `app/routes/v2_spa.py`, `app/routes/v2_api.py`, and `app/services/v2_workspace.py`
 
 ## Background Jobs
 
@@ -100,6 +108,7 @@ Frontend code is split across:
   - `Planned` if it has no active bookings
   - `Booked` if it has at least one active booking
 - deletion is represented by `deleted`
+- skipped trips continue tracking fares and remain visible in collection date pills; the v1 trip ledger hides them unless `Show Skipped` is selected
 
 `Booking`
 
@@ -118,7 +127,7 @@ Frontend code is split across:
 
 - booking comparison is trip-level, using the best current route after preference bias
 - bookings can optionally link back to the exact tracked route when the match is unique
-- there is no separate user-facing skip lifecycle; recurring exceptions are represented by deleting attached occurrences or detaching them into standalone one-time trips
+- skipping is a reversible user intent marker and does not disable booking or fare tracking
 - deleting a recurring occurrence suppresses regeneration for that recurring trip/date
 - one-time trip deletion is a tombstone, not a hard delete
 - recurring trips are required to belong to at least one collection in the normal UI
@@ -129,14 +138,11 @@ Frontend code is split across:
 Known-good on this machine after the latest cleanup pass:
 
 - `uv run pytest -q`
-- `uv run python -m compileall app tests`
+- `uv run python -m compileall -q app tests scripts`
 - `npm --prefix frontend run build`
-- Playwright/browser smoke on:
-  - `/`
-  - `/trips/new`
-  - `/trips/{id}/edit?trip_instance_id={id}`
-  - `/?panel=bookings&trip_instance_id={id}`
-  - `/?panel=trackers&trip_instance_id={id}`
+- `uv run python scripts/playwright_release_smoke.py`
+
+The release smoke verifies v1 isolation plus desktop/mobile v2 rendering, navigation, deep links, horizontal overflow, and browser errors.
 
 ## Storage Hygiene Notes
 
@@ -154,12 +160,15 @@ High-signal docs:
 - [planning/README.md](README.md)
 - [planning/sqlite-storage.md](sqlite-storage.md)
 - [planning/gmail-booking-ingestion.md](gmail-booking-ingestion.md)
+- [planning/v2-product.md](v2-product.md)
 
 Entrypoints:
 
 - [app/main.py](../app/main.py)
 - [app/routes/spa.py](../app/routes/spa.py)
 - [app/routes/api.py](../app/routes/api.py)
+- [app/routes/v2_api.py](../app/routes/v2_api.py)
+- [app/routes/v2_spa.py](../app/routes/v2_spa.py)
 - [app/routes/groups.py](../app/routes/groups.py)
 - [app/routes/trackers.py](../app/routes/trackers.py)
 
@@ -176,6 +185,7 @@ Core services:
 - [app/services/bookings.py](../app/services/bookings.py)
 - [app/services/group_memberships.py](../app/services/group_memberships.py)
 - [app/services/background_fetch.py](../app/services/background_fetch.py)
+- [app/services/v2_workspace.py](../app/services/v2_workspace.py)
 
 Persistence:
 
@@ -189,3 +199,4 @@ Persistence:
 - `dashboard_queries.py` is still fairly dense because it owns the snapshot-level scheduled/group query helpers
 - Google Flights parsing is still heuristic HTML parsing and should be treated as drift-prone
 - rule deletion is intentionally deferred because the attached-occurrence lifecycle needs an explicit product decision first
+- v2 is intentionally read-focused during the parallel phase; do not duplicate mutation rules in v2 or make it the default route before the documented cutover gates pass

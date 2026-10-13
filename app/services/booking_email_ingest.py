@@ -5,12 +5,13 @@ from decimal import Decimal
 from datetime import date, datetime, time, timedelta
 from email.utils import parseaddr
 import json
+import re
 
 from pydantic import ValidationError
 
 from app.catalog import normalize_airline_code, normalize_stop_value
 from app.flight_numbers import join_flight_numbers
-from app.money import format_money
+from app.money import format_money, parse_money
 from app.models.base import BookingEmailEventStatus, BookingStatus, DataScope, FareClass, parse_fare_class, utcnow
 from app.models.booking import Booking
 from app.models.booking_email_event import BookingEmailEvent
@@ -30,6 +31,9 @@ from app.services.ids import new_id
 from app.storage.repository import Repository
 
 
+_RATE_LIMIT_EXTRA_RETRY_ATTEMPTS = 2
+
+
 @dataclass
 class BookingEmailProcessResult:
     event: BookingEmailEvent
@@ -44,6 +48,17 @@ class _ResolvedLeg:
     leg: BookingEmailLeg
     departure_at: datetime
     arrival_at: datetime
+
+
+@dataclass(frozen=True)
+class _ReceiptPaymentBreakdown:
+    total_price: Decimal
+    cash_paid: Decimal
+    flight_credits_applied: Decimal
+
+    @property
+    def effective_total(self) -> Decimal:
+        return self.cash_paid + self.flight_credits_applied
 
 
 def process_gmail_booking_message(
@@ -172,6 +187,7 @@ def process_gmail_booking_message(
             debug_fields=debug_fields,
         )
 
+    extraction = _apply_receipt_payment_corrections(extraction, message.body_text)
     event.email_kind = extraction.email_kind
     event.extraction_confidence = extraction.confidence
     event.retryable = True
@@ -419,12 +435,125 @@ def _non_booking_reason(extraction: BookingEmailExtraction) -> str:
     return "Ignored after model classification."
 
 
+def _apply_receipt_payment_corrections(
+    extraction: BookingEmailExtraction,
+    body_text: str,
+) -> BookingEmailExtraction:
+    if extraction.email_kind != "booking_confirmation":
+        return extraction
+    breakdown = _receipt_payment_breakdown(body_text, record_locator=extraction.record_locator)
+    if breakdown is None:
+        return extraction
+    if breakdown.effective_total != breakdown.total_price:
+        return extraction
+
+    current_total = extraction.effective_total_price_amount()
+    if (
+        current_total == breakdown.total_price
+        and extraction.cash_paid_amount() == breakdown.cash_paid
+        and extraction.flight_credits_amount() == breakdown.flight_credits_applied
+    ):
+        return extraction
+
+    extraction.total_price = _money_text(breakdown.total_price)
+    extraction.cash_paid = _money_text(breakdown.cash_paid)
+    extraction.flight_credits_applied = _money_text(breakdown.flight_credits_applied)
+    note = (
+        "Receipt payment lines verified total, cash paid, and flight credits; "
+        "corrected payment components from deterministic parsing."
+    )
+    extraction.notes = f"{extraction.notes.strip()} {note}".strip()
+    return extraction
+
+
+def _receipt_payment_breakdown(body_text: str, *, record_locator: str = "") -> _ReceiptPaymentBreakdown | None:
+    lines = [_clean_receipt_line(line) for line in body_text.splitlines()]
+    lines = [line for line in lines if line]
+    if record_locator and not any(record_locator.upper() in line.upper() for line in lines):
+        return None
+
+    total_price = _receipt_total_amount(lines)
+    if total_price is None:
+        return None
+
+    cash_paid = Decimal("0")
+    flight_credits_applied = Decimal("0")
+    payment_found = False
+    for index, line in enumerate(lines):
+        if "payment amount" not in line.lower():
+            continue
+        amount_index, amount = _next_money_line(lines, index + 1, max_distance=3)
+        if amount is None or amount_index is None:
+            continue
+        label = " ".join(lines[amount_index + 1:amount_index + 5]).lower()
+        payment_found = True
+        if _is_credit_payment_label(label):
+            flight_credits_applied += amount
+        else:
+            cash_paid += amount
+
+    if not payment_found:
+        return None
+    return _ReceiptPaymentBreakdown(
+        total_price=total_price,
+        cash_paid=cash_paid.quantize(Decimal("0.01")),
+        flight_credits_applied=flight_credits_applied.quantize(Decimal("0.01")),
+    )
+
+
+def _receipt_total_amount(lines: list[str]) -> Decimal | None:
+    for index, line in enumerate(lines):
+        if line.lower() != "total":
+            continue
+        _amount_index, amount = _next_money_line(lines, index + 1, max_distance=3)
+        if amount is not None:
+            return amount
+    return None
+
+
+def _next_money_line(lines: list[str], start: int, *, max_distance: int) -> tuple[int | None, Decimal | None]:
+    for index in range(start, min(len(lines), start + max_distance + 1)):
+        amount = _money_from_receipt_lines(lines, index)
+        if amount is not None:
+            return index, amount
+    return None, None
+
+
+def _money_from_receipt_lines(lines: list[str], index: int) -> Decimal | None:
+    line = lines[index]
+    amount = parse_money(line)
+    if amount is not None and ("$" in line or "." in line):
+        return amount
+    if line == "$" and index + 1 < len(lines):
+        return parse_money(lines[index + 1])
+    match = re.search(r"\$\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)", line)
+    if match:
+        return parse_money(match.group(1))
+    return None
+
+
+def _clean_receipt_line(line: str) -> str:
+    return line.strip().strip("*").strip()
+
+
+def _is_credit_payment_label(label: str) -> bool:
+    return any(term in label for term in ("flight credit", "travel fund", "voucher"))
+
+
+def _money_text(value: Decimal) -> str:
+    return f"{value.quantize(Decimal('0.01')):.2f}"
+
+
 def _event_should_retry(event: BookingEmailEvent, config: GmailIntegrationConfig) -> bool:
     if event.processing_status != BookingEmailEventStatus.ERROR:
         return False
     if not event.retryable:
         return False
-    return event.extraction_attempt_count < config.max_retry_attempts
+    max_attempts = config.max_retry_attempts
+    notes = event.notes.lower()
+    if "429" in notes or "rate_limit" in notes or "rate limit" in notes:
+        max_attempts += _RATE_LIMIT_EXTRA_RETRY_ATTEMPTS
+    return event.extraction_attempt_count < max_attempts
 
 
 def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[BookingCandidate]:
@@ -475,7 +604,7 @@ def _candidates_from_extraction(extraction: BookingEmailExtraction) -> list[Book
                 ),
                 stops=_normalized_segment_stops(segment.stops),
                 flight_number=segment.flight_number,
-                fare_class=_fare_class_from_extracted_value(segment.fare_class),
+                fare_class=_fare_class_from_extracted_value(segment.fare_class, segment.evidence),
                 booked_price=price,
                 record_locator=extraction.record_locator,
                 notes=notes,
@@ -615,16 +744,17 @@ def _enrich_explicit_segment(
             "fare_class": fare_class,
             "flight_number": segment.flight_number or matched.flight_number,
             "stops": segment.stops or matched.stops,
+            "evidence": " | ".join(item for item in (segment.evidence, matched.evidence) if item),
         }
     )
 
 
 def _shared_leg_fare_class(resolved_legs: list[_ResolvedLeg]) -> str:
-    known_fares = [
-        (leg.leg.fare_class or "").strip().lower()
+    normalized_fares = [
+        _normalized_extracted_fare_class(leg.leg.fare_class, leg.leg.evidence)
         for leg in resolved_legs
-        if (leg.leg.fare_class or "").strip().lower() not in {"", "unknown"}
     ]
+    known_fares = [fare for fare in normalized_fares if fare != "unknown"]
     if not known_fares:
         return "unknown"
     first = known_fares[0]
@@ -709,11 +839,24 @@ def _stop_fields_match(existing: str | None, incoming: str | None) -> bool:
     return normalized_existing == normalized_incoming
 
 
-def _fare_class_from_extracted_value(raw: str) -> FareClass:
-    normalized = (raw or "").strip().lower()
+def _fare_class_from_extracted_value(raw: str, evidence: str = "") -> FareClass:
+    normalized = _normalized_extracted_fare_class(raw, evidence)
     if normalized in {"", "unknown"}:
         return FareClass.BASIC_ECONOMY
     return parse_fare_class(normalized, default=FareClass.BASIC_ECONOMY)
+
+
+def _normalized_extracted_fare_class(raw: str, evidence: str = "") -> str:
+    normalized = (raw or "").strip().lower()
+    if normalized not in {"", "unknown"}:
+        return normalized
+
+    evidence_text = (evidence or "").lower()
+    if "saver" in evidence_text or "basic economy" in evidence_text:
+        return "basic"
+    if re.search(r"\bclass:\s*[a-z0-9]+\s+coach\b", evidence_text) or "main cabin" in evidence_text:
+        return "main"
+    return "unknown"
 
 
 def _upsert_booking_email_event(repository: Repository, event: BookingEmailEvent) -> None:

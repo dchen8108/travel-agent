@@ -227,8 +227,10 @@ Rules:
 - If the itinerary contains multiple physical flight legs, include every leg in legs as well.
 - For multi-leg segments, set flight_number to all flight designators in travel order joined by ", " when they are clearly stated, for example "AS 1484, AS 530". If the flight designators are not clear, leave it empty.
 - For multi-leg segments, if every leg clearly has the same fare family, set segment fare_class to that shared value. If the legs are mixed or ambiguous, use unknown.
+- Alaska Airlines lines like "Class: S COACH" are main fare unless the email explicitly says Saver or Basic; Premium Class seat selection is a seat assignment, not the fare family.
 - cash_paid should be the final cash charged in USD, preserving cents, like "5.60". If there was no cash charge, return "0" or an empty string.
 - flight_credits_applied should be the total USD flight credit or voucher amount applied across all credits, preserving cents, like "50.00". If multiple credits were used, sum them. If none, return "0" or an empty string.
+- Some receipts list repeated "Payment Amount" rows. Treat rows paid by a card/bank as cash_paid, and rows labeled Flight Credit, travel funds, or voucher as flight_credits_applied. Sum every credit row, even if there are multiple credit rows.
 - points_used should be the total loyalty points redeemed as an integer, like 5500. If none, return 0.
 - total_price should be the effective itinerary total in USD, including cash paid, flight credits applied, and points valued at 1 cent each. If unknown, return an empty string.
 - confidence should reflect extraction reliability, not whether the email is desirable.

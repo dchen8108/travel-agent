@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from app.jobs.cli_types import non_negative_int_argument, positive_int_argument
+from app.jobs.cli_types import positive_int_argument
 from app.storage.repository import Repository
 from app.services.launchd import (
     FETCH_LAUNCH_AGENT_LABEL,
@@ -37,11 +37,6 @@ def main() -> None:
         type=positive_int_argument("--interval-seconds"),
         default=app_state.launchd_fetch_interval_seconds,
     )
-    parser.add_argument(
-        "--max-targets",
-        type=non_negative_int_argument("--max-targets"),
-        default=app_state.launchd_fetch_max_targets,
-    )
     args = parser.parse_args()
 
     project_root = settings.project_root
@@ -60,7 +55,6 @@ def main() -> None:
         stdout_log_path=stdout_log_path,
         stderr_log_path=stderr_log_path,
         start_interval_seconds=args.interval_seconds,
-        max_targets=args.max_targets,
     )
 
     _bootout_if_loaded(plist_path)
@@ -78,7 +72,7 @@ def main() -> None:
             label=FETCH_LAUNCH_AGENT_LABEL,
             plist_path=plist_path,
             interval_seconds=args.interval_seconds,
-            extra_summary=f"max_targets={args.max_targets}",
+            extra_summary="uses runtime fetch budget from config/app_state.json",
         )
     )
     print(f"Logs: {stdout_log_path} and {stderr_log_path}")

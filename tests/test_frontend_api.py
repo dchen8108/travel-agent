@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from app.models.base import utcnow
 
-from app.models.base import DataScope
+from app.models.base import BookingStatus, DataScope, utcnow
 from app.services.bookings import BookingCandidate, record_booking
+from app.services.dashboard_snapshot import load_persisted_snapshot
+from app.services.frontend_api import dashboard_payload
 from app.services.google_flights_fetcher import GoogleFlightsOffer
 from app.services.groups import save_trip_group
 from app.services.price_records import SuccessfulFetchRecord, build_price_records
@@ -425,6 +426,80 @@ def test_dashboard_and_booking_panel_show_booking_stop_counts(client, repository
     assert bookings_response.json()["rows"][0]["offer"]["detail"] == "LAX → SFO · 1 stop"
 
 
+def test_booking_panel_excludes_cancelled_bookings(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Cancelled booking panel",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "LAX",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "21:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+            }
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+
+    active_booking, _ = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="SFO",
+            destination_airport="LAX",
+            departure_date=anchor_date,
+            departure_time="17:20",
+            arrival_time="19:00",
+            booked_price="68.40",
+            record_locator="ACTIVE1",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    cancelled_booking, _ = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="SFO",
+            destination_airport="LAX",
+            departure_date=anchor_date,
+            departure_time="19:25",
+            arrival_time="20:55",
+            booked_price="113.40",
+            record_locator="CANCEL1",
+        ),
+        trip_instance_id=trip_instance_id,
+    )
+    assert active_booking is not None
+    assert cancelled_booking is not None
+    cancelled_booking.status = BookingStatus.CANCELLED
+    repository.upsert_bookings([cancelled_booking])
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+
+    list_response = client.get(f"/api/trip-instances/{trip_instance_id}/bookings?mode=list")
+    edit_response = client.get(
+        f"/api/trip-instances/{trip_instance_id}/bookings?mode=edit&booking_id={cancelled_booking.booking_id}"
+    )
+
+    assert list_response.status_code == 200
+    row_labels = [row["offer"]["metaLabel"] for row in list_response.json()["rows"]]
+    assert len(row_labels) == 1
+    assert any("ACTIVE1" in label for label in row_labels)
+    assert all("CANCEL1" not in label for label in row_labels)
+    assert edit_response.status_code == 404
+
+
 def test_dashboard_booking_actions_distinguish_zero_one_and_multiple_bookings(client, repository: Repository) -> None:
     base_date = _next_weekday(0)
 
@@ -789,6 +864,100 @@ def test_dashboard_and_tracker_panel_show_live_offer_stop_counts(client, reposit
     assert trackers_response.json()["rows"][0]["offer"]["detail"] == "SFO → LAX · 1 stop"
 
 
+def test_dashboard_batches_latest_flight_record_lookups(repository: Repository, monkeypatch) -> None:
+    base_date = _next_weekday(0)
+    for offset in range(2):
+        travel_date = base_date + timedelta(days=offset)
+        save_trip(
+            repository,
+            trip_id=None,
+            label=f"Priced tracker trip {offset}",
+            trip_kind="one_time",
+            active=True,
+            anchor_date=travel_date,
+            anchor_weekday=travel_date.strftime("%A"),
+            route_option_payloads=[
+                {
+                    "origin_airports": "SFO",
+                    "destination_airports": "LAX",
+                    "airlines": "Southwest",
+                    "day_offset": 0,
+                    "start_time": "16:00",
+                    "end_time": "22:00",
+                    "fare_class_policy": "include_basic",
+                    "savings_needed_vs_previous": 0,
+                }
+            ],
+            data_scope=DataScope.LIVE,
+        )
+    sync_and_persist(repository, today=base_date - timedelta(days=14))
+    fetched_at = utcnow()
+    trackers = repository.load_trackers()
+    targets = repository.load_tracker_fetch_targets()
+    successful_fetches = []
+    for tracker, target in zip(trackers, targets, strict=True):
+        target.latest_price = 149
+        target.latest_airline = "Southwest"
+        target.latest_departure_label = "6:05 PM"
+        target.latest_arrival_label = "7:35 PM"
+        target.latest_fetched_at = fetched_at
+        target.last_fetch_finished_at = fetched_at
+        target.last_fetch_status = "success"
+        target.google_flights_url = "https://example.com/gf"
+        tracker.latest_observed_price = 149
+        tracker.latest_winning_origin_airport = "SFO"
+        tracker.latest_winning_destination_airport = "LAX"
+        tracker.latest_fetched_at = fetched_at
+        successful_fetches.append(
+            SuccessfulFetchRecord(
+                fetch_target_id=target.fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="6:05 PM",
+                        arrival_label="7:35 PM",
+                        price=149,
+                        price_text="$149",
+                    ),
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="7:00 PM",
+                        arrival_label="8:30 PM",
+                        price=169,
+                        price_text="$169",
+                    ),
+                ],
+            )
+        )
+    repository.upsert_tracker_fetch_targets(targets)
+    repository.upsert_trackers(trackers)
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=successful_fetches,
+    ))
+
+    calls = []
+    original = repository.load_price_records_for_fetch_targets_at_times
+
+    def counting_load(pairs):
+        calls.append(list(pairs))
+        return original(pairs)
+
+    monkeypatch.setattr(repository, "load_price_records_for_fetch_targets_at_times", counting_load)
+
+    snapshot = load_persisted_snapshot(repository)
+    payload = dashboard_payload(snapshot, today=base_date, repository=repository)
+
+    assert len(payload["trips"]) == 2
+    assert [row["actions"]["showTrackers"] for row in payload["trips"]] == [True, True]
+    assert len(calls) == 1
+    assert len(calls[0]) == 2
+
+
 def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(client, repository: Repository) -> None:
     anchor_date = _next_weekday(0)
     save_trip(
@@ -893,6 +1062,184 @@ def test_tracker_panel_merges_latest_matching_flights_sorted_by_effective_price(
     payload = trackers_response.json()
     assert [row["offer"]["detail"] for row in payload["rows"]] == ["SFO → BUR", "LAX → BUR"]
     assert [row["offer"]["priceLabel"] for row in payload["rows"]] == ["$100", "$60"]
+
+
+def test_tracker_panel_dedupes_identical_latest_flights(client, repository: Repository) -> None:
+    anchor_date = _next_weekday(0)
+    save_trip(
+        repository,
+        trip_id=None,
+        label="Duplicate flight targets",
+        trip_kind="one_time",
+        active=True,
+        anchor_date=anchor_date,
+        anchor_weekday=anchor_date.strftime("%A"),
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "LAX",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "17:00",
+                "end_time": "20:00",
+                "fare_class_policy": "include_basic",
+                "savings_needed_vs_previous": 0,
+                "stops": "nonstop",
+            },
+        ],
+        data_scope=DataScope.LIVE,
+    )
+    sync_and_persist(repository, today=anchor_date - timedelta(days=14))
+    trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
+    fetched_at = utcnow()
+    trackers = repository.load_trackers()
+    targets = repository.load_tracker_fetch_targets()
+
+    assert len(targets) == 1
+
+    for tracker in trackers:
+        tracker.latest_observed_price = 149
+        tracker.latest_fetched_at = fetched_at
+        repository.upsert_trackers([tracker])
+    for target in targets:
+        target.latest_price = 149
+        target.latest_airline = "Southwest"
+        target.latest_departure_label = "6:05 PM"
+        target.latest_arrival_label = "7:35 PM"
+        target.latest_fetched_at = fetched_at
+        target.last_fetch_finished_at = fetched_at
+        target.last_fetch_status = "success"
+        repository.upsert_tracker_fetch_targets([target])
+
+    repository.append_price_records(build_price_records(
+        trips=repository.load_trips(),
+        trip_instances=repository.load_trip_instances(),
+        trackers=repository.load_trackers(),
+        fetch_targets=repository.load_tracker_fetch_targets(),
+        successful_fetches=[
+            SuccessfulFetchRecord(
+                fetch_target_id=targets[0].fetch_target_id,
+                fetched_at=fetched_at,
+                offers=[
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="6:05 PM",
+                        arrival_label="7:35 PM",
+                        price=149,
+                        price_text="$149",
+                    ),
+                    GoogleFlightsOffer(
+                        airline="Southwest",
+                        departure_label="6:05 PM",
+                        arrival_label="7:35 PM",
+                        price=149,
+                        price_text="$149",
+                    ),
+                ],
+            )
+        ],
+    ))
+
+    trackers_response = client.get(f"/api/trip-instances/{trip_instance_id}/trackers")
+
+    assert trackers_response.status_code == 200
+    payload = trackers_response.json()
+    assert len(payload["rows"]) == 1
+    assert payload["rows"][0]["offer"]["detail"] == "SFO → LAX"
+    assert payload["rows"][0]["offer"]["priceLabel"] == "$149"
+
+
+def test_manual_booking_refresh_api_runs_poller_and_returns_dashboard(client, repository: Repository, monkeypatch) -> None:
+    _seed_dashboard_trip(repository)
+    calls = []
+
+    def fake_refresh(settings):
+        calls.append(settings)
+
+    monkeypatch.setattr("app.routes.api._run_booking_refresh_background", fake_refresh)
+
+    response = client.post("/api/bookings/refresh")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert calls == [repository.settings]
+    assert payload["summary"]["started"] is True
+    assert payload["summary"]["processedCount"] == 0
+    assert payload["summary"]["createdBookingCount"] == 0
+    assert payload["dashboard"]["trips"]
+
+
+def test_manual_booking_refresh_background_drains_followup_passes(settings, monkeypatch) -> None:
+    calls = []
+    results = [
+        type("Result", (), {
+            "error_count": 0,
+            "retryable_error_count": 0,
+            "selection_truncated": False,
+            "state_changed": True,
+            "selected_message_count": 2,
+        })(),
+        type("Result", (), {
+            "error_count": 0,
+            "retryable_error_count": 0,
+            "selection_truncated": False,
+            "state_changed": True,
+            "selected_message_count": 1,
+        })(),
+        type("Result", (), {
+            "error_count": 0,
+            "retryable_error_count": 0,
+            "selection_truncated": False,
+            "state_changed": False,
+            "selected_message_count": 0,
+        })(),
+    ]
+
+    def fake_poll(*, settings):
+        calls.append(settings)
+        return results[len(calls) - 1]
+
+    sleep_delays = []
+    monkeypatch.setattr("app.routes.api.run_gmail_booking_poll", fake_poll)
+
+    from app.routes.api import _run_booking_refresh_background
+
+    _run_booking_refresh_background(settings, settle_seconds=5, sleep_func=sleep_delays.append)
+
+    assert calls == [settings, settings, settings]
+    assert sleep_delays == [5, 5]
+
+
+def test_manual_booking_refresh_background_drains_past_terminal_errors(settings, monkeypatch) -> None:
+    calls = []
+    results = [
+        type("Result", (), {
+            "error_count": 10,
+            "retryable_error_count": 0,
+            "selection_truncated": True,
+            "state_changed": False,
+            "selected_message_count": 10,
+        })(),
+        type("Result", (), {
+            "error_count": 0,
+            "retryable_error_count": 0,
+            "selection_truncated": False,
+            "state_changed": False,
+            "selected_message_count": 0,
+        })(),
+    ]
+
+    def fake_poll(*, settings):
+        calls.append(settings)
+        return results[len(calls) - 1]
+
+    monkeypatch.setattr("app.routes.api.run_gmail_booking_poll", fake_poll)
+
+    from app.routes.api import _run_booking_refresh_background
+
+    _run_booking_refresh_background(settings, settle_seconds=0, sleep_func=lambda _: None)
+
+    assert calls == [settings, settings]
 
 
 def test_booking_delete_and_unlink_api_mutations_return_updated_panel(client, repository: Repository) -> None:

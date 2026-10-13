@@ -16,6 +16,7 @@ from app.services.itinerary_display import (
 )
 from app.services.scheduled_trip_state import (
     active_booking_count_for_instance,
+    booking_route_tracking_state,
     booking_for_instance,
     best_tracker,
     comparison_tracker,
@@ -214,6 +215,7 @@ def trip_row_summary(snapshot: AppSnapshot, trip_instance_id: str) -> dict[str, 
             booking,
             anchor_date=instance.anchor_date if instance is not None else date.today(),
         )
+        booked_offer["warning"] = booking_route_tracking_state(snapshot, booking).get("warning", "")
 
     return {
         "title": trip_ui_label(snapshot, trip_instance_id),

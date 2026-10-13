@@ -21,6 +21,7 @@ export interface Offer {
   tone: OfferTone;
   priceIsStatus: boolean;
   statusKind: OfferStatusKind;
+  warning: string;
 }
 
 export interface TripDeleteAction {
@@ -204,6 +205,26 @@ export interface DashboardMutationPayload {
   dashboard: DashboardPayload;
 }
 
+export interface BookingRefreshSummary {
+  started: boolean;
+  disabled: boolean;
+  processedCount: number;
+  createdBookingCount: number;
+  createdUnlinkedCount: number;
+  ignoredCount: number;
+  duplicateCount: number;
+  errorCount: number;
+  selectedMessageCount: number;
+  newMessageCount: number;
+  retryMessageCount: number;
+  stateChanged: boolean;
+  selectionTruncated: boolean;
+}
+
+export interface BookingRefreshPayload extends DashboardMutationPayload {
+  summary: BookingRefreshSummary;
+}
+
 export interface BookingMutationPayload {
   panel: BookingPanelPayload | null;
 }
@@ -222,6 +243,29 @@ export interface TrackerPanelPayload {
   lastRefreshLabel: string;
   tripAnchorDate: string;
   emptyLabel: string;
+}
+
+export type V2TripState = "planning" | "booked" | "skipped";
+
+export interface V2TripItem {
+  state: V2TripState;
+  daysUntil: number;
+  row: TripRow;
+}
+
+export interface V2WorkspacePayload {
+  version: 2;
+  today: string;
+  horizonWeeks: number;
+  stats: {
+    attentionCount: number;
+    departuresNext14Days: number;
+    bookedNext14Days: number;
+    trackedTrips: number;
+  };
+  attentionItems: DashboardActionItem[];
+  trips: V2TripItem[];
+  collections: CollectionCard[];
 }
 
 export interface FrontendBootstrap {
@@ -248,6 +292,9 @@ export interface FrontendBootstrap {
     tripId: string;
     query: string;
     data: TripEditorPayload;
+  };
+  v2Workspace?: {
+    data: V2WorkspacePayload;
   };
 }
 

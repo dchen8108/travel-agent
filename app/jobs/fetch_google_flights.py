@@ -8,7 +8,7 @@ import traceback
 from typing import Callable, Hashable, TypeVar
 
 from app.jobs.cli_types import non_negative_float_argument, non_negative_int_argument
-from app.models.base import utcnow
+from app.models.base import FetchTargetStatus, utcnow
 from app.services.background_fetch import claim_due_fetch_targets, run_fetch_batch, select_due_fetch_targets
 from app.services.data_scope import include_test_data_for_processing
 from app.services.ids import new_id
@@ -47,6 +47,12 @@ def _emit_log(event: str, *, stream=sys.stdout, **fields: object) -> None:
     print(json.dumps(payload, sort_keys=True, default=str), file=stream, flush=True)
 
 
+def _should_log_target_attempt(attempt, *, verbose_target_logs: bool) -> bool:
+    if verbose_target_logs:
+        return True
+    return str(attempt.status) == str(FetchTargetStatus.FAILED)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-targets", type=non_negative_int_argument("--max-targets"), default=None)
@@ -55,6 +61,11 @@ def main() -> None:
         "--startup-jitter-seconds",
         type=non_negative_float_argument("--startup-jitter-seconds"),
         default=None,
+    )
+    parser.add_argument(
+        "--verbose-target-logs",
+        action="store_true",
+        help="Emit one detailed target_processed log line per fetched target.",
     )
     args = parser.parse_args()
 
@@ -69,10 +80,16 @@ def main() -> None:
         if not snapshot.app_state.enable_background_fetcher:
             _emit_log("run_disabled", run_id=run_id, pid=os.getpid())
             return
+        max_targets_overridden = args.max_targets is not None
         effective_max_targets = (
-            snapshot.app_state.fetch_max_targets_per_run
-            if args.max_targets is None
-            else args.max_targets
+            args.max_targets
+            if max_targets_overridden
+            else snapshot.app_state.fetch_max_targets_per_run
+        )
+        effective_uninitialized_extra_targets = (
+            0
+            if max_targets_overridden
+            else snapshot.app_state.fetch_uninitialized_extra_targets_per_run
         )
         effective_startup_jitter_seconds = (
             snapshot.app_state.fetch_startup_jitter_seconds
@@ -94,7 +111,7 @@ def main() -> None:
             repository,
             run_id=run_id,
             now=selection_now,
-            max_targets=effective_max_targets,
+            max_targets=args.max_targets,
             include_test_data=include_test_data,
             app_state=snapshot.app_state,
         )
@@ -113,13 +130,14 @@ def main() -> None:
             run_id=run_id,
             pid=os.getpid(),
             max_targets=effective_max_targets,
+            uninitialized_extra_targets=effective_uninitialized_extra_targets,
+            max_targets_overridden=max_targets_overridden,
             sleep_between_requests=not args.no_sleep,
             startup_jitter_seconds=effective_startup_jitter_seconds,
             total_trackers=len(snapshot.trackers),
             total_fetch_targets=len(snapshot.tracker_fetch_targets),
             total_stale_target_count=total_stale_target_count,
             selected_target_count=len(due_targets),
-            selected_fetch_target_ids=selected_target_ids,
         )
 
         stage = "fetch"
@@ -129,6 +147,7 @@ def main() -> None:
             snapshot.tracker_fetch_targets,
             now=selection_now,
             max_targets=effective_max_targets,
+            uninitialized_extra_targets=effective_uninitialized_extra_targets,
             sleep_between_requests=not args.no_sleep,
             startup_jitter_seconds=effective_startup_jitter_seconds,
             due_targets=due_targets,
@@ -141,6 +160,8 @@ def main() -> None:
             trip_label_by_instance_id[instance.trip_instance_id] = trip.label if trip else instance.display_label
         target_by_id = {target.fetch_target_id: target for target in snapshot.tracker_fetch_targets}
         for attempt in result.attempts:
+            if not _should_log_target_attempt(attempt, verbose_target_logs=args.verbose_target_logs):
+                continue
             target = target_by_id.get(attempt.fetch_target_id)
             _emit_log(
                 "target_processed",

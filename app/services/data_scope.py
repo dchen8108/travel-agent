@@ -43,4 +43,5 @@ def filter_snapshot(snapshot: AppSnapshot, *, include_test_data: bool) -> AppSna
         booking_email_events=filter_items(snapshot.booking_email_events, include_test_data=False),
         price_records=filter_items(snapshot.price_records, include_test_data=False),
         app_state=snapshot.app_state,
+        loaded_at=snapshot.loaded_at,
     )

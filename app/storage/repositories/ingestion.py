@@ -32,15 +32,12 @@ class IngestionRepositoryMixin:
             WITH latest(fetch_target_id, observed_at) AS (
                 VALUES {values}
             )
-            SELECT *
-            FROM price_records
-            WHERE EXISTS (
-                SELECT 1
-                FROM latest
-                WHERE latest.fetch_target_id = price_records.fetch_target_id
-                  AND latest.observed_at = price_records.observed_at
-            )
-            ORDER BY observed_at DESC, price ASC, offer_rank ASC, rowid ASC
+            SELECT price_records.*
+            FROM latest
+            JOIN price_records
+              ON price_records.fetch_target_id = latest.fetch_target_id
+             AND price_records.observed_at = latest.observed_at
+            ORDER BY price_records.observed_at DESC, price_records.price ASC, price_records.offer_rank ASC, price_records.rowid ASC
         """
         return self._load_models(query, PriceRecord, tuple(params))
 
@@ -92,20 +89,32 @@ class IngestionRepositoryMixin:
         self,
         *,
         max_retry_attempts: int,
+        rate_limit_retry_attempts: int | None = None,
         limit: int | None = None,
     ) -> list[BookingEmailEvent]:
+        rate_limit_retry_attempts = rate_limit_retry_attempts or max_retry_attempts
         query = """
             SELECT *
             FROM booking_email_events
             WHERE processing_status = 'error'
               AND retryable = 1
-              AND extraction_attempt_count < ?
+              AND (
+                extraction_attempt_count < ?
+                OR (
+                  extraction_attempt_count < ?
+                  AND (
+                    notes LIKE '%429%'
+                    OR notes LIKE '%rate_limit%'
+                    OR notes LIKE '%rate limit%'
+                  )
+                )
+              )
             ORDER BY received_at ASC, rowid ASC
         """
-        params: tuple[Any, ...] = (max_retry_attempts,)
+        params: tuple[Any, ...] = (max_retry_attempts, rate_limit_retry_attempts)
         if limit is not None:
             query = f"{query}\nLIMIT ?"
-            params = (max_retry_attempts, limit)
+            params = (max_retry_attempts, rate_limit_retry_attempts, limit)
         return self._load_models(query, BookingEmailEvent, params)
 
     def upsert_booking_email_event(self, event: BookingEmailEvent) -> None:

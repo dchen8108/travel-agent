@@ -18,7 +18,10 @@ from selectolax.parser import HTMLParser
 from app.settings import Settings
 
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/calendar.app.created",
+]
 
 
 class GmailAuthorizationRequired(RuntimeError):
@@ -76,6 +79,15 @@ def build_gmail_service(settings: Settings):
             "Gmail authorization is not set up yet. Run `uv run python -m app.jobs.authorize_gmail_bookings`."
         )
     return build("gmail", "v1", credentials=creds)
+
+
+def build_calendar_service(settings: Settings):
+    creds = _load_gmail_credentials(settings)
+    if creds is None:
+        raise GmailAuthorizationRequired(
+            "Google authorization is not set up yet. Run `uv run python -m app.jobs.authorize_gmail_bookings`."
+        )
+    return build("calendar", "v3", credentials=creds)
 
 
 def list_recent_inbox_message_ids(
@@ -261,6 +273,7 @@ __all__ = [
     "GmailAuthorizationRequired",
     "GmailMessage",
     "authorize_gmail",
+    "build_calendar_service",
     "build_gmail_service",
     "fetch_gmail_message",
     "get_mailbox_profile",

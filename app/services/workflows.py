@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Callable, Hashable, TypeVar
 
-from app.models.base import utcnow
+from app.models.base import BookingEmailEventStatus, BookingStatus, utcnow
 from app.models.booking import Booking
+from app.models.booking_email_event import BookingEmailEvent
 from app.models.route_option import RouteOption
 from app.models.tracker import Tracker
 from app.models.tracker_fetch_target import TrackerFetchTarget
 from app.models.trip import Trip
 from app.models.trip_instance import TripInstance
 from app.route_options import join_pipe, split_pipe
+from app.services.booking_calendar_sync import sync_booking_calendar_best_effort
 from app.services.bookings import reconcile_booking_route_options, reconcile_unmatched_bookings
 from app.services.fetch_targets import reconcile_fetch_targets
 from app.services.group_memberships import reconcile_trip_instance_group_memberships
@@ -74,6 +76,63 @@ def _diff_models(
     return changed_items, removed_keys
 
 
+def _exclude_rows_changed_after_snapshot(
+    removed_keys: list[Hashable],
+    current_items: list[ModelT],
+    *,
+    key: Callable[[ModelT], Hashable],
+    loaded_at: datetime | None,
+) -> list[Hashable]:
+    if loaded_at is None:
+        return removed_keys
+    current_by_key = {key(item): item for item in current_items}
+    safe_to_delete: list[Hashable] = []
+    for item_key in removed_keys:
+        current = current_by_key.get(item_key)
+        if current is None:
+            continue
+        created_at = getattr(current, "created_at", None)
+        updated_at = getattr(current, "updated_at", None)
+        if created_at is not None and created_at > loaded_at:
+            continue
+        if updated_at is not None and updated_at > loaded_at:
+            continue
+        safe_to_delete.append(item_key)
+    return safe_to_delete
+
+
+def _apply_resolved_booking_cancellations(
+    bookings: list[Booking],
+    booking_email_events: list[BookingEmailEvent],
+) -> None:
+    cancelled_at_by_booking_id: dict[str, datetime] = {}
+    for event in booking_email_events:
+        if event.email_kind != "cancellation":
+            continue
+        if event.processing_status != BookingEmailEventStatus.RESOLVED_AUTO:
+            continue
+        for booking_id in split_pipe(event.result_booking_ids):
+            current = cancelled_at_by_booking_id.get(booking_id)
+            if current is None or event.updated_at > current:
+                cancelled_at_by_booking_id[booking_id] = event.updated_at
+
+    if not cancelled_at_by_booking_id:
+        return
+
+    for booking in bookings:
+        cancellation_updated_at = cancelled_at_by_booking_id.get(booking.booking_id)
+        if cancellation_updated_at is None:
+            continue
+        if booking.status == BookingStatus.CANCELLED:
+            continue
+        booking.status = BookingStatus.CANCELLED
+        booking.updated_at = (
+            cancellation_updated_at
+            if cancellation_updated_at > booking.updated_at
+            else utcnow()
+        )
+
+
 def build_reconciled_snapshot(
     repository: Repository,
     *,
@@ -83,6 +142,7 @@ def build_reconciled_snapshot(
     """Recompute runtime-derived state from authored trips, routes, bookings, and fetch data."""
     repository.ensure_data_dir()
     today = today or date.today()
+    loaded_at = utcnow()
 
     app_state = repository.load_app_state()
     trip_groups = repository.load_trip_groups()
@@ -97,6 +157,7 @@ def build_reconciled_snapshot(
     unmatched_bookings = repository.load_unmatched_bookings()
     booking_email_events = repository.load_booking_email_events()
     price_records = repository.load_price_records() if include_price_records else []
+    _apply_resolved_booking_cancellations(bookings, booking_email_events)
 
     trip_instances = reconcile_trip_instances(
         trips,
@@ -158,6 +219,7 @@ def build_reconciled_snapshot(
         booking_email_events=booking_email_events,
         price_records=price_records,
         app_state=app_state,
+        loaded_at=loaded_at,
     )
 
 
@@ -205,6 +267,18 @@ def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -
             snapshot.unmatched_bookings,
             key=lambda item: item.booking_id,
         )
+        booking_ids_to_delete = _exclude_rows_changed_after_snapshot(
+            booking_ids_to_delete,
+            current_bookings,
+            key=lambda item: item.booking_id,
+            loaded_at=snapshot.loaded_at,
+        )
+        unmatched_ids_to_delete = _exclude_rows_changed_after_snapshot(
+            unmatched_ids_to_delete,
+            current_unmatched_bookings,
+            key=lambda item: item.booking_id,
+            loaded_at=snapshot.loaded_at,
+        )
 
         repository.upsert_trip_instances(trip_instances_to_upsert)
         repository.upsert_trackers(trackers_to_upsert)
@@ -221,6 +295,7 @@ def persist_reconciled_snapshot(repository: Repository, snapshot: AppSnapshot) -
             [(str(trip_instance_id), str(trip_group_id)) for trip_instance_id, trip_group_id in membership_keys_to_delete]
         )
         repository.delete_trip_instances_by_ids([str(item) for item in trip_instance_ids_to_delete])
+    sync_booking_calendar_best_effort(repository)
     return snapshot
 
 

@@ -1,5 +1,9 @@
 export const DASHBOARD_CANONICAL_QUERY = "all";
 
+export function v2WorkspaceQueryKey() {
+  return ["v2-workspace"] as const;
+}
+
 export function dashboardQueryPrefix() {
   return ["dashboard"] as const;
 }

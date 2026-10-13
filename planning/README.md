@@ -7,6 +7,7 @@ This directory is for current operational and architecture notes only. Historica
 Use these first when you need the implementation as it exists today:
 
 - `agent-checkpoint.md`: current product/runtime snapshot and bootstrap guide for a fresh agent
+- `v2-product.md`: parallel v2 information architecture, isolation rules, and cutover gates
 - `sqlite-storage.md`: current SQLite-backed storage model and runtime layout
 - `gmail-booking-ingestion.md`: current Gmail booking automation pipeline
 - there are no active historical planning docs in this directory; recover old migration notes from `planning/archive/` or git history if needed
@@ -34,7 +35,10 @@ These are historical references, not current source-of-truth docs:
 - the normal UI requires recurring trips to belong to at least one collection
 - scheduled trips can belong to zero or more groups and at most one rule
 - attached recurring instances inherit rule group targets; detached instances freeze them
-- the dashboard at `/` is the canonical operational surface
+- the dashboard at `/` remains the canonical v1 operational surface
+- the parallel v2 experience lives under `/v2` and reads through `/api/v2/workspace`
+- v2 mutations intentionally delegate to existing v1 create/edit/detail flows during the parallel phase
+- v1 has no redirect to v2 and v2 assets are not loaded on v1 routes
 - collection inspection happens inline on dashboard collection cards
 - trip inspection happens inline on dashboard rows plus bookings/flights detail panels
 - `/groups/{id}`, `/trip-instances/{id}`, and `/trips/{id}` are compatibility redirects into dashboard anchors, dashboard panels, or edit flows

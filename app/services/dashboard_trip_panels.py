@@ -5,6 +5,7 @@ from datetime import date
 
 from fastapi import HTTPException
 
+from app.models.base import BookingStatus
 from app.money import format_money
 from app.services.itinerary_display import (
     fetch_target_route_label,
@@ -192,7 +193,7 @@ def trip_instance_dashboard_context(snapshot, trip_instance_id: str) -> dict[str
     ]
     recurring_rule = recurring_rule_for_instance(snapshot, trip_instance_id)
     trip_groups = groups_for_instance(snapshot, trip_instance_id)
-    bookings = bookings_for_instance(snapshot, trip_instance_id)
+    bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
     booking_views = [
         {
             "booking": linked_booking,

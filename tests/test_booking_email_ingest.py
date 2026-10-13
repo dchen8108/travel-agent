@@ -4,6 +4,7 @@ from decimal import Decimal
 from datetime import date, datetime
 
 from app.models.base import BookingEmailEventStatus
+from app.models.booking_email_event import BookingEmailEvent
 from app.services.bookings import BookingCandidate, record_booking
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.booking_email_ingest import loggable_debug_fields, process_gmail_booking_message
@@ -30,6 +31,7 @@ def _seed_trip(
     start_time: str = "06:00",
     end_time: str = "10:00",
     stops: str = "nonstop",
+    fare_class: str = "basic_economy",
 ) -> str:
     trip = save_trip(
         repository,
@@ -48,6 +50,7 @@ def _seed_trip(
                 "start_time": start_time,
                 "end_time": end_time,
                 "stops": stops,
+                "fare_class": fare_class,
             }
         ],
     )
@@ -337,6 +340,83 @@ def test_booking_email_ingest_includes_multiple_flight_credits_in_effective_pric
     assert "Included $100 flight credit." in booking.notes
 
 
+def test_booking_email_ingest_corrects_missed_receipt_flight_credit(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 8, 12),
+        origin_airports="SFO",
+        destination_airports="LAX",
+        airlines="Southwest",
+        start_time="18:00",
+        end_time="22:00",
+    )
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.98,
+            record_locator="BHONG7",
+            cash_paid="6.40",
+            flight_credits_applied="58.00",
+            total_price="64.40",
+            segments=[
+                {
+                    "airline": "WN",
+                    "origin_airport": "SFO",
+                    "destination_airport": "LAX",
+                    "departure_date": "2026-08-12",
+                    "departure_time": "19:55",
+                    "arrival_time": "21:25",
+                    "stops": "nonstop",
+                    "flight_number": "2750",
+                    "fare_class": "basic",
+                }
+            ],
+            legs=[],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-missed-credit",
+            subject="You're going to Los Angeles on 08/12 (BHONG7)!",
+            body_text="\n".join(
+                [
+                    "Air - BHONG7",
+                    "Total",
+                    "$",
+                    "68.40",
+                    "Payment",
+                    "June 6, 2026",
+                    "*Payment Amount*",
+                    "$6.40",
+                    "Amer Express ending in *1002 *",
+                    "June 6, 2026",
+                    "*Payment Amount*",
+                    "$4.00",
+                    "*Flight Credit *",
+                    "June 6, 2026",
+                    "*Payment Amount*",
+                    "$58.00",
+                    "*Flight Credit *",
+                ]
+            ),
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    assert len(result.created_bookings) == 1
+    booking = result.created_bookings[0]
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.booked_price == Decimal("68.40")
+    assert "Included $62 flight credit." in booking.notes
+    assert '"total_price": "68.40"' in result.event.extracted_payload_json
+    assert '"flight_credits_applied": "62.00"' in result.event.extracted_payload_json
+
+
 def test_booking_email_ingest_values_points_at_one_cent_each(repository: Repository, monkeypatch) -> None:
     trip_instance_id = _seed_trip(
         repository,
@@ -572,6 +652,73 @@ def test_booking_email_ingest_enriches_explicit_segment_with_shared_fare_and_leg
     assert booking.fare_class == "economy"
 
 
+def test_booking_email_ingest_maps_alaska_coach_class_evidence_to_economy(repository: Repository, monkeypatch) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 22),
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Alaska",
+        start_time="05:00",
+        end_time="09:00",
+        fare_class="economy",
+    )
+
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(
+            email_kind="booking_confirmation",
+            confidence=0.99,
+            record_locator="DWJCUN",
+            total_price="81.90",
+            segments=[
+                {
+                    "airline": "AS",
+                    "origin_airport": "LAX",
+                    "destination_airport": "SFO",
+                    "departure_date": "2026-06-22",
+                    "departure_time": "07:15",
+                    "arrival_time": "08:39",
+                    "stops": "nonstop",
+                    "flight_number": "AS 1603",
+                    "fare_class": "unknown",
+                    "evidence": "Flight 1 · Mon Jun 22; AS 1603; LAX -> SFO",
+                }
+            ],
+            legs=[
+                {
+                    "airline": "AS",
+                    "origin_airport": "LAX",
+                    "destination_airport": "SFO",
+                    "departure_date": "2026-06-22",
+                    "departure_time": "07:15",
+                    "arrival_time": "08:39",
+                    "flight_number": "AS 1603",
+                    "fare_class": "unknown",
+                    "evidence": "7A · Class: S COACH; Premium Class seat has been selected",
+                }
+            ],
+        ),
+    )
+
+    result = process_gmail_booking_message(
+        repository,
+        message=_gmail_message(
+            message_id="msg-alaska-coach-class",
+            subject="Your flight is booked: DWJCUN to San Francisco on 06/22/2026",
+            body_text="Confirmation code DWJCUN",
+        ),
+        config=GmailIntegrationConfig(),
+    )
+
+    assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
+    assert len(result.created_bookings) == 1
+    booking = result.created_bookings[0]
+    assert booking.trip_instance_id == trip_instance_id
+    assert booking.route_option_id != ""
+    assert booking.fare_class == "economy"
+
+
 def test_booking_email_ingest_low_confidence_booking_stays_unmatched(repository: Repository, monkeypatch) -> None:
     _seed_trip(repository)
 
@@ -711,6 +858,37 @@ def test_booking_email_ingest_does_not_retry_terminal_extraction_error(repositor
     assert second.event.processing_status == BookingEmailEventStatus.ERROR
     assert second.event.extraction_attempt_count == 1
     assert len(repository.load_booking_email_events()) == 1
+
+
+def test_booking_email_ingest_allows_extra_retry_for_rate_limited_errors(repository: Repository, monkeypatch) -> None:
+    existing = _gmail_message(
+        message_id="msg-rate-limit-exhausted",
+        subject="Your flight booking confirmation",
+        body_text="Confirmation code ABC123",
+    )
+    event = BookingEmailEvent(
+        email_event_id="mail-rate-limit-exhausted",
+        gmail_message_id=existing.gmail_message_id,
+        gmail_thread_id=existing.gmail_thread_id,
+        gmail_history_id=existing.gmail_history_id,
+        from_address=existing.from_address,
+        subject=existing.subject,
+        received_at=existing.received_at,
+        processing_status=BookingEmailEventStatus.ERROR,
+        extraction_attempt_count=2,
+        retryable=True,
+        notes="Extraction failed: BookingExtractionError: Error code: 429 rate_limit_exceeded.",
+    )
+    repository.append_booking_email_events([event])
+    monkeypatch.setattr(
+        "app.services.booking_email_ingest.extract_booking_email",
+        lambda **_: BookingEmailExtraction(email_kind="not_booking", confidence=0.7),
+    )
+
+    result = process_gmail_booking_message(repository, message=existing, config=GmailIntegrationConfig(max_retry_attempts=2))
+
+    assert result.event.processing_status == BookingEmailEventStatus.IGNORED
+    assert result.event.extraction_attempt_count == 3
 
 
 def test_booking_email_ingest_supports_anc_segment(repository: Repository, monkeypatch) -> None:
@@ -915,6 +1093,62 @@ def test_booking_email_ingest_cancels_existing_booking(repository: Repository, m
     assert result.event.processing_status == BookingEmailEventStatus.RESOLVED_AUTO
     saved_booking = repository.load_bookings()[0]
     assert saved_booking.status == "cancelled"
+
+
+def test_sync_reapplies_resolved_cancellation_event_if_booking_is_stale_active(repository: Repository) -> None:
+    trip_instance_id = _seed_trip(
+        repository,
+        anchor_date=date(2026, 6, 8),
+        origin_airports="LAX",
+        destination_airports="SFO",
+        airlines="Southwest",
+        start_time="05:00",
+        end_time="09:00",
+    )
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="WN",
+            origin_airport="LAX",
+            destination_airport="SFO",
+            departure_date=date(2026, 6, 8),
+            departure_time="06:45",
+            arrival_time="08:05",
+            booked_price=121,
+            record_locator="ABC123",
+        ),
+        trip_instance_id=trip_instance_id,
+        source="gmail",
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    saved_booking = repository.load_bookings()[0]
+    assert saved_booking.status == "active"
+
+    cancellation_time = datetime(2026, 6, 1, 9, 30).astimezone()
+    repository.upsert_booking_email_event(
+        BookingEmailEvent(
+            email_event_id="mail-cancelled-stale-active",
+            gmail_message_id="msg-cancelled-stale-active",
+            from_address="bookings@example-airline.com",
+            subject="Your flight has been canceled",
+            received_at=cancellation_time,
+            processing_status=BookingEmailEventStatus.RESOLVED_AUTO,
+            email_kind="cancellation",
+            extraction_confidence=0.98,
+            result_booking_ids=booking.booking_id,
+            notes="Marked 1 booking(s) cancelled from Gmail.",
+            created_at=cancellation_time,
+            updated_at=cancellation_time,
+        )
+    )
+
+    sync_and_persist(repository, today=date(2026, 4, 1))
+
+    repaired_booking = repository.load_bookings()[0]
+    assert repaired_booking.status == "cancelled"
 
 
 def test_booking_email_ingest_cancels_existing_multi_stop_booking(repository: Repository, monkeypatch) -> None:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections import defaultdict
+from datetime import datetime
+
 from app.money import format_money
 from app.route_options import stop_policy_allows_stops, time_in_window
 from app.services.dashboard_trip_panels import tracker_context
@@ -7,6 +10,51 @@ from app.services.google_flights_fetcher import departure_time_from_offer_label
 from app.services.itinerary_display import format_refresh_timestamp_label, format_time_range_label, travel_day_delta
 from app.services.scheduled_trip_display import live_fare_offer_summary
 from app.services.tracker_refresh_state import tracker_target_display_state
+
+
+_LATEST_PRICE_RECORDS_CACHE_KEY = "latest_trip_flight_panel.price_records_by_target_time"
+_PRICE_RECORD_LOOKUP_CHUNK_SIZE = 200
+
+
+def _snapshot_cache(snapshot: object) -> dict[str, object]:
+    cache = getattr(snapshot, "_query_cache", None)
+    if cache is None:
+        cache = {}
+        setattr(snapshot, "_query_cache", cache)
+    return cache
+
+
+def _latest_price_record_pairs(snapshot) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for target in snapshot.tracker_fetch_targets:
+        if (
+            tracker_target_display_state(target, snapshot.app_state) == "priced"
+            and target.latest_fetched_at is not None
+        ):
+            pairs.append((target.fetch_target_id, target.latest_fetched_at.isoformat()))
+    return list(dict.fromkeys(pairs))
+
+
+def _latest_price_records_by_target_time(snapshot, repository) -> dict[tuple[str, str], list[object]]:
+    cache = _snapshot_cache(snapshot)
+    cached = cache.get(_LATEST_PRICE_RECORDS_CACHE_KEY)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+
+    records = []
+    pairs = _latest_price_record_pairs(snapshot)
+    for start in range(0, len(pairs), _PRICE_RECORD_LOOKUP_CHUNK_SIZE):
+        records.extend(repository.load_price_records_for_fetch_targets_at_times(
+            pairs[start:start + _PRICE_RECORD_LOOKUP_CHUNK_SIZE]
+        ))
+
+    grouped: dict[tuple[str, str], list[object]] = defaultdict(list)
+    for record in records:
+        observed_at = record.observed_at
+        observed_at_key = observed_at.isoformat() if isinstance(observed_at, datetime) else str(observed_at)
+        grouped[(record.fetch_target_id, observed_at_key)].append(record)
+    cache[_LATEST_PRICE_RECORDS_CACHE_KEY] = dict(grouped)
+    return cache[_LATEST_PRICE_RECORDS_CACHE_KEY]  # type: ignore[return-value]
 
 
 def latest_trip_flight_panel(snapshot, repository, *, trip_instance_id: str) -> dict[str, object]:
@@ -25,16 +73,18 @@ def latest_trip_flight_panel(snapshot, repository, *, trip_instance_id: str) -> 
         )
     ]
 
-    price_records = repository.load_price_records_for_fetch_targets_at_times([
-        (target.fetch_target_id, target.latest_fetched_at.isoformat())
+    records_by_target_time = _latest_price_records_by_target_time(snapshot, repository)
+    price_records = [
+        record
         for _tracker, target in priced_entries
-    ])
+        for record in records_by_target_time.get((target.fetch_target_id, target.latest_fetched_at.isoformat()), [])
+    ]
     target_by_id = {
         target.fetch_target_id: (tracker, target)
         for tracker, target in priced_entries
     }
 
-    flight_rows: list[tuple[int, int, str, dict[str, object]]] = []
+    flight_rows_by_key: dict[tuple[object, ...], tuple[int, int, str, dict[str, object]]] = {}
     for record in price_records:
         tracker_target = target_by_id.get(record.fetch_target_id)
         if tracker_target is None:
@@ -66,7 +116,7 @@ def latest_trip_flight_panel(snapshot, repository, *, trip_instance_id: str) -> 
             tone="success",
             price_is_status=False,
         )
-        flight_rows.append((
+        row = (
             effective_price,
             record.offer_rank,
             record.price_record_id,
@@ -75,8 +125,19 @@ def latest_trip_flight_panel(snapshot, repository, *, trip_instance_id: str) -> 
                 "travelDate": tracker.travel_date.isoformat(),
                 "offer": offer,
             },
-        ))
+        )
+        display_key = (
+            tracker.travel_date.isoformat(),
+            offer["airline_key"],
+            offer["detail"],
+            offer["primary_meta_label"],
+            offer["price_label"],
+        )
+        existing_row = flight_rows_by_key.get(display_key)
+        if existing_row is None or row[:3] < existing_row[:3]:
+            flight_rows_by_key[display_key] = row
 
+    flight_rows = list(flight_rows_by_key.values())
     flight_rows.sort(key=lambda item: (item[0], item[1], item[2]))
     oldest_tracker_refresh_at = min(
         (

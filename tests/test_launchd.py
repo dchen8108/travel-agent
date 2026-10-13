@@ -6,13 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from app.jobs import install_launchd_booking_poller, install_launchd_fetcher
+from app.jobs import install_launchd_booking_poller, install_launchd_calendar_sync, install_launchd_fetcher
 from app.models.base import AppState
 from app.models.gmail_integration import GmailIntegrationConfig
 from app.services.launchd import (
     BOOKING_POLLER_LAUNCH_AGENT_LABEL,
+    CALENDAR_SYNC_LAUNCH_AGENT_LABEL,
     LAUNCH_AGENT_LABEL,
     build_booking_poller_launch_agent_plist,
+    build_calendar_sync_launch_agent_plist,
     build_launch_agent_plist,
     launch_agent_target,
 )
@@ -27,7 +29,6 @@ def test_launch_agent_plist_contains_expected_program_arguments() -> None:
         stdout_log_path=Path("/Users/example/code/travel-agent/data/logs/fetch.stdout.log"),
         stderr_log_path=Path("/Users/example/code/travel-agent/data/logs/fetch.stderr.log"),
         start_interval_seconds=60,
-        max_targets=2,
     )
 
     plist = plistlib.loads(payload)
@@ -39,8 +40,6 @@ def test_launch_agent_plist_contains_expected_program_arguments() -> None:
         "python",
         "-m",
         "app.jobs.fetch_google_flights",
-        "--max-targets",
-        "2",
     ]
     assert plist["WorkingDirectory"] == "/Users/example/code/travel-agent"
     assert plist["RunAtLoad"] is True
@@ -72,6 +71,30 @@ def test_booking_poller_launch_agent_plist_contains_expected_program_arguments()
     assert plist["WorkingDirectory"] == "/Users/example/code/travel-agent"
     assert plist["RunAtLoad"] is True
     assert plist["StartInterval"] == 180
+
+
+def test_calendar_sync_launch_agent_plist_contains_expected_program_arguments() -> None:
+    payload = build_calendar_sync_launch_agent_plist(
+        uv_executable="/usr/local/bin/uv",
+        project_root=Path("/Users/example/code/travel-agent"),
+        stdout_log_path=Path("/Users/example/code/travel-agent/data/logs/calendar.stdout.log"),
+        stderr_log_path=Path("/Users/example/code/travel-agent/data/logs/calendar.stderr.log"),
+        start_interval_seconds=86400,
+    )
+
+    plist = plistlib.loads(payload)
+
+    assert plist["Label"] == CALENDAR_SYNC_LAUNCH_AGENT_LABEL
+    assert plist["ProgramArguments"] == [
+        "/usr/local/bin/uv",
+        "run",
+        "python",
+        "-m",
+        "app.jobs.sync_booking_calendar",
+    ]
+    assert plist["WorkingDirectory"] == "/Users/example/code/travel-agent"
+    assert plist["RunAtLoad"] is True
+    assert plist["StartInterval"] == 86400
 
 
 def test_ensure_local_secret_from_env_persists_launchd_compatible_key(tmp_path, monkeypatch) -> None:
@@ -135,6 +158,23 @@ def test_install_launchd_booking_poller_rejects_invalid_message_limit(settings, 
         install_launchd_booking_poller.main()
 
 
+def test_install_launchd_calendar_sync_rejects_invalid_interval(settings, monkeypatch) -> None:
+    monkeypatch.setattr(install_launchd_calendar_sync, "get_settings", lambda: settings)
+
+    class StubRepository:
+        def __init__(self, _settings):
+            pass
+
+        def load_app_state(self):
+            return AppState()
+
+    monkeypatch.setattr(install_launchd_calendar_sync, "Repository", StubRepository)
+    monkeypatch.setattr(sys, "argv", ["install_launchd_calendar_sync", "--interval-seconds", "0"])
+
+    with pytest.raises(SystemExit):
+        install_launchd_calendar_sync.main()
+
+
 def test_install_launchd_fetcher_fails_cleanly_when_uv_missing(settings, monkeypatch) -> None:
     monkeypatch.setattr(install_launchd_fetcher, "get_settings", lambda: settings)
 
@@ -175,6 +215,24 @@ def test_install_launchd_booking_poller_fails_cleanly_when_uv_missing(settings, 
 
     with pytest.raises(SystemExit, match="Could not find `uv` in PATH."):
         install_launchd_booking_poller.main()
+
+
+def test_install_launchd_calendar_sync_fails_cleanly_when_uv_missing(settings, monkeypatch) -> None:
+    monkeypatch.setattr(install_launchd_calendar_sync, "get_settings", lambda: settings)
+
+    class StubRepository:
+        def __init__(self, _settings):
+            pass
+
+        def load_app_state(self):
+            return AppState()
+
+    monkeypatch.setattr(install_launchd_calendar_sync, "Repository", StubRepository)
+    monkeypatch.setattr(install_launchd_calendar_sync.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(sys, "argv", ["install_launchd_calendar_sync"])
+
+    with pytest.raises(SystemExit, match="Could not find `uv` in PATH."):
+        install_launchd_calendar_sync.main()
 
 
 def test_install_launchd_booking_poller_writes_plist_and_persists_secret(tmp_path, monkeypatch, capsys) -> None:
@@ -230,3 +288,58 @@ def test_install_launchd_booking_poller_writes_plist_and_persists_secret(tmp_pat
     ]
     captured = capsys.readouterr()
     assert BOOKING_POLLER_LAUNCH_AGENT_LABEL in captured.out
+
+
+def test_install_launchd_calendar_sync_writes_plist(tmp_path, monkeypatch, capsys) -> None:
+    settings = Settings(data_dir=tmp_path / "data", config_dir=tmp_path / "config")
+    plist_path = tmp_path / "LaunchAgents" / "com.test.calendar-sync.plist"
+    stdout_log_path = tmp_path / "logs" / "calendar.stdout.log"
+    stderr_log_path = tmp_path / "logs" / "calendar.stderr.log"
+    run_calls: list[list[str]] = []
+
+    class StubRepository:
+        def __init__(self, _settings):
+            pass
+
+        def load_app_state(self):
+            return AppState(launchd_calendar_sync_interval_seconds=43200)
+
+    monkeypatch.setattr(install_launchd_calendar_sync, "get_settings", lambda: settings)
+    monkeypatch.setattr(install_launchd_calendar_sync, "Repository", StubRepository)
+    monkeypatch.setattr(install_launchd_calendar_sync.shutil, "which", lambda _name: "/usr/local/bin/uv")
+    monkeypatch.setattr(
+        install_launchd_calendar_sync,
+        "launch_agent_plist_path",
+        lambda _label: plist_path,
+    )
+    monkeypatch.setattr(
+        install_launchd_calendar_sync,
+        "default_log_paths",
+        lambda _project_root, _job_name: (stdout_log_path, stderr_log_path),
+    )
+    monkeypatch.setattr(
+        install_launchd_calendar_sync.subprocess,
+        "run",
+        lambda args, **_kwargs: run_calls.append(list(args)),
+    )
+    monkeypatch.setattr(sys, "argv", ["install_launchd_calendar_sync"])
+
+    install_launchd_calendar_sync.main()
+
+    assert plist_path.exists()
+    plist = plistlib.loads(plist_path.read_bytes())
+    assert plist["ProgramArguments"] == [
+        "/usr/local/bin/uv",
+        "run",
+        "python",
+        "-m",
+        "app.jobs.sync_booking_calendar",
+    ]
+    assert plist["StartInterval"] == 43200
+    assert run_calls == [
+        ["launchctl", "bootout", "gui/501", str(plist_path)],
+        ["launchctl", "bootstrap", "gui/501", str(plist_path)],
+        ["launchctl", "kickstart", "-k", launch_agent_target(CALENDAR_SYNC_LAUNCH_AGENT_LABEL)],
+    ]
+    captured = capsys.readouterr()
+    assert CALENDAR_SYNC_LAUNCH_AGENT_LABEL in captured.out

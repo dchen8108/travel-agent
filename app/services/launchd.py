@@ -8,6 +8,7 @@ from pathlib import Path
 
 FETCH_LAUNCH_AGENT_LABEL = "com.travel-agent.fetch-google-flights"
 BOOKING_POLLER_LAUNCH_AGENT_LABEL = "com.travel-agent.poll-gmail-bookings"
+CALENDAR_SYNC_LAUNCH_AGENT_LABEL = "com.travel-agent.sync-booking-calendar"
 LAUNCH_AGENT_LABEL = FETCH_LAUNCH_AGENT_LABEL
 
 
@@ -56,7 +57,6 @@ def build_launch_agent_plist(
     stdout_log_path: Path,
     stderr_log_path: Path,
     start_interval_seconds: int,
-    max_targets: int,
 ) -> bytes:
     return build_job_launch_agent_plist(
         label=FETCH_LAUNCH_AGENT_LABEL,
@@ -66,7 +66,6 @@ def build_launch_agent_plist(
         stdout_log_path=stdout_log_path,
         stderr_log_path=stderr_log_path,
         start_interval_seconds=start_interval_seconds,
-        module_args=["--max-targets", str(max_targets)],
     )
 
 
@@ -88,6 +87,25 @@ def build_booking_poller_launch_agent_plist(
         stderr_log_path=stderr_log_path,
         start_interval_seconds=start_interval_seconds,
         module_args=["--max-messages", str(max_messages)],
+    )
+
+
+def build_calendar_sync_launch_agent_plist(
+    *,
+    uv_executable: str,
+    project_root: Path,
+    stdout_log_path: Path,
+    stderr_log_path: Path,
+    start_interval_seconds: int,
+) -> bytes:
+    return build_job_launch_agent_plist(
+        label=CALENDAR_SYNC_LAUNCH_AGENT_LABEL,
+        uv_executable=uv_executable,
+        project_root=project_root,
+        module_name="app.jobs.sync_booking_calendar",
+        stdout_log_path=stdout_log_path,
+        stderr_log_path=stderr_log_path,
+        start_interval_seconds=start_interval_seconds,
     )
 
 

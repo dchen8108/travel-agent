@@ -406,6 +406,10 @@ def test_booked_trip_row_shows_booked_and_current_best_itineraries() -> None:
         "href": "",
         "tone": "neutral",
         "price_is_status": False,
+        "warning": (
+            "This booking is linked to the trip, but it does not match any "
+            "tracked route on this date yet."
+        ),
     }
     assert row["current_offer"] == {
         "label": "Live fare",
@@ -513,6 +517,10 @@ def test_trip_row_shows_departure_time_and_day_shift_when_itinerary_moves_off_an
         "href": "",
         "tone": "neutral",
         "price_is_status": False,
+        "warning": (
+            "This booking is linked to the trip, but it does not match any "
+            "tracked route on this date yet."
+        ),
     }
     assert row["current_offer"] == {
         "label": "Live fare",
@@ -587,6 +595,10 @@ def test_trip_row_shows_multi_leg_booking_numbers_and_stop_label() -> None:
         "href": "",
         "tone": "neutral",
         "price_is_status": False,
+        "warning": (
+            "This trip does not have any tracked routes yet, so Milemark "
+            "cannot monitor this exact itinerary."
+        ),
     }
 
 

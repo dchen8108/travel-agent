@@ -134,6 +134,7 @@ export function TripRow({
             tone: "neutral",
             priceIsStatus: false,
             statusKind: "",
+            warning: "",
           }}
           emptyState
           onCreate={row.actions.canCreateBooking ? () => onOpenBookings(tripInstanceId, "create") : undefined}

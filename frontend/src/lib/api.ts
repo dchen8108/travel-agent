@@ -2,6 +2,7 @@ import type {
   BookingFormPayload,
   BookingMutationPayload,
   BookingPanelPayload,
+  BookingRefreshPayload,
   DashboardMutationPayload,
   DashboardPayload,
   MutationAckPayload,
@@ -10,6 +11,7 @@ import type {
   TripEditorRouteOption,
   TripEditorValues,
   TrackerPanelPayload,
+  V2WorkspacePayload,
 } from "../types";
 
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
@@ -45,9 +47,17 @@ function withDashboardFilters(path: string, filters?: URLSearchParams): string {
 }
 
 export const api = {
+  v2Workspace(): Promise<V2WorkspacePayload> {
+    return request<V2WorkspacePayload>("/api/v2/workspace");
+  },
   dashboard(params?: URLSearchParams): Promise<DashboardPayload> {
     const query = params?.toString() ?? "";
     return request<DashboardPayload>(`/api/dashboard${query ? `?${query}` : ""}`);
+  },
+  refreshBookings(filters?: URLSearchParams): Promise<BookingRefreshPayload> {
+    return request<BookingRefreshPayload>(withDashboardFilters("/api/bookings/refresh", filters), {
+      method: "POST",
+    });
   },
   createCollection(label: string, filters?: URLSearchParams): Promise<DashboardMutationPayload> {
     return request<DashboardMutationPayload>(withDashboardFilters("/api/collections", filters), {

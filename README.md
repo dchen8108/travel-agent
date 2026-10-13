@@ -2,6 +2,10 @@
 
 Local-first tracker-of-trackers for recurring flight travel.
 
+## Project Status
+
+This project has been inactive since `2026-10-13`. The repository preserves the source, tests, architecture notes, and setup instructions, but no Milemark services are expected to be running. Runtime data and credentials under `data/` and `config/local/` are intentionally not versioned; reactivation requires a fresh local database and new Gmail, Calendar, and OpenAI credentials.
+
 This MVP is built around a simple idea:
 
 - you organize travel into named `Collections`
@@ -22,7 +26,7 @@ This version is intentionally local and simple:
 - local SQLite storage under `data/travel_agent.sqlite3`
 - checked-in app config under `config/app_state.json`
 - one-time or weekly trips
-- a rolling 24-week horizon for weekly trips
+- a rolling 26-week horizon for weekly trips
 - in-house Google Flights background fetching
 - automatic background tracking enabled by default for every tracker
 - at most 3 origin airports and 3 destination airports per route option
@@ -36,11 +40,26 @@ Use [planning/README.md](planning/README.md) to distinguish current design notes
 
 Compatibility note:
 
-- the dashboard at `/` is the primary operational surface
+- the dashboard at `/` remains the stable v1 operational surface
+- the parallel v2 experience is available under `/v2`; it does not redirect or replace v1
 - collections are inspected and edited inline on dashboard collection cards
 - trip inspection happens inline on dashboard trip rows plus bookings/flights detail panels
 - trips keep dedicated create/edit pages
 - a limited set of old routes still exist as compatibility redirects into the SPA; new work should target `/`, `/trips/new`, `/trips/{id}/edit`, and the `/api/...` endpoints directly
+
+## Parallel V2
+
+The v2 product exploration runs alongside v1 rather than on top of it:
+
+- `/v2` is the v2 home and decision summary
+- `/v2/schedule` is the complete upcoming schedule
+- `/v2/inbox` contains only items that need a decision
+- `/v2/rules` organizes collections and recurring rules
+- `/api/v2/workspace` is the isolated v2 read contract
+- v2 reuses the canonical v1 data and business rules, while edit/create actions continue through the proven v1 flows
+- v2 frontend assets are lazy-loaded only on `/v2` routes, so the v1 bundle and default route remain isolated
+
+There is no automatic cutover. See [planning/v2-product.md](planning/v2-product.md) for the coexistence contract and release criteria.
 
 ## Core Objects
 
@@ -163,6 +182,23 @@ uv run python -m app.jobs.poll_gmail_bookings --max-messages 10
 uv run python -m app.jobs.uninstall_launchd_booking_poller
 ```
 
+## Google Calendar Booking Mirror
+
+Active live bookings are mirrored into a dedicated Google Calendar named `Flights`. Manual booking edits, Gmail-created bookings, cancellations, and deletes reconcile the calendar immediately after the app persists the canonical booking state. A daily launchd reconciliation job is also available as a safety net.
+
+The same OAuth client/token used for Gmail must include:
+
+- `https://www.googleapis.com/auth/gmail.modify`
+- `https://www.googleapis.com/auth/calendar.app.created`
+
+Useful commands:
+
+```bash
+uv run python -m app.jobs.sync_booking_calendar
+uv run python -m app.jobs.install_launchd_calendar_sync
+uv run python -m app.jobs.uninstall_launchd_calendar_sync
+```
+
 ## Tests
 
 ```bash
@@ -173,8 +209,9 @@ Primary regression layers today:
 
 - backend/domain coverage through `pytest`
 - focused API/dashboard regression tests under `tests/test_frontend_api.py`, `tests/test_dashboard_views.py`, and `tests/test_web_smoke.py`
+- a browser release gate covering v1 plus desktop/mobile v2 routes through `scripts/playwright_release_smoke.py`
 
-The Playwright helper below is still a targeted debug/smoke tool, not the main automated browser test layer.
+The CI workflow in `.github/workflows/ci.yml` runs compilation, the full Python suite, the production frontend build, and the browser release gate.
 
 ## Playwright Smoke Checks
 
@@ -197,6 +234,18 @@ uv run python scripts/playwright_smoke.py \
 ```
 
 Use `--base-url http://127.0.0.1:8000` instead of `--serve` if the app is already running.
+
+Run the full v1/v2 browser release gate with:
+
+```bash
+uv run python scripts/playwright_release_smoke.py
+```
+
+Against an already running server:
+
+```bash
+uv run python scripts/playwright_release_smoke.py --base-url http://127.0.0.1:8000
+```
 
 ## Background Fetch
 
@@ -226,6 +275,7 @@ That installs a LaunchAgent that:
 
 - runs at login and then on the checked-in interval in `config/app_state.json`
 - fetches up to the configured per-run target cap from `config/app_state.json`
+- can use an additional checked-in burst budget for never-initialized flight searches
 - continuously refreshes the stalest active airport-pair searches first
 - adds a small random startup delay before each Google Flights request batch
 - keeps a small random delay between requests inside a multi-target batch
@@ -245,16 +295,18 @@ uv run python -m app.jobs.uninstall_launchd_fetcher
 
 ## Config Files
 
-- `config/app_state.json`: checked-in app/runtime policy such as timezone, horizon length, dashboard action windows, fetch cadence/backoff, and launchd fetcher defaults
+- `config/app_state.json`: checked-in app/runtime policy such as timezone, horizon length, dashboard action windows, fetch throughput, fetch backoff, and launchd cadence
 - `config/gmail_integration.json`: checked-in Gmail poller behavior such as inbox labels, model choice, retry caps, and launchd poller defaults
 - `config/local/*`: machine-local secrets and state such as Gmail OAuth credentials, Gmail sync checkpoint, and optional OpenAI API key cache. These files are not product config and should not be checked in.
 
-`config/app_state.json` now acts as the policy surface for both:
+`config/app_state.json` is the runtime policy surface for:
 
-- runtime fetcher behavior (stale-first selection, backoff, lease, freshness window, per-run target cap)
-- launchd installer defaults (`launchd_fetch_interval_seconds`, `launchd_fetch_max_targets`)
+- fetcher behavior (stale-first selection, backoff, lease, freshness window, per-run target cap)
+- the extra per-run budget used only for never-initialized flight searches
+- launchd cadence (`launchd_fetch_interval_seconds`)
+- daily booking calendar reconciliation cadence (`launchd_calendar_sync_interval_seconds`)
 
-That means the launch cadence and the runtime worker budget are related but distinct; changing one without the other may change when runs start without changing how many searches each run is allowed to refresh.
+Launchd owns only cadence. The installed fetcher intentionally does not pass a target cap, so scheduled runs read the current runtime budget from `config/app_state.json`. The `--max-targets` CLI flag remains available for manual/debug runs and acts as an exact override.
 
 ## Storage
 
@@ -285,8 +337,8 @@ That file is the source of truth for:
 - `enable_background_fetcher`
 - dashboard attention windows
 - fare freshness window
-- background fetch cadence, jitter, backoff, and lease defaults
-- launchd fetcher defaults
+- background fetch throughput, jitter, backoff, and lease defaults
+- launchd fetch cadence
 - `show_test_data`
 - `process_test_data`
 - config schema `version`

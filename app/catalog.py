@@ -59,6 +59,35 @@ SUPPORTED_AIRLINES = [
 AIRPORT_CODES = {item["code"] for item in SUPPORTED_AIRPORTS}
 AIRLINE_CODES = {item["code"] for item in SUPPORTED_AIRLINES}
 AIRPORT_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRPORTS}
+AIRPORT_TIME_ZONES = {
+    "BUR": "America/Los_Angeles",
+    "LAX": "America/Los_Angeles",
+    "SNA": "America/Los_Angeles",
+    "LGB": "America/Los_Angeles",
+    "ONT": "America/Los_Angeles",
+    "SAN": "America/Los_Angeles",
+    "SFO": "America/Los_Angeles",
+    "OAK": "America/Los_Angeles",
+    "SJC": "America/Los_Angeles",
+    "SMF": "America/Los_Angeles",
+    "PSP": "America/Los_Angeles",
+    "LAS": "America/Los_Angeles",
+    "PHX": "America/Phoenix",
+    "SEA": "America/Los_Angeles",
+    "ANC": "America/Anchorage",
+    "PDX": "America/Los_Angeles",
+    "DEN": "America/Denver",
+    "AUS": "America/Chicago",
+    "DFW": "America/Chicago",
+    "DAL": "America/Chicago",
+    "IAH": "America/Chicago",
+    "HOU": "America/Chicago",
+    "ATL": "America/New_York",
+    "ORD": "America/Chicago",
+    "JFK": "America/New_York",
+    "LGA": "America/New_York",
+    "EWR": "America/New_York",
+}
 AIRLINE_FULL_LABELS = {item["code"]: item["label"] for item in SUPPORTED_AIRLINES}
 AIRLINE_MARKETING_CODES = {
     "Alaska": "AS",
@@ -247,6 +276,11 @@ def known_airline_code(value: str) -> str:
 def airport_label(code: str) -> str:
     normalized = normalize_airport_code(code)
     return AIRPORT_LABELS[normalized]
+
+
+def airport_time_zone(code: str, *, fallback: str = "America/Los_Angeles") -> str:
+    normalized = normalize_airport_code(code)
+    return AIRPORT_TIME_ZONES.get(normalized, fallback)
 
 
 def airline_label(code: str) -> str:

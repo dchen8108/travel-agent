@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { trackerPanelQueryKey } from "../lib/queryKeys";
 import type { TrackerPanelPayload } from "../types";
 import { OfferBlock } from "./OfferBlock";
+import { ScrollableDetailList } from "./ScrollableDetailList";
 import { TripIdentityRow } from "./TripIdentityRow";
 
 interface Props {
@@ -36,13 +37,13 @@ export function TrackerInspector({ tripInstanceId, initialPanel }: Props) {
         <TripIdentityRow trip={panelQuery.data.trip} showEditAction={false} />
       </div>
       {panelQuery.data.rows.length ? (
-        <div className="detail-list">
+        <ScrollableDetailList>
           {panelQuery.data.rows.map((row) => (
             <article key={row.rowId} className="detail-list-row detail-list-row--tracker">
               <OfferBlock kind="live" offer={row.offer} />
             </article>
           ))}
-        </div>
+        </ScrollableDetailList>
       ) : (
         <div className="detail-panel-loading">{panelQuery.data.emptyLabel}</div>
       )}

@@ -5,7 +5,7 @@ from datetime import date
 from fastapi import HTTPException
 
 from app.catalog import catalogs_payload
-from app.models.base import TripInstanceInheritanceMode, TripKind
+from app.models.base import BookingStatus, TripInstanceInheritanceMode, TripKind
 from app.models.booking import Booking
 from app.services.collection_display import group_summary_view
 from app.services.dashboard_page import dashboard_attention_views
@@ -52,6 +52,7 @@ def _offer_value(offer: dict[str, object] | None) -> dict[str, object] | None:
         "tone": str(offer.get("tone", "neutral")),
         "priceIsStatus": bool(offer.get("price_is_status", False)),
         "statusKind": str(offer.get("status_kind", "")),
+        "warning": str(offer.get("warning", "")),
     }
 
 
@@ -361,23 +362,25 @@ def booking_panel_payload(
     trip_instance = trip_instance_by_id(snapshot, trip_instance_id)
     if trip_instance is None:
         raise HTTPException(status_code=404, detail="Scheduled trip not found")
-    bookings = bookings_for_instance(snapshot, trip_instance_id)
+    bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
     editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if mode == "edit" and booking_id else None
     if booking_id and mode == "edit" and editing_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
-    rows = [
-        {
-            "bookingId": booking.booking_id,
-            "offer": _offer_value(
-                booking_offer_summary(
-                    booking,
-                    anchor_date=trip_instance.anchor_date,
-                )
-            ),
-            "warning": booking_route_tracking_state(snapshot, booking).get("warning", ""),
-        }
-        for booking in bookings
-    ]
+    rows = []
+    for booking in bookings:
+        warning = str(booking_route_tracking_state(snapshot, booking).get("warning", ""))
+        offer = booking_offer_summary(
+            booking,
+            anchor_date=trip_instance.anchor_date,
+        )
+        offer["warning"] = warning
+        rows.append(
+            {
+                "bookingId": booking.booking_id,
+                "offer": _offer_value(offer),
+                "warning": warning,
+            }
+        )
     return {
         "trip": trip,
         "mode": mode,
@@ -403,7 +406,7 @@ def booking_form_payload(
     booking_id: str = "",
 ) -> dict[str, object]:
     trip = trip_identity_value(snapshot, trip_instance_id)
-    bookings = bookings_for_instance(snapshot, trip_instance_id)
+    bookings = bookings_for_instance(snapshot, trip_instance_id, statuses={BookingStatus.ACTIVE})
     editing_booking = next((item for item in bookings if item.booking_id == booking_id), None) if booking_id else None
     if booking_id and editing_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")

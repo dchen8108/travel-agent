@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from dataclasses import dataclass
 from email.utils import parseaddr
 import json
 import os
+import re
 import sys
+import time
 import traceback
 
 from googleapiclient.errors import HttpError
@@ -14,7 +17,12 @@ from app.jobs.cli_types import positive_int_argument
 from app.models.base import BookingEmailEventStatus
 from app.models.base import utcnow
 from app.models.booking_email_event import BookingEmailEvent
-from app.services.booking_email_ingest import loggable_debug_fields, process_gmail_booking_message
+from app.models.gmail_integration import GmailIntegrationConfig
+from app.services.booking_email_ingest import (
+    BookingEmailProcessResult,
+    loggable_debug_fields,
+    process_gmail_booking_message,
+)
 from app.services.gmail_client import (
     GmailAuthorizationRequired,
     GmailMessage,
@@ -30,6 +38,12 @@ from app.services.ids import new_id
 from app.services.workflows import sync_and_persist
 from app.settings import get_settings
 from app.storage.repository import Repository
+
+
+_OPENAI_RETRY_AFTER_PATTERN = re.compile(r"try again in\s+([0-9.]+)\s*s", re.IGNORECASE)
+_MAX_INLINE_RATE_LIMIT_RETRY_SECONDS = 30.0
+_DEFAULT_INLINE_RATE_LIMIT_RETRY_SECONDS = 5.0
+_RATE_LIMIT_EXTRA_RETRY_ATTEMPTS = 2
 
 
 def _http_error_status(exc: HttpError) -> int | None:
@@ -62,6 +76,7 @@ def _dedupe_message_ids(message_ids: list[str]) -> list[str]:
 def _retry_message_ids(repository: Repository, *, limit: int, max_retry_attempts: int) -> list[str]:
     errored_events = repository.load_retryable_booking_email_events(
         max_retry_attempts=max_retry_attempts,
+        rate_limit_retry_attempts=max_retry_attempts + _RATE_LIMIT_EXTRA_RETRY_ATTEMPTS,
         limit=limit,
     )
     return [event.gmail_message_id for event in errored_events]
@@ -92,6 +107,24 @@ class MessageSelection:
     truncated: bool
 
 
+@dataclass(frozen=True)
+class GmailPollResult:
+    disabled: bool = False
+    processed_count: int = 0
+    created_booking_count: int = 0
+    created_unlinked_count: int = 0
+    ignored_count: int = 0
+    duplicate_count: int = 0
+    error_count: int = 0
+    selected_message_count: int = 0
+    new_message_count: int = 0
+    retry_message_count: int = 0
+    state_changed: bool = False
+    history_id_after: str = ""
+    selection_truncated: bool = False
+    retryable_error_count: int = 0
+
+
 def _history_id_after_run(
     *,
     history_id_before: str,
@@ -111,6 +144,65 @@ def _retryable_message_error(exc: Exception) -> bool:
         status = _http_error_status(exc)
         return status in {408, 409, 425, 429, 500, 502, 503, 504}
     return False
+
+
+def _rate_limited_extraction_retry_delay_seconds(
+    event: BookingEmailEvent,
+    *,
+    max_retry_attempts: int,
+) -> float | None:
+    if event.processing_status != BookingEmailEventStatus.ERROR:
+        return None
+    if not event.retryable:
+        return None
+    max_attempts = max_retry_attempts + _RATE_LIMIT_EXTRA_RETRY_ATTEMPTS
+    if event.extraction_attempt_count >= max_attempts:
+        return None
+    notes = event.notes.lower()
+    if "429" not in notes and "rate_limit" not in notes and "rate limit" not in notes:
+        return None
+    match = _OPENAI_RETRY_AFTER_PATTERN.search(event.notes)
+    if not match:
+        return _DEFAULT_INLINE_RATE_LIMIT_RETRY_SECONDS
+    try:
+        delay = float(match.group(1))
+    except ValueError:
+        return _DEFAULT_INLINE_RATE_LIMIT_RETRY_SECONDS
+    delay = max(1.0, delay + 0.25)
+    return min(delay, _MAX_INLINE_RATE_LIMIT_RETRY_SECONDS)
+
+
+def _process_message_with_extraction_retries(
+    repository: Repository,
+    *,
+    message: GmailMessage,
+    config: GmailIntegrationConfig,
+    run_id: str,
+    sleep_func: Callable[[float], None] = time.sleep,
+) -> BookingEmailProcessResult:
+    while True:
+        with repository.transaction():
+            result = process_gmail_booking_message(
+                repository,
+                message=message,
+                config=config,
+            )
+        retry_delay = _rate_limited_extraction_retry_delay_seconds(
+            result.event,
+            max_retry_attempts=config.max_retry_attempts,
+        )
+        if retry_delay is None:
+            return result
+        _emit_log(
+            "message_retry_scheduled",
+            run_id=run_id,
+            gmail_message_id=result.event.gmail_message_id,
+            subject=result.event.subject,
+            delay_seconds=round(retry_delay, 2),
+            extraction_attempt_count=result.event.extraction_attempt_count,
+            reason="openai_rate_limit",
+        )
+        sleep_func(retry_delay)
 
 
 def _find_existing_event(repository: Repository, gmail_message_id: str) -> BookingEmailEvent | None:
@@ -219,14 +311,16 @@ def _select_message_ids_for_poll(
     )
 
 
-def main() -> None:
-    settings = get_settings()
+def run_gmail_booking_poll(
+    *,
+    settings=None,
+    repository: Repository | None = None,
+    max_messages: int | None = None,
+) -> GmailPollResult:
+    settings = settings or get_settings()
     config = load_gmail_integration_config(settings)
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--max-messages", type=positive_int_argument("--max-messages"), default=config.launchd_max_messages)
-    args = parser.parse_args()
-
-    repository = Repository(settings)
+    repository = repository or Repository(settings)
+    requested_max_messages = max_messages if max_messages is not None else config.launchd_max_messages
     run_id = new_id("gmailpoll")
     stage = "config"
     processed_count = 0
@@ -239,12 +333,12 @@ def main() -> None:
     try:
         if not config.enabled:
             _emit_log("run_disabled", run_id=run_id, pid=os.getpid(), reason="gmail_integration_disabled")
-            return
+            return GmailPollResult(disabled=True)
         stage = "gmail_auth"
         service = build_gmail_service(settings)
         sync_state = load_gmail_sync_state(settings)
         stage = "gmail_list"
-        effective_max_messages = min(args.max_messages, config.max_messages_per_poll)
+        effective_max_messages = min(requested_max_messages, config.max_messages_per_poll)
         selection = _select_message_ids_for_poll(
             repository,
             service,
@@ -266,7 +360,7 @@ def main() -> None:
             retry_message_count=len(selection.retry_message_ids),
             retry_message_ids=selection.retry_message_ids,
             effective_max_messages=effective_max_messages,
-            max_messages=args.max_messages,
+            max_messages=requested_max_messages,
             history_mode=selection.source_mode,
             history_id_before=selection.history_id_before,
         )
@@ -304,12 +398,12 @@ def main() -> None:
                 )
                 continue
 
-            with repository.transaction():
-                result = process_gmail_booking_message(
-                    repository,
-                    message=message,
-                    config=config,
-                )
+            result = _process_message_with_extraction_retries(
+                repository,
+                message=message,
+                config=config,
+                run_id=run_id,
+            )
 
             processed_count += 1
             created_booking_count += len(result.created_bookings)
@@ -371,6 +465,21 @@ def main() -> None:
             retryable_error_message_ids=retryable_error_message_ids,
             state_changed=any_state_changes,
         )
+        return GmailPollResult(
+            processed_count=processed_count,
+            created_booking_count=created_booking_count,
+            created_unlinked_count=created_unlinked_count,
+            ignored_count=ignored_count,
+            duplicate_count=duplicate_count,
+            error_count=error_count,
+            selected_message_count=len(selection.message_ids),
+            new_message_count=len(selection.new_message_ids),
+            retry_message_count=len(selection.retry_message_ids),
+            state_changed=any_state_changes,
+            history_id_after=history_id_after,
+            selection_truncated=selection.truncated,
+            retryable_error_count=len(retryable_error_message_ids),
+        )
     except (GmailAuthorizationRequired, HttpError, RuntimeError, ValueError) as exc:
         _emit_log(
             "run_failed",
@@ -394,6 +503,15 @@ def main() -> None:
             traceback=traceback.format_exc(),
         )
         raise
+
+
+def main() -> None:
+    settings = get_settings()
+    config = load_gmail_integration_config(settings)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--max-messages", type=positive_int_argument("--max-messages"), default=config.launchd_max_messages)
+    args = parser.parse_args()
+    run_gmail_booking_poll(settings=settings, max_messages=args.max_messages)
 
 
 if __name__ == "__main__":

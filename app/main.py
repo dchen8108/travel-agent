@@ -9,6 +9,8 @@ from app.routes.groups import router as groups_router
 from app.routes.spa import router as spa_router
 from app.routes.trackers import router as trackers_router
 from app.routes.trips import router as trips_router
+from app.routes.v2_api import router as v2_api_router
+from app.routes.v2_spa import router as v2_spa_router
 from app.settings import Settings, get_settings
 
 
@@ -27,6 +29,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         name="app-assets",
     )
     app.include_router(api_router)
+    app.include_router(v2_api_router)
+    app.include_router(v2_spa_router)
     app.include_router(spa_router)
     app.include_router(trips_router)
     app.include_router(groups_router)

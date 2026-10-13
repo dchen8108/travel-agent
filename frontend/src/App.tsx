@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
@@ -12,8 +13,11 @@ import {
   dashboardQueryKey,
   trackerPanelQueryKey,
   tripEditorQueryKey,
+  v2WorkspaceQueryKey,
 } from "./lib/queryKeys";
 import { TripEditorPage } from "./routes/TripEditorPage";
+
+const V2Page = lazy(() => import("./v2/V2Page").then((module) => ({ default: module.V2Page })));
 
 function createQueryClient() {
   const queryClient = new QueryClient({
@@ -47,6 +51,9 @@ function createQueryClient() {
       bootstrap.tripEditor.data,
     );
   }
+  if (bootstrap.v2Workspace) {
+    queryClient.setQueryData(v2WorkspaceQueryKey(), bootstrap.v2Workspace.data);
+  }
   return queryClient;
 }
 
@@ -65,6 +72,7 @@ export function App() {
               <Route path="/trips/:tripId/edit" element={<TripEditorPage />} />
               <Route path="/app/trips/new" element={<TripEditorPage />} />
               <Route path="/app/trips/:tripId/edit" element={<TripEditorPage />} />
+              <Route path="/v2/*" element={<Suspense fallback={null}><V2Page /></Suspense>} />
               <Route path="*" element={<DashboardPage />} />
             </Routes>
           </BrowserRouter>

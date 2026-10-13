@@ -68,7 +68,7 @@ def _decode_tfs(url: str) -> list[tuple[int, int, object]]:
     return _parse_fields(urlsafe_b64decode(padded))
 
 
-def test_weekly_trip_generates_twenty_four_future_instances(repository: Repository) -> None:
+def test_weekly_trip_generates_twenty_six_future_instances(repository: Repository) -> None:
     trip = save_trip(
         repository,
         trip_id=None,
@@ -92,7 +92,7 @@ def test_weekly_trip_generates_twenty_four_future_instances(repository: Reposito
     snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
     trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
 
-    assert len(trip_instances) == 24
+    assert len(trip_instances) == 26
     assert trip_instances[0].anchor_date == date(2026, 4, 6)
     assert all(instance.display_label.startswith("LA to SF Outbound") for instance in trip_instances)
     assert all(instance.instance_kind == "generated" for instance in trip_instances)
@@ -124,12 +124,12 @@ def test_build_reconciled_snapshot_does_not_persist_until_requested(repository: 
 
     snapshot = build_reconciled_snapshot(repository, today=date(2026, 3, 31))
     trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
-    assert len(trip_instances) == 24
+    assert len(trip_instances) == 26
     assert repository.load_trip_instances() == []
 
     persist_reconciled_snapshot(repository, snapshot)
     persisted_instances = [item for item in repository.load_trip_instances() if item.trip_id == trip.trip_id]
-    assert len(persisted_instances) == 24
+    assert len(persisted_instances) == 26
 
 
 def test_persist_reconciled_snapshot_uses_narrow_runtime_writes(repository: Repository, monkeypatch) -> None:
@@ -231,7 +231,7 @@ def test_deactivating_weekly_trip_preserves_existing_instances_without_growing_f
         for tracker in initial.trackers
         if any(instance.trip_instance_id == tracker.trip_instance_id for instance in initial_instances)
     }
-    assert len(initial_dates) == 24
+    assert len(initial_dates) == 26
 
     set_trip_active(repository, trip.trip_id, False)
     paused = sync_and_persist(repository, today=date(2026, 4, 21))
@@ -719,8 +719,8 @@ def test_recurring_trip_keeps_past_instances_but_horizon_only_shows_future(repos
     snapshot = sync_and_persist(repository, today=date(2026, 3, 31))
 
     trip_instances = [item for item in snapshot.trip_instances if item.trip_id == trip.trip_id]
-    assert len(trip_instances) == 25
-    assert len(horizon_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 24
+    assert len(trip_instances) == 27
+    assert len(horizon_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 26
     assert len(past_instances_for_trip(snapshot, trip.trip_id, today=date(2026, 3, 31))) == 1
 
 
@@ -888,6 +888,55 @@ def test_detaching_generated_trip_instance_keeps_linked_booking(repository: Repo
     assert same_instance.inheritance_mode == "detached"
     assert same_instance.trip_id != trip.trip_id
     assert refreshed_booking.trip_instance_id == same_instance.trip_instance_id
+
+
+def test_stale_reconcile_snapshot_does_not_delete_new_booking(repository: Repository) -> None:
+    trip = save_trip(
+        repository,
+        trip_id=None,
+        label="Stale Snapshot Booking",
+        trip_kind="weekly",
+        active=True,
+        anchor_date=None,
+        anchor_weekday="Monday",
+        route_option_payloads=[
+            {
+                "origin_airports": "SFO",
+                "destination_airports": "LAX",
+                "airlines": "Southwest",
+                "day_offset": 0,
+                "start_time": "18:00",
+                "end_time": "22:00",
+            }
+        ],
+    )
+    initial = sync_and_persist(repository, today=date(2026, 3, 31))
+    generated = next(item for item in initial.trip_instances if item.trip_id == trip.trip_id)
+    stale_snapshot = build_reconciled_snapshot(repository, today=date(2026, 3, 31))
+
+    booking, unmatched = record_booking(
+        repository,
+        BookingCandidate(
+            airline="Southwest",
+            origin_airport="SFO",
+            destination_airport="LAX",
+            departure_date=generated.anchor_date,
+            departure_time="19:55",
+            arrival_time="21:25",
+            booked_price=Decimal("68.40"),
+            record_locator="STALE1",
+        ),
+        trip_instance_id=generated.trip_instance_id,
+        source="gmail",
+        data_scope=DataScope.LIVE,
+    )
+    assert booking is not None
+    assert unmatched is None
+
+    persist_reconciled_snapshot(repository, stale_snapshot)
+
+    persisted_booking_ids = {item.booking_id for item in repository.load_bookings()}
+    assert booking.booking_id in persisted_booking_ids
 
 
 def test_detach_generated_trip_instance_is_atomic(repository: Repository, monkeypatch) -> None:

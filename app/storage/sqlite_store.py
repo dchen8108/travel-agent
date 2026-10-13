@@ -9,20 +9,32 @@ from typing import Any, Iterable, Iterator, Sequence
 from app.catalog import normalize_airline_code
 from app.flight_numbers import join_flight_numbers
 from app.money import normalize_extracted_total_price
-from app.storage.sqlite_schema import CREATE_BOOKINGS_TABLE, CREATE_PRICE_RECORDS_TABLE, DDL_STATEMENTS, SCHEMA_VERSION
+from app.storage.sqlite_schema import (
+    CREATE_BOOKINGS_TABLE,
+    CREATE_BOOKING_CALENDAR_EVENTS_TABLE,
+    CREATE_PRICE_RECORDS_TABLE,
+    DDL_STATEMENTS,
+    SCHEMA_VERSION,
+)
+
+SQLITE_BUSY_TIMEOUT_MS = 30_000
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(str(db_path))
+    connection = sqlite3.connect(str(db_path), timeout=SQLITE_BUSY_TIMEOUT_MS / 1000)
     connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA journal_mode=WAL")
     connection.execute("PRAGMA synchronous=NORMAL")
-    connection.execute("PRAGMA busy_timeout=5000")
+    connection.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MS}")
     return connection
 
 
 def initialize_schema(connection: sqlite3.Connection) -> None:
+    # Journal mode is persistent. Reissuing the write-affecting WAL pragma on
+    # every short-lived connection can block readers behind an active writer.
+    journal_mode = str(connection.execute("PRAGMA journal_mode").fetchone()[0]).lower()
+    if journal_mode != "wal":
+        connection.execute("PRAGMA journal_mode=WAL")
     current_version = _schema_version(connection)
     if current_version < 5:
         _migrate_bookings_to_v5(connection)
@@ -80,6 +92,8 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_price_records_and_fetch_target_stops_to_v30(connection)
     if current_version < 31:
         _migrate_bookings_canonical_flight_numbers_to_v31(connection)
+    if current_version < 32:
+        _migrate_booking_calendar_events_to_v32(connection)
     # Keep this shape repair outside the version gate. We have already seen live
     # databases report the current schema version while still carrying the legacy
     # tracker_fetch_targets column set after an interrupted migration. The v22
@@ -107,9 +121,12 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
     _migrate_price_records_and_fetch_target_stops_to_v30(connection)
     # Apply the same shape-repair policy for canonical booking flight numbers.
     _migrate_bookings_canonical_flight_numbers_to_v31(connection)
+    # Apply the same shape-repair policy for booking calendar event mappings.
+    _migrate_booking_calendar_events_to_v32(connection)
     for statement in DDL_STATEMENTS:
         connection.execute(statement)
-    connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    if current_version != SCHEMA_VERSION:
+        connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     connection.commit()
 
 
@@ -118,8 +135,112 @@ def run_startup_repairs(connection: sqlite3.Connection) -> None:
     # schema initialization cache. These repairs are safe to rerun on every
     # startup and should still fire when an existing database is mutated
     # outside the app process.
+    if not _data_scope_repair_needed(connection):
+        return
     _migrate_data_scope_to_v7(connection)
     connection.commit()
+
+
+def _data_scope_repair_needed(connection: sqlite3.Connection) -> bool:
+    checks = (
+        (
+            "trips",
+            """
+            SELECT 1 FROM trips
+            WHERE data_scope != 'test'
+              AND (label LIKE 'QA %' OR label LIKE 'SQLite E2E %' OR label LIKE 'E2E %')
+            LIMIT 1
+            """,
+        ),
+        (
+            "route_options",
+            """
+            SELECT 1 FROM route_options
+            WHERE data_scope != 'test'
+              AND trip_id IN (SELECT trip_id FROM trips WHERE data_scope = 'test')
+            LIMIT 1
+            """,
+        ),
+        (
+            "trip_instances",
+            """
+            SELECT 1 FROM trip_instances
+            WHERE data_scope != 'test'
+              AND trip_id IN (SELECT trip_id FROM trips WHERE data_scope = 'test')
+            LIMIT 1
+            """,
+        ),
+        (
+            "trackers",
+            """
+            SELECT 1 FROM trackers
+            WHERE data_scope != 'test'
+              AND trip_instance_id IN (
+                  SELECT trip_instance_id FROM trip_instances WHERE data_scope = 'test'
+              )
+            LIMIT 1
+            """,
+        ),
+        (
+            "tracker_fetch_targets",
+            """
+            SELECT 1 FROM tracker_fetch_targets
+            WHERE data_scope != 'test'
+              AND tracker_id IN (SELECT tracker_id FROM trackers WHERE data_scope = 'test')
+            LIMIT 1
+            """,
+        ),
+        (
+            "price_records",
+            """
+            SELECT 1 FROM price_records
+            WHERE data_scope != 'test'
+              AND trip_id IN (SELECT trip_id FROM trips WHERE data_scope = 'test')
+            LIMIT 1
+            """,
+        ),
+        (
+            "bookings",
+            """
+            SELECT 1 FROM bookings
+            WHERE data_scope != 'test'
+              AND (
+                  record_locator LIKE 'E2E%'
+                  OR raw_summary LIKE '%E2E%'
+                  OR trip_instance_id IN (
+                      SELECT trip_instance_id FROM trip_instances WHERE data_scope = 'test'
+                  )
+              )
+            LIMIT 1
+            """,
+        ),
+        (
+            "booking_email_events",
+            """
+            SELECT 1 FROM booking_email_events
+            WHERE data_scope != 'test'
+              AND EXISTS (
+                  SELECT 1
+                  FROM bookings
+                  WHERE bookings.data_scope = 'test'
+                    AND (
+                      instr('|' || booking_email_events.result_booking_ids || '|', '|' || bookings.booking_id || '|') > 0
+                      OR instr('|' || booking_email_events.result_unmatched_booking_ids || '|', '|' || bookings.booking_id || '|') > 0
+                    )
+              )
+            LIMIT 1
+            """,
+        ),
+    )
+    for table, query in checks:
+        if not _table_exists(connection, table):
+            continue
+        columns = _table_columns(connection, table)
+        if "data_scope" not in columns:
+            return True
+        if connection.execute(query).fetchone() is not None:
+            return True
+    return False
 
 
 def fetch_all(
@@ -332,6 +453,10 @@ def _migrate_price_records_to_v3(connection: sqlite3.Connection) -> None:
         """
     )
     connection.execute("DROP TABLE price_records_old")
+
+
+def _migrate_booking_calendar_events_to_v32(connection: sqlite3.Connection) -> None:
+    connection.execute(CREATE_BOOKING_CALENDAR_EVENTS_TABLE)
 
 
 def _migrate_bookings_to_v5(connection: sqlite3.Connection) -> None:

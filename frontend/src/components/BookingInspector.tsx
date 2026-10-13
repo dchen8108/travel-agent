@@ -8,6 +8,7 @@ import { useConfirm } from "./ConfirmProvider";
 import { DeleteIcon, DetachIcon, EditIcon } from "./Icons";
 import { OfferBlock } from "./OfferBlock";
 import { OverflowMenu } from "./OverflowMenu";
+import { ScrollableDetailList } from "./ScrollableDetailList";
 import { TripIdentityRow } from "./TripIdentityRow";
 import { useToast } from "./ToastProvider";
 
@@ -100,47 +101,47 @@ export function BookingInspector({
       <div className="detail-panel-head">
         <TripIdentityRow trip={payload.trip} showEditAction={false} />
       </div>
-      <div className="detail-list">
-        {payload.rows.map((row) => (
-          <article key={row.bookingId} className="detail-list-row detail-list-row--offer">
-            <OfferBlock
-              kind="booked"
-              offer={row.offer}
-              actions={listQuery.isPlaceholderData ? undefined : (
-                <OverflowMenu
-                  label="Booking actions"
-                  align="end"
-                  items={[
-                    {
-                      key: "edit-booking",
-                      label: "Edit",
-                      icon: <EditIcon />,
-                      onSelect: () => onChangeMode("edit", row.bookingId),
-                      onPrefetch: () => prefetchEditForm(row.bookingId),
-                    },
-                    {
-                      key: "detach-booking",
-                      label: "Detach",
-                      icon: <DetachIcon />,
-                      onSelect: () => void handleDetach(row.bookingId),
-                    },
-                    {
-                      key: "delete-booking",
-                      label: "Delete",
-                      tone: "danger",
-                      icon: <DeleteIcon />,
-                      onSelect: () => void handleDelete(row.bookingId),
-                    },
-                  ]}
-                />
-              )}
-            />
-            {listQuery.isPlaceholderData || !row.warning ? null : (
-              <p className="detail-row-warning">{row.warning}</p>
-            )}
-          </article>
-        ))}
-      </div>
+      <ScrollableDetailList>
+        {payload.rows.map((row) => {
+          const offer = row.warning && !row.offer.warning ? { ...row.offer, warning: row.warning } : row.offer;
+          return (
+            <article key={row.bookingId} className="detail-list-row detail-list-row--offer">
+              <OfferBlock
+                kind="booked"
+                offer={offer}
+                actions={listQuery.isPlaceholderData ? undefined : (
+                  <OverflowMenu
+                    label="Booking actions"
+                    align="end"
+                    items={[
+                      {
+                        key: "edit-booking",
+                        label: "Edit",
+                        icon: <EditIcon />,
+                        onSelect: () => onChangeMode("edit", row.bookingId),
+                        onPrefetch: () => prefetchEditForm(row.bookingId),
+                      },
+                      {
+                        key: "detach-booking",
+                        label: "Detach",
+                        icon: <DetachIcon />,
+                        onSelect: () => void handleDetach(row.bookingId),
+                      },
+                      {
+                        key: "delete-booking",
+                        label: "Delete",
+                        tone: "danger",
+                        icon: <DeleteIcon />,
+                        onSelect: () => void handleDelete(row.bookingId),
+                      },
+                    ]}
+                  />
+                )}
+              />
+            </article>
+          );
+        })}
+      </ScrollableDetailList>
     </div>
   );
 }

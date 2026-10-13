@@ -32,6 +32,10 @@ def fetch_max_targets_per_run(app_state: AppState | None = None) -> int:
     return _app_state(app_state).fetch_max_targets_per_run
 
 
+def fetch_uninitialized_extra_targets_per_run(app_state: AppState | None = None) -> int:
+    return _app_state(app_state).fetch_uninitialized_extra_targets_per_run
+
+
 def fetch_sleep_range_seconds(app_state: AppState | None = None) -> tuple[float, float]:
     state = _app_state(app_state)
     stagger_seconds = fetch_stagger_seconds(state)
@@ -47,6 +51,27 @@ def fetch_target_claim_lease(app_state: AppState | None = None) -> timedelta:
 
 def fetch_request_timeout_seconds(app_state: AppState | None = None) -> float:
     return _app_state(app_state).fetch_request_timeout_seconds
+
+
+def _resolve_target_budget(
+    *,
+    max_targets: int | None,
+    uninitialized_extra_targets: int | None,
+    app_state: AppState | None,
+) -> tuple[int, int]:
+    use_runtime_target_budget = max_targets is None
+    resolved_max_targets = (
+        fetch_max_targets_per_run(app_state)
+        if use_runtime_target_budget
+        else max_targets
+    )
+    if uninitialized_extra_targets is None:
+        uninitialized_extra_targets = (
+            fetch_uninitialized_extra_targets_per_run(app_state)
+            if use_runtime_target_budget
+            else 0
+        )
+    return resolved_max_targets, uninitialized_extra_targets
 
 
 @dataclass(frozen=True)
@@ -120,14 +145,19 @@ def claim_due_fetch_targets(
     run_id: str,
     now: datetime | None = None,
     max_targets: int | None = None,
+    uninitialized_extra_targets: int | None = None,
     include_test_data: bool = True,
     lease_duration: timedelta | None = None,
     app_state: AppState | None = None,
 ) -> list[str]:
     now = now or utcnow()
-    max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
+    max_targets, uninitialized_extra_targets = _resolve_target_budget(
+        max_targets=max_targets,
+        uninitialized_extra_targets=uninitialized_extra_targets,
+        app_state=app_state,
+    )
     lease_duration = fetch_target_claim_lease(app_state) if lease_duration is None else lease_duration
-    if max_targets <= 0:
+    if max_targets <= 0 and uninitialized_extra_targets <= 0:
         return []
     with repository.transaction():
         trackers = repository.load_trackers()
@@ -139,6 +169,7 @@ def claim_due_fetch_targets(
             fetch_targets,
             now=now,
             max_targets=max_targets,
+            uninitialized_extra_targets=uninitialized_extra_targets,
             include_test_data=include_test_data,
             app_state=app_state,
         )
@@ -160,12 +191,17 @@ def select_due_fetch_targets(
     *,
     now: datetime | None = None,
     max_targets: int | None = None,
+    uninitialized_extra_targets: int | None = None,
     include_test_data: bool = True,
     app_state: AppState | None = None,
 ) -> list[TrackerFetchTarget]:
     now = now or utcnow()
-    max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
-    if max_targets <= 0:
+    max_targets, uninitialized_extra_targets = _resolve_target_budget(
+        max_targets=max_targets,
+        uninitialized_extra_targets=uninitialized_extra_targets,
+        app_state=app_state,
+    )
+    if max_targets <= 0 and uninitialized_extra_targets <= 0:
         return []
     tracker_by_id = {tracker.tracker_id: tracker for tracker in trackers}
     instance_by_id = {instance.trip_instance_id: instance for instance in trip_instances}
@@ -191,8 +227,13 @@ def select_due_fetch_targets(
             continue
         if _has_failure_backoff(target, now, app_state=app_state):
             continue
-        selected.append(target)
-        if len(selected) >= max_targets:
+        if len(selected) < max_targets:
+            selected.append(target)
+            continue
+        if target.last_fetch_finished_at is None and uninitialized_extra_targets > 0:
+            selected.append(target)
+            uninitialized_extra_targets -= 1
+        if len(selected) >= max_targets and uninitialized_extra_targets <= 0:
             break
     return selected
 
@@ -204,6 +245,7 @@ def run_fetch_batch(
     *,
     now: datetime | None = None,
     max_targets: int | None = None,
+    uninitialized_extra_targets: int | None = None,
     sleep_between_requests: bool = True,
     startup_jitter_seconds: float = 0.0,
     due_targets: list[TrackerFetchTarget] | None = None,
@@ -211,9 +253,13 @@ def run_fetch_batch(
     app_state: AppState | None = None,
 ) -> FetchBatchResult:
     now = now or utcnow()
-    max_targets = fetch_max_targets_per_run(app_state) if max_targets is None else max_targets
+    max_targets, uninitialized_extra_targets = _resolve_target_budget(
+        max_targets=max_targets,
+        uninitialized_extra_targets=uninitialized_extra_targets,
+        app_state=app_state,
+    )
     target_by_id = {target.fetch_target_id: target for target in fetch_targets}
-    if max_targets <= 0 and due_targets is None:
+    if max_targets <= 0 and uninitialized_extra_targets <= 0 and due_targets is None:
         return FetchBatchResult(
             fetched_count=0,
             selected_count=0,
@@ -231,6 +277,7 @@ def run_fetch_batch(
             fetch_targets,
             now=now,
             max_targets=max_targets,
+            uninitialized_extra_targets=uninitialized_extra_targets,
             include_test_data=include_test_data,
             app_state=app_state,
         )

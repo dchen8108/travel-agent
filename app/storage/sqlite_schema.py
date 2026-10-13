@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-SCHEMA_VERSION = 31
+SCHEMA_VERSION = 32
 
 
 CREATE_BOOKINGS_TABLE = """
@@ -66,6 +66,21 @@ CREATE TABLE IF NOT EXISTS price_records (
     stops TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL,
     offer_rank INTEGER NOT NULL
+)
+"""
+
+
+CREATE_BOOKING_CALENDAR_EVENTS_TABLE = """
+CREATE TABLE IF NOT EXISTS booking_calendar_events (
+    booking_id TEXT PRIMARY KEY,
+    data_scope TEXT NOT NULL DEFAULT 'live',
+    calendar_id TEXT NOT NULL,
+    calendar_event_id TEXT NOT NULL,
+    last_synced_hash TEXT NOT NULL DEFAULT '',
+    last_synced_at TEXT NULL,
+    last_error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 )
 """
 
@@ -214,6 +229,7 @@ DDL_STATEMENTS: tuple[str, ...] = (
     )
     """,
     CREATE_BOOKINGS_TABLE,
+    CREATE_BOOKING_CALENDAR_EVENTS_TABLE,
     """
     CREATE TABLE IF NOT EXISTS booking_email_events (
         email_event_id TEXT PRIMARY KEY,

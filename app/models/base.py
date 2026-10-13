@@ -125,13 +125,14 @@ class DataScope(StrEnum):
 
 class AppState(CsvModel):
     timezone: str = "America/Los_Angeles"
-    future_weeks: int = 24
+    future_weeks: int = 26
     enable_background_fetcher: bool = True
     dashboard_needs_booking_window_weeks: int = Field(default=6, ge=1)
     dashboard_overbooked_window_days: int = Field(default=7, ge=1)
     tracker_freshness_window_hours: int = Field(default=72, ge=1)
     fetch_stagger_seconds: int = Field(default=10, ge=0)
     fetch_max_targets_per_run: int = Field(default=3, ge=0)
+    fetch_uninitialized_extra_targets_per_run: int = Field(default=4, ge=0)
     fetch_claim_lease_minutes: int = Field(default=15, ge=1)
     fetch_request_timeout_seconds: float = Field(default=20.0, gt=0)
     fetch_request_sleep_max_extra_seconds: float = Field(default=3.0, ge=0)
@@ -140,10 +141,10 @@ class AppState(CsvModel):
     fetch_failure_backoff_hours_repeated: int = Field(default=48, ge=1)
     fetch_startup_jitter_seconds: float = Field(default=8.0, ge=0)
     launchd_fetch_interval_seconds: int = Field(default=60, ge=1)
-    launchd_fetch_max_targets: int = Field(default=2, ge=0)
+    launchd_calendar_sync_interval_seconds: int = Field(default=86400, ge=1)
     show_test_data: bool = False
     process_test_data: bool = False
-    version: int = 6
+    version: int = 7
 
 
 def utcnow() -> datetime:

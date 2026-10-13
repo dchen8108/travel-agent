@@ -274,13 +274,14 @@ def test_trip_creation_and_booking_flow(tmp_path: Path) -> None:
         static_dir=Path("app/static"),
     )
     client = TestClient(create_app(settings))
+    travel_date = date.today() + timedelta(days=30)
 
     response = client.post(
         "/trips",
         data={
                 "label": "LA to SF Outbound",
                 "trip_kind": "one_time",
-                "anchor_date": "2026-06-06",
+                "anchor_date": travel_date.isoformat(),
                 "anchor_weekday": "",
                 "route_options_json": '[{"origin_airports":["BUR","LAX"],"destination_airports":["SFO"],"airlines":["Alaska"],"day_offset":0,"start_time":"06:00","end_time":"10:00"}]',
         },
@@ -1641,6 +1642,7 @@ def test_edit_booking_can_leave_it_linked_but_untracked(tmp_path: Path) -> None:
     warning_rows = [row for row in detail["rows"] if row["warning"]]
     assert warning_rows
     assert any("does not match any tracked route on this date yet" in row["warning"] for row in warning_rows)
+    assert any("does not match any tracked route on this date yet" in row["offer"]["warning"] for row in warning_rows)
     assert any(row["offer"]["priceLabel"] == "$141.25" for row in detail["rows"])
 
 
@@ -2116,12 +2118,13 @@ def test_trips_page_separates_recurring_plans_from_scheduled_trips(tmp_path: Pat
         },
         follow_redirects=False,
     )
+    conference_date = date.today() + timedelta(days=21)
     client.post(
         "/trips",
         data={
             "label": "Conference Arrival",
             "trip_kind": "one_time",
-            "anchor_date": "2026-05-10",
+            "anchor_date": conference_date.isoformat(),
             "anchor_weekday": "",
             "route_options_json": '[{"origin_airports":["LAX"],"destination_airports":["SEA"],"airlines":["Delta"],"day_offset":0,"start_time":"07:00","end_time":"11:00"}]',
         },
@@ -2665,6 +2668,7 @@ def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> Non
     client = TestClient(create_app(settings))
     repository = Repository(settings)
     work_group = save_trip_group(repository, trip_group_id=None, label="Work Travel")
+    ungrouped_trip_date = date.today() + timedelta(days=21)
 
     grouped = client.post(
         "/trips",
@@ -2683,7 +2687,7 @@ def test_scheduled_trips_can_be_filtered_to_no_collection(tmp_path: Path) -> Non
         data={
             "label": "Ungrouped One-off",
             "trip_kind": "one_time",
-            "anchor_date": "2026-05-10",
+            "anchor_date": ungrouped_trip_date.isoformat(),
             "anchor_weekday": "",
             "route_options_json": '[{"origin_airports":["SFO"],"destination_airports":["JFK"],"airlines":["United"],"day_offset":0,"start_time":"08:00","end_time":"12:00"}]',
         },
@@ -3134,6 +3138,8 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
         templates_dir=Path("app/templates"),
         static_dir=Path("app/static"),
     )
+    today = date.today()
+    travel_date = today + timedelta(days=30)
     repository = Repository(settings)
     trip = save_trip(
         repository,
@@ -3141,7 +3147,7 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
         label="Warning Trip",
         trip_kind="one_time",
         active=True,
-        anchor_date=date(2026, 4, 20),
+        anchor_date=travel_date,
         anchor_weekday="",
         route_option_payloads=[
             {
@@ -3157,7 +3163,7 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
 
     from app.services.workflows import sync_and_persist
 
-    snapshot = sync_and_persist(repository, today=date(2026, 4, 1))
+    snapshot = sync_and_persist(repository, today=today)
     trip_instance_id = next(item.trip_instance_id for item in snapshot.trip_instances if item.trip_id == trip.trip_id)
     booking, unmatched = record_booking(
         repository,
@@ -3165,7 +3171,7 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
             airline="Alaska",
             origin_airport="BUR",
             destination_airport="SFO",
-            departure_date=date(2026, 4, 20),
+            departure_date=travel_date,
             departure_time="07:15",
             arrival_time="08:40",
             booked_price=121,
@@ -3175,7 +3181,7 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
     )
     assert booking is not None
     assert unmatched is None
-    sync_and_persist(repository, today=date(2026, 4, 1))
+    sync_and_persist(repository, today=today)
 
     client = TestClient(create_app(settings))
     detail = _booking_panel_payload(client, trip_instance_id)
@@ -3183,3 +3189,9 @@ def test_linked_booking_warning_appears_when_no_route_matches(tmp_path: Path) ->
 
     assert warning_rows
     assert any("does not match any tracked route on this date yet" in row["warning"] for row in warning_rows)
+    assert any("does not match any tracked route on this date yet" in row["offer"]["warning"] for row in warning_rows)
+
+    dashboard = _dashboard_payload(client)
+    dashboard_row = next(row for row in dashboard["trips"] if row["trip"]["tripInstanceId"] == trip_instance_id)
+    assert dashboard_row["bookedOffer"] is not None
+    assert "does not match any tracked route on this date yet" in dashboard_row["bookedOffer"]["warning"]

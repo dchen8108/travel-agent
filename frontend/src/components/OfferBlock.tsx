@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 
 import type { Offer } from "../types";
 import { AirlineMark } from "./AirlineMark";
-import { AddIcon, RefreshIcon, ViewIcon } from "./Icons";
+import { AddIcon, AlertIcon, RefreshIcon, ViewIcon } from "./Icons";
 import { IconButton } from "./IconButton";
 
 interface Props {
@@ -72,6 +72,7 @@ export function OfferBlock({
       <ViewIcon />
     </IconButton>
   ) : null);
+  const warning = offer.warning.trim();
 
   const offerMain = (
     <>
@@ -81,7 +82,20 @@ export function OfferBlock({
       <div className="offer-block__label-row">
         <span className="offer-block__label">{offer.label}</span>
       </div>
-      <strong className="offer-block__detail">{offer.detail}</strong>
+      <div className="offer-block__detail-row">
+        <strong className="offer-block__detail">{offer.detail}</strong>
+        {warning ? (
+          <span
+            className="offer-block__warning"
+            title={warning}
+            aria-label={warning}
+            role="img"
+            tabIndex={offer.href ? undefined : 0}
+          >
+            <AlertIcon />
+          </span>
+        ) : null}
+      </div>
       <div className="offer-block__price-column">
         {offer.priceIsStatus && offer.statusKind === "pending" ? (
           <span className="offer-block__status-icon"><RefreshIcon /></span>

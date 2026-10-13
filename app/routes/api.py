@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
+import logging
+import time
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
+from app.jobs.poll_gmail_bookings import run_gmail_booking_poll
 from app.money import parse_money
 from app.models.base import DataScope, FareClass, parse_fare_class
 from app.services.bookings import (
@@ -27,6 +31,7 @@ from app.services.frontend_api import (
     trip_editor_payload_for_new,
     tracker_panel_payload,
 )
+from app.services.gmail_config import load_gmail_integration_config
 from app.services.groups import delete_trip_group, save_trip_group
 from app.services.trip_instances import delete_generated_trip_instance
 from app.services.trip_instances import detach_generated_trip_instance
@@ -40,6 +45,7 @@ from app.storage.repository import Repository
 from app.web import get_repository
 
 router = APIRouter(prefix="/api", tags=["api"])
+logger = logging.getLogger(__name__)
 
 
 class CollectionBody(BaseModel):
@@ -161,6 +167,32 @@ def _dashboard_view_payload(
     )
 
 
+def _run_booking_refresh_background(
+    settings,
+    *,
+    max_passes: int = 3,
+    settle_seconds: float = 5.0,
+    sleep_func: Callable[[float], None] = time.sleep,
+) -> None:
+    for pass_index in range(max_passes):
+        try:
+            result = run_gmail_booking_poll(settings=settings)
+        except Exception:
+            logger.exception("Manual Gmail booking refresh failed in background.")
+            return
+        should_drain_again = (
+            result.retryable_error_count == 0
+            and (
+                result.selection_truncated
+                or result.state_changed
+                or result.selected_message_count > 0
+            )
+        )
+        if not should_drain_again or pass_index == max_passes - 1:
+            return
+        sleep_func(settle_seconds)
+
+
 @router.get("/dashboard")
 def dashboard_api(
     trip_group_id: list[str] | None = Query(default=None),
@@ -176,6 +208,48 @@ def dashboard_api(
         include_skipped=include_skipped,
         repository=repository,
     )
+
+
+@router.post("/bookings/refresh")
+def refresh_bookings_api(
+    background_tasks: BackgroundTasks,
+    trip_group_id: list[str] | None = Query(default=None),
+    include_booked: bool = True,
+    include_skipped: bool = False,
+    repository: Repository = Depends(get_repository),
+) -> dict[str, object]:
+    try:
+        config = load_gmail_integration_config(repository.settings)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    refresh_started = config.enabled
+    if refresh_started:
+        background_tasks.add_task(_run_booking_refresh_background, repository.settings)
+    snapshot = load_persisted_snapshot(repository)
+    return {
+        "dashboard": _dashboard_view_payload(
+            snapshot,
+            trip_group_ids=trip_group_id,
+            include_booked=include_booked,
+            include_skipped=include_skipped,
+            repository=repository,
+        ),
+        "summary": {
+            "started": refresh_started,
+            "disabled": not config.enabled,
+            "processedCount": 0,
+            "createdBookingCount": 0,
+            "createdUnlinkedCount": 0,
+            "ignoredCount": 0,
+            "duplicateCount": 0,
+            "errorCount": 0,
+            "selectedMessageCount": 0,
+            "newMessageCount": 0,
+            "retryMessageCount": 0,
+            "stateChanged": False,
+            "selectionTruncated": False,
+        },
+    }
 
 
 @router.get("/trips/new-form")
