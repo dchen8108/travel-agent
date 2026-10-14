@@ -39,11 +39,11 @@ jobs:
       - name: Compile Python
         run: uv run python -m compileall -q app tests scripts
 
-      - name: Run Python tests
-        run: uv run pytest -q
-
       - name: Build frontend
         run: npm --prefix frontend run build
+
+      - name: Run Python tests
+        run: uv run pytest -q
 
       - name: Install Chromium
         run: uv run playwright install --with-deps chromium

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.models.base import BookingStatus, DataScope, utcnow
 from app.services.bookings import BookingCandidate, record_booking
@@ -672,7 +672,7 @@ def test_tracker_panel_inlines_day_offset_into_fallback_window_times(client, rep
     trip_instance_id = repository.load_trip_instances()[0].trip_instance_id
     tracker = repository.load_trackers()[0]
     target = repository.load_tracker_fetch_targets()[0]
-    fetched_at = utcnow()
+    fetched_at = datetime.now(timezone.utc)
     target.latest_price = 109
     target.latest_airline = "Southwest"
     target.latest_departure_label = "4:00 PM on Thu, Apr 21"

@@ -16,6 +16,7 @@ from app.services.launchd import (
     build_booking_poller_launch_agent_plist,
     build_calendar_sync_launch_agent_plist,
     build_launch_agent_plist,
+    launch_agent_domain,
     launch_agent_target,
 )
 from app.services.runtime_secrets import ensure_local_secret_from_env
@@ -281,9 +282,10 @@ def test_install_launchd_booking_poller_writes_plist_and_persists_secret(tmp_pat
         "12",
     ]
     assert settings.config_local_dir.joinpath("openai_api_key.txt").read_text(encoding="utf-8").strip() == "sk-launchd-secret"
+    domain = launch_agent_domain()
     assert run_calls == [
-        ["launchctl", "bootout", "gui/501", str(plist_path)],
-        ["launchctl", "bootstrap", "gui/501", str(plist_path)],
+        ["launchctl", "bootout", domain, str(plist_path)],
+        ["launchctl", "bootstrap", domain, str(plist_path)],
         ["launchctl", "kickstart", "-k", launch_agent_target(BOOKING_POLLER_LAUNCH_AGENT_LABEL)],
     ]
     captured = capsys.readouterr()
@@ -336,9 +338,10 @@ def test_install_launchd_calendar_sync_writes_plist(tmp_path, monkeypatch, capsy
         "app.jobs.sync_booking_calendar",
     ]
     assert plist["StartInterval"] == 43200
+    domain = launch_agent_domain()
     assert run_calls == [
-        ["launchctl", "bootout", "gui/501", str(plist_path)],
-        ["launchctl", "bootstrap", "gui/501", str(plist_path)],
+        ["launchctl", "bootout", domain, str(plist_path)],
+        ["launchctl", "bootstrap", domain, str(plist_path)],
         ["launchctl", "kickstart", "-k", launch_agent_target(CALENDAR_SYNC_LAUNCH_AGENT_LABEL)],
     ]
     captured = capsys.readouterr()

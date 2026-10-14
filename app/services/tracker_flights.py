@@ -16,6 +16,11 @@ _LATEST_PRICE_RECORDS_CACHE_KEY = "latest_trip_flight_panel.price_records_by_tar
 _PRICE_RECORD_LOOKUP_CHUNK_SIZE = 200
 
 
+def _storage_datetime_key(value: datetime) -> str:
+    """Match Pydantic's JSON serialization used by the SQLite repositories."""
+    return value.isoformat().replace("+00:00", "Z")
+
+
 def _snapshot_cache(snapshot: object) -> dict[str, object]:
     cache = getattr(snapshot, "_query_cache", None)
     if cache is None:
@@ -31,7 +36,7 @@ def _latest_price_record_pairs(snapshot) -> list[tuple[str, str]]:
             tracker_target_display_state(target, snapshot.app_state) == "priced"
             and target.latest_fetched_at is not None
         ):
-            pairs.append((target.fetch_target_id, target.latest_fetched_at.isoformat()))
+            pairs.append((target.fetch_target_id, _storage_datetime_key(target.latest_fetched_at)))
     return list(dict.fromkeys(pairs))
 
 
@@ -51,7 +56,7 @@ def _latest_price_records_by_target_time(snapshot, repository) -> dict[tuple[str
     grouped: dict[tuple[str, str], list[object]] = defaultdict(list)
     for record in records:
         observed_at = record.observed_at
-        observed_at_key = observed_at.isoformat() if isinstance(observed_at, datetime) else str(observed_at)
+        observed_at_key = _storage_datetime_key(observed_at) if isinstance(observed_at, datetime) else str(observed_at)
         grouped[(record.fetch_target_id, observed_at_key)].append(record)
     cache[_LATEST_PRICE_RECORDS_CACHE_KEY] = dict(grouped)
     return cache[_LATEST_PRICE_RECORDS_CACHE_KEY]  # type: ignore[return-value]
@@ -77,7 +82,10 @@ def latest_trip_flight_panel(snapshot, repository, *, trip_instance_id: str) -> 
     price_records = [
         record
         for _tracker, target in priced_entries
-        for record in records_by_target_time.get((target.fetch_target_id, target.latest_fetched_at.isoformat()), [])
+        for record in records_by_target_time.get(
+            (target.fetch_target_id, _storage_datetime_key(target.latest_fetched_at)),
+            [],
+        )
     ]
     target_by_id = {
         target.fetch_target_id: (tracker, target)
